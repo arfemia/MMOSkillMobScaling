@@ -75,6 +75,17 @@ public final class MobScalingConfig {
         applyFold(defaults, owner);
     }
 
+    /**
+     * Re-apply the settings from the loaded asset STORE (the engine-folded jar + pack layer, keyed
+     * "Default") over the owner file. Called from the {@code LoadedAssetsEvent} listener AFTER
+     * {@code setup()}, so a content pack's {@code Server/MmoMobScaling/Settings/Default.json} override
+     * takes effect for the runtime-read fields. Uses the SAME codec + fold as {@link #load()}.
+     */
+    public void applyStoreLayer(@Nonnull MobScalingSettingsAsset storeDefaults) {
+        MobScalingSettingsAsset owner = decode(readOwnerFile());
+        applyFold(storeDefaults, owner);
+    }
+
     /** Owner value wins over default; a neutral fallback only if BOTH are absent (broken bundled jar). */
     private void applyFold(@Nullable MobScalingSettingsAsset d, @Nullable MobScalingSettingsAsset o) {
         this.enabled = pick(o == null ? null : o.getEnabled(), d == null ? null : d.getEnabled(), false);

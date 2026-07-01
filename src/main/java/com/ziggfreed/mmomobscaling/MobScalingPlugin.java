@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 
 /**
@@ -59,6 +60,10 @@ public class MobScalingPlugin extends JavaPlugin {
             safeWarn("Mob scaling disabled; no systems registered (zero per-tick cost).");
             return;
         }
+
+        // Register the settings asset store + its LoadedAssetsEvent fold (a real claimed asset,
+        // pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
+        MobScalingAssetRegistrar.registerAll(this);
 
         safeInfo("Mob scaling enabled; systems registered.");
         // Phase 5: getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());

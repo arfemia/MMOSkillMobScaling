@@ -14,8 +14,11 @@ Phase-1 skeleton for the open-world mob difficulty-scaling companion to MMO Skil
   codec (`MobScalingSettingsAsset`, Pattern A, PascalCase); the authoritative defaults ship as
   the codec asset `Server/MmoMobScaling/Settings/Default.json` (the SIMPLE preset), and owners
   override any key in `mods/MmoMobScaling/mob-scaling.json` (same PascalCase codec shape, partial
-  allowed). Both layers decode SYNCHRONOUSLY via `CODEC.decodeJson` at `setup()` so the gate can
-  read `Enabled` before the async asset store would populate. No config values are baked into Java.
+  allowed). The settings store is registered as a real claimed Hytale asset
+  (`Server/MmoMobScaling/Settings`, via ziggfreed-common's `AssetStoreRegistrar`) so a content pack
+  can override it, with two codec-driven read paths: SYNCHRONOUS `CODEC.decodeJson` at `setup()` (so
+  the gate reads `Enabled` before the async store populates) + an async `LoadedAssetsEvent` re-fold
+  for the pack layer. No config values are baked into Java.
 
 ### Technical
 

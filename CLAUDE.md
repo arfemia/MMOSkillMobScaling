@@ -59,12 +59,20 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
   key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).
 - **[`config/MobScalingConfig`](src/main/java/com/ziggfreed/mmomobscaling/config/MobScalingConfig.java)**
-  decodes BOTH layers SYNCHRONOUSLY via `MobScalingSettingsAsset.CODEC.decodeJson(...)` at plugin
-  `setup()` (the `WorldRulesConfig.decodeOwnerRule` pattern), folding owner-over-default, then
-  exposes typed getters. Synchronous decode (not an async `LoadedAssetsEvent` keyed-asset store) is
-  REQUIRED because the zero-cost registration gate reads `isEnabled()` at `setup()`, before an async
-  store would populate. A broken jar (missing bundled default) fails safe (disabled). There are NO
-  Java default values in `MobScalingConfig` (only a neutral fail-safe for the broken-jar case).
+  reads the settings through TWO codec-driven paths (the `WorldRulesConfig` dual mechanism), folding
+  owner-over-default, then exposes typed getters:
+  - **Synchronous** at `setup()` (`load()`): decode the jar `Default.json` + the owner file via
+    `CODEC.decodeJson(...)`. REQUIRED because the zero-cost registration gate reads `isEnabled()` at
+    `setup()`, before an async store would populate. A broken jar (missing bundled default) fails safe
+    (disabled). There are NO Java default VALUES here (only a neutral fail-safe for the broken jar).
+  - **Async** on `LoadedAssetsEvent` (`applyStoreLayer(...)`): the registered store's folded
+    (jar + pack) settings asset is re-applied over the owner file, so a content pack can override the
+    runtime-read settings. (The gate already fired; a change to `Enabled` needs a restart.)
+- **[`asset/MobScalingAssetRegistrar`](src/main/java/com/ziggfreed/mmomobscaling/asset/MobScalingAssetRegistrar.java)**
+  registers the settings store (`Server/MmoMobScaling/Settings`) via ziggfreed-common's
+  `AssetStoreRegistrar` + wires the `LoadedAssetsEvent` fold, so the settings are a REAL claimed
+  Hytale asset (pack-overridable), not just a bundled resource. Registered only in the plugin's
+  ENABLED branch (a disabled mod registers literally nothing).
 - Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT in
   this flat settings asset: their canonical home is the per-type keyed assets (`Rarities/*.json`,
   `Difficulty/*.json`) landing in a later phase.

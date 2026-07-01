@@ -4,13 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.mmomobscaling.MobScalingGate;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 
 /**
  * Unit tests for {@link MobScalingConfig} and the {@link MobScalingGate} registration gate.
@@ -75,5 +80,26 @@ class MobScalingConfigTest {
         assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "unset key falls back to codec default");
         assertEquals(3, cfg.getRegionSizeChunks(), "unset key falls back to codec default");
         assertFalse(MobScalingGate.shouldRegisterSystems(cfg), "disabled owner config should not register");
+    }
+
+    @Test
+    void applyStoreLayerFoldsTheDecodedAssetOverOwner() throws Exception {
+        // The async store layer in production is the engine-folded jar Default.json. Decode that
+        // same bundled codec asset and confirm applyStoreLayer yields the codec defaults (no owner).
+        MobScalingSettingsAsset store;
+        try (InputStream in = MobScalingConfigTest.class.getResourceAsStream(
+                "/Server/MmoMobScaling/Settings/Default.json")) {
+            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            store = MobScalingSettingsAsset.CODEC.decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
+        }
+
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(null); // no owner overlay
+        cfg.applyStoreLayer(store);
+
+        assertTrue(cfg.isEnabled(), "store-layer Enabled");
+        assertEquals("SIMPLE", cfg.getPresetMode(), "store-layer PresetMode");
+        assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "store-layer RaritySpawnChance");
+        assertEquals(3, cfg.getRegionSizeChunks(), "store-layer RegionSizeChunks");
     }
 }
