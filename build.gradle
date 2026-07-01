@@ -1,0 +1,90 @@
+plugins {
+    id 'java'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+    withSourcesJar()
+    withJavadocJar()
+}
+
+javadoc {
+    options.addStringOption('Xdoclint:-missing', '-quiet')
+}
+
+group = project.group
+version = project.version
+
+repositories {
+    mavenCentral()
+}
+
+// ============================================================================
+// VERSION STORY (intentional, do not "fix"):
+//   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar
+//   (currently 1.4.4), which ALREADY carries the frozen 1.5.0 API surface
+//   (getPowerLevel / aggregatePower / statRewardSum / getCombatLevel) the scaling
+//   systems will call. Its manifest, however, pins the RUNTIME requirement at
+//   "Ziggfreed:MMOSkillTree": ">=1.5.0" - the eventual hyMMO release that ships
+//   those API methods publicly. So: compile against the dev jar, require 1.5.0 at
+//   runtime. This is deliberate and lets the mob-scaling mod be built now against
+//   the in-progress API.
+// ============================================================================
+
+// Compile against the SAME jar the server runs (path in gradle.properties).
+def hytaleServerJar  = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
+// The shared primitive lib (sibling submodule), local jar until a remote gitlink exists.
+def ziggfreedCommonJar = new File("${rootDir}/../ziggfreed-common/build/libs/ZiggfreedCommon-${ziggfreedCommonVersion}.jar")
+// The hyMMO mod jar (the umbrella repo's build/libs), the dev jar with the frozen 1.5.0 API.
+def mmoSkillTreeJar    = new File("${rootDir}/../../build/libs/MMOSkillTree-${mmoSkillTreeVersion}.jar")
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    // Gradle 9 requires the JUnit Platform launcher on the test runtime classpath.
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // jsr305 for @Nonnull/@Nullable, like ziggfreed-common.
+    implementation 'com.google.code.findbugs:jsr305:3.0.2'
+
+    // All three provided jars are loaded by the server BEFORE this mod (manifest
+    // Dependencies), so we NEVER bundle any of them - bundling would double-load
+    // engine-touching classes under two classloaders and break class identity.
+    compileOnly(files(hytaleServerJar))
+    compileOnly(files(ziggfreedCommonJar))
+    compileOnly(files(mmoSkillTreeJar))
+
+    // AbstractOverrideConfig's inherited GSON field resolves at COMPILE time here.
+    // Do NOT bundle gson: the MMOSkillTree jar provides it at runtime (the inherited
+    // static GSON field lives in the MMO jar, loaded first).
+    compileOnly 'com.google.code.gson:gson:2.10.1'
+
+    // Tests compile + run the config against AbstractOverrideConfig, which needs the
+    // MMO jar (the base class), the common jar, the server jar, and gson on the TEST
+    // classpath. These are testImplementation (real, on the test classpath) not
+    // compileOnly.
+    testImplementation(files(hytaleServerJar))
+    testImplementation(files(ziggfreedCommonJar))
+    testImplementation(files(mmoSkillTreeJar))
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+processResources {
+    var expandProps = [
+            'name'           : project.name,
+            'version'        : project.version,
+            'group'          : project.group,
+            'mod_description': project.findProperty('mod_description') ?: '',
+            'website'        : project.findProperty('website') ?: '',
+            'entry_point'    : project.findProperty('entry_point') ?: ''
+    ]
+
+    filesMatching(['manifest.json']) {
+        expand expandProps
+    }
+    inputs.properties(expandProps)
+}
