@@ -5,11 +5,17 @@ import java.nio.file.Paths;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
+import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
+import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
 
 /**
  * Entry point for MMO Mob Scaling, a standalone open-world mob difficulty-scaling
@@ -31,9 +37,17 @@ public class MobScalingPlugin extends JavaPlugin {
 
     private static MobScalingPlugin instance;
 
+    /** The registered transient {@code ScaledMobComponent} type (set in {@link #setup()} when enabled). */
+    private ComponentType<EntityStore, ScaledMobComponent> scaledMobComponentType;
+
     @Nonnull
     public static MobScalingPlugin getInstance() {
         return instance;
+    }
+
+    /** The frozen scaled-mob component type; {@code null} until {@code setup()} registers it (mod enabled). */
+    public ComponentType<EntityStore, ScaledMobComponent> getScaledMobComponentType() {
+        return scaledMobComponentType;
     }
 
     public MobScalingPlugin(@Nonnull JavaPluginInit init) {
@@ -61,13 +75,21 @@ public class MobScalingPlugin extends JavaPlugin {
             return;
         }
 
-        // Register the settings asset store + its LoadedAssetsEvent fold (a real claimed asset,
-        // pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
+        // Register the frozen scaled-mob component FIRST (transient: re-derived per spawn from the stable
+        // seed, no codec) so the systems can resolve its ComponentType at construction.
+        scaledMobComponentType = getEntityStoreRegistry().registerComponent(
+                ScaledMobComponent.class, ScaledMobComponent::new);
+
+        // Register the settings + rarity/affix asset stores + their LoadedAssetsEvent folds (real claimed
+        // assets, pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
         MobScalingAssetRegistrar.registerAll(this);
 
+        // Phase 5 systems: the spawn-lock (HolderSystem) + effect apply (RefSystem) + damage filter.
+        getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());
+        getEntityStoreRegistry().registerSystem(new MobScalingEffectApplySystem());
+        getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
+
         safeInfo("Mob scaling enabled; systems registered.");
-        // Phase 5: getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());
-        //          ... the spawn hook / damage filter / death listener land in Phase 5.
     }
 
     @Override

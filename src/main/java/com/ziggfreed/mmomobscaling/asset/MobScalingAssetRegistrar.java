@@ -16,6 +16,7 @@ import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.roster.Rosters;
 
 /**
  * Registers this mod's OWN Pattern-A asset stores + their {@code LoadedAssetsEvent} listeners
@@ -128,6 +129,7 @@ public final class MobScalingAssetRegistrar {
             }
         }
         RarityConfig.getInstance().mergePackLayer(layer);
+        Rosters.rebuild();
         logApplied("rarities", layer.size());
     }
 
@@ -142,6 +144,7 @@ public final class MobScalingAssetRegistrar {
             }
         }
         AffixConfig.getInstance().mergePackLayer(layer);
+        Rosters.rebuild();
         logApplied("affixes", layer.size());
     }
 
