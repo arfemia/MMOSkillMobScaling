@@ -1,60 +1,55 @@
 package com.ziggfreed.mmomobscaling.config;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.mmoskilltree.config.AbstractOverrideConfig;
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 
 /**
- * Override-based configuration for the open-world mob-scaling system.
+ * The open-world mob-scaling configuration, driven ENTIRELY by an asset codec
+ * ({@link MobScalingSettingsAsset}, Pattern A, PascalCase) - never Java-baked values, never a loose
+ * JSON blob. The authoritative defaults ship as a codec asset
+ * ({@code Server/MmoMobScaling/Settings/Default.json}); owners override any key in
+ * {@code mods/MmoMobScaling/mob-scaling.json} (the SAME PascalCase codec shape, partial allowed).
  *
- * <p>Config file: mods/MmoMobScaling/mob-scaling.json
+ * <p>Both layers are decoded SYNCHRONOUSLY via {@code MobScalingSettingsAsset.CODEC.decodeJson(...)}
+ * at plugin {@code setup()} (the {@code WorldRulesConfig.decodeOwnerRule} pattern), so the zero-cost
+ * registration gate can read {@link #isEnabled()} before a {@code LoadedAssetsEvent} async asset
+ * store would populate. The effective value of each field is owner-over-default, computed here.
  *
- * <p>Only stores user customizations (overrides); code defaults are supplied by
- * {@link #loadDefaults()} and merged at load time. This mirrors the MMO Skill Tree's
- * {@code EliteMobsConfig} pattern (nullable-wrapper {@code OverrideData} + the
- * {schemaVersion, overrides} ConfigData JSON shape) and extends the same
- * {@link AbstractOverrideConfig} base (provided by the MMOSkillTree jar at runtime).
- *
- * <p>The v1.0.0 field set is the SIMPLE preset's starter numbers; the build systems
- * that consume these land in a later phase.
+ * <p><b>Convention (do NOT regress):</b> config data is defined by an asset codec, PascalCase, under
+ * {@code Server/}; there are no Java default VALUES in this class (only a neutral fail-safe used when
+ * a broken jar is missing its bundled default asset).
  */
-public class MobScalingConfig extends AbstractOverrideConfig {
+public final class MobScalingConfig {
 
-    public static final int SCHEMA_VERSION = 1;
+    /** Jar-bundled authoritative defaults, decoded via the codec (classpath resource). */
+    private static final String DEFAULTS_RESOURCE = "/Server/MmoMobScaling/Settings/Default.json";
 
     private static MobScalingConfig instance;
 
-    // ==================== Effective state (defaults + overrides) ====================
+    @Nullable private Path configPath;
 
+    // Effective (owner-over-default) settings. Initialized to a neutral fail-safe; overwritten by load().
     private boolean enabled;
-    private String presetMode;
-    private String intensity;
+    private boolean compositionEnabled;
+    @Nonnull private String presetMode = "";
+    @Nonnull private String intensity = "";
     private double raritySpawnChance;
-    private Map<String, Integer> rarityWeights = new LinkedHashMap<>();
-    private Map<String, Double> zoneOverrides = new LinkedHashMap<>();
     private boolean allowDifficultyIncreaseOnPartyJoin;
     private double lateArrivalBumpFactor;
-    private String openWorldAggregationMode;
-    private boolean compositionEnabled;
+    @Nonnull private String openWorldAggregationMode = "";
     private int regionSizeChunks;
 
-    // ==================== User overrides (what gets persisted) ====================
-
-    private final OverrideData userOverrides = new OverrideData();
-
-    // ==================== Singleton ====================
-
-    private MobScalingConfig() {}
+    private MobScalingConfig() {
+    }
 
     @Nonnull
     public static MobScalingConfig getInstance() {
@@ -64,260 +59,124 @@ public class MobScalingConfig extends AbstractOverrideConfig {
         return instance;
     }
 
-    // ==================== AbstractOverrideConfig ====================
-
-    @Override
-    protected String configName() { return "mob-scaling"; }
-
-    @Override
-    protected int schemaVersion() { return SCHEMA_VERSION; }
-
-    /**
-     * The jar-bundled default values live in a {@code Server/} JSON asset, NOT baked into Java
-     * (the repo paradigm: content/config defaults ship as {@code Server/*} JSON, not Java
-     * {@code *Defaults}). This is read SYNCHRONOUSLY at load time (a plain classpath resource read,
-     * not a Hytale keyed asset) precisely because the zero-cost registration gate reads
-     * {@code enabled} at plugin {@code setup()}, which runs BEFORE {@code LoadedAssetsEvent} would
-     * populate a keyed-asset store. Owners override any value via the override file.
-     */
-    private static final String DEFAULTS_RESOURCE = "/Server/MmoMobScaling/mob-scaling.defaults.json";
-
-    @Override
-    protected void loadDefaults() {
-        Defaults d = loadBundledDefaults();
-        if (d == null) {
-            // Bundled defaults missing / unreadable (a broken jar): fail SAFE (disabled + neutral),
-            // never silently run with wrong values. The real defaults live only in the JSON.
-            applySafeDisabledState();
-            return;
-        }
-        this.enabled = Boolean.TRUE.equals(d.enabled);
-        this.presetMode = d.presetMode != null ? d.presetMode : "";
-        this.intensity = d.intensity != null ? d.intensity : "";
-        this.raritySpawnChance = d.raritySpawnChance != null ? d.raritySpawnChance : 0.0;
-        this.rarityWeights = d.rarityWeights != null ? new LinkedHashMap<>(d.rarityWeights) : new LinkedHashMap<>();
-        this.zoneOverrides = d.zoneOverrides != null ? new LinkedHashMap<>(d.zoneOverrides) : new LinkedHashMap<>();
-        this.allowDifficultyIncreaseOnPartyJoin = Boolean.TRUE.equals(d.allowDifficultyIncreaseOnPartyJoin);
-        this.lateArrivalBumpFactor = d.lateArrivalBumpFactor != null ? d.lateArrivalBumpFactor : 0.0;
-        this.openWorldAggregationMode = d.openWorldAggregationMode != null ? d.openWorldAggregationMode : "";
-        this.compositionEnabled = Boolean.TRUE.equals(d.compositionEnabled);
-        this.regionSizeChunks = d.regionSizeChunks != null ? d.regionSizeChunks : 0;
+    /** Owner override file (typically {@code mods/MmoMobScaling/mob-scaling.json}); {@code null} = defaults only. */
+    public void setConfigPath(@Nullable Path configPath) {
+        this.configPath = configPath;
     }
 
     /**
-     * Read the jar-bundled default values from {@link #DEFAULTS_RESOURCE} on the classpath.
-     * Returns {@code null} (never throws) when the resource is absent or unparseable so the caller
-     * can fail safe.
+     * Load the effective settings: decode the jar Default.json (authoritative defaults) then overlay
+     * the owner file (if present). Both via the codec. Fully guarded: a missing/unreadable bundled
+     * default fails SAFE (disabled).
      */
+    public void load() {
+        MobScalingSettingsAsset defaults = decode(readResource(DEFAULTS_RESOURCE));
+        MobScalingSettingsAsset owner = decode(readOwnerFile());
+        applyFold(defaults, owner);
+    }
+
+    /** Owner value wins over default; a neutral fallback only if BOTH are absent (broken bundled jar). */
+    private void applyFold(@Nullable MobScalingSettingsAsset d, @Nullable MobScalingSettingsAsset o) {
+        this.enabled = pick(o == null ? null : o.getEnabled(), d == null ? null : d.getEnabled(), false);
+        this.compositionEnabled = pick(o == null ? null : o.getCompositionEnabled(),
+                d == null ? null : d.getCompositionEnabled(), false);
+        this.presetMode = pick(o == null ? null : o.getPresetMode(), d == null ? null : d.getPresetMode(), "");
+        this.intensity = pick(o == null ? null : o.getIntensity(), d == null ? null : d.getIntensity(), "");
+        this.raritySpawnChance = pick(o == null ? null : o.getRaritySpawnChance(),
+                d == null ? null : d.getRaritySpawnChance(), 0.0);
+        this.allowDifficultyIncreaseOnPartyJoin = pick(o == null ? null : o.getAllowDifficultyIncreaseOnPartyJoin(),
+                d == null ? null : d.getAllowDifficultyIncreaseOnPartyJoin(), false);
+        this.lateArrivalBumpFactor = pick(o == null ? null : o.getLateArrivalBumpFactor(),
+                d == null ? null : d.getLateArrivalBumpFactor(), 0.0);
+        this.openWorldAggregationMode = pick(o == null ? null : o.getOpenWorldAggregationMode(),
+                d == null ? null : d.getOpenWorldAggregationMode(), "");
+        this.regionSizeChunks = pick(o == null ? null : o.getRegionSizeChunks(),
+                d == null ? null : d.getRegionSizeChunks(), 0);
+    }
+
+    // ---------------------------------------------------------------------
+    // Codec decode (synchronous)
+    // ---------------------------------------------------------------------
+
+    /** Decode a settings body via the codec; {@code null} for a null/blank body or any decode error. */
     @Nullable
-    private Defaults loadBundledDefaults() {
-        try (InputStream in = MobScalingConfig.class.getResourceAsStream(DEFAULTS_RESOURCE)) {
-            if (in == null) {
-                return null;
-            }
-            try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-                return GSON.fromJson(reader, Defaults.class);
-            }
+    private static MobScalingSettingsAsset decode(@Nullable String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            return MobScalingSettingsAsset.CODEC.decodeJson(RawJsonReader.fromJsonString(body), new ExtraInfo());
         } catch (Exception e) {
             return null;
         }
     }
 
-    /** Neutral fail-safe state when the bundled defaults cannot be read (broken jar): disabled. */
-    private void applySafeDisabledState() {
-        this.enabled = false;
-        this.presetMode = "";
-        this.intensity = "";
-        this.raritySpawnChance = 0.0;
-        this.rarityWeights = new LinkedHashMap<>();
-        this.zoneOverrides = new LinkedHashMap<>();
-        this.allowDifficultyIncreaseOnPartyJoin = false;
-        this.lateArrivalBumpFactor = 0.0;
-        this.openWorldAggregationMode = "";
-        this.compositionEnabled = false;
-        this.regionSizeChunks = 0;
-    }
-
-    @Override
-    protected void clearAll() {
-        this.rarityWeights = new LinkedHashMap<>();
-        this.zoneOverrides = new LinkedHashMap<>();
-        this.userOverrides.clear();
-    }
-
-    @Override
-    protected void readOverrides(@Nonnull Reader reader) throws Exception {
-        ConfigData data = GSON.fromJson(reader, ConfigData.class);
-        if (data == null || data.overrides == null) {
-            return;
-        }
-        OverrideData ov = data.overrides;
-
-        if (ov.enabled != null) {
-            this.enabled = ov.enabled;
-            userOverrides.enabled = ov.enabled;
-        }
-        if (ov.presetMode != null) {
-            this.presetMode = ov.presetMode;
-            userOverrides.presetMode = ov.presetMode;
-        }
-        if (ov.intensity != null) {
-            this.intensity = ov.intensity;
-            userOverrides.intensity = ov.intensity;
-        }
-        if (ov.raritySpawnChance != null) {
-            this.raritySpawnChance = ov.raritySpawnChance;
-            userOverrides.raritySpawnChance = ov.raritySpawnChance;
-        }
-        if (ov.rarityWeights != null) {
-            this.rarityWeights = new LinkedHashMap<>(ov.rarityWeights);
-            userOverrides.rarityWeights = ov.rarityWeights;
-        }
-        if (ov.zoneOverrides != null) {
-            this.zoneOverrides = new LinkedHashMap<>(ov.zoneOverrides);
-            userOverrides.zoneOverrides = ov.zoneOverrides;
-        }
-        if (ov.allowDifficultyIncreaseOnPartyJoin != null) {
-            this.allowDifficultyIncreaseOnPartyJoin = ov.allowDifficultyIncreaseOnPartyJoin;
-            userOverrides.allowDifficultyIncreaseOnPartyJoin = ov.allowDifficultyIncreaseOnPartyJoin;
-        }
-        if (ov.lateArrivalBumpFactor != null) {
-            this.lateArrivalBumpFactor = ov.lateArrivalBumpFactor;
-            userOverrides.lateArrivalBumpFactor = ov.lateArrivalBumpFactor;
-        }
-        if (ov.openWorldAggregationMode != null) {
-            this.openWorldAggregationMode = ov.openWorldAggregationMode;
-            userOverrides.openWorldAggregationMode = ov.openWorldAggregationMode;
-        }
-        if (ov.compositionEnabled != null) {
-            this.compositionEnabled = ov.compositionEnabled;
-            userOverrides.compositionEnabled = ov.compositionEnabled;
-        }
-        if (ov.regionSizeChunks != null) {
-            this.regionSizeChunks = ov.regionSizeChunks;
-            userOverrides.regionSizeChunks = ov.regionSizeChunks;
+    /** Read the jar-bundled default asset off the classpath; {@code null} on any error (broken jar). */
+    @Nullable
+    private static String readResource(@Nonnull String resource) {
+        try (InputStream in = MobScalingConfig.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                return null;
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return null;
         }
     }
 
-    @Override
-    protected int getOverrideCount() {
-        return userOverrides.countNonNull();
+    /** Read the owner override file if a path is set and it exists; {@code null} otherwise. */
+    @Nullable
+    private String readOwnerFile() {
+        Path path = this.configPath;
+        if (path == null) {
+            return null;
+        }
+        try {
+            if (!Files.exists(path)) {
+                return null;
+            }
+            return Files.readString(path, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
-    @Override
-    protected void writeConfigData(@Nonnull Writer writer) throws IOException {
-        ConfigData data = new ConfigData();
-        data.schemaVersion = SCHEMA_VERSION;
-        data.overrides = userOverrides.isEmpty() ? null : userOverrides;
-        GSON.toJson(data, writer);
+    private static boolean pick(@Nullable Boolean owner, @Nullable Boolean def, boolean fallback) {
+        if (owner != null) return owner;
+        if (def != null) return def;
+        return fallback;
     }
 
-    @Override
-    protected boolean supportsReferenceFile() { return false; }
+    private static double pick(@Nullable Double owner, @Nullable Double def, double fallback) {
+        if (owner != null) return owner;
+        if (def != null) return def;
+        return fallback;
+    }
 
-    // ==================== Getters ====================
+    private static int pick(@Nullable Integer owner, @Nullable Integer def, int fallback) {
+        if (owner != null) return owner;
+        if (def != null) return def;
+        return fallback;
+    }
+
+    @Nonnull
+    private static String pick(@Nullable String owner, @Nullable String def, @Nonnull String fallback) {
+        if (owner != null) return owner;
+        if (def != null) return def;
+        return fallback;
+    }
+
+    // ---------------------------------------------------------------------
+    // Getters
+    // ---------------------------------------------------------------------
 
     public boolean isEnabled() { return enabled; }
     public boolean isCompositionEnabled() { return compositionEnabled; }
-
-    @Nonnull
-    public String getPresetMode() { return presetMode; }
-
-    @Nonnull
-    public String getIntensity() { return intensity; }
-
+    @Nonnull public String getPresetMode() { return presetMode; }
+    @Nonnull public String getIntensity() { return intensity; }
     public double getRaritySpawnChance() { return raritySpawnChance; }
-
-    @Nonnull
-    public Map<String, Integer> getRarityWeights() { return rarityWeights; }
-
-    @Nonnull
-    public Map<String, Double> getZoneOverrides() { return zoneOverrides; }
-
     public boolean isAllowDifficultyIncreaseOnPartyJoin() { return allowDifficultyIncreaseOnPartyJoin; }
-
     public double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
-
-    @Nonnull
-    public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
-
+    @Nonnull public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
     public int getRegionSizeChunks() { return regionSizeChunks; }
-
-    // ==================== Internal Data Classes ====================
-
-    /**
-     * Nullable override fields. A null field means "use the default"; only non-null
-     * fields are persisted and re-applied on load.
-     */
-    private static class OverrideData {
-        Boolean enabled;
-        String presetMode;
-        String intensity;
-        Double raritySpawnChance;
-        Map<String, Integer> rarityWeights;
-        Map<String, Double> zoneOverrides;
-        Boolean allowDifficultyIncreaseOnPartyJoin;
-        Double lateArrivalBumpFactor;
-        String openWorldAggregationMode;
-        Boolean compositionEnabled;
-        Integer regionSizeChunks;
-
-        void clear() {
-            enabled = null;
-            presetMode = null;
-            intensity = null;
-            raritySpawnChance = null;
-            rarityWeights = null;
-            zoneOverrides = null;
-            allowDifficultyIncreaseOnPartyJoin = null;
-            lateArrivalBumpFactor = null;
-            openWorldAggregationMode = null;
-            compositionEnabled = null;
-            regionSizeChunks = null;
-        }
-
-        boolean isEmpty() {
-            return countNonNull() == 0;
-        }
-
-        int countNonNull() {
-            int count = 0;
-            if (enabled != null) count++;
-            if (presetMode != null) count++;
-            if (intensity != null) count++;
-            if (raritySpawnChance != null) count++;
-            if (rarityWeights != null) count++;
-            if (zoneOverrides != null) count++;
-            if (allowDifficultyIncreaseOnPartyJoin != null) count++;
-            if (lateArrivalBumpFactor != null) count++;
-            if (openWorldAggregationMode != null) count++;
-            if (compositionEnabled != null) count++;
-            if (regionSizeChunks != null) count++;
-            return count;
-        }
-    }
-
-    private static class ConfigData {
-        int schemaVersion;
-        @Nullable OverrideData overrides;
-    }
-
-    /**
-     * GSON target for the flat jar-bundled defaults JSON ({@link #DEFAULTS_RESOURCE}). Wrapper types
-     * so a missing key reads as {@code null} (the loader coalesces to a neutral value). The JSON's
-     * {@code _comment} key has no field here and is ignored by GSON.
-     */
-    private static class Defaults {
-        Boolean enabled;
-        String presetMode;
-        String intensity;
-        Double raritySpawnChance;
-        Map<String, Integer> rarityWeights;
-        Map<String, Double> zoneOverrides;
-        Boolean allowDifficultyIncreaseOnPartyJoin;
-        Double lateArrivalBumpFactor;
-        String openWorldAggregationMode;
-        Boolean compositionEnabled;
-        Integer regionSizeChunks;
-    }
 }

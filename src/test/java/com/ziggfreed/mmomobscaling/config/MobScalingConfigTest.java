@@ -14,104 +14,66 @@ import com.ziggfreed.mmomobscaling.MobScalingGate;
 
 /**
  * Unit tests for {@link MobScalingConfig} and the {@link MobScalingGate} registration gate.
- * These run in a log-manager-less unit JVM; the MMO's SafeLog (reached through the inherited
- * {@link com.ziggfreed.mmoskilltree.config.AbstractOverrideConfig} scaffolding) is
- * try-guarded and degrades to a no-op there, so full load()/save() file IO is safe.
+ *
+ * <p>The config is driven entirely by the {@link com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset}
+ * codec: defaults decode from the jar-bundled {@code Server/MmoMobScaling/Settings/Default.json}
+ * (on the test classpath via main resources), and a partial owner file overlays it. There are no
+ * Java-baked config values to assert against - these tests verify the CODEC-decoded defaults + the
+ * owner-over-default fold + the gate.
  *
  * <p>The gate is exercised through {@link MobScalingGate} rather than
- * {@code MobScalingPlugin.shouldRegisterSystems}: loading the {@code JavaPlugin}-extending
- * plugin class in a unit JVM fails (its {@code PluginBase} -> {@code MetricsRegistry}
- * static-init chain throws without a running server). {@code MobScalingPlugin} delegates to
- * this same predicate, so testing it here fully covers the gate decision.
+ * {@code MobScalingPlugin.shouldRegisterSystems}: loading the {@code JavaPlugin}-extending plugin
+ * class in a unit JVM fails (its {@code PluginBase} -> {@code MetricsRegistry} static-init chain
+ * throws without a running server). {@code MobScalingPlugin} delegates to this same predicate.
  */
 class MobScalingConfigTest {
 
-    /** Fresh singleton state each test: reload the defaults before asserting. */
+    /** Fresh singleton loaded from the jar defaults only (no owner file). */
     private static MobScalingConfig freshDefaults() {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         cfg.setConfigPath(null);
-        cfg.load(); // clearAll() + loadDefaults(); no file at a null path, so defaults only
+        cfg.load();
         return cfg;
     }
 
     @Test
-    void defaultsAreCorrect() {
+    void defaultsDecodeFromTheCodecAsset() {
         MobScalingConfig cfg = freshDefaults();
 
-        assertTrue(cfg.isEnabled(), "enabled default");
-        assertEquals("SIMPLE", cfg.getPresetMode(), "presetMode default");
-        assertEquals("medium", cfg.getIntensity(), "intensity default");
-        assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "raritySpawnChance default");
-        assertFalse(cfg.isCompositionEnabled(), "compositionEnabled default");
-        assertTrue(cfg.isAllowDifficultyIncreaseOnPartyJoin(), "allowDifficultyIncreaseOnPartyJoin default");
-        assertEquals(5.0, cfg.getLateArrivalBumpFactor(), 1e-9, "lateArrivalBumpFactor default");
-        assertEquals(3, cfg.getRegionSizeChunks(), "regionSizeChunks default");
-        assertEquals("AVERAGE", cfg.getOpenWorldAggregationMode(), "openWorldAggregationMode default");
-
-        assertEquals(Integer.valueOf(70), cfg.getRarityWeights().get("rare"), "rarityWeights rare");
-        assertEquals(Integer.valueOf(25), cfg.getRarityWeights().get("epic"), "rarityWeights epic");
-        assertEquals(Integer.valueOf(5), cfg.getRarityWeights().get("legendary"), "rarityWeights legendary");
-        assertEquals(Double.valueOf(25.0), cfg.getZoneOverrides().get("Zone2"), "zoneOverrides Zone2");
-        assertEquals(Double.valueOf(55.0), cfg.getZoneOverrides().get("Zone4"), "zoneOverrides Zone4");
+        assertTrue(cfg.isEnabled(), "Enabled default");
+        assertFalse(cfg.isCompositionEnabled(), "CompositionEnabled default");
+        assertEquals("SIMPLE", cfg.getPresetMode(), "PresetMode default");
+        assertEquals("medium", cfg.getIntensity(), "Intensity default");
+        assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "RaritySpawnChance default");
+        assertTrue(cfg.isAllowDifficultyIncreaseOnPartyJoin(), "AllowDifficultyIncreaseOnPartyJoin default");
+        assertEquals(5.0, cfg.getLateArrivalBumpFactor(), 1e-9, "LateArrivalBumpFactor default");
+        assertEquals("AVERAGE", cfg.getOpenWorldAggregationMode(), "OpenWorldAggregationMode default");
+        assertEquals(3, cfg.getRegionSizeChunks(), "RegionSizeChunks default");
     }
 
     @Test
     void gateReflectsEnabledFlag() {
-        // enabled default -> gate true
         MobScalingConfig cfg = freshDefaults();
         assertTrue(MobScalingGate.shouldRegisterSystems(cfg), "enabled config should register");
-
-        // null config -> gate false (defensive)
         assertFalse(MobScalingGate.shouldRegisterSystems(null), "null config should not register");
     }
 
     @Test
-    void gateFalseWhenDisabled(@TempDir Path tmp) throws Exception {
-        // Persist a disabled override, then reload from disk and confirm the gate is false.
-        MobScalingConfig cfg = freshDefaults();
-        assertTrue(cfg.isEnabled(), "precondition: default enabled");
-
+    void ownerFileOverlaysOnlyItsKeys(@TempDir Path tmp) throws Exception {
         Path configFile = tmp.resolve("mob-scaling.json");
-        writeDisabledOverride(configFile);
+        // A PARTIAL owner file (PascalCase codec shape): flips Enabled, leaves everything else default.
+        Files.writeString(configFile, "{\n  \"Enabled\": false,\n  \"Intensity\": \"brutal\"\n}\n");
 
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
         cfg.setConfigPath(configFile);
         cfg.load();
 
-        assertFalse(cfg.isEnabled(), "disabled override should read back as disabled");
-        assertFalse(MobScalingGate.shouldRegisterSystems(cfg), "disabled config should not register");
-    }
-
-    @Test
-    void overrideRoundTripPreservesValue(@TempDir Path tmp) throws Exception {
-        Path configFile = tmp.resolve("mob-scaling.json");
-
-        // Start from defaults, write a disabled override manually, load it back.
-        MobScalingConfig cfg = freshDefaults();
-        writeDisabledOverride(configFile);
-
-        cfg.setConfigPath(configFile);
-        cfg.load();
-        assertFalse(cfg.isEnabled(), "override read back after load");
-
-        // Now re-save (writeConfigData persists the single non-null override) and reload.
-        cfg.save();
-        assertTrue(Files.exists(configFile), "config file written by save()");
-
-        // A fresh load from the same file must still be disabled -> the round-trip preserved it.
-        cfg.load();
-        assertFalse(cfg.isEnabled(), "override survived a save->load round-trip");
-        // getOverrideCount() is protected in MobScalingConfig; this test lives in the same
-        // package (com.ziggfreed.mmomobscaling.config), so it is directly accessible.
-        assertEquals(1, cfg.getOverrideCount(), "exactly one override persisted");
-    }
-
-    /** Writes a minimal {schemaVersion, overrides:{enabled:false}} config JSON. */
-    private static void writeDisabledOverride(Path configFile) throws Exception {
-        Files.createDirectories(configFile.getParent());
-        String json = "{\n"
-                + "  \"schemaVersion\": " + MobScalingConfig.SCHEMA_VERSION + ",\n"
-                + "  \"overrides\": { \"enabled\": false }\n"
-                + "}\n";
-        Files.writeString(configFile, json);
+        assertFalse(cfg.isEnabled(), "owner Enabled override applied");
+        assertEquals("brutal", cfg.getIntensity(), "owner Intensity override applied");
+        // Unset owner keys fall back to the codec default, NOT a neutral zero.
+        assertEquals("SIMPLE", cfg.getPresetMode(), "unset key falls back to codec default");
+        assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "unset key falls back to codec default");
+        assertEquals(3, cfg.getRegionSizeChunks(), "unset key falls back to codec default");
+        assertFalse(MobScalingGate.shouldRegisterSystems(cfg), "disabled owner config should not register");
     }
 }

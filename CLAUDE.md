@@ -36,34 +36,48 @@ breaks class identity):
   `statRewardSum` / `getCombatLevel`). **Version story (intentional):** compile against the
   dev jar, require 1.5.0 at runtime. See the comment block in `build.gradle`.
 
-gson is `compileOnly` only (the MMOSkillTree jar's inherited `AbstractOverrideConfig.GSON`
-provides it at runtime); jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations
-must resolve).
+jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
+config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.
+
+## Paradigm - CONFIG IS AN ASSET CODEC (never Java-baked, never a loose JSON blob)
+
+**HARD RULE (do NOT ever regress):** every config in this mod is defined by a Hytale asset codec
+(Pattern A, `AssetBuilderCodec`, **PascalCase** keys), authored as a proper `Server/*` codec asset.
+NEVER put config default VALUES in Java (`loadDefaults()` with hardcoded values is forbidden), and
+NEVER drop a loose / camelCase Gson blob into `Server/` (that namespace is for codec assets only).
+This mirrors the MMO's `WorldRulesAsset`/`WorldRulesConfig`. If you are tempted to hardcode a default
+or hand-roll a JSON parser, STOP and add a codec field instead.
+
+- **[`asset/MobScalingSettingsAsset`](src/main/java/com/ziggfreed/mmomobscaling/asset/MobScalingSettingsAsset.java)**
+  is the ONE schema authority: an `AssetBuilderCodec` with PascalCase keys (`Enabled`,
+  `CompositionEnabled`, `PresetMode`, `Intensity`, `RaritySpawnChance`,
+  `AllowDifficultyIncreaseOnPartyJoin`, `LateArrivalBumpFactor`, `OpenWorldAggregationMode`,
+  `RegionSizeChunks`). Fields are NULLABLE wrappers so an absent key stays `null` (the codec's
+  `decodeJson` only calls a setter for a key present in the JSON), which is what makes the partial
+  owner overlay work.
+- The **authoritative defaults** ship as the codec asset
+  `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
+  key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).
+- **[`config/MobScalingConfig`](src/main/java/com/ziggfreed/mmomobscaling/config/MobScalingConfig.java)**
+  decodes BOTH layers SYNCHRONOUSLY via `MobScalingSettingsAsset.CODEC.decodeJson(...)` at plugin
+  `setup()` (the `WorldRulesConfig.decodeOwnerRule` pattern), folding owner-over-default, then
+  exposes typed getters. Synchronous decode (not an async `LoadedAssetsEvent` keyed-asset store) is
+  REQUIRED because the zero-cost registration gate reads `isEnabled()` at `setup()`, before an async
+  store would populate. A broken jar (missing bundled default) fails safe (disabled). There are NO
+  Java default values in `MobScalingConfig` (only a neutral fail-safe for the broken-jar case).
+- Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT in
+  this flat settings asset: their canonical home is the per-type keyed assets (`Rarities/*.json`,
+  `Difficulty/*.json`) landing in a later phase.
 
 ## Paradigm - the zero-cost registration gate
 
-The plugin's `setup()` loads `MobScalingConfig` then applies the gate:
+The plugin's `setup()` loads `MobScalingConfig` (codec decode, above) then applies the gate:
 `MobScalingPlugin.shouldRegisterSystems(cfg)`, which delegates to the pure predicate in
-`MobScalingGate` (kept OFF the `JavaPlugin`-extending plugin class so it is loadable in a
-unit-test JVM - loading `MobScalingPlugin` there fails via the `PluginBase` ->
-`MetricsRegistry` static-init chain). When the config is disabled the plugin registers
-NOTHING and returns, so the mod carries no per-tick cost at all. The scaling systems
-register only inside the enabled branch (the `// Phase 5:` TODO).
-
-`MobScalingConfig` extends the MMO's `AbstractOverrideConfig` (override-based:
-`mods/MmoMobScaling/mob-scaling.json` stores only customizations; `SCHEMA_VERSION` bumps on
-structural change), mirroring `EliteMobsConfig` (nullable-wrapper `OverrideData` +
-`{schemaVersion, overrides}` ConfigData shape).
-
-**Defaults live in a `/Server` JSON asset, NOT baked into Java** (the repo paradigm: content
-/ config defaults ship as `Server/*` JSON, never Java `*Defaults`). The authoritative default
-values are `src/main/resources/Server/MmoMobScaling/mob-scaling.defaults.json`; `loadDefaults()`
-only orchestrates reading them. It is read SYNCHRONOUSLY as a classpath resource (NOT a Hytale
-keyed asset via `LoadedAssetsEvent`) on purpose: the zero-cost registration gate reads `enabled`
-at plugin `setup()`, which runs BEFORE a keyed-asset store would populate, so a keyed asset could
-not gate registration. A broken jar (missing bundled JSON) fails safe (disabled). Later content
-collections (rarities / affixes / difficulty mappings), read at spawn time not setup, DO ship as
-proper keyed assets under `Server/MmoMobScaling/<Type>/`.
+`MobScalingGate` (kept OFF the `JavaPlugin`-extending plugin class so it is loadable in a unit-test
+JVM - loading `MobScalingPlugin` there fails via the `PluginBase` -> `MetricsRegistry` static-init
+chain). When the config is disabled the plugin registers NOTHING and returns, so the mod carries no
+per-tick cost at all. The scaling systems register only inside the enabled branch (the `// Phase 5:`
+TODO).
 
 ## Conventions
 

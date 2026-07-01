@@ -54,19 +54,15 @@ dependencies {
     compileOnly(files(ziggfreedCommonJar))
     compileOnly(files(mmoSkillTreeJar))
 
-    // AbstractOverrideConfig's inherited GSON field resolves at COMPILE time here.
-    // Do NOT bundle gson: the MMOSkillTree jar provides it at runtime (the inherited
-    // static GSON field lives in the MMO jar, loaded first).
-    compileOnly 'com.google.code.gson:gson:2.10.1'
+    // Config is driven by a Hytale asset codec (MobScalingSettingsAsset, decoded via
+    // CODEC.decodeJson from the HytaleServer codec classes) - no gson needed.
 
-    // Tests compile + run the config against AbstractOverrideConfig, which needs the
-    // MMO jar (the base class), the common jar, the server jar, and gson on the TEST
-    // classpath. These are testImplementation (real, on the test classpath) not
-    // compileOnly.
+    // Tests compile + run the codec-driven config, which needs the server jar (codec +
+    // RawJsonReader classes) on the TEST classpath, plus the common + MMO jars for the
+    // rest of the mod. These are testImplementation (real, on the test classpath).
     testImplementation(files(hytaleServerJar))
     testImplementation(files(ziggfreedCommonJar))
     testImplementation(files(mmoSkillTreeJar))
-    testImplementation 'com.google.code.gson:gson:2.10.1'
 }
 
 test {

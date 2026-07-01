@@ -1,0 +1,12 @@
+{
+  "$Comment": "Authoritative DEFAULT mob-scaling settings (the SIMPLE preset), decoded via MobScalingSettingsAsset.CODEC (Pattern A, PascalCase). This is the schema-authority default, read synchronously at plugin setup() so the zero-cost registration gate can see Enabled. Owners override any key in mods/MmoMobScaling/mob-scaling.json (same PascalCase codec shape, partial allowed). Do NOT reintroduce Java-baked config defaults or loose camelCase JSON.",
+  "Enabled": true,
+  "CompositionEnabled": false,
+  "PresetMode": "SIMPLE",
+  "Intensity": "medium",
+  "RaritySpawnChance": 0.12,
+  "AllowDifficultyIncreaseOnPartyJoin": true,
+  "LateArrivalBumpFactor": 5.0,
+  "OpenWorldAggregationMode": "AVERAGE",
+  "RegionSizeChunks": 3
+}

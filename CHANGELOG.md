@@ -10,10 +10,12 @@ Phase-1 skeleton for the open-world mob difficulty-scaling companion to MMO Skil
   applies a registration gate (`MobScalingPlugin.shouldRegisterSystems`): when the config
   is disabled it registers NO systems and returns, so the mod carries no per-tick cost at
   all. The scaling systems land in a later phase.
-- **New: `MobScalingConfig`** (override-based, `mods/MmoMobScaling/mob-scaling.json`),
-  extending the MMO Skill Tree `AbstractOverrideConfig` base and carrying the SIMPLE-preset
-  starter values (rarity spawn chance + weights, zone difficulty overrides, party-join /
-  late-arrival knobs, open-world aggregation mode, region size).
+- **New: codec-driven `MobScalingConfig`.** The config schema + defaults are a Hytale asset
+  codec (`MobScalingSettingsAsset`, Pattern A, PascalCase); the authoritative defaults ship as
+  the codec asset `Server/MmoMobScaling/Settings/Default.json` (the SIMPLE preset), and owners
+  override any key in `mods/MmoMobScaling/mob-scaling.json` (same PascalCase codec shape, partial
+  allowed). Both layers decode SYNCHRONOUSLY via `CODEC.decodeJson` at `setup()` so the gate can
+  read `Enabled` before the async asset store would populate. No config values are baked into Java.
 
 ### Technical
 
