@@ -2,10 +2,9 @@ package com.ziggfreed.mmomobscaling.event;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
-
-import org.joml.Vector3d;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Archetype;
@@ -18,7 +17,7 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.HolderSystem;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -119,8 +118,11 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             MobScaleResult result = MobScaleFold.fold(rarity, affixes, effDifficulty, scope);
             holder.addComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
 
-            // HP: ref-less multiplicative MAX modifier + maximize on the pre-add holder (fixes the
-            // EliteMobsService missing-maximize bug). Rarity HP + any Stalwart HpDelta are pre-folded.
+            // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap + maximize,
+            // ref-less on the pre-add holder (HealthUtil.scaleMaxHealth; fixes the EliteMobsService missing-
+            // maximize bug). Rarity HP + any Stalwart HpDelta are pre-folded into hpMult. Idempotent by the
+            // mmoscaling_hp KEY, and with the UUID-deterministic roll the re-derived hpMult is identical on
+            // reload, so re-applying the same-keyed modifier never drifts or stacks (native stats own the value).
             if (result.hpMult() != 1f) {
                 HealthUtil.scaleMaxHealth(holder, result.hpMult(), HP_KEY);
             }
@@ -136,23 +138,26 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     }
 
     /**
-     * A restart-STABLE, per-position deterministic seed: {@code roleName.hashCode()} (stable, unlike
-     * {@code roleIndex}) folded with the world seed and the spawn block coords, so a chunk reload OR a
-     * restart re-rolls IDENTICALLY, and two mobs of the same role at different positions roll differently.
+     * A restart-STABLE, per-ENTITY deterministic seed: the entity's UUID folded with the world seed. The UUID
+     * is persisted with the entity and restored UNCHANGED on chunk reload / restart (unlike a drifting
+     * position, which re-rolls a moved mob differently, or the restart-unstable {@code roleIndex}), so the
+     * SAME mob re-rolls the SAME rarity/affixes/mults every time - the fix for the reload re-roll drift.
+     * Falls back to a stable per-role seed ({@code roleName} is restart-stable, NOT position) only if the
+     * UUID is somehow absent pre-add.
      */
     private static long seedFor(@Nonnull NPCEntity npc, @Nonnull World world, @Nonnull Holder<EntityStore> holder) {
+        long worldSeed = world.getWorldConfig().getSeed();
+        UUIDComponent uuidComp = holder.getComponent(UUIDComponent.getComponentType());
+        if (uuidComp != null) {
+            UUID uuid = uuidComp.getUuid();
+            if (uuid != null) {
+                long entitySeed = SplitMix64.mix(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
+                return SplitMix64.mix(entitySeed, worldSeed);
+            }
+        }
         String roleName = npc.getRoleName();
         long roleHash = roleName != null ? roleName.hashCode() : npc.getRoleIndex();
-        long seed = SplitMix64.mix(roleHash, world.getWorldConfig().getSeed());
-        TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
-        if (tc != null && tc.getPosition() != null) {
-            Vector3d p = tc.getPosition();
-            long pos = ((long) Math.floor(p.x)) * 73856093L
-                    ^ ((long) Math.floor(p.y)) * 83492791L
-                    ^ ((long) Math.floor(p.z)) * 19349663L;
-            seed = SplitMix64.mix(seed, pos);
-        }
-        return seed;
+        return SplitMix64.mix(roleHash, worldSeed);
     }
 
     private static void safeWarn(@Nonnull String message) {
