@@ -1,8 +1,11 @@
 package com.ziggfreed.mmomobscaling.config;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -69,29 +72,70 @@ public class MobScalingConfig extends AbstractOverrideConfig {
     @Override
     protected int schemaVersion() { return SCHEMA_VERSION; }
 
+    /**
+     * The jar-bundled default values live in a {@code Server/} JSON asset, NOT baked into Java
+     * (the repo paradigm: content/config defaults ship as {@code Server/*} JSON, not Java
+     * {@code *Defaults}). This is read SYNCHRONOUSLY at load time (a plain classpath resource read,
+     * not a Hytale keyed asset) precisely because the zero-cost registration gate reads
+     * {@code enabled} at plugin {@code setup()}, which runs BEFORE {@code LoadedAssetsEvent} would
+     * populate a keyed-asset store. Owners override any value via the override file.
+     */
+    private static final String DEFAULTS_RESOURCE = "/Server/MmoMobScaling/mob-scaling.defaults.json";
+
     @Override
     protected void loadDefaults() {
-        this.enabled = true;
-        this.presetMode = "SIMPLE";
-        this.intensity = "medium";
-        this.raritySpawnChance = 0.12;
+        Defaults d = loadBundledDefaults();
+        if (d == null) {
+            // Bundled defaults missing / unreadable (a broken jar): fail SAFE (disabled + neutral),
+            // never silently run with wrong values. The real defaults live only in the JSON.
+            applySafeDisabledState();
+            return;
+        }
+        this.enabled = Boolean.TRUE.equals(d.enabled);
+        this.presetMode = d.presetMode != null ? d.presetMode : "";
+        this.intensity = d.intensity != null ? d.intensity : "";
+        this.raritySpawnChance = d.raritySpawnChance != null ? d.raritySpawnChance : 0.0;
+        this.rarityWeights = d.rarityWeights != null ? new LinkedHashMap<>(d.rarityWeights) : new LinkedHashMap<>();
+        this.zoneOverrides = d.zoneOverrides != null ? new LinkedHashMap<>(d.zoneOverrides) : new LinkedHashMap<>();
+        this.allowDifficultyIncreaseOnPartyJoin = Boolean.TRUE.equals(d.allowDifficultyIncreaseOnPartyJoin);
+        this.lateArrivalBumpFactor = d.lateArrivalBumpFactor != null ? d.lateArrivalBumpFactor : 0.0;
+        this.openWorldAggregationMode = d.openWorldAggregationMode != null ? d.openWorldAggregationMode : "";
+        this.compositionEnabled = Boolean.TRUE.equals(d.compositionEnabled);
+        this.regionSizeChunks = d.regionSizeChunks != null ? d.regionSizeChunks : 0;
+    }
 
-        Map<String, Integer> weights = new LinkedHashMap<>();
-        weights.put("rare", 70);
-        weights.put("epic", 25);
-        weights.put("legendary", 5);
-        this.rarityWeights = weights;
+    /**
+     * Read the jar-bundled default values from {@link #DEFAULTS_RESOURCE} on the classpath.
+     * Returns {@code null} (never throws) when the resource is absent or unparseable so the caller
+     * can fail safe.
+     */
+    @Nullable
+    private Defaults loadBundledDefaults() {
+        try (InputStream in = MobScalingConfig.class.getResourceAsStream(DEFAULTS_RESOURCE)) {
+            if (in == null) {
+                return null;
+            }
+            try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+                return GSON.fromJson(reader, Defaults.class);
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
-        Map<String, Double> zones = new LinkedHashMap<>();
-        zones.put("Zone2", 25.0);
-        zones.put("Zone4", 55.0);
-        this.zoneOverrides = zones;
-
-        this.allowDifficultyIncreaseOnPartyJoin = true;
-        this.lateArrivalBumpFactor = 5.0;
-        this.openWorldAggregationMode = "AVERAGE";
+    /** Neutral fail-safe state when the bundled defaults cannot be read (broken jar): disabled. */
+    private void applySafeDisabledState() {
+        this.enabled = false;
+        this.presetMode = "";
+        this.intensity = "";
+        this.raritySpawnChance = 0.0;
+        this.rarityWeights = new LinkedHashMap<>();
+        this.zoneOverrides = new LinkedHashMap<>();
+        this.allowDifficultyIncreaseOnPartyJoin = false;
+        this.lateArrivalBumpFactor = 0.0;
+        this.openWorldAggregationMode = "";
         this.compositionEnabled = false;
-        this.regionSizeChunks = 3;
+        this.regionSizeChunks = 0;
     }
 
     @Override
@@ -256,5 +300,24 @@ public class MobScalingConfig extends AbstractOverrideConfig {
     private static class ConfigData {
         int schemaVersion;
         @Nullable OverrideData overrides;
+    }
+
+    /**
+     * GSON target for the flat jar-bundled defaults JSON ({@link #DEFAULTS_RESOURCE}). Wrapper types
+     * so a missing key reads as {@code null} (the loader coalesces to a neutral value). The JSON's
+     * {@code _comment} key has no field here and is ignored by GSON.
+     */
+    private static class Defaults {
+        Boolean enabled;
+        String presetMode;
+        String intensity;
+        Double raritySpawnChance;
+        Map<String, Integer> rarityWeights;
+        Map<String, Double> zoneOverrides;
+        Boolean allowDifficultyIncreaseOnPartyJoin;
+        Double lateArrivalBumpFactor;
+        String openWorldAggregationMode;
+        Boolean compositionEnabled;
+        Integer regionSizeChunks;
     }
 }

@@ -1,0 +1,14 @@
+{
+  "_comment": "Jar-bundled DEFAULT values for the mob-scaling config (the SIMPLE preset). These are the authoritative defaults, read at load time; the Java loadDefaults() only orchestrates the read (no values baked into Java). Server owners override any of these via mods/MmoMobScaling/mob-scaling.json (the override file stores ONLY customizations). Read synchronously at plugin setup() so the zero-cost registration gate can see 'enabled' before any system is registered.",
+  "enabled": true,
+  "presetMode": "SIMPLE",
+  "intensity": "medium",
+  "raritySpawnChance": 0.12,
+  "rarityWeights": { "rare": 70, "epic": 25, "legendary": 5 },
+  "zoneOverrides": { "Zone2": 25.0, "Zone4": 55.0 },
+  "allowDifficultyIncreaseOnPartyJoin": true,
+  "lateArrivalBumpFactor": 5.0,
+  "openWorldAggregationMode": "AVERAGE",
+  "compositionEnabled": false,
+  "regionSizeChunks": 3
+}

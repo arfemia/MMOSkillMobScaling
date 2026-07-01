@@ -55,6 +55,16 @@ register only inside the enabled branch (the `// Phase 5:` TODO).
 structural change), mirroring `EliteMobsConfig` (nullable-wrapper `OverrideData` +
 `{schemaVersion, overrides}` ConfigData shape).
 
+**Defaults live in a `/Server` JSON asset, NOT baked into Java** (the repo paradigm: content
+/ config defaults ship as `Server/*` JSON, never Java `*Defaults`). The authoritative default
+values are `src/main/resources/Server/MmoMobScaling/mob-scaling.defaults.json`; `loadDefaults()`
+only orchestrates reading them. It is read SYNCHRONOUSLY as a classpath resource (NOT a Hytale
+keyed asset via `LoadedAssetsEvent`) on purpose: the zero-cost registration gate reads `enabled`
+at plugin `setup()`, which runs BEFORE a keyed-asset store would populate, so a keyed asset could
+not gate registration. A broken jar (missing bundled JSON) fails safe (disabled). Later content
+collections (rarities / affixes / difficulty mappings), read at spawn time not setup, DO ship as
+proper keyed assets under `Server/MmoMobScaling/<Type>/`.
+
 ## Conventions
 
 `@Nonnull`/`@Nullable` on params; log via `MobScalingPlugin.LOGGER` (guard the raw
