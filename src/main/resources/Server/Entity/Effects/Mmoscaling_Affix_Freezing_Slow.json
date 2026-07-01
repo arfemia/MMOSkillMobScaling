@@ -1,0 +1,10 @@
+{
+  "Duration": 3,
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 0.7,
+    "EntityBottomTint": "#80ecff",
+    "EntityTopTint": "#c8f6ff",
+    "ScreenEffect": "ScreenEffects/Snow.png"
+  },
+  "OverlapBehavior": "Overwrite"
+}

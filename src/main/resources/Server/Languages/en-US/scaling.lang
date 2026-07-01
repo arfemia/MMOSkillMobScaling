@@ -1,0 +1,20 @@
+# MMO Mob Scaling - en-US (authoritative). The engine derives the "scaling." namespace from THIS
+# file's name (scaling.lang), so keys here are UNPREFIXED (rarity.rare.name -> scaling.rarity.rare.name).
+# Rarity/affix display names + qualitative affix descriptions. Affix .desc is QUALITATIVE ONLY - NO digits
+# (magnitudes live in the EntityEffect assets and would drift if restated here). No em-dashes.
+
+rarity.rare.name = Rare
+rarity.epic.name = Epic
+rarity.legendary.name = Legendary
+rarity.boss.name = Boss
+
+affix.armored.name = Armored
+affix.armored.desc = Clad in heavy plating that turns aside blows.
+affix.stalwart.name = Stalwart
+affix.stalwart.desc = Bolstered with stubborn, enduring vigor.
+affix.swift.name = Swift
+affix.swift.desc = Moves with unnatural quickness.
+affix.vampiric.name = Vampiric
+affix.vampiric.desc = Drains life from its foes with every strike.
+affix.freezing.name = Freezing
+affix.freezing.desc = Its chilling touch numbs and slows the unwary.

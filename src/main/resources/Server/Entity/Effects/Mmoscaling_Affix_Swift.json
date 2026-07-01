@@ -1,0 +1,9 @@
+{
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 1.3,
+    "EntityBottomTint": "#8ce0ff",
+    "EntityTopTint": "#d6f6ff"
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

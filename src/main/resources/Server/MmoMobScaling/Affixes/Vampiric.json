@@ -1,0 +1,10 @@
+{
+  "Name": "vampiric",
+  "DisplayNameKey": "scaling.affix.vampiric.name",
+  "DescriptionKey": "scaling.affix.vampiric.desc",
+  "SpawnWeight": 1.0,
+  "MinDifficulty": 25,
+  "AllowedRarities": ["epic", "legendary"],
+  "Kind": "BEHAVIORAL",
+  "BehaviorId": "vampiric"
+}

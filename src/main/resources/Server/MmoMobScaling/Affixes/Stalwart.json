@@ -1,0 +1,11 @@
+{
+  "Name": "stalwart",
+  "DisplayNameKey": "scaling.affix.stalwart.name",
+  "DescriptionKey": "scaling.affix.stalwart.desc",
+  "EffectId": "Mmoscaling_Affix_Stalwart",
+  "SpawnWeight": 3.0,
+  "MinDifficulty": 5,
+  "AllowedRarities": ["*"],
+  "HpDelta": 0.15,
+  "Kind": "STAT"
+}

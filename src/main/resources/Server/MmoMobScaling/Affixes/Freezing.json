@@ -1,0 +1,11 @@
+{
+  "Name": "freezing",
+  "DisplayNameKey": "scaling.affix.freezing.name",
+  "DescriptionKey": "scaling.affix.freezing.desc",
+  "EffectId": "Mmoscaling_Affix_Freezing_Slow",
+  "SpawnWeight": 0.5,
+  "MinDifficulty": 40,
+  "AllowedRarities": ["legendary"],
+  "Kind": "HYBRID",
+  "BehaviorId": "freezing"
+}

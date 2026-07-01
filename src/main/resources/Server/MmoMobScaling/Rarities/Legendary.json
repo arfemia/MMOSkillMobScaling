@@ -1,0 +1,14 @@
+{
+  "Name": "legendary",
+  "DisplayNameKey": "scaling.rarity.legendary.name",
+  "Weight": 5,
+  "MinDifficulty": 50,
+  "HpMult": 3.8,
+  "OutDamageMult": 2.6,
+  "InDamageMult": 0.55,
+  "LootMult": 2.0,
+  "XpMult": 1.6,
+  "AffixSlots": 3,
+  "AuraEffectId": "Mmoscaling_Aura_Legendary",
+  "AllowedAffixes": ["*"]
+}

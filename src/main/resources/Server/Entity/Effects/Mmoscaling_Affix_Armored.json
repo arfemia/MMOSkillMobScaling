@@ -1,0 +1,22 @@
+{
+  "ApplicationEffects": {
+    "EntityBottomTint": "#8f9299",
+    "EntityTopTint": "#c9ccd4"
+  },
+  "DamageResistance": {
+    "Physical": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.15
+      }
+    ],
+    "Projectile": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.15
+      }
+    ]
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

@@ -1,5 +1,6 @@
 package com.ziggfreed.mmomobscaling.asset;
 
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -10,7 +11,11 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.asset.AssetStoreRegistrar;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
+import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.rarity.Rarity;
 
 /**
  * Registers this mod's OWN Pattern-A asset stores + their {@code LoadedAssetsEvent} listeners
@@ -33,11 +38,16 @@ public final class MobScalingAssetRegistrar {
 
     /** Content path under a pack's {@code Server/} (i.e. {@code Server/MmoMobScaling/Settings/*.json}). */
     private static final String SETTINGS_PATH = "MmoMobScaling/Settings";
+    /** Keyed rarity-tier store ({@code Server/MmoMobScaling/Rarities/*.json}). */
+    private static final String RARITIES_PATH = "MmoMobScaling/Rarities";
+    /** Keyed affix store ({@code Server/MmoMobScaling/Affixes/*.json}). */
+    private static final String AFFIXES_PATH = "MmoMobScaling/Affixes";
 
     private MobScalingAssetRegistrar() {
     }
 
     public static void registerAll(@Nonnull JavaPlugin plugin) {
+        // Settings (single "Default"-keyed asset; a dual sync/async read - see MobScalingConfig).
         AssetStoreRegistrar.registerStore(
                 MobScalingSettingsAsset.class,
                 new DefaultAssetMap<String, MobScalingSettingsAsset>(),
@@ -47,6 +57,28 @@ public final class MobScalingAssetRegistrar {
                 null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, MobScalingSettingsAsset.class,
                 MobScalingAssetRegistrar::onSettingsLoaded);
+
+        // Rarities (keyed multi-asset store; folded into RarityConfig on load, read at spawn).
+        AssetStoreRegistrar.registerStore(
+                RarityAsset.class,
+                new DefaultAssetMap<String, RarityAsset>(),
+                RARITIES_PATH,
+                RarityAsset::getId,
+                RarityAsset.CODEC,
+                null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, RarityAsset.class,
+                MobScalingAssetRegistrar::onRaritiesLoaded);
+
+        // Affixes (keyed multi-asset store; folded into AffixConfig on load, read at spawn).
+        AssetStoreRegistrar.registerStore(
+                AffixAsset.class,
+                new DefaultAssetMap<String, AffixAsset>(),
+                AFFIXES_PATH,
+                AffixAsset::getId,
+                AffixAsset.CODEC,
+                null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, AffixAsset.class,
+                MobScalingAssetRegistrar::onAffixesLoaded);
     }
 
     /**
@@ -78,6 +110,46 @@ public final class MobScalingAssetRegistrar {
             } catch (Throwable ignored) {
                 // log-manager-less JVMs
             }
+        }
+    }
+
+    /**
+     * Fold the loaded rarity assets (the engine has already merged jar + pack by id) into
+     * {@link RarityConfig}'s pack layer. Unlike ziggfreed-common's framework stores this mod SHIPS jar
+     * defaults, so we take ALL entries (including the engine-base) - the bundled ladder IS our default.
+     */
+    static void onRaritiesLoaded(
+            LoadedAssetsEvent<String, RarityAsset, DefaultAssetMap<String, RarityAsset>> event) {
+        Map<String, Rarity> layer = new LinkedHashMap<>();
+        for (Map.Entry<String, RarityAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
+            RarityAsset asset = entry.getValue();
+            if (asset != null) {
+                layer.put(entry.getKey(), asset.toRarity());
+            }
+        }
+        RarityConfig.getInstance().mergePackLayer(layer);
+        logApplied("rarities", layer.size());
+    }
+
+    /** Fold the loaded affix assets into {@link AffixConfig}'s pack layer (same all-entries fold as rarities). */
+    static void onAffixesLoaded(
+            LoadedAssetsEvent<String, AffixAsset, DefaultAssetMap<String, AffixAsset>> event) {
+        Map<String, Affix> layer = new LinkedHashMap<>();
+        for (Map.Entry<String, AffixAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
+            AffixAsset asset = entry.getValue();
+            if (asset != null) {
+                layer.put(entry.getKey(), asset.toAffix());
+            }
+        }
+        AffixConfig.getInstance().mergePackLayer(layer);
+        logApplied("affixes", layer.size());
+    }
+
+    private static void logApplied(@Nonnull String what, int count) {
+        try {
+            MobScalingPlugin.LOGGER.atInfo().log("Mob-scaling %s loaded: %d entries (pack layer).", what, count);
+        } catch (Throwable ignored) {
+            // log-manager-less JVMs
         }
     }
 }

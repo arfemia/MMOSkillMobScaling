@@ -1,0 +1,14 @@
+{
+  "Name": "rare",
+  "DisplayNameKey": "scaling.rarity.rare.name",
+  "Weight": 70,
+  "MinDifficulty": 5,
+  "HpMult": 1.4,
+  "OutDamageMult": 1.45,
+  "InDamageMult": 0.85,
+  "LootMult": 1.2,
+  "XpMult": 1.1,
+  "AffixSlots": 1,
+  "AuraEffectId": "Mmoscaling_Aura_Rare",
+  "AllowedAffixes": ["*"]
+}
