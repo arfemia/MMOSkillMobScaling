@@ -77,6 +77,38 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   this flat settings asset: their canonical home is the per-type keyed assets (`Rarities/*.json`,
   `Difficulty/*.json`) landing in a later phase.
 
+## Paradigm - NATIVE-ASSET-FIRST (prefer native systems + author our own assets into them)
+
+**HARD PREFERENCE (user, 2026-07-01):** prefer NATIVE Hytale systems, and prefer AUTHORING OUR OWN
+ASSETS INTO native systems, over hand-rolled Java - wherever a native system actually CONSUMES the asset.
+This governs the scaling MECHANISMS (affixes, auras, movement, drops, classification, effect apply), not
+just the config codec above. Decision rule for every new mechanism: ask **"can this be a pure-data asset on
+a native system the engine reads?"** FIRST; fall back to mod-side Java only when the native path is absent OR
+the engine does not consume it. Registering a thing nothing reads is NOT native leverage.
+
+Confirmed by the native-leverage audit (hyMMO monorepo: `.claude/research/1-5-0-mob-scaling-native-audit.md`
++ verbatim `.claude/research/raw/1-5-0-mob-scaling-native-audit.json`); adopted patterns land in later
+phases:
+- **Affixes / auras / movement = pure-data `EntityEffect` fields on the ONE `addInfiniteEffect` batch, zero
+  Java:** Armored (`DamageResistance`), Stalwart (`RawStatModifiers` +maxHP), **Swift / Crippling
+  (`ApplicationEffects.HorizontalSpeedMultiplier` >1 / <1)**, aura tints/ModelVFX/badge/removal-sounds + boss
+  `KnockbackMultiplier`. Swift is NOT deferred: the old "no native Speed" premise was a verified capability
+  error (there IS a native movement-speed EFFECT field, folded into real NPC walk speed every tick).
+- **Classification via authored `NPCGroup` tagset assets** (`Mmoscaling_Bosses` / `Mmoscaling_Excluded`,
+  queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry.
+- **Item drops via native `ItemDropList`** (per-rarity bonus `Drops` assets + `getRandomItemDrops` on death);
+  currency / XP / notification stay on the MMO `content/reward` path.
+- **Effect apply via a native `RefSystem.onEntityAdded`** (synchronous, add-pipeline CommandBuffer), not a
+  deferred `world.execute` hop.
+
+**Verified exceptions - keep mod-side Java (the native path is WORSE; do NOT "improve" these):** difficulty /
+HP / mults stay on the transient `ScaledMobComponent` (a custom `EntityStatType` registers but NO native
+system reads a non-default stat index, so it is pure per-tick cost); the general `inDmgMult` stays a frozen
+pipeline multiply (native `DamageResistance` is per-cause, no wildcard, changes stacking); the rarity HP
+MULTIPLIER stays on `HealthUtil.scaleMaxHealth` (the effect path lacks `maximizeStatValue`); Vampiric per-hit
+lifesteal stays in `OnHitEffects` (no native on-hit-DEALT sensor). Full ranked evidence lives in the hyMMO
+plan's "NATIVE-LEVERAGE AUDIT RESOLUTIONS" block (`.claude/plans/1-5-0-mob-scaling-system.md`).
+
 ## Paradigm - the zero-cost registration gate
 
 The plugin's `setup()` loads `MobScalingConfig` (codec decode, above) then applies the gate:
