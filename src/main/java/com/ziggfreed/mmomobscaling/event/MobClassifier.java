@@ -11,9 +11,9 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 
 /**
  * Decides whether a spawning NPC should be scaled, and its scope. MVP classification rides the native role
- * {@link Attitude}: a {@code HOSTILE} role scales ({@link MobScaleResult#SCOPE_HOSTILE}); flock livestock and
- * every non-hostile attitude are EXCLUDED (return {@code null}). Runs AFTER {@code RoleBuilderSystem} (the
- * spawn hook's {@code getDependencies}) so the role is built.
+ * {@link Attitude}: a {@code HOSTILE} default attitude scales ({@link MobScaleResult#SCOPE_HOSTILE}); every
+ * non-hostile attitude (Neutral/Friendly, which covers livestock) is EXCLUDED (return {@code null}). Runs
+ * AFTER {@code RoleBuilderSystem} (the spawn hook's {@code getDependencies}) so the role is built.
  *
  * <p><b>Follow-up (native-leverage audit rank 2):</b> BOSS classification + owner overrides move to authored
  * {@code NPCGroup} tagset assets ({@code hasTagInGroup(roleIndex)}); this Attitude path stays the default.
@@ -33,9 +33,12 @@ final class MobClassifier {
         if (role == null) {
             return null; // role not built (should not happen post RoleBuilderSystem) -> exclude
         }
-        if (role.isCanLeadFlock()) {
-            return null; // livestock / flock leaders -> excluded (allied)
-        }
+        // NOTE: no isCanLeadFlock() early-out. It was OVER-inclusive as an exclusion: it dropped Hostile
+        // combat families that set FlockCanLead (Undead zombies/ghouls/hounds/wraiths, Void crawlers, vermin,
+        // cave raptors, Trork Rangers, etc.), leaving them unscaled. Livestock exclusion is already covered by
+        // the Neutral-attitude check below (Template_Animal_Neutral defaults its attitude to Neutral), so the
+        // attitude test alone is the correct, narrower gate. (Neutral-authored AGGRESSIVE families -
+        // Scarak/Feran combat mobs - are a separate follow-up via an Mmoscaling_Included NPCGroup tagset.)
         WorldSupport ws = role.getWorldSupport();
         if (ws == null) {
             return null;

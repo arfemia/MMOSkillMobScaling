@@ -1,6 +1,35 @@
 # Changelog
 
-All notable changes to MMO Mob Scaling. Newest first.
+All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
+
+## Unreleased (1.5.0-cycle, in-game-validation pending)
+
+The open-world scaling system on top of the 1.0.0 gate + codec config. Rarity ladder (Rare/Epic/Legendary)
++ a 5-affix catalog on native `EntityEffect` assets, a deterministic per-UUID roll, and the risk/reward loop.
+
+- New: the spawn-lock `MobScalingSpawnHook` (rolls rarity + affixes deterministically off the entity UUID,
+  folds the frozen `ScaledMobComponent`, scales HP via the native `EntityStatMap`), the effect-reconcile
+  `MobScalingEffectApplySystem` (applies AND sweeps the native aura / STAT-affix effects), the damage-multiply
+  `MobScalingDamageFilter`, and the inspect-group `MobScalingOnHitSystem` (lifesteal + the Freezing on-hit slow,
+  reading the FINAL applied damage).
+- New: kill-XP reward. A rarity kill pays more XP through the MMO's own kill path via a
+  `MMOSkillTreeAPI.registerMobKillXpMultiplier` provider (kill XP only, never per-hit; an underdog bonus for
+  fighting above your weight; anti-runaway hard cap). Native item-drop loot is a follow-up.
+- New: RECONCILE on load. HP + auras converge to the current roll (`HealthUtil.reconcileMaxHealth` + an effect
+  sweep), so a floor / rarity / affix retune never strands a stale inflated max or a doubled aura on a saved
+  mob; an excluded / world-disabled mob is stripped. (Disable/uninstall caveat: a fully-off mod cannot
+  self-heal saved residue; see CLAUDE.md.)
+- Classification: dropped the over-broad `isCanLeadFlock` exclusion, so Hostile combat families that lead a
+  flock (undead, etc.) now scale; livestock stays excluded by its Neutral attitude.
+- Affixes: the RARITY AURA owns the body-tint channel; affix effects no longer carry competing body tints.
+  Stalwart now grants knockback immunity (`KnockbackMultiplier: 0.0`); Freezing gains the native debuff
+  affordances (`Debuff` + `StatusEffectIcon`) and is asset-authoritative (duration + overlap from the asset,
+  no Java constant). Roster picks are tie-broken by id (a pure function of the asset set).
+- Config: the settings fold is `owner > pack-store > jar` so a PARTIAL pack override can never silently
+  disable the mod; `RaritySpawnChance` is clamped; a malformed owner file warns instead of failing silent.
+- Lifted to ziggfreed-common (1.2.0): `SplitMix64` (mod-local copy deleted), `HealthUtil.reconcileMaxHealth`,
+  `EntityEffectService.apply` (asset-authoritative).
+- Removed the dead Boss tier assets (unreachable until the NPCGroup boss classifier lands).
 
 ## 1.0.0
 

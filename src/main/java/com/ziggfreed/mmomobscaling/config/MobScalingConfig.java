@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.hypixel.hytale.logger.HytaleLogger;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 
 /**
@@ -33,16 +34,41 @@ public final class MobScalingConfig {
     /** Jar-bundled authoritative defaults, decoded via the codec (classpath resource). */
     private static final String DEFAULTS_RESOURCE = "/Server/MmoMobScaling/Settings/Default.json";
 
+    /**
+     * This class's OWN logger (NOT {@code MobScalingPlugin.LOGGER}: that class is unloadable in a plain unit
+     * JVM via the JavaPlugin -> PluginBase -> MetricsRegistry static-init chain, and this config is unit-tested).
+     * Initialized in a guard so a log-manager-less JVM never poisons the class; {@link #warn} null-checks it.
+     */
+    @Nullable private static final HytaleLogger LOGGER = initLogger();
+
+    @Nullable
+    private static HytaleLogger initLogger() {
+        try {
+            return HytaleLogger.forEnclosingClass();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private static MobScalingConfig instance;
 
     @Nullable private Path configPath;
 
-    // Effective (owner-over-default) settings. Initialized to a neutral fail-safe; overwritten by load().
-    private boolean enabled;
+    /**
+     * The jar-bundled default decode, CACHED at {@link #load()}. The lowest fold layer, so a PARTIAL pack
+     * override at {@link #applyStoreLayer} (a Pattern-A asset is a wholesale replace by id, not a field merge)
+     * cannot drop a key and silently fold {@code enabled} to the fail-safe {@code false} - the jar value
+     * survives underneath the store + owner layers.
+     */
+    @Nullable private MobScalingSettingsAsset jarDefaults;
+
+    // Effective (owner > store > jar) settings. The spawn-path reads (enabled, raritySpawnChance) are volatile
+    // so a value written on the asset-load thread is visible on the world threads that read it per spawn.
+    private volatile boolean enabled;
     private boolean compositionEnabled;
     @Nonnull private String presetMode = "";
     @Nonnull private String intensity = "";
-    private double raritySpawnChance;
+    private volatile double raritySpawnChance;
     private boolean allowDifficultyIncreaseOnPartyJoin;
     private double lateArrivalBumpFactor;
     @Nonnull private String openWorldAggregationMode = "";
@@ -70,9 +96,12 @@ public final class MobScalingConfig {
      * default fails SAFE (disabled).
      */
     public void load() {
-        MobScalingSettingsAsset defaults = decode(readResource(DEFAULTS_RESOURCE));
-        MobScalingSettingsAsset owner = decode(readOwnerFile());
-        applyFold(defaults, owner);
+        this.jarDefaults = decode(readResource(DEFAULTS_RESOURCE), "jar Default.json");
+        if (this.jarDefaults == null) {
+            warn("bundled Server/MmoMobScaling/Settings/Default.json missing or unreadable; failing safe (disabled)");
+        }
+        MobScalingSettingsAsset owner = decode(readOwnerFile(), ownerLabel());
+        applyFold(jarDefaults, null, owner);
     }
 
     /**
@@ -82,43 +111,88 @@ public final class MobScalingConfig {
      * takes effect for the runtime-read fields. Uses the SAME codec + fold as {@link #load()}.
      */
     public void applyStoreLayer(@Nonnull MobScalingSettingsAsset storeDefaults) {
-        MobScalingSettingsAsset owner = decode(readOwnerFile());
-        applyFold(storeDefaults, owner);
+        MobScalingSettingsAsset owner = decode(readOwnerFile(), ownerLabel());
+        applyFold(jarDefaults, storeDefaults, owner);
     }
 
-    /** Owner value wins over default; a neutral fallback only if BOTH are absent (broken bundled jar). */
-    private void applyFold(@Nullable MobScalingSettingsAsset d, @Nullable MobScalingSettingsAsset o) {
-        this.enabled = pick(o == null ? null : o.getEnabled(), d == null ? null : d.getEnabled(), false);
-        this.compositionEnabled = pick(o == null ? null : o.getCompositionEnabled(),
-                d == null ? null : d.getCompositionEnabled(), false);
-        this.presetMode = pick(o == null ? null : o.getPresetMode(), d == null ? null : d.getPresetMode(), "");
-        this.intensity = pick(o == null ? null : o.getIntensity(), d == null ? null : d.getIntensity(), "");
-        this.raritySpawnChance = pick(o == null ? null : o.getRaritySpawnChance(),
-                d == null ? null : d.getRaritySpawnChance(), 0.0);
-        this.allowDifficultyIncreaseOnPartyJoin = pick(o == null ? null : o.getAllowDifficultyIncreaseOnPartyJoin(),
-                d == null ? null : d.getAllowDifficultyIncreaseOnPartyJoin(), false);
-        this.lateArrivalBumpFactor = pick(o == null ? null : o.getLateArrivalBumpFactor(),
-                d == null ? null : d.getLateArrivalBumpFactor(), 0.0);
-        this.openWorldAggregationMode = pick(o == null ? null : o.getOpenWorldAggregationMode(),
-                d == null ? null : d.getOpenWorldAggregationMode(), "");
-        this.regionSizeChunks = pick(o == null ? null : o.getRegionSizeChunks(),
-                d == null ? null : d.getRegionSizeChunks(), 0);
+    /**
+     * Fold {@code owner > store > jar} per field (a nullable key falls to the next layer, then the neutral
+     * fail-safe). Folding the JAR layer UNDERNEATH the store means a PARTIAL pack override (wholesale replace)
+     * that omits a key inherits the jar value, not the fail-safe - so a pack tuning only {@code RaritySpawnChance}
+     * can never accidentally fold {@code enabled} to {@code false} and silently kill the mod at runtime.
+     */
+    private void applyFold(@Nullable MobScalingSettingsAsset jar, @Nullable MobScalingSettingsAsset store,
+            @Nullable MobScalingSettingsAsset owner) {
+        this.enabled = pick(get(owner, MobScalingSettingsAsset::getEnabled),
+                get(store, MobScalingSettingsAsset::getEnabled), get(jar, MobScalingSettingsAsset::getEnabled), false);
+        this.compositionEnabled = pick(get(owner, MobScalingSettingsAsset::getCompositionEnabled),
+                get(store, MobScalingSettingsAsset::getCompositionEnabled),
+                get(jar, MobScalingSettingsAsset::getCompositionEnabled), false);
+        this.presetMode = pick(get(owner, MobScalingSettingsAsset::getPresetMode),
+                get(store, MobScalingSettingsAsset::getPresetMode), get(jar, MobScalingSettingsAsset::getPresetMode), "");
+        this.intensity = pick(get(owner, MobScalingSettingsAsset::getIntensity),
+                get(store, MobScalingSettingsAsset::getIntensity), get(jar, MobScalingSettingsAsset::getIntensity), "");
+        double chance = pick(get(owner, MobScalingSettingsAsset::getRaritySpawnChance),
+                get(store, MobScalingSettingsAsset::getRaritySpawnChance),
+                get(jar, MobScalingSettingsAsset::getRaritySpawnChance), 0.0);
+        this.raritySpawnChance = Math.max(0.0, Math.min(1.0, chance)); // clamp: an unclamped chance is a footgun
+        this.allowDifficultyIncreaseOnPartyJoin = pick(
+                get(owner, MobScalingSettingsAsset::getAllowDifficultyIncreaseOnPartyJoin),
+                get(store, MobScalingSettingsAsset::getAllowDifficultyIncreaseOnPartyJoin),
+                get(jar, MobScalingSettingsAsset::getAllowDifficultyIncreaseOnPartyJoin), false);
+        this.lateArrivalBumpFactor = pick(get(owner, MobScalingSettingsAsset::getLateArrivalBumpFactor),
+                get(store, MobScalingSettingsAsset::getLateArrivalBumpFactor),
+                get(jar, MobScalingSettingsAsset::getLateArrivalBumpFactor), 0.0);
+        this.openWorldAggregationMode = pick(get(owner, MobScalingSettingsAsset::getOpenWorldAggregationMode),
+                get(store, MobScalingSettingsAsset::getOpenWorldAggregationMode),
+                get(jar, MobScalingSettingsAsset::getOpenWorldAggregationMode), "");
+        this.regionSizeChunks = pick(get(owner, MobScalingSettingsAsset::getRegionSizeChunks),
+                get(store, MobScalingSettingsAsset::getRegionSizeChunks),
+                get(jar, MobScalingSettingsAsset::getRegionSizeChunks), 0);
+    }
+
+    /** Read a field off a nullable asset via its getter; {@code null} when the asset is null. */
+    @Nullable
+    private static <T> T get(@Nullable MobScalingSettingsAsset a,
+            @Nonnull java.util.function.Function<MobScalingSettingsAsset, T> getter) {
+        return a == null ? null : getter.apply(a);
     }
 
     // ---------------------------------------------------------------------
     // Codec decode (synchronous)
     // ---------------------------------------------------------------------
 
-    /** Decode a settings body via the codec; {@code null} for a null/blank body or any decode error. */
+    /**
+     * Decode a settings body via the codec; {@code null} for a null/blank body. A present-but-malformed body
+     * warns (attributed to {@code sourceLabel}) so a broken owner file is not swallowed silently.
+     */
     @Nullable
-    private static MobScalingSettingsAsset decode(@Nullable String body) {
+    private static MobScalingSettingsAsset decode(@Nullable String body, @Nonnull String sourceLabel) {
         if (body == null || body.isBlank()) {
-            return null;
+            return null; // absent = normal (defaults only); not a warning
         }
         try {
             return MobScalingSettingsAsset.CODEC.decodeJson(RawJsonReader.fromJsonString(body), new ExtraInfo());
         } catch (Exception e) {
+            warn(sourceLabel + " is malformed and was IGNORED (jar/pack defaults apply): " + e.getMessage());
             return null;
+        }
+    }
+
+    @Nonnull
+    private String ownerLabel() {
+        return configPath != null ? configPath.toString() : "mods/MmoMobScaling/mob-scaling.json";
+    }
+
+    /** Guarded warn (own logger; must not sink to MobScalingPlugin, which is unloadable in a unit JVM). */
+    private static void warn(@Nonnull String message) {
+        if (LOGGER == null) {
+            return;
+        }
+        try {
+            LOGGER.atWarning().log("[MobScalingConfig] " + message);
+        } catch (Throwable ignored) {
+            // log-manager-less unit JVM
         }
     }
 
@@ -152,29 +226,35 @@ public final class MobScalingConfig {
         }
     }
 
-    private static boolean pick(@Nullable Boolean owner, @Nullable Boolean def, boolean fallback) {
+    // Fold order owner > store > jar > neutral fallback (first non-null wins).
+    private static boolean pick(@Nullable Boolean owner, @Nullable Boolean store, @Nullable Boolean jar, boolean fb) {
         if (owner != null) return owner;
-        if (def != null) return def;
-        return fallback;
+        if (store != null) return store;
+        if (jar != null) return jar;
+        return fb;
     }
 
-    private static double pick(@Nullable Double owner, @Nullable Double def, double fallback) {
+    private static double pick(@Nullable Double owner, @Nullable Double store, @Nullable Double jar, double fb) {
         if (owner != null) return owner;
-        if (def != null) return def;
-        return fallback;
+        if (store != null) return store;
+        if (jar != null) return jar;
+        return fb;
     }
 
-    private static int pick(@Nullable Integer owner, @Nullable Integer def, int fallback) {
+    private static int pick(@Nullable Integer owner, @Nullable Integer store, @Nullable Integer jar, int fb) {
         if (owner != null) return owner;
-        if (def != null) return def;
-        return fallback;
+        if (store != null) return store;
+        if (jar != null) return jar;
+        return fb;
     }
 
     @Nonnull
-    private static String pick(@Nullable String owner, @Nullable String def, @Nonnull String fallback) {
+    private static String pick(@Nullable String owner, @Nullable String store, @Nullable String jar,
+            @Nonnull String fb) {
         if (owner != null) return owner;
-        if (def != null) return def;
-        return fallback;
+        if (store != null) return store;
+        if (jar != null) return jar;
+        return fb;
     }
 
     // ---------------------------------------------------------------------

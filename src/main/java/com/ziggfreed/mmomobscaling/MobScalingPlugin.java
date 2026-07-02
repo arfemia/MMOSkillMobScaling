@@ -13,19 +13,25 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
+import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
 
 /**
  * Entry point for MMO Mob Scaling, a standalone open-world mob difficulty-scaling
  * companion to the MMO Skill Tree mod.
  *
- * <p>This v1.0.0 build is a Phase-1 skeleton: it loads {@link MobScalingConfig} and
- * applies the ZERO-COST registration gate. When the config is disabled, NO systems
- * are registered, so the mod carries no per-tick cost at all. The actual scaling
- * systems (spawn hook, damage filter, death listener) land in a later phase; nothing
- * is registered yet because those systems do not exist.
+ * <p>It loads {@link MobScalingConfig} and applies the ZERO-COST registration gate: when the
+ * config is disabled, NO systems are registered, so the mod carries no per-tick cost at all.
+ * When enabled it registers the scaling systems - the spawn-lock {@code MobScalingSpawnHook}
+ * (rolls rarity/affixes + reconciles HP), the effect-reconcile {@code MobScalingEffectApplySystem}
+ * (applies + sweeps the native aura / affix effects), the {@code MobScalingDamageFilter}
+ * (the damage-multiply, pinned before armor + the MMO combat-XP read), and the
+ * {@code MobScalingOnHitSystem} (lifesteal + the Freezing on-hit slow, in the inspect group) -
+ * plus a kill-XP reward multiplier registered on the frozen {@code MMOSkillTreeAPI}.
  *
  * <p>Version story: this mod compiles against the local MMOSkillTree dev jar (which
  * already carries the frozen 1.5.0 API) while its manifest pins the runtime
@@ -84,10 +90,15 @@ public class MobScalingPlugin extends JavaPlugin {
         // assets, pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
         MobScalingAssetRegistrar.registerAll(this);
 
-        // Phase 5 systems: the spawn-lock (HolderSystem) + effect apply (RefSystem) + damage filter.
+        // Scaling systems: the spawn-lock (HolderSystem) + effect reconcile (RefSystem) + the damage-multiply
+        // filter + the on-hit behavioral reactions (inspect group, after ApplyDamage).
         getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());
         getEntityStoreRegistry().registerSystem(new MobScalingEffectApplySystem());
         getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
+        getEntityStoreRegistry().registerSystem(new MobScalingOnHitSystem());
+
+        // Reward: register the kill-XP multiplier so a rarity kill pays more through the MMO's own kill path.
+        MMOSkillTreeAPI.registerMobKillXpMultiplier(new MobScalingXpReward());
 
         safeInfo("Mob scaling enabled; systems registered.");
     }

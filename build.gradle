@@ -22,9 +22,9 @@ repositories {
 // ============================================================================
 // VERSION STORY (intentional, do not "fix"):
 //   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar
-//   (currently 1.4.4), which ALREADY carries the frozen 1.5.0 API surface
-//   (getPowerLevel / aggregatePower / statRewardSum / getCombatLevel) the scaling
-//   systems will call. Its manifest, however, pins the RUNTIME requirement at
+//   (1.5.0), which carries the frozen 1.5.0 API surface the scaling systems call
+//   (getPowerLevel / statRewardSum / getCombatLevel, plus the registerMobKillXpMultiplier
+//   reward hook). Its manifest, however, pins the RUNTIME requirement at
 //   "Ziggfreed:MMOSkillTree": ">=1.5.0" - the eventual hyMMO release that ships
 //   those API methods publicly. So: compile against the dev jar, require 1.5.0 at
 //   runtime. This is deliberate and lets the mob-scaling mod be built now against

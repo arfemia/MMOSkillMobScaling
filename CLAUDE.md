@@ -4,9 +4,13 @@ A **standalone open-world mob difficulty-scaling** companion to the MMO Skill Tr
 scales open-world mobs to the players around them (a high-power group meets tougher, rarer
 enemies; a lone newcomer is not overwhelmed). It is a supplemental mod under the **hyMMO
 monorepo**'s `additional-mods/` (a git submodule; developed from the hyMMO root).
-**Status: v1.0.0 (skeleton)** - the zero-cost registration toggle + `MobScalingConfig`
-landed; the scaling systems (spawn hook, damage filter, death listener) land in later
-phases.
+**Status: the scaling system is LANDED** (in-game-validation pending). The zero-cost registration
+toggle + codec `MobScalingConfig`, plus the spawn-lock (`MobScalingSpawnHook`: rolls rarity/affixes,
+reconciles HP), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura /
+affix effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
+lifesteal + Freezing slow), and the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
+provider). Native item-drop loot, the open-world region-power delta, the zone/biome resolver, and the
+NPCGroup boss classifier are FOLLOW-UPS (see the hyMMO handoff plan).
 
 Package root: **`com.ziggfreed.mmomobscaling`**.
 
@@ -30,11 +34,10 @@ breaks class identity):
 - **ZiggfreedCommon >= 1.2.0** (`compileOnly files(ziggfreedCommonJar)`, pin
   `ziggfreedCommonVersion`) - the shared primitive lib; its `scaling/` engine is the fold
   this mod builds on.
-- **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`), but compiled against the
-  LOCAL `MMOSkillTree-<mmoSkillTreeVersion>.jar` dev jar (pin `mmoSkillTreeVersion=1.4.4`,
-  which already carries the frozen 1.5.0 API: `getPowerLevel` / `aggregatePower` /
-  `statRewardSum` / `getCombatLevel`). **Version story (intentional):** compile against the
-  dev jar, require 1.5.0 at runtime. See the comment block in `build.gradle`.
+- **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
+  `MMOSkillTree-1.5.0.jar` dev jar (pin `mmoSkillTreeVersion=1.5.0`), which carries the frozen 1.5.0 API
+  the mod uses: `getPowerLevel` / `statRewardSum` / `getCombatLevel` (power reads) plus
+  `registerMobKillXpMultiplier` (the kill-XP reward hook). See the comment block in `build.gradle`.
 
 jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
 config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.
@@ -74,8 +77,9 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   Hytale asset (pack-overridable), not just a bundled resource. Registered only in the plugin's
   ENABLED branch (a disabled mod registers literally nothing).
 - Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT in
-  this flat settings asset: their canonical home is the per-type keyed assets (`Rarities/*.json`,
-  `Difficulty/*.json`) landing in a later phase.
+  this flat settings asset: their canonical home is the per-type keyed assets. `Rarities/*.json` +
+  `Affixes/*.json` have LANDED (Pattern-A codecs, folded by `RarityConfig`/`AffixConfig`); a `Difficulty/*.json`
+  zone-floor type is a later-phase follow-up.
 
 ## Paradigm - NATIVE-ASSET-FIRST (prefer native systems + author our own assets into them)
 
@@ -89,11 +93,14 @@ the engine does not consume it. Registering a thing nothing reads is NOT native 
 Confirmed by the native-leverage audit (hyMMO monorepo: `.claude/research/1-5-0-mob-scaling-native-audit.md`
 + verbatim `.claude/research/raw/1-5-0-mob-scaling-native-audit.json`); adopted patterns land in later
 phases:
-- **Affixes / auras / movement = pure-data `EntityEffect` fields on the ONE `addInfiniteEffect` batch, zero
-  Java:** Armored (`DamageResistance`), Stalwart (`RawStatModifiers` +maxHP), **Swift / Crippling
-  (`ApplicationEffects.HorizontalSpeedMultiplier` >1 / <1)**, aura tints/ModelVFX/badge/removal-sounds + boss
-  `KnockbackMultiplier`. Swift is NOT deferred: the old "no native Speed" premise was a verified capability
-  error (there IS a native movement-speed EFFECT field, folded into real NPC walk speed every tick).
+- **Affixes / auras / movement = pure-data `EntityEffect` fields self-applied via the asset-authoritative
+  `EntityEffectService.apply`, zero Java:** Armored (`DamageResistance`), **Stalwart (`KnockbackMultiplier: 0.0`
+  = knockback immunity; its +15% HP is `HpDelta` folded into `hpMult`, applied via `HealthUtil`, NOT an
+  effect)**, **Swift (`ApplicationEffects.HorizontalSpeedMultiplier` 1.3)**, aura tints/ModelVFX. Swift is NOT
+  deferred: there IS a native movement-speed EFFECT field, folded into real NPC walk speed every tick.
+  **The RARITY AURA owns the body-tint channel (blue=rare, purple=epic, gold=legendary); affix effects carry
+  NO body tint** (they would fight the aura with no arbitration) - affix identity is the mechanic + (follow-up)
+  the name stamp / a particle telegraph. The Freezing slow is VICTIM-applied and keeps its frost tint.
 - **Classification via authored `NPCGroup` tagset assets** (`Mmoscaling_Bosses` / `Mmoscaling_Excluded`,
   queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry.
 - **Item drops via native `ItemDropList`** (per-rarity bonus `Drops` assets + `getRandomItemDrops` on death);
@@ -105,9 +112,19 @@ phases:
 HP / mults stay on the transient `ScaledMobComponent` (a custom `EntityStatType` registers but NO native
 system reads a non-default stat index, so it is pure per-tick cost); the general `inDmgMult` stays a frozen
 pipeline multiply (native `DamageResistance` is per-cause, no wildcard, changes stacking); the rarity HP
-MULTIPLIER stays on `HealthUtil.scaleMaxHealth` (the effect path lacks `maximizeStatValue`); Vampiric per-hit
-lifesteal stays in `OnHitEffects` (no native on-hit-DEALT sensor). Full ranked evidence lives in the hyMMO
+MULTIPLIER **and the Stalwart affix HpDelta** stay on `HealthUtil` (the effect path lacks `maximizeStatValue`,
+and an effect-based +maxHP would spawn the mob damaged + double-apply with the HpDelta fold) - but the LOAD path
+now uses the RECONCILE variant `HealthUtil.reconcileMaxHealth` (converges the keyed modifier to the fresh roll,
+so a retune / floor / rarity change never strands a stale inflated max); Vampiric per-hit lifesteal stays
+mod-side in `MobScalingOnHitSystem` (no native on-hit-DEALT sensor). Full ranked evidence lives in the hyMMO
 plan's "NATIVE-LEVERAGE AUDIT RESOLUTIONS" block (`.claude/plans/1-5-0-mob-scaling-system.md`).
+
+**Disable / uninstall caveat (persisted residue):** the `mmoscaling_hp` MAX modifier + the `Mmoscaling_*`
+infinite auras persist WITH a saved mob. While the mod is ENABLED, the spawn hook reconciles them on every
+load (retunes self-heal, and an excluded / world-disabled mob is stripped). But a FULLY disabled / uninstalled
+mod registers nothing and cannot self-heal, so its residue lingers on saved scaled mobs until each dies.
+Recommendation: run once with the mod enabled after a big retune so the reconcile sweeps saved mobs; a
+`/mobscaling purge` maintenance command is a tracked follow-up.
 
 ## Paradigm - the zero-cost registration gate
 
@@ -116,8 +133,8 @@ The plugin's `setup()` loads `MobScalingConfig` (codec decode, above) then appli
 `MobScalingGate` (kept OFF the `JavaPlugin`-extending plugin class so it is loadable in a unit-test
 JVM - loading `MobScalingPlugin` there fails via the `PluginBase` -> `MetricsRegistry` static-init
 chain). When the config is disabled the plugin registers NOTHING and returns, so the mod carries no
-per-tick cost at all. The scaling systems register only inside the enabled branch (the `// Phase 5:`
-TODO).
+per-tick cost at all. The scaling systems + the kill-XP reward provider register only inside the
+enabled branch.
 
 ## Conventions
 

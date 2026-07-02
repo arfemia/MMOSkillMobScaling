@@ -6,12 +6,11 @@
 rarity.rare.name = Rare
 rarity.epic.name = Epic
 rarity.legendary.name = Legendary
-rarity.boss.name = Boss
 
 affix.armored.name = Armored
 affix.armored.desc = Clad in heavy plating that turns aside blows.
 affix.stalwart.name = Stalwart
-affix.stalwart.desc = Bolstered with stubborn, enduring vigor.
+affix.stalwart.desc = Rooted like old stone; nothing knocks it back.
 affix.swift.name = Swift
 affix.swift.desc = Moves with unnatural quickness.
 affix.vampiric.name = Vampiric

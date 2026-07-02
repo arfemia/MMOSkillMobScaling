@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.mmomobscaling.util.SplitMix64;
+import com.ziggfreed.common.util.SplitMix64;
 
 /**
  * Determinism + band-gating tests for {@link RarityRoster}. Uses hand-built {@link Rarity} tiers (no codec)

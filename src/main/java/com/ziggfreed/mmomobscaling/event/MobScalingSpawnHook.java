@@ -25,6 +25,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.systems.RoleBuilderSystem;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
@@ -34,7 +35,7 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
-import com.ziggfreed.mmomobscaling.util.SplitMix64;
+import com.ziggfreed.common.util.SplitMix64;
 
 /**
  * The spawn-lock: a {@link HolderSystem} over the structural {@code Archetype.of(NPCEntity, EntityStatMap)}
@@ -85,14 +86,17 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         try {
             MobScalingConfig cfg = MobScalingConfig.getInstance();
             if (!cfg.isEnabled()) {
-                return; // cheap volatile early-out (also gated at registration)
+                cleanupResidue(holder); // runtime soft-disable: strip any stale scaling off saved mobs
+                return;
             }
             World world = store.getExternalData().getWorld();
             if (world == null) {
                 return;
             }
-            // Per-world kill-switch + the world-baseline floor (in-jar WorldRules; landed in Phase 3).
-            if (!WorldScope.rulesFor(world).mobScalingEnabled()) {
+            // ONE snapshot of the per-world rules (volatile cache): used for the kill-switch AND the floor.
+            WorldRules rules = WorldScope.rulesFor(world);
+            if (!rules.mobScalingEnabled()) {
+                cleanupResidue(holder); // per-world kill-switch flipped off: strip stale scaling
                 return;
             }
 
@@ -102,11 +106,11 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             }
             Byte scope = MobClassifier.classify(npc);
             if (scope == null) {
-                return; // EXCLUDED (friendly / neutral / flock)
+                cleanupResidue(holder); // now EXCLUDED (e.g. a role added to the exclude set): strip stale scaling
+                return;
             }
 
-            double floor = WorldScope.rulesFor(world).mobDifficultyFloor();
-            double effDifficulty = floor; // MVP: no group/region delta yet (follow-up)
+            double effDifficulty = rules.mobDifficultyFloor(); // MVP: no group/region delta yet (follow-up)
 
             SplitMix64 rng = new SplitMix64(seedFor(npc, world, holder));
 
@@ -118,14 +122,12 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             MobScaleResult result = MobScaleFold.fold(rarity, affixes, effDifficulty, scope);
             holder.addComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
 
-            // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap + maximize,
-            // ref-less on the pre-add holder (HealthUtil.scaleMaxHealth; fixes the EliteMobsService missing-
-            // maximize bug). Rarity HP + any Stalwart HpDelta are pre-folded into hpMult. Idempotent by the
-            // mmoscaling_hp KEY, and with the UUID-deterministic roll the re-derived hpMult is identical on
-            // reload, so re-applying the same-keyed modifier never drifts or stacks (native stats own the value).
-            if (result.hpMult() != 1f) {
-                HealthUtil.scaleMaxHealth(holder, result.hpMult(), HP_KEY);
-            }
+            // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap, ref-less on
+            // the pre-add holder. RECONCILE (not add-only): converge the mmoscaling_hp modifier to the fresh
+            // hpMult, so a retune / floor / rarity change on chunk reload never strands a stale inflated max
+            // (hpMult==1 removes any prior modifier; a shrink auto-clamps current HP; the first apply heals).
+            // The companion effect system sweeps stale Mmoscaling_* auras the same add cycle.
+            HealthUtil.reconcileMaxHealth(holder, result.hpMult(), HP_KEY);
         } catch (Throwable t) {
             safeWarn("spawn scale failed: " + t);
         }
@@ -135,6 +137,21 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     public void onEntityRemoved(@Nonnull Holder<EntityStore> holder, @Nonnull RemoveReason reason,
             @Nonnull Store<EntityStore> store) {
         // No-op: the transient component + native effect clear on death own teardown; nothing to release.
+    }
+
+    /**
+     * Strip stale native scaling off a mob that should NOT be scaled on this load (mod runtime-disabled, world
+     * kill-switch off, or newly excluded). Removes the {@code mmoscaling_hp} MAX modifier; if there WAS residue
+     * (the mob was scaled before), stamps a PLAIN {@link ScaledMobComponent} so the effect {@code RefSystem}
+     * fires and sweeps the stale {@code Mmoscaling_*} auras the same add cycle. Cheap no-op for a mob that was
+     * never scaled (the modifier is absent, so nothing is stamped and no per-entity cost is added).
+     */
+    private static void cleanupResidue(@Nonnull Holder<EntityStore> holder) {
+        boolean hadResidue = HealthUtil.reconcileMaxHealth(holder, 1.0, HP_KEY);
+        if (hadResidue) {
+            holder.addComponent(ScaledMobComponent.getComponentType(),
+                    new ScaledMobComponent(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE)));
+        }
     }
 
     /**

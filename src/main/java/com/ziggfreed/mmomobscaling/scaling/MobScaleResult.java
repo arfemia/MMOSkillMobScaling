@@ -7,7 +7,9 @@ import javax.annotation.Nonnull;
  * multipliers everything downstream reads. Computed ONCE at spawn by {@link MobScaleFold} and stamped on the
  * mob's {@code ScaledMobComponent}; there is zero per-tick recompute. The damage filter reads
  * {@link #outDmgMult}/{@link #inDmgMult}, the death path reads {@link #lootMult}/{@link #xpMult}, and the
- * effect-apply reads {@link #rarityId}/{@link #affixIds} to resolve the native aura + affix effects.
+ * effect-apply reads {@link #rarityId}/{@link #affixIds} to resolve the native aura + affix effects. The
+ * kill-XP reward reads {@link #xpMult} (+ {@link #difficulty} for the underdog bonus); {@link #lootMult} is
+ * decoded and folded but NOT yet consumed (native item-drop loot is a follow-up).
  *
  * <p>All affix damage is PRE-FOLDED into the scalar mults here, so the per-hit path is a single float
  * multiply with zero affix iteration. Pure data (no engine coupling); {@code affixIds} identity-compares in

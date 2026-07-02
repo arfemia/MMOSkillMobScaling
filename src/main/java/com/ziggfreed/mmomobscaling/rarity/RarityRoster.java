@@ -8,7 +8,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.mmomobscaling.util.SplitMix64;
+import com.ziggfreed.common.util.SplitMix64;
 
 /**
  * The rollable rarity ladder, prepared once at asset load and rolled allocation-lightly at spawn. Built from
@@ -37,7 +37,9 @@ public final class RarityRoster {
                 list.add(r);
             }
         }
-        list.sort(Comparator.comparingDouble(Rarity::minDifficulty));
+        // Tie-break on id so pick order is a pure function of the asset SET (a total, content-determined
+        // order), closing the ConcurrentHashMap-iteration channel that reshuffled equal-MinDifficulty entries.
+        list.sort(Comparator.comparingDouble(Rarity::minDifficulty).thenComparing(Rarity::id));
         return new RarityRoster(list.toArray(new Rarity[0]));
     }
 

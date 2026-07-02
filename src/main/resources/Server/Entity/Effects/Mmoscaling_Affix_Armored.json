@@ -1,8 +1,4 @@
 {
-  "ApplicationEffects": {
-    "EntityBottomTint": "#8f9299",
-    "EntityTopTint": "#c9ccd4"
-  },
   "DamageResistance": {
     "Physical": [
       {

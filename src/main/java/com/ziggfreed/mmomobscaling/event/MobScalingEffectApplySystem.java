@@ -1,5 +1,9 @@
 package com.ziggfreed.mmomobscaling.event;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.AddReason;
@@ -12,8 +16,10 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.entity.effect.ActiveEntityEffect;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.instance.effect.EntityEffectService;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
@@ -24,17 +30,29 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 
 /**
  * The post-add companion to {@link MobScalingSpawnHook}: a {@link RefSystem} (query = the
- * {@code ScaledMobComponent} archetype) that fires with a VALID ref the same add cycle and applies the
- * native aura + affix EFFECTS via {@code EffectControllerComponent.addInfiniteEffect} - the native-leverage
- * audit's RefSystem-not-{@code world.execute} apply (rank 4).
+ * {@code ScaledMobComponent} archetype) that fires with a VALID ref the same add cycle and RECONCILES the
+ * native aura + affix EFFECTS to the CURRENT roll via the asset-authoritative {@code EntityEffectService.apply}.
  *
- * <p>Applies to SELF: the rarity aura ({@code AuraEffectId}) + each {@code STAT} affix's native
- * {@code EffectId} (Armored {@code DamageResistance}, Swift {@code HorizontalSpeedMultiplier}, Stalwart
- * visual). Skips {@code BEHAVIORAL} (no effect) and {@code HYBRID} (Freezing's slow is applied to the VICTIM
- * on-hit by the damage filter, not to self). {@code addInfiniteEffect} is keyed by effect index, so a chunk
- * reload re-add is idempotent. Whole body try-guarded.
+ * <p><b>Reconcile, not add-only.</b> It first RE-COMPUTES the desired {@code Mmoscaling_*} effect id set from
+ * the fresh {@link MobScaleResult} (rarity aura + each {@code STAT}/{@code BEHAVIORAL} affix's own
+ * {@code EffectId}), then:
+ * <ol>
+ *   <li>SWEEPS any active INFINITE effect whose id starts {@code Mmoscaling_} and is NOT desired
+ *       (removeEffect) - so a rarity downgrade / retune / an excluded-mob cleanup never leaves a stale or
+ *       double aura. Timed effects are left alone (a legit victim-applied Freezing slow must survive).</li>
+ *   <li>APPLIES each desired effect (idempotent by index, so a chunk-reload re-add is a no-op).</li>
+ * </ol>
+ *
+ * <p>HYBRID affixes (Freezing) are skipped for self-apply - their {@code EffectId} is the on-hit VICTIM slow
+ * applied by {@link MobScalingOnHitSystem}, not a self effect. Whole body try-guarded.
  */
 public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
+
+    /** Every mod-applied effect id carries this prefix; the sweep only ever removes ids under it. */
+    static final String EFFECT_PREFIX = "Mmoscaling_";
+
+    /** Warn-once-per-distinct-id set, so a busy spawner with one typo'd id does not warn every spawn. */
+    private static final Set<String> WARNED_IDS = ConcurrentHashMap.newKeySet();
 
     @Nonnull
     private final ComponentType<EntityStore, ScaledMobComponent> scaledType = ScaledMobComponent.getComponentType();
@@ -64,19 +82,11 @@ public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
             if (ctrl == null) {
                 return;
             }
-            // Rarity aura (ModelVFX / particles / tints; boss adds KnockbackMultiplier).
-            if (r.hasRarity()) {
-                Rarity rarity = RarityConfig.getInstance().resolve(r.rarityId());
-                if (rarity != null && rarity.auraEffectId() != null) {
-                    applyInfinite(ref, ctrl, cb, rarity.auraEffectId());
-                }
-            }
-            // STAT affix self-effects only.
-            for (String affixId : r.affixIds()) {
-                Affix affix = AffixConfig.getInstance().resolve(affixId);
-                if (affix != null && Affix.KIND_STAT.equals(affix.kind()) && affix.effectId() != null) {
-                    applyInfinite(ref, ctrl, cb, affix.effectId());
-                }
+
+            Set<String> desired = desiredEffectIds(r);
+            sweepStale(ref, ctrl, cb, desired); // remove stale Mmoscaling_* infinite effects BEFORE re-applying
+            for (String effectId : desired) {
+                apply(ref, cb, effectId);
             }
         } catch (Throwable t) {
             safeWarn("effect apply failed: " + t);
@@ -89,15 +99,55 @@ public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
         // No-op: DeathSystems.ClearEntityEffects clears our infinite effects on death.
     }
 
-    private static void applyInfinite(@Nonnull Ref<EntityStore> ref, @Nonnull EffectControllerComponent ctrl,
-            @Nonnull CommandBuffer<EntityStore> cb, @Nonnull String effectId) {
-        int idx = EntityEffect.getAssetMap().getIndex(effectId);
-        if (idx == Integer.MIN_VALUE) {
-            return; // effect asset not present (validated in-game)
+    /** The Mmoscaling_ effect ids this roll WANTS: the rarity aura + each STAT/BEHAVIORAL affix's self effect. */
+    @Nonnull
+    private static Set<String> desiredEffectIds(@Nonnull MobScaleResult r) {
+        Set<String> desired = new HashSet<>();
+        if (r.hasRarity()) {
+            Rarity rarity = RarityConfig.getInstance().resolve(r.rarityId());
+            if (rarity != null && rarity.auraEffectId() != null) {
+                desired.add(rarity.auraEffectId());
+            }
         }
-        EntityEffect fx = EntityEffect.getAssetMap().getAsset(idx);
-        if (fx != null) {
-            ctrl.addInfiniteEffect(ref, idx, fx, cb);
+        for (String affixId : r.affixIds()) {
+            Affix affix = AffixConfig.getInstance().resolve(affixId);
+            // STAT affixes self-apply their native effect (Armored DamageResistance, Swift speed, Stalwart
+            // knockback immunity). BEHAVIORAL (Vampiric) has no self effect; HYBRID (Freezing) is victim-directed.
+            if (affix != null && affix.effectId() != null && Affix.KIND_STAT.equals(affix.kind())) {
+                desired.add(affix.effectId());
+            }
+        }
+        return desired;
+    }
+
+    /** Remove any active INFINITE {@code Mmoscaling_*} effect not in {@code desired} (stale aura / affix). */
+    private static void sweepStale(@Nonnull Ref<EntityStore> ref, @Nonnull EffectControllerComponent ctrl,
+            @Nonnull CommandBuffer<EntityStore> cb, @Nonnull Set<String> desired) {
+        ActiveEntityEffect[] active = ctrl.getAllActiveEntityEffects();
+        if (active == null) {
+            return;
+        }
+        for (ActiveEntityEffect ae : active) {
+            if (ae == null || !ae.isInfinite()) {
+                continue; // leave timed effects (a victim-applied Freezing slow) alone
+            }
+            int idx = ae.getEntityEffectIndex();
+            EntityEffect asset = EntityEffect.getAssetMap().getAsset(idx);
+            if (asset == null) {
+                continue;
+            }
+            String id = asset.getId();
+            if (id != null && id.startsWith(EFFECT_PREFIX) && !desired.contains(id)) {
+                ctrl.removeEffect(ref, idx, cb);
+            }
+        }
+    }
+
+    /** Asset-authoritative apply (idempotent by index); warn-once on an unresolved id. */
+    private static void apply(@Nonnull Ref<EntityStore> ref, @Nonnull CommandBuffer<EntityStore> cb,
+            @Nonnull String effectId) {
+        if (!EntityEffectService.apply(ref, effectId, cb) && WARNED_IDS.add(effectId)) {
+            safeWarn("scaled-mob effect not applied (unregistered id or engine-rejected): " + effectId);
         }
     }
 

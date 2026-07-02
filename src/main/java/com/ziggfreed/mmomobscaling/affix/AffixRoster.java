@@ -8,7 +8,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
-import com.ziggfreed.mmomobscaling.util.SplitMix64;
+import com.ziggfreed.common.util.SplitMix64;
 
 /**
  * The affix pool, prepared once at asset load and rolled at spawn. Built from the folded {@link Affix} set
@@ -36,7 +36,9 @@ public final class AffixRoster {
                 list.add(a);
             }
         }
-        list.sort(Comparator.comparingDouble(Affix::minDifficulty));
+        // Tie-break on id so pick order is a pure function of the asset SET (a total, content-determined
+        // order), closing the ConcurrentHashMap-iteration channel that reshuffled equal-MinDifficulty entries.
+        list.sort(Comparator.comparingDouble(Affix::minDifficulty).thenComparing(Affix::id));
         return new AffixRoster(list.toArray(new Affix[0]));
     }
 
