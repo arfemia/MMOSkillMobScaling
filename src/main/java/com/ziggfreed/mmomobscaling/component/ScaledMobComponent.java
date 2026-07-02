@@ -20,11 +20,18 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  * immutable). The no-arg constructor (used by the engine's default {@code Supplier}) yields a benign plain
  * result so an unpopulated instance is never harmful; the spawn hook adds a populated instance via
  * {@code Holder.addComponent}.
+ *
+ * <p>The ONE mutable field is {@link #bonusLootDropped()}, a death-path latch so the bonus-loot ticking
+ * system pays a corpse exactly once (mirrors the vanilla {@code Role.hasDroppedDeathItems} latch);
+ * {@link #clone()} copies it so an archetype move mid-death cannot re-arm the drop.
  */
 public final class ScaledMobComponent implements Component<EntityStore> {
 
     @Nonnull
     private final MobScaleResult result;
+
+    /** Death-path latch: set once by {@code MobScalingLootDropSystem} when the bonus loot has dropped. */
+    private volatile boolean bonusLootDropped;
 
     /** Engine default-supplier constructor: a benign plain result (overwritten by the populated add). */
     public ScaledMobComponent() {
@@ -40,10 +47,22 @@ public final class ScaledMobComponent implements Component<EntityStore> {
         return result;
     }
 
+    /** True once the death bonus loot has been dropped for this mob (one-shot latch). */
+    public boolean bonusLootDropped() {
+        return bonusLootDropped;
+    }
+
+    /** Latch the death bonus loot as dropped (never unlatched; the corpse is removed shortly after). */
+    public void markBonusLootDropped() {
+        bonusLootDropped = true;
+    }
+
     @Nonnull
     @Override
     public Component<EntityStore> clone() {
-        return new ScaledMobComponent(result); // result is immutable - safe to share
+        ScaledMobComponent copy = new ScaledMobComponent(result); // result is immutable - safe to share
+        copy.bonusLootDropped = bonusLootDropped;
+        return copy;
     }
 
     /** The registered component type (resolved via the plugin singleton; registered in {@code setup()}). */

@@ -15,6 +15,7 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.config.ScalingContentValidator;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 
@@ -131,6 +132,7 @@ public final class MobScalingAssetRegistrar {
         RarityConfig.getInstance().mergePackLayer(layer);
         Rosters.rebuild();
         logApplied("rarities", layer.size());
+        warnFindings(ScalingContentValidator.validateRarities(layer.values()));
     }
 
     /** Fold the loaded affix assets into {@link AffixConfig}'s pack layer (same all-entries fold as rarities). */
@@ -146,6 +148,18 @@ public final class MobScalingAssetRegistrar {
         AffixConfig.getInstance().mergePackLayer(layer);
         Rosters.rebuild();
         logApplied("affixes", layer.size());
+        warnFindings(ScalingContentValidator.validateAffixes(layer.values()));
+    }
+
+    /** Log each content-validation finding as a warning; bad content degrades, it never blocks the load. */
+    private static void warnFindings(@Nonnull java.util.List<String> findings) {
+        for (String finding : findings) {
+            try {
+                MobScalingPlugin.LOGGER.atWarning().log("Mob-scaling content: " + finding);
+            } catch (Throwable ignored) {
+                // log-manager-less JVMs
+            }
+        }
     }
 
     private static void logApplied(@Nonnull String what, int count) {

@@ -1,0 +1,10 @@
+{
+  "$Comment": "MMO Mob Scaling BOSS classification tagset (native NPCGroup). A role in this group is classified SCOPE_BOSS: it is FORCED to the 'boss' rarity tier (Rarities/Boss.json, Weight 0 so it never rolls on the normal curve) instead of rolling the ladder. Owner/pack-editable: override this file to add or remove boss roles; wildcards are supported (native IncludeRoles semantics).",
+  "IncludeRoles": [
+    "Dragon_Fire",
+    "Dragon_Frost",
+    "Golem_Guardian_Void",
+    "Scarak_Broodmother",
+    "Dungeon_Scarak_Broodmother"
+  ]
+}

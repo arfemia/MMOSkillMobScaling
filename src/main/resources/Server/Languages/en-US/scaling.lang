@@ -6,6 +6,25 @@
 rarity.rare.name = Rare
 rarity.epic.name = Epic
 rarity.legendary.name = Legendary
+rarity.boss.name = Boss
+
+# Decorated display-name FRAME (death messages / kill feed / logs, NOT the overhead nameplate).
+# Both params are NESTED client-resolved messages; translators reorder the frame per locale.
+name.decorated = {rarity} {base}
+
+# /mobscaling admin command (descriptions resolve as lang keys; hytale:Admin only).
+command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty.
+command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here.
+command.usage = Usage: /mobscaling <purge|inspect>
+command.players_only = This command must be run by a player.
+command.purge.start = Sweeping scaling residue off loaded mobs in this world...
+command.purge.done = Purged scaling residue from {count} loaded mobs.
+command.inspect.header = Mob scaling at your position:
+command.inspect.power = Your power level: {power}
+command.inspect.world = World difficulty floor: {floor} (scaling active: {enabled})
+command.inspect.region = Tracked region power: {power} (mode {mode}, tracked players: {tracked})
+command.inspect.difficulty = Effective spawn difficulty here: {difficulty}
+command.inspect.chance = Rarity spawn chance: {chance}
 
 affix.armored.name = Armored
 affix.armored.desc = Clad in heavy plating that turns aside blows.

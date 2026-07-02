@@ -17,7 +17,7 @@ import com.ziggfreed.common.util.SplitMix64;
 class RarityRosterTest {
 
     private static Rarity rarity(String id, double weight, double minDiff) {
-        return new Rarity(id, "", weight, minDiff, 1, 1, 1, 1, 1, 0, null, List.of("*"));
+        return new Rarity(id, "", weight, minDiff, 1, 1, 1, 1, 1, 0, null, null, List.of("*"));
     }
 
     /** The shipped starter ladder shape (boss has weight 0 -> not rollable). */

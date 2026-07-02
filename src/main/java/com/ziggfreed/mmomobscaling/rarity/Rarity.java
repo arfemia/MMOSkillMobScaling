@@ -15,6 +15,8 @@ import javax.annotation.Nullable;
  * the pre-add {@code HealthUtil.scaleMaxHealth} (maximized), out/in damage into the pipeline mults, loot/xp
  * into the reward path. {@link #auraEffectId} is a native {@code EntityEffect} (e.g. {@code Mmoscaling_Aura_Epic})
  * applied via {@code addInfiniteEffect} - the native-asset-first visual channel, zero Java.
+ * {@link #bonusDropListId} is a native {@code ItemDropList} ({@code Server/Drops/*}) pulled on death by
+ * {@code MobScalingLootDropSystem}; {@code null} means no bonus loot for this tier.
  */
 public record Rarity(
         @Nonnull String id,
@@ -28,6 +30,7 @@ public record Rarity(
         double xpMult,
         int affixSlots,
         @Nullable String auraEffectId,
+        @Nullable String bonusDropListId,
         @Nonnull List<String> allowedAffixes) {
 
     public Rarity {

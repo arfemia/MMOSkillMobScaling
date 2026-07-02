@@ -11,12 +11,15 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
+import com.ziggfreed.mmomobscaling.command.MobScalingCommand;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingLootDropSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
 import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
 
@@ -73,7 +76,12 @@ public class MobScalingPlugin extends JavaPlugin {
             safeWarn("Failed to load mob-scaling config, using defaults: " + t.getMessage());
         }
 
-        // THE ZERO-COST REGISTRATION GATE: when disabled we register NOTHING, so the
+        // The admin command registers OUTSIDE the zero-cost gate on purpose (a command carries no
+        // per-tick cost): /mobscaling purge exists precisely for the DISABLED/uninstalling case,
+        // where no system runs to self-heal saved scaling residue.
+        getCommandRegistry().registerCommand(new MobScalingCommand());
+
+        // THE ZERO-COST REGISTRATION GATE: when disabled we register NO SYSTEMS, so the
         // mod has no per-tick cost at all. shouldRegisterSystems keeps the decision
         // unit-testable without a running server.
         if (!shouldRegisterSystems(MobScalingConfig.getInstance())) {
@@ -91,11 +99,18 @@ public class MobScalingPlugin extends JavaPlugin {
         MobScalingAssetRegistrar.registerAll(this);
 
         // Scaling systems: the spawn-lock (HolderSystem) + effect reconcile (RefSystem) + the damage-multiply
-        // filter + the on-hit behavioral reactions (inspect group, after ApplyDamage).
+        // filter + the on-hit behavioral reactions (inspect group, after ApplyDamage) + the death bonus loot
+        // (native ItemDropList pulls inside the corpse window).
         getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());
         getEntityStoreRegistry().registerSystem(new MobScalingEffectApplySystem());
         getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
         getEntityStoreRegistry().registerSystem(new MobScalingOnHitSystem());
+        getEntityStoreRegistry().registerSystem(new MobScalingLootDropSystem());
+
+        // Open-world group delta: track player presence per region grid (updates only on region cross)
+        // so the spawn hook reads a CACHED per-region power scalar - never a per-spawn player scan.
+        getEntityStoreRegistry().registerSystem(new MobScalingPresenceSystem());
+        getEntityStoreRegistry().registerSystem(new MobScalingPresenceSystem.Removal());
 
         // Reward: register the kill-XP multiplier so a rarity kill pays more through the MMO's own kill path.
         MMOSkillTreeAPI.registerMobKillXpMultiplier(new MobScalingXpReward());

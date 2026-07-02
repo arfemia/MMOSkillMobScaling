@@ -1,0 +1,15 @@
+{
+  "Name": "boss",
+  "DisplayNameKey": "scaling.rarity.boss.name",
+  "Weight": 0,
+  "MinDifficulty": 0,
+  "HpMult": 4.0,
+  "OutDamageMult": 2.2,
+  "InDamageMult": 0.6,
+  "LootMult": 3.0,
+  "XpMult": 2.0,
+  "AffixSlots": 2,
+  "AuraEffectId": "Mmoscaling_Aura_Boss",
+  "BonusDropList": "Mmoscaling_Drops_Legendary",
+  "AllowedAffixes": ["*"]
+}

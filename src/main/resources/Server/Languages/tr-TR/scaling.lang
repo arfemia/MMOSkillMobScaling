@@ -1,0 +1,33 @@
+# MMO Mob Scaling - tr-TR. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Nadir
+rarity.epic.name = Destansı
+rarity.legendary.name = Efsanevi
+rarity.boss.name = Boss
+
+affix.armored.name = Zırhlı
+affix.armored.desc = Darbeleri savuşturan ağır zırh plakalarıyla kaplı.
+affix.stalwart.name = Sarsılmaz
+affix.stalwart.desc = Kadim kaya gibi köklenmiş; hiçbir şey onu geriletemez.
+affix.swift.name = Çevik
+affix.swift.desc = Doğaüstü bir hızla hareket eder.
+affix.vampiric.name = Vampirik
+affix.vampiric.desc = Her vuruşta düşmanlarının canını emer.
+affix.freezing.name = Dondurucu
+affix.freezing.desc = Buz gibi dokunuşu dikkatsizleri uyuşturur ve yavaşlatır.
+
+name.decorated = {rarity} {base}
+
+command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele.
+command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir.
+command.usage = Kullanım: /mobscaling <purge|inspect>
+command.players_only = Bu komutu yalnızca bir oyuncu çalıştırabilir.
+command.purge.start = Bu dünyadaki yüklü yaratıklardan ölçekleme kalıntıları temizleniyor...
+command.purge.done = {count} yüklü yaratıktan ölçekleme kalıntıları temizlendi.
+command.inspect.header = Bulunduğun konumda yaratık ölçekleme:
+command.inspect.power = Güç seviyen: {power}
+command.inspect.world = Dünyanın zorluk tabanı: {floor} (ölçekleme etkin: {enabled})
+command.inspect.region = İzlenen bölge gücü: {power} (mod {mode}, izlenen oyuncular: {tracked})
+command.inspect.difficulty = Buradaki etkin belirme zorluğu: {difficulty}
+command.inspect.chance = Belirmede nadirlik şansı: {chance}

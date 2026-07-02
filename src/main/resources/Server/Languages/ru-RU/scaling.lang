@@ -1,0 +1,33 @@
+# MMO Mob Scaling - ru-RU. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Редкий
+rarity.epic.name = Эпический
+rarity.legendary.name = Легендарный
+rarity.boss.name = Босс
+
+affix.armored.name = Бронированный
+affix.armored.desc = Закован в тяжёлую броню, отражающую удары.
+affix.stalwart.name = Стойкий
+affix.stalwart.desc = Врос в землю, как древний камень; ничто не отбросит его назад.
+affix.swift.name = Стремительный
+affix.swift.desc = Движется с неестественной быстротой.
+affix.vampiric.name = Вампирический
+affix.vampiric.desc = С каждым ударом вытягивает жизнь из врагов.
+affix.freezing.name = Леденящий
+affix.freezing.desc = Его ледяное касание сковывает и замедляет неосторожных.
+
+name.decorated = {rarity} {base}
+
+command.desc = Инструменты администратора масштабирования существ: очистка остатков, проверка локальной сложности.
+command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции.
+command.usage = Использование: /mobscaling <purge|inspect>
+command.players_only = Эту команду может выполнить только игрок.
+command.purge.start = Удаление остатков масштабирования с загруженных существ в этом мире...
+command.purge.done = Остатки масштабирования удалены с {count} загруженных существ.
+command.inspect.header = Масштабирование существ в вашей позиции:
+command.inspect.power = Ваш уровень силы: {power}
+command.inspect.world = Нижний порог сложности мира: {floor} (масштабирование активно: {enabled})
+command.inspect.region = Отслеживаемая сила региона: {power} (режим {mode}, отслеживаемых игроков: {tracked})
+command.inspect.difficulty = Эффективная сложность появления здесь: {difficulty}
+command.inspect.chance = Шанс редкости при появлении: {chance}

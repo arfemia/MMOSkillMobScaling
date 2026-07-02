@@ -18,7 +18,7 @@ class AffixRosterTest {
     }
 
     private static Rarity legendary() {
-        return new Rarity("legendary", "", 5, 50, 1, 1, 1, 1, 1, 3, null, List.of("*"));
+        return new Rarity("legendary", "", 5, 50, 1, 1, 1, 1, 1, 3, null, null, List.of("*"));
     }
 
     /** A pool with TWO resistance-bearing affixes so the one-resistance rule is exercised. */
@@ -64,7 +64,7 @@ class AffixRosterTest {
     @Test
     void rarityGatingBlocksDisallowedAffix() {
         AffixRoster p = AffixRoster.build(List.of(affix("cursed", 5, 5, List.of("epic"), false)));
-        Rarity rare = new Rarity("rare", "", 70, 5, 1, 1, 1, 1, 1, 1, null, List.of("*"));
+        Rarity rare = new Rarity("rare", "", 70, 5, 1, 1, 1, 1, 1, 1, null, null, List.of("*"));
         for (long s = 0; s < 128; s++) {
             assertTrue(p.pick(60, rare, 1, new SplitMix64(s)).isEmpty(), "epic-only affix blocked on a rare mob");
         }

@@ -1,0 +1,4 @@
+{
+  "$Comment": "MMO Mob Scaling owner EXCLUSION tagset (native NPCGroup). A role in this group is NEVER scaled (no rarity, no affixes, no HP change), regardless of attitude; existing scaling residue on it is stripped on load. Ships EMPTY on purpose: owners/packs override this file to opt specific roles (or wildcards, e.g. 'Trork*') out of scaling.",
+  "IncludeRoles": []
+}

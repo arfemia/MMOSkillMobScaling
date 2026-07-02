@@ -57,7 +57,7 @@ class ScalingLangTest {
     }
 
     private static Rarity rarity(String id, String nameKey) {
-        return new Rarity(id, nameKey, 1, 1, 1, 1, 1, 1, 1, 0, null, List.of("*"));
+        return new Rarity(id, nameKey, 1, 1, 1, 1, 1, 1, 1, 0, null, null, List.of("*"));
     }
 
     private static Map<String, String> loadLang() throws Exception {

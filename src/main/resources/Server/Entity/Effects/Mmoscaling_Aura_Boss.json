@@ -1,0 +1,15 @@
+{
+  "ApplicationEffects": {
+    "Particles": [
+      {
+        "SystemId": "Drop_Legendary"
+      }
+    ],
+    "ModelVFXId": "Drop_Legendary",
+    "EntityBottomTint": "#5a1010",
+    "EntityTopTint": "#e03131",
+    "KnockbackMultiplier": 0.0
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

@@ -1,0 +1,54 @@
+{
+  "Container": {
+    "Type": "Choice",
+    "RollsMin": 1,
+    "RollsMax": 2,
+    "Containers": [
+      {
+        "Type": "Single",
+        "Weight": 100,
+        "Item": {
+          "ItemId": "Ingredient_Bar_Mithril",
+          "QuantityMin": 1,
+          "QuantityMax": 1
+        }
+      },
+      {
+        "Type": "Single",
+        "Weight": 60,
+        "Item": {
+          "ItemId": "Ingredient_Bar_Adamantite",
+          "QuantityMin": 1,
+          "QuantityMax": 1
+        }
+      },
+      {
+        "Type": "Single",
+        "Weight": 50,
+        "Item": {
+          "ItemId": "Ingredient_Void_Essence",
+          "QuantityMin": 1,
+          "QuantityMax": 2
+        }
+      },
+      {
+        "Type": "Single",
+        "Weight": 40,
+        "Item": {
+          "ItemId": "Ingredient_Life_Essence_Concentrated",
+          "QuantityMin": 1,
+          "QuantityMax": 1
+        }
+      },
+      {
+        "Type": "Single",
+        "Weight": 30,
+        "Item": {
+          "ItemId": "Ingredient_Crystal_Purple",
+          "QuantityMin": 1,
+          "QuantityMax": 1
+        }
+      }
+    ]
+  }
+}

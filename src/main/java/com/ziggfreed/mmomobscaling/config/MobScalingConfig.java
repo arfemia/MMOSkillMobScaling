@@ -73,6 +73,10 @@ public final class MobScalingConfig {
     private double lateArrivalBumpFactor;
     @Nonnull private String openWorldAggregationMode = "";
     private int regionSizeChunks;
+    // Spawn-path reads (the group-delta resolve runs per spawn), so volatile like raritySpawnChance.
+    private volatile double groupDeltaBandWidth;
+    private volatile double difficultyMinCap;
+    private volatile double difficultyMaxCap;
 
     private MobScalingConfig() {
     }
@@ -149,6 +153,17 @@ public final class MobScalingConfig {
         this.regionSizeChunks = pick(get(owner, MobScalingSettingsAsset::getRegionSizeChunks),
                 get(store, MobScalingSettingsAsset::getRegionSizeChunks),
                 get(jar, MobScalingSettingsAsset::getRegionSizeChunks), 0);
+        double band = pick(get(owner, MobScalingSettingsAsset::getGroupDeltaBandWidth),
+                get(store, MobScalingSettingsAsset::getGroupDeltaBandWidth),
+                get(jar, MobScalingSettingsAsset::getGroupDeltaBandWidth), 0.0);
+        this.groupDeltaBandWidth = Math.max(0.0, band); // the engine expects a non-negative band
+        this.difficultyMinCap = pick(get(owner, MobScalingSettingsAsset::getDifficultyMinCap),
+                get(store, MobScalingSettingsAsset::getDifficultyMinCap),
+                get(jar, MobScalingSettingsAsset::getDifficultyMinCap), 0.0);
+        double maxCap = pick(get(owner, MobScalingSettingsAsset::getDifficultyMaxCap),
+                get(store, MobScalingSettingsAsset::getDifficultyMaxCap),
+                get(jar, MobScalingSettingsAsset::getDifficultyMaxCap), 0.0);
+        this.difficultyMaxCap = Math.max(this.difficultyMinCap, maxCap); // an inverted cap pair is a footgun
     }
 
     /** Read a field off a nullable asset via its getter; {@code null} when the asset is null. */
@@ -270,4 +285,7 @@ public final class MobScalingConfig {
     public double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
     @Nonnull public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
     public int getRegionSizeChunks() { return regionSizeChunks; }
+    public double getGroupDeltaBandWidth() { return groupDeltaBandWidth; }
+    public double getDifficultyMinCap() { return difficultyMinCap; }
+    public double getDifficultyMaxCap() { return difficultyMaxCap; }
 }

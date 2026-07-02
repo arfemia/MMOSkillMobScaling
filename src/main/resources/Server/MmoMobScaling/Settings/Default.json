@@ -8,5 +8,8 @@
   "AllowDifficultyIncreaseOnPartyJoin": true,
   "LateArrivalBumpFactor": 5.0,
   "OpenWorldAggregationMode": "AVERAGE",
-  "RegionSizeChunks": 3
+  "RegionSizeChunks": 3,
+  "GroupDeltaBandWidth": 25.0,
+  "DifficultyMinCap": 0.0,
+  "DifficultyMaxCap": 100.0
 }

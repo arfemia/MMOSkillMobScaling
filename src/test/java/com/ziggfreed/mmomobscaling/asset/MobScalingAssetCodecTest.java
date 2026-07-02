@@ -42,6 +42,7 @@ class MobScalingAssetCodecTest {
         assertEquals(25.0, r.minDifficulty(), 1e-9, "MinDifficulty");
         assertEquals(2, r.affixSlots(), "AffixSlots");
         assertEquals("Mmoscaling_Aura_Epic", r.auraEffectId(), "AuraEffectId");
+        assertEquals("Mmoscaling_Drops_Epic", r.bonusDropListId(), "BonusDropList");
         assertEquals("scaling.rarity.epic.name", r.displayNameKey(), "DisplayNameKey");
         assertTrue(r.allowsAffix("armored"), "wildcard AllowedAffixes allows any affix");
     }
@@ -68,7 +69,7 @@ class MobScalingAssetCodecTest {
     @Test
     void keyedConfigFoldIsCaseInsensitive() {
         RarityConfig cfg = RarityConfig.getInstance();
-        Rarity epic = new Rarity("Epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", java.util.List.of("*"));
+        Rarity epic = new Rarity("Epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", null, java.util.List.of("*"));
         cfg.mergePackLayer(Map.of("Epic", epic));
         assertNotNull(cfg.resolve("epic"), "ids are lower-cased by the fold");
         assertEquals(2.2, cfg.resolve("EPIC").hpMult(), 1e-9, "resolve is case-insensitive");

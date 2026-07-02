@@ -10,5 +10,6 @@
   "XpMult": 1.1,
   "AffixSlots": 1,
   "AuraEffectId": "Mmoscaling_Aura_Rare",
+  "BonusDropList": "Mmoscaling_Drops_Rare",
   "AllowedAffixes": ["*"]
 }

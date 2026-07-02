@@ -6,11 +6,16 @@ enemies; a lone newcomer is not overwhelmed). It is a supplemental mod under the
 monorepo**'s `additional-mods/` (a git submodule; developed from the hyMMO root).
 **Status: the scaling system is LANDED** (in-game-validation pending). The zero-cost registration
 toggle + codec `MobScalingConfig`, plus the spawn-lock (`MobScalingSpawnHook`: rolls rarity/affixes,
-reconciles HP), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura /
-affix effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
-lifesteal + Freezing slow), and the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
-provider). Native item-drop loot, the open-world region-power delta, the zone/biome resolver, and the
-NPCGroup boss classifier are FOLLOW-UPS (see the hyMMO handoff plan).
+reconciles HP, stamps the rarity-decorated `DisplayNameComponent`, resolves floor + region-power group
+delta), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura / affix
+effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
+lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
+provider), the native `ItemDropList` death loot (`MobScalingLootDropSystem` + per-rarity
+`Server/Drops/*` tables), the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
+NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
+`boss` tier), `/mobscaling purge|inspect`, content validation, and 9-locale `scaling.lang`. The
+zone/biome/trigger-volume floor RESOLVER (layered floors replacing the flat world floor) is the
+remaining FOLLOW-UP (see the hyMMO handoff plan).
 
 Package root: **`com.ziggfreed.mmomobscaling`**.
 
@@ -123,8 +128,10 @@ plan's "NATIVE-LEVERAGE AUDIT RESOLUTIONS" block (`.claude/plans/1-5-0-mob-scali
 infinite auras persist WITH a saved mob. While the mod is ENABLED, the spawn hook reconciles them on every
 load (retunes self-heal, and an excluded / world-disabled mob is stripped). But a FULLY disabled / uninstalled
 mod registers nothing and cannot self-heal, so its residue lingers on saved scaled mobs until each dies.
-Recommendation: run once with the mod enabled after a big retune so the reconcile sweeps saved mobs; a
-`/mobscaling purge` maintenance command is a tracked follow-up.
+Recommendation: run once with the mod enabled after a big retune so the reconcile sweeps saved mobs; for a
+FULL uninstall, run `/mobscaling purge` per world first (the command registers even when scaling is
+disabled, precisely for this flow) - it strips the HP modifier + all `Mmoscaling_*` infinite effects off
+loaded mobs.
 
 ## Paradigm - the zero-cost registration gate
 

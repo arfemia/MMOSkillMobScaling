@@ -1,0 +1,33 @@
+# MMO Mob Scaling - de-DE. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Selten
+rarity.epic.name = Episch
+rarity.legendary.name = Legendär
+rarity.boss.name = Boss
+
+affix.armored.name = Gepanzert
+affix.armored.desc = In schwere Panzerplatten gehüllt, die Schläge abgleiten lassen.
+affix.stalwart.name = Standhaft
+affix.stalwart.desc = Verwurzelt wie alter Fels; nichts wirft es zurück.
+affix.swift.name = Flink
+affix.swift.desc = Bewegt sich mit unnatürlicher Schnelligkeit.
+affix.vampiric.name = Vampirisch
+affix.vampiric.desc = Entzieht seinen Feinden mit jedem Schlag Lebenskraft.
+affix.freezing.name = Frostig
+affix.freezing.desc = Seine eisige Berührung lähmt und verlangsamt die Unachtsamen.
+
+name.decorated = {rarity} {base}
+
+command.desc = Admin-Werkzeuge für die Mob-Skalierung: Rückstände bereinigen, lokale Schwierigkeit prüfen.
+command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect zeigt die Schwierigkeitswerte an deiner Position.
+command.usage = Verwendung: /mobscaling <purge|inspect>
+command.players_only = Dieser Befehl kann nur von einem Spieler ausgeführt werden.
+command.purge.start = Entferne Skalierungsrückstände von geladenen Mobs in dieser Welt...
+command.purge.done = Skalierungsrückstände von {count} geladenen Mobs entfernt.
+command.inspect.header = Mob-Skalierung an deiner Position:
+command.inspect.power = Deine Machtstufe: {power}
+command.inspect.world = Schwierigkeitsuntergrenze der Welt: {floor} (Skalierung aktiv: {enabled})
+command.inspect.region = Erfasste Regionsmacht: {power} (Modus {mode}, erfasste Spieler: {tracked})
+command.inspect.difficulty = Effektive Spawn-Schwierigkeit hier: {difficulty}
+command.inspect.chance = Seltenheits-Spawnchance: {chance}

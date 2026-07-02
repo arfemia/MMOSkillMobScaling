@@ -17,7 +17,12 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.HolderSystem;
+import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
+import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameComponent;
+import com.hypixel.hytale.server.core.modules.entity.component.PersistentDisplayName;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -25,16 +30,21 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.systems.RoleBuilderSystem;
 import com.ziggfreed.common.health.HealthUtil;
+import com.ziggfreed.common.scaling.ScalingContext;
+import com.ziggfreed.common.scaling.ScalingEngine;
 import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
 import com.ziggfreed.common.util.SplitMix64;
 
 /**
@@ -47,15 +57,16 @@ import com.ziggfreed.common.util.SplitMix64;
  * <p>Native-asset-first: the aura + affix EFFECTS are applied post-add by {@code MobScalingEffectApplySystem}
  * (a companion {@code RefSystem}); this pre-add step only stamps data + scales HP (ref-less, maximized).
  *
- * <p><b>MVP scope:</b> {@code effDifficulty} is the world-baseline floor ({@code WorldRules.mobDifficultyFloor});
- * the zone/biome/trigger-volume resolver + the open-world region-power group delta are follow-ups (the
- * {@code ScalingEngine} returns the floor when participants are empty, so those drop in cleanly later).
+ * <p><b>Difficulty scope:</b> {@code effDifficulty} = the per-world floor ({@code WorldRules.mobDifficultyFloor})
+ * plus the band-clamped open-world GROUP DELTA off the cached per-region player-power scalar
+ * ({@link RegionPowerTracker} + ziggfreed-common's {@code ScalingEngine}; see {@code resolveDifficulty}).
+ * The zone/biome/trigger-volume floor resolver remains a follow-up (it will replace the flat floor input).
  * The whole body is one defensive try/catch so a throw never breaks chunk loading.
  */
 public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
 
-    /** Mod-prefixed HP-modifier key (the {@code scaleMaxHealth} idempotency handle). */
-    private static final String HP_KEY = "mmoscaling_hp";
+    /** Mod-prefixed HP-modifier key (the {@code scaleMaxHealth} idempotency handle; the purge command strips it too). */
+    public static final String HP_KEY = "mmoscaling_hp";
 
     @Nonnull private final ComponentType<EntityStore, NPCEntity> npcType = NPCEntity.getComponentType();
     @Nonnull private final ComponentType<EntityStore, EntityStatMap> statType = EntityStatMap.getComponentType();
@@ -110,17 +121,31 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 return;
             }
 
-            double effDifficulty = rules.mobDifficultyFloor(); // MVP: no group/region delta yet (follow-up)
+            double effDifficulty = resolveDifficulty(rules, world, holder, cfg);
 
             SplitMix64 rng = new SplitMix64(seedFor(npc, world, holder));
 
-            Rarity rarity = Rosters.rarity().pick(effDifficulty, cfg.getRaritySpawnChance(), rng);
+            Rarity rarity;
+            if (scope == MobScaleResult.SCOPE_BOSS) {
+                // Boss scope FORCES the authored boss tier (Weight 0 keeps it off the normal roll);
+                // an owner who stripped Rarities/Boss.json falls back to the normal curve.
+                rarity = RarityConfig.getInstance().resolve("boss");
+                if (rarity == null) {
+                    rarity = Rosters.rarity().pick(effDifficulty, cfg.getRaritySpawnChance(), rng);
+                }
+            } else {
+                rarity = Rosters.rarity().pick(effDifficulty, cfg.getRaritySpawnChance(), rng);
+            }
             List<Affix> affixes = rarity == null
                     ? List.of()
                     : Rosters.affix().pick(effDifficulty, rarity, rarity.affixSlots(), rng);
 
             MobScaleResult result = MobScaleFold.fold(rarity, affixes, effDifficulty, scope);
             holder.addComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
+
+            if (rarity != null) {
+                decorateDisplayName(holder, rarity);
+            }
 
             // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap, ref-less on
             // the pre-add holder. RECONCILE (not add-only): converge the mmoscaling_hp modifier to the fresh
@@ -152,6 +177,69 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             holder.addComponent(ScaledMobComponent.getComponentType(),
                     new ScaledMobComponent(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE)));
         }
+    }
+
+    /**
+     * Stamp the rarity-decorated display name (surfaces in DEATH MESSAGES / kill feed / logs - the engine
+     * does not render {@code DisplayNameComponent} as an overhead nameplate). Composes the localized FRAME
+     * key {@code scaling.name.decorated} ({@code {rarity} {base}}) with NESTED client-resolved {@code Message}
+     * params - never a joined/raw English-order string - so every locale reorders the frame its own way.
+     * Reads the base name RoleBuilderSystem already stamped this same add cycle (we order AFTER it), so a
+     * reload never double-decorates (the builder re-stamps the plain role name first). SKIPS a mob carrying
+     * {@code PersistentDisplayName} (a player-authored custom name must never be overwritten) - the same
+     * guard RoleBuilderSystem itself uses.
+     */
+    private static void decorateDisplayName(@Nonnull Holder<EntityStore> holder, @Nonnull Rarity rarity) {
+        if (holder.getComponent(PersistentDisplayName.getComponentType()) != null) {
+            return;
+        }
+        DisplayNameComponent existing = holder.getComponent(DisplayNameComponent.getComponentType());
+        Message base = existing != null ? existing.getDisplayName() : null;
+        if (base == null) {
+            return; // no base name to decorate (nameless archetype)
+        }
+        Message decorated = Message.translation("scaling.name.decorated")
+                .param("rarity", Message.translation(MobScalingTextUtil.rarityNameKey(rarity)))
+                .param("base", base);
+        holder.putComponent(DisplayNameComponent.getComponentType(), new DisplayNameComponent(decorated));
+    }
+
+    /**
+     * The effective difficulty for this spawn: the per-world floor plus the band-clamped open-world
+     * GROUP DELTA - the cached per-region player-power scalar ({@link RegionPowerTracker}, O(1),
+     * maintained on player region-cross, NEVER a per-spawn scan) resolved through ziggfreed-common's
+     * {@code ScalingEngine} under the configured aggregation mode + band/caps. A cold region (no
+     * players tracked, scalar {@code <= 0}) or a missing pre-add {@code TransformComponent} is a
+     * ZERO delta: the authored floor stands untouched. This is what makes {@code MinDifficulty}
+     * above the floor a live lever (a strong group pushes {@code effDifficulty} past the floor, so
+     * Legendary / Freezing bands become reachable).
+     */
+    private static double resolveDifficulty(@Nonnull WorldRules rules, @Nonnull World world,
+            @Nonnull Holder<EntityStore> holder, @Nonnull MobScalingConfig cfg) {
+        TransformComponent transform = holder.getComponent(TransformComponent.getComponentType());
+        if (transform == null) {
+            return rules.mobDifficultyFloor();
+        }
+        return effectiveDifficulty(rules, world,
+                ChunkUtil.chunkCoordinate(transform.getPosition().x),
+                ChunkUtil.chunkCoordinate(transform.getPosition().z), cfg);
+    }
+
+    /**
+     * The chunk-coordinate form of the difficulty resolve, shared with the {@code /mobscaling inspect}
+     * diagnostic so the command reports EXACTLY what a spawn at that spot would resolve.
+     */
+    public static double effectiveDifficulty(@Nonnull WorldRules rules, @Nonnull World world,
+            int chunkX, int chunkZ, @Nonnull MobScalingConfig cfg) {
+        double floor = rules.mobDifficultyFloor();
+        long regionKey = RegionPowerTracker.regionKey(chunkX, chunkZ, cfg.getRegionSizeChunks());
+        double regionPower = RegionPowerTracker.get().scalarFor(world.getName(), regionKey);
+        if (regionPower <= 0.0) {
+            return floor; // cold miss: no players tracked in this region, the floor stands
+        }
+        return ScalingEngine.resolve(
+                ScalingContext.openWorld(floor, regionPower, MobScalingPresenceSystem.mode(cfg)),
+                cfg.getGroupDeltaBandWidth(), cfg.getDifficultyMinCap(), cfg.getDifficultyMaxCap());
     }
 
     /**

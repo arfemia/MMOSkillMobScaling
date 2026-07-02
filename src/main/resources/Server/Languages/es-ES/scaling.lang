@@ -1,0 +1,33 @@
+# MMO Mob Scaling - es-ES. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Raro
+rarity.epic.name = Épico
+rarity.legendary.name = Legendario
+rarity.boss.name = Jefe
+
+affix.armored.name = Acorazado
+affix.armored.desc = Cubierto de placas pesadas que desvían los golpes.
+affix.stalwart.name = Inquebrantable
+affix.stalwart.desc = Arraigado como la piedra antigua; nada lo hace retroceder.
+affix.swift.name = Veloz
+affix.swift.desc = Se mueve con una rapidez antinatural.
+affix.vampiric.name = Vampírico
+affix.vampiric.desc = Drena la vida de sus enemigos con cada golpe.
+affix.freezing.name = Gélido
+affix.freezing.desc = Su tacto helado entumece y ralentiza a los incautos.
+
+name.decorated = {base} {rarity}
+
+command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local.
+command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición.
+command.usage = Uso: /mobscaling <purge|inspect>
+command.players_only = Este comando solo puede ejecutarlo un jugador.
+command.purge.start = Eliminando residuos de escalado de las criaturas cargadas en este mundo...
+command.purge.done = Residuos de escalado eliminados de {count} criaturas cargadas.
+command.inspect.header = Escalado de criaturas en tu posición:
+command.inspect.power = Tu nivel de poder: {power}
+command.inspect.world = Dificultad mínima del mundo: {floor} (escalado activo: {enabled})
+command.inspect.region = Poder registrado de la región: {power} (modo {mode}, jugadores registrados: {tracked})
+command.inspect.difficulty = Dificultad efectiva de aparición aquí: {difficulty}
+command.inspect.chance = Probabilidad de rareza al aparecer: {chance}

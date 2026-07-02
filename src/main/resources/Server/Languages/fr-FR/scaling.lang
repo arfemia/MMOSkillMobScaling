@@ -1,0 +1,33 @@
+# MMO Mob Scaling - fr-FR. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Rare
+rarity.epic.name = Épique
+rarity.legendary.name = Légendaire
+rarity.boss.name = Boss
+
+affix.armored.name = Blindé
+affix.armored.desc = Couvert d'un épais blindage qui détourne les coups.
+affix.stalwart.name = Inébranlable
+affix.stalwart.desc = Enraciné comme la vieille pierre; rien ne le fait reculer.
+affix.swift.name = Véloce
+affix.swift.desc = Se déplace avec une rapidité surnaturelle.
+affix.vampiric.name = Vampirique
+affix.vampiric.desc = Draine la vie de ses ennemis à chaque coup.
+affix.freezing.name = Glacial
+affix.freezing.desc = Son toucher glacé engourdit et ralentit les imprudents.
+
+name.decorated = {base} {rarity}
+
+command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale.
+command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position.
+command.usage = Utilisation : /mobscaling <purge|inspect>
+command.players_only = Cette commande doit être exécutée par un joueur.
+command.purge.start = Suppression des résidus de mise à l'échelle des créatures chargées dans ce monde...
+command.purge.done = Résidus de mise à l'échelle retirés de {count} créatures chargées.
+command.inspect.header = Mise à l'échelle des créatures à votre position :
+command.inspect.power = Votre niveau de puissance : {power}
+command.inspect.world = Plancher de difficulté du monde : {floor} (mise à l'échelle active : {enabled})
+command.inspect.region = Puissance suivie de la région : {power} (mode {mode}, joueurs suivis : {tracked})
+command.inspect.difficulty = Difficulté d'apparition effective ici : {difficulty}
+command.inspect.chance = Chance de rareté à l'apparition : {chance}

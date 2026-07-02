@@ -120,13 +120,24 @@ public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
         return desired;
     }
 
-    /** Remove any active INFINITE {@code Mmoscaling_*} effect not in {@code desired} (stale aura / affix). */
-    private static void sweepStale(@Nonnull Ref<EntityStore> ref, @Nonnull EffectControllerComponent ctrl,
+    /** Remove EVERY active INFINITE {@code Mmoscaling_*} effect (the {@code /mobscaling purge} sweep). */
+    public static boolean sweepAll(@Nonnull Ref<EntityStore> ref, @Nonnull EffectControllerComponent ctrl,
+            @Nonnull CommandBuffer<EntityStore> cb) {
+        return sweepStale(ref, ctrl, cb, Set.of());
+    }
+
+    /**
+     * Remove any active INFINITE {@code Mmoscaling_*} effect not in {@code desired} (stale aura / affix).
+     *
+     * @return true when at least one effect was removed
+     */
+    private static boolean sweepStale(@Nonnull Ref<EntityStore> ref, @Nonnull EffectControllerComponent ctrl,
             @Nonnull CommandBuffer<EntityStore> cb, @Nonnull Set<String> desired) {
         ActiveEntityEffect[] active = ctrl.getAllActiveEntityEffects();
         if (active == null) {
-            return;
+            return false;
         }
+        boolean removedAny = false;
         for (ActiveEntityEffect ae : active) {
             if (ae == null || !ae.isInfinite()) {
                 continue; // leave timed effects (a victim-applied Freezing slow) alone
@@ -139,8 +150,10 @@ public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
             String id = asset.getId();
             if (id != null && id.startsWith(EFFECT_PREFIX) && !desired.contains(id)) {
                 ctrl.removeEffect(ref, idx, cb);
+                removedAny = true;
             }
         }
+        return removedAny;
     }
 
     /** Asset-authoritative apply (idempotent by index); warn-once on an unresolved id. */

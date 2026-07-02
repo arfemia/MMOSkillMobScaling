@@ -15,7 +15,7 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
 class MobScaleFoldTest {
 
     private static Rarity rarity(double hp, double out, double in, double loot, double xp) {
-        return new Rarity("epic", "", 25, 25, hp, out, in, loot, xp, 2, "aura", List.of("*"));
+        return new Rarity("epic", "", 25, 25, hp, out, in, loot, xp, 2, "aura", null, List.of("*"));
     }
 
     private static Affix affix(double hpDelta, double outDelta, double inDelta, double lootBonus) {

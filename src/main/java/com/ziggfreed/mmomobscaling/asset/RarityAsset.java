@@ -27,7 +27,8 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  *   "Weight": 25, "MinDifficulty": 25,
  *   "HpMult": 2.0, "OutDamageMult": 1.5, "InDamageMult": 0.8,
  *   "LootMult": 1.5, "XpMult": 1.3, "AffixSlots": 2,
- *   "AuraEffectId": "Mmoscaling_Aura_Epic", "AllowedAffixes": ["*"] }
+ *   "AuraEffectId": "Mmoscaling_Aura_Epic", "BonusDropList": "Mmoscaling_Drops_Epic",
+ *   "AllowedAffixes": ["*"] }
  * }</pre>
  */
 public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, RarityAsset>> {
@@ -45,6 +46,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     private double xpMult = 1.0;
     private int affixSlots = 0;
     @Nullable private String auraEffectId;
+    @Nullable private String bonusDropList;
     @Nullable private String[] allowedAffixes;
 
     public static final AssetBuilderCodec<String, RarityAsset> CODEC = AssetBuilderCodec.builder(
@@ -81,6 +83,8 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
             .add()
             .append(new KeyedCodec<>("AuraEffectId", Codec.STRING, false), (a, v) -> a.auraEffectId = v, a -> a.auraEffectId)
             .add()
+            .append(new KeyedCodec<>("BonusDropList", Codec.STRING, false), (a, v) -> a.bonusDropList = v, a -> a.bonusDropList)
+            .add()
             .append(new KeyedCodec<>("AllowedAffixes", Codec.STRING_ARRAY, false), (a, v) -> a.allowedAffixes = v, a -> a.allowedAffixes)
             .add()
             .build();
@@ -103,6 +107,6 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         List<String> allowed = allowedAffixes != null ? List.of(allowedAffixes) : List.of("*");
         String nameKey = displayNameKey != null ? displayNameKey : "";
         return new Rarity(id, nameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult,
-                lootMult, xpMult, affixSlots, auraEffectId, allowed);
+                lootMult, xpMult, affixSlots, auraEffectId, bonusDropList, allowed);
     }
 }

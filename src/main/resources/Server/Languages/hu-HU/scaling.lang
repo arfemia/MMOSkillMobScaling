@@ -1,0 +1,33 @@
+# MMO Mob Scaling - hu-HU. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Ritka
+rarity.epic.name = Epikus
+rarity.legendary.name = Legendás
+rarity.boss.name = Főellenség
+
+affix.armored.name = Páncélozott
+affix.armored.desc = Nehéz páncélzat borítja, amely elhárítja a csapásokat.
+affix.stalwart.name = Rendíthetetlen
+affix.stalwart.desc = Úgy gyökerezik, mint az ősi szikla; semmi sem löki hátra.
+affix.swift.name = Fürge
+affix.swift.desc = Természetellenes gyorsasággal mozog.
+affix.vampiric.name = Vámpírikus
+affix.vampiric.desc = Minden csapással életerőt szív el ellenfeleitől.
+affix.freezing.name = Fagyasztó
+affix.freezing.desc = Dermesztő érintése elzsibbasztja és lelassítja az óvatlanokat.
+
+name.decorated = {rarity} {base}
+
+command.desc = A szörnyskálázás admin eszközei: maradványok eltávolítása, helyi nehézség vizsgálata.
+command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél.
+command.usage = Használat: /mobscaling <purge|inspect>
+command.players_only = Ezt a parancsot csak játékos futtathatja.
+command.purge.start = Skálázási maradványok eltávolítása a világ betöltött szörnyeiről...
+command.purge.done = Skálázási maradványok eltávolítva {count} betöltött szörnyről.
+command.inspect.header = Szörnyskálázás a helyzetednél:
+command.inspect.power = Az erőszinted: {power}
+command.inspect.world = A világ nehézségi alsó határa: {floor} (skálázás aktív: {enabled})
+command.inspect.region = Követett régióerő: {power} (mód: {mode}, követett játékosok: {tracked})
+command.inspect.difficulty = Tényleges megjelenési nehézség itt: {difficulty}
+command.inspect.chance = Ritkasági megjelenési esély: {chance}

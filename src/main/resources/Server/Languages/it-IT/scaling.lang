@@ -1,0 +1,33 @@
+# MMO Mob Scaling - it-IT. Keys are UNPREFIXED (the filename is the namespace). No em-dashes.
+# Affix .desc is QUALITATIVE ONLY - no digits (magnitudes live in the EntityEffect assets).
+
+rarity.rare.name = Raro
+rarity.epic.name = Epico
+rarity.legendary.name = Leggendario
+rarity.boss.name = Boss
+
+affix.armored.name = Corazzato
+affix.armored.desc = Coperto di pesanti piastre che deviano i colpi.
+affix.stalwart.name = Incrollabile
+affix.stalwart.desc = Radicato come pietra antica; nulla lo respinge.
+affix.swift.name = Rapido
+affix.swift.desc = Si muove con rapidità innaturale.
+affix.vampiric.name = Vampirico
+affix.vampiric.desc = Drena la vita dei nemici a ogni colpo.
+affix.freezing.name = Gelido
+affix.freezing.desc = Il suo tocco gelido intorpidisce e rallenta gli incauti.
+
+name.decorated = {base} {rarity}
+
+command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale.
+command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione.
+command.usage = Uso: /mobscaling <purge|inspect>
+command.players_only = Questo comando può essere eseguito solo da un giocatore.
+command.purge.start = Rimozione dei residui di ridimensionamento dalle creature caricate in questo mondo...
+command.purge.done = Residui di ridimensionamento rimossi da {count} creature caricate.
+command.inspect.header = Ridimensionamento delle creature nella tua posizione:
+command.inspect.power = Il tuo livello di potere: {power}
+command.inspect.world = Soglia minima di difficoltà del mondo: {floor} (ridimensionamento attivo: {enabled})
+command.inspect.region = Potere registrato della regione: {power} (modalità {mode}, giocatori registrati: {tracked})
+command.inspect.difficulty = Difficoltà effettiva di comparsa qui: {difficulty}
+command.inspect.chance = Probabilità di rarità alla comparsa: {chance}

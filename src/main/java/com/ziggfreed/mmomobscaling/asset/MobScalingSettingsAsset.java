@@ -45,6 +45,9 @@ public final class MobScalingSettingsAsset
     @Nullable private Double lateArrivalBumpFactor;
     @Nullable private String openWorldAggregationMode;
     @Nullable private Integer regionSizeChunks;
+    @Nullable private Double groupDeltaBandWidth;
+    @Nullable private Double difficultyMinCap;
+    @Nullable private Double difficultyMaxCap;
 
     public static final AssetBuilderCodec<String, MobScalingSettingsAsset> CODEC = AssetBuilderCodec.builder(
                     MobScalingSettingsAsset.class,
@@ -95,6 +98,18 @@ public final class MobScalingSettingsAsset
             .append(new KeyedCodec<>("RegionSizeChunks", Codec.INTEGER, false),
                     (a, v) -> a.regionSizeChunks = v, a -> a.regionSizeChunks)
             .add()
+            // Max absolute difficulty swing the region-power delta may add over the world floor.
+            .append(new KeyedCodec<>("GroupDeltaBandWidth", Codec.DOUBLE, false),
+                    (a, v) -> a.groupDeltaBandWidth = v, a -> a.groupDeltaBandWidth)
+            .add()
+            // Lower clamp on the resolved effective difficulty (after the group delta).
+            .append(new KeyedCodec<>("DifficultyMinCap", Codec.DOUBLE, false),
+                    (a, v) -> a.difficultyMinCap = v, a -> a.difficultyMinCap)
+            .add()
+            // Upper clamp on the resolved effective difficulty (after the group delta).
+            .append(new KeyedCodec<>("DifficultyMaxCap", Codec.DOUBLE, false),
+                    (a, v) -> a.difficultyMaxCap = v, a -> a.difficultyMaxCap)
+            .add()
             .build();
 
     public MobScalingSettingsAsset() {
@@ -114,4 +129,7 @@ public final class MobScalingSettingsAsset
     @Nullable public Double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
     @Nullable public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
     @Nullable public Integer getRegionSizeChunks() { return regionSizeChunks; }
+    @Nullable public Double getGroupDeltaBandWidth() { return groupDeltaBandWidth; }
+    @Nullable public Double getDifficultyMinCap() { return difficultyMinCap; }
+    @Nullable public Double getDifficultyMaxCap() { return difficultyMaxCap; }
 }

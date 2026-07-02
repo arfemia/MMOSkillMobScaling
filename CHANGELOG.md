@@ -14,7 +14,28 @@ The open-world scaling system on top of the 1.0.0 gate + codec config. Rarity la
   reading the FINAL applied damage).
 - New: kill-XP reward. A rarity kill pays more XP through the MMO's own kill path via a
   `MMOSkillTreeAPI.registerMobKillXpMultiplier` provider (kill XP only, never per-hit; an underdog bonus for
-  fighting above your weight; anti-runaway hard cap). Native item-drop loot is a follow-up.
+  fighting above your weight; anti-runaway hard cap).
+- New: native item-drop LOOT. A rarity mob's death pulls bonus items from its tier's native `ItemDropList`
+  (`Rarity.BonusDropList` -> the authored `Server/Drops/MmoMobScaling/Mmoscaling_Drops_*` tables, owner/pack
+  overridable by id) inside the corpse window, mirroring the vanilla `DropDeathItems` timing; the folded
+  `LootMult` buys the pull count (floor guaranteed + a deterministic per-mob fractional extra).
+- New: open-world region-power GROUP DELTA. A cached per-region player-power scalar (`RegionPowerTracker`,
+  maintained on player region-cross by `MobScalingPresenceSystem`, O(1) spawn-path read, never a per-spawn
+  scan) resolves through ziggfreed-common's `ScalingEngine` over the world floor, band-clamped by the new
+  `GroupDeltaBandWidth`/`DifficultyMinCap`/`DifficultyMaxCap` settings keys - `MinDifficulty` above the floor
+  is now a live lever (a strong group makes Legendary/Freezing bands reachable).
+- New: NPCGroup boss classification. Authored native tagsets `Server/NPC/Groups/Mmoscaling_Bosses.json`
+  (dragons, Void guardian, broodmothers; forces the re-authored weight-0 `boss` rarity tier + its aura)
+  and `Mmoscaling_Excluded.json` (ships empty; the owner opt-out list, wins over everything).
+- New: rarity-decorated display names. A rarity mob's `DisplayNameComponent` is re-stamped with the
+  localized `name.decorated` frame (nested rarity + base-name messages, never joined English order), so
+  death messages / kill feed / logs read "Epic Zombie"; a `PersistentDisplayName` (player-named) is never touched.
+- New: `/mobscaling` admin command (`hytale:Admin`): `purge` strips ALL scaling residue (HP modifier +
+  `Mmoscaling_*` infinite effects) off loaded mobs - the full-uninstall hatch, registered OUTSIDE the
+  zero-cost gate on purpose; `inspect` reports power / floor / tracked region power / the exact effective
+  difficulty a spawn at the caller's position would resolve.
+- New: content validation (value-sanity findings over the folded rarities/affixes, warned at load, never
+  blocking) and the full 8-locale `scaling.lang` fan-out (de/es/fr/hu/it/pt-BR/ru/tr alongside en-US).
 - New: RECONCILE on load. HP + auras converge to the current roll (`HealthUtil.reconcileMaxHealth` + an effect
   sweep), so a floor / rarity / affix retune never strands a stale inflated max or a doubled aura on a saved
   mob; an excluded / world-disabled mob is stripped. (Disable/uninstall caveat: a fully-off mod cannot
