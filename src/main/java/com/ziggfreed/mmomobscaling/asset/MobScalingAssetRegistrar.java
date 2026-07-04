@@ -1,7 +1,6 @@
 package com.ziggfreed.mmomobscaling.asset;
 
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
@@ -13,11 +12,13 @@ import com.ziggfreed.common.asset.AssetStoreRegistrar;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
+import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.ScalingContentValidator;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
+import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
  * Registers this mod's OWN Pattern-A asset stores + their {@code LoadedAssetsEvent} listeners
@@ -44,6 +45,8 @@ public final class MobScalingAssetRegistrar {
     private static final String RARITIES_PATH = "MmoMobScaling/Rarities";
     /** Keyed affix store ({@code Server/MmoMobScaling/Affixes/*.json}). */
     private static final String AFFIXES_PATH = "MmoMobScaling/Affixes";
+    /** Keyed difficulty-floor mapping store ({@code Server/MmoMobScaling/Difficulty/*.json}). */
+    private static final String DIFFICULTY_PATH = "MmoMobScaling/Difficulty";
 
     private MobScalingAssetRegistrar() {
     }
@@ -81,34 +84,43 @@ public final class MobScalingAssetRegistrar {
                 null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, AffixAsset.class,
                 MobScalingAssetRegistrar::onAffixesLoaded);
+
+        // Difficulty-floor mappings (keyed multi-asset store; folded into DifficultyConfig on load,
+        // read per spawn/presence/HUD resolve through ZoneDifficultyResolver).
+        AssetStoreRegistrar.registerStore(
+                DifficultyMappingAsset.class,
+                new DefaultAssetMap<String, DifficultyMappingAsset>(),
+                DIFFICULTY_PATH,
+                DifficultyMappingAsset::getId,
+                DifficultyMappingAsset.CODEC,
+                null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, DifficultyMappingAsset.class,
+                MobScalingAssetRegistrar::onDifficultyLoaded);
     }
 
     /**
-     * Fold the loaded settings asset (the engine has already merged the jar Default.json with any
-     * external pack overlay by id, last-pack-wins) over the owner file. Does NOT skip the engine-base
-     * pack: the bundled {@code Default.json} IS our default (mirrors Kweebec's preset fold). The
-     * settings are a single "Default"-keyed asset; if a pack adds more we take the "default" entry.
+     * Fold the loaded settings store (the engine has already merged jar Default.json + Casual/Hardcore/
+     * Playtest + any external pack overlay by id, last-pack-wins) into {@link MobScalingConfig}. Passes
+     * the WHOLE preset map (keyed by name): the config selects the ACTIVE preset to fold as the store
+     * layer over the owner file, lists the presets for {@code /mobscaling preset}, and re-folds live on a
+     * swap. Does NOT skip the engine-base pack: the bundled assets ARE our defaults (mirrors Kweebec's
+     * preset fold).
      */
     static void onSettingsLoaded(
             LoadedAssetsEvent<String, MobScalingSettingsAsset, DefaultAssetMap<String, MobScalingSettingsAsset>> event) {
-        DefaultAssetMap<String, MobScalingSettingsAsset> assetMap = event.getAssetMap();
-        MobScalingSettingsAsset merged = null;
-        MobScalingSettingsAsset anyEntry = null;
-        for (Map.Entry<String, MobScalingSettingsAsset> entry : assetMap.getAssetMap().entrySet()) {
+        Map<String, MobScalingSettingsAsset> presets = new LinkedHashMap<>();
+        for (Map.Entry<String, MobScalingSettingsAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
             MobScalingSettingsAsset asset = entry.getValue();
-            if (asset == null) {
-                continue;
-            }
-            anyEntry = asset;
-            if ("default".equals(entry.getKey().toLowerCase(Locale.ROOT))) {
-                merged = asset;
+            if (asset != null) {
+                presets.put(entry.getKey(), asset);
             }
         }
-        MobScalingSettingsAsset effective = merged != null ? merged : anyEntry;
-        if (effective != null) {
-            MobScalingConfig.getInstance().applyStoreLayer(effective);
+        if (!presets.isEmpty()) {
+            MobScalingConfig.getInstance().applyStoreLayer(presets);
             try {
-                MobScalingPlugin.LOGGER.atInfo().log("Mob-scaling settings asset applied (pack layer).");
+                MobScalingPlugin.LOGGER.atInfo().log(
+                        "Mob-scaling settings store applied: %d preset(s), active '%s' (pack layer).",
+                        presets.size(), MobScalingConfig.getInstance().getActivePreset());
             } catch (Throwable ignored) {
                 // log-manager-less JVMs
             }
@@ -149,6 +161,33 @@ public final class MobScalingAssetRegistrar {
         Rosters.rebuild();
         logApplied("affixes", layer.size());
         warnFindings(ScalingContentValidator.validateAffixes(layer.values()));
+    }
+
+    /**
+     * Fold the loaded difficulty mappings into {@link DifficultyConfig}'s pack layer (same all-entries
+     * fold as rarities - the bundled zone gradient IS our default). A malformed mapping (unknown
+     * TargetType / blank TargetId) decodes to {@code null} via {@code toMapping} and is skipped with a
+     * warning rather than poisoning the fold.
+     */
+    static void onDifficultyLoaded(
+            LoadedAssetsEvent<String, DifficultyMappingAsset, DefaultAssetMap<String, DifficultyMappingAsset>> event) {
+        Map<String, DifficultyMapping> layer = new LinkedHashMap<>();
+        for (Map.Entry<String, DifficultyMappingAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
+            DifficultyMappingAsset asset = entry.getValue();
+            if (asset == null) {
+                continue;
+            }
+            DifficultyMapping mapping = asset.toMapping(entry.getKey());
+            if (mapping == null) {
+                warnFindings(java.util.List.of("difficulty mapping '" + entry.getKey()
+                        + "' skipped: TargetType must be Zone|Biome and TargetId non-blank"));
+                continue;
+            }
+            layer.put(entry.getKey(), mapping);
+        }
+        DifficultyConfig.getInstance().mergePackLayer(layer);
+        logApplied("difficulty mappings", layer.size());
+        warnFindings(ScalingContentValidator.validateDifficultyMappings(layer.values()));
     }
 
     /** Log each content-validation finding as a warning; bad content degrades, it never blocks the load. */

@@ -2,11 +2,44 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
-## Unreleased (1.5.0-cycle, in-game-validation pending)
+## 0.5.0 (2026-07-04, first public beta, in-game-validation pending)
 
-The open-world scaling system on top of the 1.0.0 gate + codec config. Rarity ladder (Rare/Epic/Legendary)
-+ a 5-affix catalog on native `EntityEffect` assets, a deterministic per-UUID roll, and the risk/reward loop.
+The first public release of MMO Mob Scaling, folding the earlier never-shipped internal skeleton (the
+zero-cost gate + codec config) into the full open-world scaling system: a rarity ladder (Rare/Epic/Legendary
++ a forced Boss tier) + a 5-affix catalog on native `EntityEffect` assets, a deterministic per-UUID roll,
+and the risk/reward loop. Numbers are still being tuned in-game, so they may shift between builds.
 
+- New: NATIVE-ZONE difficulty floors. `world/ZoneDifficultyResolver` resolves each chunk's floor off the
+  engine's OWN worldgen (memoized `Zone.name()`/`Biome.getName()`, one query per chunk ever) through
+  authored `Server/MmoMobScaling/Difficulty/*.json` mappings (Pattern-A codec: `TargetType` Zone|Biome,
+  `TargetId` native name or `*`, `Floor`; precedence zone exact > zone `*` > biome exact > biome `*` >
+  the `WorldRules` world baseline). The jar ships the Zone0..Zone4 starter gradient (3/8/22/38/55) + a
+  zone wildcard (10) + an Ocean1 biome example; owners retune one file per zone.
+- New: DISTANCE ESCALATION. Past a configurable radius from world spawn, every extra
+  `BlocksPerPoint` blocks adds +1 difficulty on the zone floor (capped at `MaxBonus`) AND raises the
+  rarity spawn chance (`RarityChancePerPoint`), so the deep frontier is denser AND higher-band in every
+  zone; fully configurable under `Difficulty.DistanceEscalation`, breakdown shown by `/mobscaling inspect`.
+- New: ZONE + PROXIMITY hybrid region buckets. The group-power aggregate is keyed by the NATIVE zone
+  name plus a chunk sub-grid cell within it (`RegionPowerTracker.RegionKey`), so a zone border always
+  splits buckets (1:1 with Hytale zones) while the delta stays local inside a huge zone; a world with
+  no native worldgen falls back to the pure chunk grid.
+- Rework (breaking, pre-release): every config codec now uses NESTED sub-object groups instead of flat
+  prefixed keys - the settings asset (`OpenWorld`/`Difficulty`+`DistanceEscalation`/`ZoneHud`/
+  `InspectorHud` groups), rarities (`Roll`/`Multipliers`/`Affixes`), affixes (`Roll`/`FoldDeltas`) -
+  with per-LEAF partial owner overlays (a half-filled group inherits the rest). The MMO jar's
+  `WorldRules` keys moved into its nested `MobScaling` group in the same pass.
+- Improvement: player power (read per region-cross from `MMOSkillTreeAPI.getPowerLevel`) is now the
+  MMO jar's real multi-pillar formula (combat + tree stat rewards + abilities + mastery + achievements
+  per `PowerLevel.json` weights), so region difficulty tracks BUILDS, not just the max combat level.
+- Improvement: HUD polish. The zone-difficulty card shows the FRIENDLY zone name (the base game's own
+  `server.map.region.<id>` region names, e.g. "Cinder Wastes", client-resolved for free) instead of the
+  raw zone id, with the biome prettified; both name-key prefixes are codec-configurable
+  (`ZoneHud.ZoneNameKeyPrefix` default `server.map.region.`, `BiomeNameKeyPrefix` default blank ->
+  prettify, since vanilla ships no biome name key). The mob-inspector card gains a generated mob PORTRAIT
+  (`Icons/ModelsGenerated/<role>.png`, the native Memories still; toggle `InspectorHud.PortraitEnabled`)
+  and renders each affix as an ICON chip driven by a new shared `IconSpec` codec (an affix's `Icon` is an
+  item id OR a Common-rooted texture path) instead of a plain name label; the five built-in affixes ship
+  icons (armor/shield/meat/ice item ids + a Stamina texture for Swift).
 - New: the spawn-lock `MobScalingSpawnHook` (rolls rarity + affixes deterministically off the entity UUID,
   folds the frozen `ScaledMobComponent`, scales HP via the native `EntityStatMap`), the effect-reconcile
   `MobScalingEffectApplySystem` (applies AND sweeps the native aura / STAT-affix effects), the damage-multiply
@@ -34,8 +67,24 @@ The open-world scaling system on top of the 1.0.0 gate + codec config. Rarity la
   `Mmoscaling_*` infinite effects) off loaded mobs - the full-uninstall hatch, registered OUTSIDE the
   zero-cost gate on purpose; `inspect` reports power / floor / tracked region power / the exact effective
   difficulty a spawn at the caller's position would resolve.
+- New: two player-facing HUD overlays, driven by one per-player ticking system (`MobScalingHudSystem`,
+  lazy install self-heals world-transfer HUD teardown; skip-if-unchanged pushes on top of per-HUD throttles):
+  - the ZONE DIFFICULTY card (`ZoneDifficultyHud`, `Hud/MmoscalingZoneHud.ui`): the effective local spawn
+    difficulty (the exact `/mobscaling inspect` number), a coloured qualitative threat tier relative to the
+    viewer (Trivial/Easy/Fair/Hard/Deadly off the difficulty-minus-power delta, `ZoneTier`), the viewer's
+    own power level, and the tracked group (region) power when present; hides when scaling is off for the world;
+  - the MOB INSPECTOR (`MobInspectorHud`, `Hud/MmoscalingMobInspector.ui`): the entity under the crosshair
+    (the engine's own `TargetUtil.getTargetEntity` raycast, range from the new `InspectorRangeBlocks` key),
+    showing its display name, a coloured rarity tag (the new pack-authorable `Rarity.NameColor`), the frozen
+    scaled difficulty, a live HP bar with `current / max`, and the rolled affix names; unscaled mobs still
+    get name + HP, other players are never inspectable.
+- New: HUD admin settings. Nine codec keys (`ZoneHudEnabled`/`ZoneHudPosition`/`ZoneHudOffsetX`/`ZoneHudOffsetY`,
+  the `InspectorHud*` four, `InspectorRangeBlocks`) with named corner presets (TOP_LEFT ... BOTTOM_RIGHT), plus
+  `/mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]` for LIVE tuning across all online
+  players (runtime only; the owner file stays the persistent authority and the command says so).
 - New: content validation (value-sanity findings over the folded rarities/affixes, warned at load, never
-  blocking) and the full 8-locale `scaling.lang` fan-out (de/es/fr/hu/it/pt-BR/ru/tr alongside en-US).
+  blocking) and the full 8-locale `scaling.lang` fan-out (de/es/fr/hu/it/pt-BR/ru/tr alongside en-US),
+  including the HUD strings (tier words, card frames, the hud subcommand).
 - New: RECONCILE on load. HP + auras converge to the current roll (`HealthUtil.reconcileMaxHealth` + an effect
   sweep), so a floor / rarity / affix retune never strands a stale inflated max or a doubled aura on a saved
   mob; an excluded / world-disabled mob is stripped. (Disable/uninstall caveat: a fully-off mod cannot
@@ -52,9 +101,10 @@ The open-world scaling system on top of the 1.0.0 gate + codec config. Rarity la
   `EntityEffectService.apply` (asset-authoritative).
 - Removed the dead Boss tier assets (unreachable until the NPCGroup boss classifier lands).
 
-## 1.0.0
+### Foundation (the held internal 1.0.0 skeleton, folded into this first release)
 
-Phase-1 skeleton for the open-world mob difficulty-scaling companion to MMO Skill Tree.
+The zero-cost registration gate + the codec config that the scaling system above builds on. Never
+shipped on its own; it is part of 0.5.0.
 
 - **New: zero-cost registration gate.** The plugin loads its config in `setup()` and
   applies a registration gate (`MobScalingPlugin.shouldRegisterSystems`): when the config
@@ -74,6 +124,6 @@ Phase-1 skeleton for the open-world mob difficulty-scaling companion to MMO Skil
 
 - Standalone Hytale sibling mod; package root `com.ziggfreed.mmomobscaling`, entry point
   `MobScalingPlugin`.
-- Compiles `compileOnly` against the local `MMOSkillTree-1.4.4.jar` dev jar (which carries
-  the frozen 1.5.0 API) while the manifest pins the runtime requirement at MMOSkillTree
-  `>=1.5.0` and ZiggfreedCommon `>=1.2.0`. Neither is bundled.
+- Compiles `compileOnly` against the local `MMOSkillTree-1.5.0.jar` dev jar (the frozen 1.5.0
+  API) while the manifest pins the runtime requirement at MMOSkillTree `>=1.5.0` and
+  ZiggfreedCommon `>=1.2.0`. Neither is bundled.

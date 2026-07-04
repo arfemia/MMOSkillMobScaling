@@ -25,7 +25,8 @@ class MobScaleFoldTest {
 
     @Test
     void plainIsAllOnes() {
-        MobScaleResult r = MobScaleFold.plain(12.0, MobScaleResult.SCOPE_HOSTILE);
+        MobScaleResult r = MobScaleFold.plain(12.0, MobScaleResult.SCOPE_HOSTILE,
+                MobScaleFold.DifficultyStatCurve.NONE);
         assertEquals(1f, r.hpMult());
         assertEquals(1f, r.outDmgMult());
         assertEquals(1f, r.inDmgMult());
@@ -38,14 +39,16 @@ class MobScaleFoldTest {
 
     @Test
     void nullRarityFoldsToPlain() {
-        MobScaleResult r = MobScaleFold.fold(null, List.of(affix(1, 1, -1, 1)), 30, MobScaleResult.SCOPE_HOSTILE);
+        MobScaleResult r = MobScaleFold.fold(null, List.of(affix(1, 1, -1, 1)), 30, MobScaleResult.SCOPE_HOSTILE,
+                MobScaleFold.DifficultyStatCurve.NONE);
         assertEquals(1f, r.hpMult(), "no rarity -> plain, affixes ignored");
         assertFalse(r.hasAffixes());
     }
 
     @Test
     void rarityOnlyPassesThrough() {
-        MobScaleResult r = MobScaleFold.fold(rarity(2.2, 1.9, 0.7, 1.5, 1.3), List.of(), 40, MobScaleResult.SCOPE_HOSTILE);
+        MobScaleResult r = MobScaleFold.fold(rarity(2.2, 1.9, 0.7, 1.5, 1.3), List.of(), 40,
+                MobScaleResult.SCOPE_HOSTILE, MobScaleFold.DifficultyStatCurve.NONE);
         assertEquals(2.2f, r.hpMult(), 1e-5f);
         assertEquals(1.9f, r.outDmgMult(), 1e-5f);
         assertEquals(0.7f, r.inDmgMult(), 1e-5f);
@@ -58,7 +61,8 @@ class MobScaleFoldTest {
     void affixDeltasAreAdditive() {
         // Stalwart-like +0.15 hp; a +0.2 out; a -0.1 in; +0.2 loot bonus.
         MobScaleResult r = MobScaleFold.fold(rarity(2.0, 1.5, 0.8, 1.5, 1.3),
-                List.of(affix(0.15, 0.2, -0.1, 0.2)), 40, MobScaleResult.SCOPE_HOSTILE);
+                List.of(affix(0.15, 0.2, -0.1, 0.2)), 40, MobScaleResult.SCOPE_HOSTILE,
+                MobScaleFold.DifficultyStatCurve.NONE);
         assertEquals(2.15f, r.hpMult(), 1e-5f, "hp additive");
         assertEquals(1.7f, r.outDmgMult(), 1e-5f, "out additive");
         assertEquals(0.7f, r.inDmgMult(), 1e-5f, "in additive");
@@ -70,10 +74,52 @@ class MobScaleFoldTest {
     void clampsToSafetyCaps() {
         // Legendary + multiple big affixes would blow past every cap; the fold clamps.
         MobScaleResult r = MobScaleFold.fold(rarity(3.8, 2.6, 0.55, 2.0, 1.6),
-                List.of(affix(2.0, 2.0, -2.0, 5.0), affix(2.0, 2.0, -2.0, 5.0)), 80, MobScaleResult.SCOPE_HOSTILE);
+                List.of(affix(2.0, 2.0, -2.0, 5.0), affix(2.0, 2.0, -2.0, 5.0)), 80, MobScaleResult.SCOPE_HOSTILE,
+                MobScaleFold.DifficultyStatCurve.NONE);
         assertEquals((float) MobScaleFold.MAX_HEALTH_MULT, r.hpMult(), 1e-5f, "hp capped at 4.5");
         assertEquals((float) MobScaleFold.OUT_DMG_MAX, r.outDmgMult(), 1e-5f, "out capped at 3.0");
         assertEquals((float) MobScaleFold.IN_DMG_MIN, r.inDmgMult(), 1e-5f, "in floored at 0.5 (x2 effective HP ceiling)");
         assertEquals((float) MobScaleFold.LOOT_MULT_MAX, r.lootMult(), 1e-5f, "loot capped at 3.0");
+    }
+
+    @Test
+    void plainScalesWithDifficulty() {
+        // A steep curve: HP +8%/pt, out +2%/pt, in -0.2%/pt, capped 20x / 8x / floor 0.5.
+        var curve = new MobScaleFold.DifficultyStatCurve(0.08, 0.02, 0.002, 20.0, 8.0, 0.5);
+
+        // Difficulty 1 is the baseline (no scaling): hpFactor = 1 + (1-1)*0.08 = 1.
+        assertEquals(1f, MobScaleFold.plain(1, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(),
+                "difficulty 1 = baseline");
+
+        // hpFactor = clamp(1 + (max(1,d)-1)*0.08, 1, 20).
+        assertEquals(1.16f, MobScaleFold.plain(3, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(), 1e-4f);
+        assertEquals(3.96f, MobScaleFold.plain(38, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(), 1e-4f);
+        assertEquals(16.92f, MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(), 1e-4f);
+
+        // At difficulty 38: out rises (1 + 37*0.02), in falls (1 - 37*0.002).
+        MobScaleResult mid = MobScaleFold.plain(38, MobScaleResult.SCOPE_HOSTILE, curve);
+        assertEquals(1.74f, mid.outDmgMult(), 1e-4f, "outFactor = 1 + 37*0.02");
+        assertEquals(0.926f, mid.inDmgMult(), 1e-4f, "inFactor = 1 - 37*0.002");
+
+        // Monotone across difficulty: hp + out rise, in falls.
+        MobScaleResult low = MobScaleFold.plain(3, MobScaleResult.SCOPE_HOSTILE, curve);
+        MobScaleResult high = MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, curve);
+        assertTrue(high.hpMult() > mid.hpMult() && mid.hpMult() > low.hpMult(), "hp rises with difficulty");
+        assertTrue(high.outDmgMult() > mid.outDmgMult() && mid.outDmgMult() > low.outDmgMult(),
+                "out rises with difficulty");
+        assertTrue(high.inDmgMult() < mid.inDmgMult() && mid.inDmgMult() < low.inDmgMult(),
+                "in falls with difficulty");
+    }
+
+    @Test
+    void foldIsCurveTimesRarity() {
+        // The same steep curve; a rarity multiplies the curve-scaled base per channel.
+        var curve = new MobScaleFold.DifficultyStatCurve(0.08, 0.02, 0.002, 20.0, 8.0, 0.5);
+        MobScaleResult r = MobScaleFold.fold(rarity(2.0, 1.5, 0.8, 1.5, 1.3), List.of(), 38,
+                MobScaleResult.SCOPE_HOSTILE, curve);
+        // hp: curve.hpFactor(38)=3.96 * rarity 2.0; out: 1.74 * 1.5; in: 0.926 * 0.8. All below the curve caps.
+        assertEquals(3.96f * 2.0f, r.hpMult(), 1e-3f, "curve HP times rarity HP");
+        assertEquals(1.74f * 1.5f, r.outDmgMult(), 1e-3f, "curve out times rarity out");
+        assertEquals(0.926f * 0.8f, r.inDmgMult(), 1e-3f, "curve in times rarity in");
     }
 }

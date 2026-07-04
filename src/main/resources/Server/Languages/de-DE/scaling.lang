@@ -19,15 +19,49 @@ affix.freezing.desc = Seine eisige Berührung lähmt und verlangsamt die Unachts
 
 name.decorated = {rarity} {base}
 
-command.desc = Admin-Werkzeuge für die Mob-Skalierung: Rückstände bereinigen, lokale Schwierigkeit prüfen.
-command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect zeigt die Schwierigkeitswerte an deiner Position.
-command.usage = Verwendung: /mobscaling <purge|inspect>
+command.desc = Admin-Werkzeuge für die Mob-Skalierung: Rückstände bereinigen, lokale Schwierigkeit prüfen, HUD-Anzeigen einstellen.
+command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect zeigt die Schwierigkeitswerte an deiner Position; hud stellt die Anzeigen ein.
+command.usage = Verwendung: /mobscaling <purge|inspect|hud>
 command.players_only = Dieser Befehl kann nur von einem Spieler ausgeführt werden.
 command.purge.start = Entferne Skalierungsrückstände von geladenen Mobs in dieser Welt...
 command.purge.done = Skalierungsrückstände von {count} geladenen Mobs entfernt.
 command.inspect.header = Mob-Skalierung an deiner Position:
 command.inspect.power = Deine Machtstufe: {power}
 command.inspect.world = Schwierigkeitsuntergrenze der Welt: {floor} (Skalierung aktiv: {enabled})
+command.inspect.zone = Zone {zone}: Basisuntergrenze {base}, Distanzbonus +{bonus}, effektive Untergrenze {floor}
 command.inspect.region = Erfasste Regionsmacht: {power} (Modus {mode}, erfasste Spieler: {tracked})
 command.inspect.difficulty = Effektive Spawn-Schwierigkeit hier: {difficulty}
 command.inspect.chance = Seltenheits-Spawnchance: {chance}
+command.inspect.curve = Statuskurve für einfache Mobs hier: HP x{hp}, ausgehender Schaden x{out}, erlittener Schaden x{in}
+
+command.preset.usage = Verwendung: /mobscaling preset [name]
+command.preset.active = Aktives Preset: {0}
+command.preset.available = Verfügbare Presets: {0}
+command.preset.swapped = Zu Preset {0} gewechselt.
+command.preset.unknown = Unbekanntes Preset {0}. Verfügbar: {1}
+
+command.hud.usage = Verwendung: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positionen: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD für alle Spieler aktiviert: {target}
+command.hud.disabled = HUD für alle Spieler deaktiviert: {target}
+command.hud.moved = {target} nach {position} verschoben (Versatz {x}, {y}).
+command.hud.persist_hint = Nur zur Laufzeit: um die Änderung über Neustarts zu behalten, setze die ZoneHud/InspectorHud-Schlüssel in mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = Zonen-Schwierigkeits-HUD
+command.hud.target.inspector = Mob-Inspektor-HUD
+command.arg.hud_target = Welches HUD: zone oder inspector.
+command.arg.hud_value = on, off oder eine Positionsvorgabe wie TOP_LEFT.
+command.arg.hud_offset_x = Optionaler Pixelversatz von der verankerten horizontalen Kante.
+command.arg.hud_offset_y = Optionaler Pixelversatz von der verankerten vertikalen Kante.
+
+hud.zone.title = ZONEN-SCHWIERIGKEIT
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Schwierigkeit {value}
+hud.zone.power = Deine Macht: {power}
+hud.zone.group = Gruppenmacht: {power}
+hud.zone.tier.trivial = Trivial
+hud.zone.tier.easy = Leicht
+hud.zone.tier.fair = Ausgeglichen
+hud.zone.tier.hard = Schwer
+hud.zone.tier.deadly = Tödlich
+
+hud.inspect.difficulty = Schwierigkeit {value}
+hud.inspect.hp = {current} / {max}

@@ -1,0 +1,6 @@
+{
+  "$Comment": "Biome-layer example. Under the precedence a NAMED biome floor beats the ZoneAny wildcard (zone-specific > biome-specific > zone-* > biome-*), so this fires on any Ocean1 chunk that has no zone-specific mapping - even where the ZoneAny wildcard exists.",
+  "TargetType": "Biome",
+  "TargetId": "Ocean1",
+  "Floor": 12.0
+}

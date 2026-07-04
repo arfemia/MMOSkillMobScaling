@@ -2,6 +2,7 @@ package com.ziggfreed.mmomobscaling.asset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -18,6 +19,7 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
  * Guards the Rarity/Affix codecs: static-init succeeds (a lower-case-first PascalCase key would throw here),
@@ -32,6 +34,25 @@ class MobScalingAssetCodecTest {
         assertNotNull(RarityAsset.CODEC, "RarityAsset.CODEC static-init (PascalCase key guard)");
         assertNotNull(AffixAsset.CODEC, "AffixAsset.CODEC static-init (PascalCase key guard)");
         assertNotNull(MobScalingSettingsAsset.CODEC, "MobScalingSettingsAsset.CODEC static-init");
+        assertNotNull(DifficultyMappingAsset.CODEC, "DifficultyMappingAsset.CODEC static-init");
+        assertNotNull(IconSpec.CODEC, "IconSpec.CODEC static-init (PascalCase key guard)");
+    }
+
+    @Test
+    void decodesShippedZoneMapping() throws Exception {
+        DifficultyMappingAsset asset = decode("/Server/MmoMobScaling/Difficulty/Zone2.json",
+                DifficultyMappingAsset.CODEC);
+        DifficultyMapping m = asset.toMapping("zone2");
+        assertNotNull(m, "shipped mapping resolves");
+        assertEquals(DifficultyMapping.TargetType.ZONE, m.targetType(), "TargetType");
+        assertTrue(m.matches("Zone2") && m.matches("zone2"), "TargetId matches case-insensitively");
+        assertEquals(22.0, m.floor(), 1e-9, "Floor");
+    }
+
+    @Test
+    void malformedMappingResolvesNull() {
+        DifficultyMappingAsset blank = new DifficultyMappingAsset();
+        assertTrue(blank.toMapping("broken") == null, "unknown TargetType/blank TargetId folds to null (skipped)");
     }
 
     @Test
@@ -45,6 +66,15 @@ class MobScalingAssetCodecTest {
         assertEquals("Mmoscaling_Drops_Epic", r.bonusDropListId(), "BonusDropList");
         assertEquals("scaling.rarity.epic.name", r.displayNameKey(), "DisplayNameKey");
         assertTrue(r.allowsAffix("armored"), "wildcard AllowedAffixes allows any affix");
+        assertEquals("#b388ff", r.nameColor(), "NameColor (the inspector HUD tint)");
+        assertEquals("#b388ff", r.displayColor(), "displayColor passes an authored colour through");
+    }
+
+    @Test
+    void rarityWithoutNameColorFallsBackToWhite() {
+        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, java.util.List.of("*"));
+        assertEquals("", plain.nameColor(), "convenience constructor leaves NameColor empty");
+        assertEquals(Rarity.DEFAULT_NAME_COLOR, plain.displayColor(), "empty NameColor renders white");
     }
 
     @Test
@@ -55,6 +85,28 @@ class MobScalingAssetCodecTest {
         assertTrue(a.resistanceBearing(), "ResistanceBearing");
         assertEquals(0.0, a.inDamageDelta(), 1e-9, "mitigation is native (no pipeline delta)");
         assertTrue(a.allowsRarity("legendary"), "wildcard AllowedRarities allows any rarity");
+        // Icon (shared IconSpec): the item-id form decodes to iconItemId, no texture path.
+        assertTrue(a.hasIcon(), "Armored ships an Icon");
+        assertEquals("Armor_Bronze_Chest", a.iconItemId(), "Icon.ItemId");
+        assertNull(a.iconTexturePath(), "item-id icon has no texture path");
+    }
+
+    @Test
+    void decodesTexturePathAffixIcon() throws Exception {
+        // Swift authors the TEXTURE-path icon form (exercises the other IconSpec branch).
+        Affix a = decode("/Server/MmoMobScaling/Affixes/Swift.json", AffixAsset.CODEC).toAffix();
+        assertTrue(a.hasIcon(), "Swift ships an Icon");
+        assertEquals("UI/StatusEffects/Stamina.png", a.iconTexturePath(), "Icon.TexturePath");
+        assertNull(a.iconItemId(), "texture-path icon has no item id");
+    }
+
+    @Test
+    void affixWithoutIconHasNoIcon() {
+        Affix plain = new Affix("x", "", "", null, 1, 0, java.util.List.of("*"), 0, 0, 0, 0,
+                Affix.KIND_STAT, null, false);
+        assertTrue(!plain.hasIcon(), "the pre-icon convenience constructor yields no icon");
+        assertNull(plain.iconItemId(), "no item id");
+        assertNull(plain.iconTexturePath(), "no texture path");
     }
 
     @Test

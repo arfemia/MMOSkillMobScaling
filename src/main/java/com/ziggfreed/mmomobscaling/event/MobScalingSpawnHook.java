@@ -45,6 +45,7 @@ import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
+import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 import com.ziggfreed.common.util.SplitMix64;
 
 /**
@@ -57,10 +58,12 @@ import com.ziggfreed.common.util.SplitMix64;
  * <p>Native-asset-first: the aura + affix EFFECTS are applied post-add by {@code MobScalingEffectApplySystem}
  * (a companion {@code RefSystem}); this pre-add step only stamps data + scales HP (ref-less, maximized).
  *
- * <p><b>Difficulty scope:</b> {@code effDifficulty} = the per-world floor ({@code WorldRules.mobDifficultyFloor})
- * plus the band-clamped open-world GROUP DELTA off the cached per-region player-power scalar
- * ({@link RegionPowerTracker} + ziggfreed-common's {@code ScalingEngine}; see {@code resolveDifficulty}).
- * The zone/biome/trigger-volume floor resolver remains a follow-up (it will replace the flat floor input).
+ * <p><b>Difficulty scope:</b> {@code effDifficulty} = the LAYERED floor (native zone &gt; biome &gt;
+ * {@code WorldRules.mobDifficultyFloor} baseline, via {@link ZoneDifficultyResolver}) plus the
+ * distance-from-spawn escalation, plus the band-clamped open-world GROUP DELTA off the cached
+ * per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker} + ziggfreed-common's
+ * {@code ScalingEngine}; see {@link #resolveSpawnScaling}). The escalation also boosts the rarity
+ * spawn chance, so the deep frontier is denser with scaled mobs, not just higher-band.
  * The whole body is one defensive try/catch so a throw never breaks chunk loading.
  */
 public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
@@ -121,7 +124,8 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 return;
             }
 
-            double effDifficulty = resolveDifficulty(rules, world, holder, cfg);
+            SpawnScaling scaling = resolveSpawnScaling(rules, world, holder, cfg);
+            double effDifficulty = scaling.difficulty();
 
             SplitMix64 rng = new SplitMix64(seedFor(npc, world, holder));
 
@@ -131,16 +135,18 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 // an owner who stripped Rarities/Boss.json falls back to the normal curve.
                 rarity = RarityConfig.getInstance().resolve("boss");
                 if (rarity == null) {
-                    rarity = Rosters.rarity().pick(effDifficulty, cfg.getRaritySpawnChance(), rng);
+                    rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng);
                 }
             } else {
-                rarity = Rosters.rarity().pick(effDifficulty, cfg.getRaritySpawnChance(), rng);
+                rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng);
             }
             List<Affix> affixes = rarity == null
                     ? List.of()
                     : Rosters.affix().pick(effDifficulty, rarity, rarity.affixSlots(), rng);
 
-            MobScaleResult result = MobScaleFold.fold(rarity, affixes, effDifficulty, scope);
+            // The base difficulty->stat curve scales plain + rare mobs alike; rarity/affix mults stack on top.
+            MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
+            MobScaleResult result = MobScaleFold.fold(rarity, affixes, effDifficulty, scope, curve);
             holder.addComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
 
             if (rarity != null) {
@@ -175,7 +181,8 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         boolean hadResidue = HealthUtil.reconcileMaxHealth(holder, 1.0, HP_KEY);
         if (hadResidue) {
             holder.addComponent(ScaledMobComponent.getComponentType(),
-                    new ScaledMobComponent(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE)));
+                    new ScaledMobComponent(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE,
+                            MobScaleFold.DifficultyStatCurve.NONE)));
         }
     }
 
@@ -205,41 +212,69 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     }
 
     /**
-     * The effective difficulty for this spawn: the per-world floor plus the band-clamped open-world
-     * GROUP DELTA - the cached per-region player-power scalar ({@link RegionPowerTracker}, O(1),
-     * maintained on player region-cross, NEVER a per-spawn scan) resolved through ziggfreed-common's
-     * {@code ScalingEngine} under the configured aggregation mode + band/caps. A cold region (no
-     * players tracked, scalar {@code <= 0}) or a missing pre-add {@code TransformComponent} is a
-     * ZERO delta: the authored floor stands untouched. This is what makes {@code MinDifficulty}
-     * above the floor a live lever (a strong group pushes {@code effDifficulty} past the floor, so
-     * Legendary / Freezing bands become reachable).
+     * One fully-resolved spawn-scaling read: the effective difficulty (floor + escalation + group
+     * delta), the escalation-boosted rarity spawn chance, and the diagnostic breakdown
+     * ({@code /mobscaling inspect} prints every field so owners can see exactly which layer produced
+     * a number).
      */
-    private static double resolveDifficulty(@Nonnull WorldRules rules, @Nonnull World world,
+    public record SpawnScaling(double difficulty, double raritySpawnChance, @Nonnull String zoneName,
+            double baseFloor, double escalationBonus, double effectiveFloor, double regionPower,
+            @Nonnull String biomeName) {
+    }
+
+    /**
+     * The holder form of the spawn-scaling resolve. A missing pre-add {@code TransformComponent}
+     * degrades to the world baseline floor + the un-boosted chance (no position = no zone, no
+     * escalation, no group delta).
+     */
+    private static SpawnScaling resolveSpawnScaling(@Nonnull WorldRules rules, @Nonnull World world,
             @Nonnull Holder<EntityStore> holder, @Nonnull MobScalingConfig cfg) {
         TransformComponent transform = holder.getComponent(TransformComponent.getComponentType());
         if (transform == null) {
-            return rules.mobDifficultyFloor();
+            double floor = rules.mobDifficultyFloor();
+            return new SpawnScaling(floor, cfg.getRaritySpawnChance(), ZoneDifficultyResolver.NO_ZONE,
+                    floor, 0.0, floor, 0.0, ZoneDifficultyResolver.NO_ZONE);
         }
-        return effectiveDifficulty(rules, world,
+        return resolveSpawnScaling(rules, world,
                 ChunkUtil.chunkCoordinate(transform.getPosition().x),
                 ChunkUtil.chunkCoordinate(transform.getPosition().z), cfg);
     }
 
     /**
-     * The chunk-coordinate form of the difficulty resolve, shared with the {@code /mobscaling inspect}
-     * diagnostic so the command reports EXACTLY what a spawn at that spot would resolve.
+     * The chunk-coordinate form of the spawn-scaling resolve, shared with the HUD and the
+     * {@code /mobscaling inspect} diagnostic so both report EXACTLY what a spawn at that spot would
+     * resolve. Pipeline: {@link ZoneDifficultyResolver} produces the layered floor (native zone &gt;
+     * biome &gt; world baseline) plus the distance escalation (which also boosts the rarity chance);
+     * then the cached per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker}, O(1),
+     * maintained on player region-cross, NEVER a per-spawn scan) rides on top through
+     * ziggfreed-common's {@code ScalingEngine} under the configured aggregation mode + band/caps. A
+     * cold region (no players tracked, scalar {@code <= 0}) is a ZERO delta: the escalated floor
+     * stands. Power scaling is also fully OFF inside the start ring near world spawn
+     * ({@code floor.insideStartRing()}), and when {@code OnlyRaiseDifficulty} is set the group delta only
+     * ever RAISES difficulty above the floor, never below it. This is what makes {@code MinDifficulty}
+     * above the floor a live lever (a strong group pushes {@code effDifficulty} past the floor, so
+     * Legendary / Freezing bands become reachable).
      */
-    public static double effectiveDifficulty(@Nonnull WorldRules rules, @Nonnull World world,
+    public static SpawnScaling resolveSpawnScaling(@Nonnull WorldRules rules, @Nonnull World world,
             int chunkX, int chunkZ, @Nonnull MobScalingConfig cfg) {
-        double floor = rules.mobDifficultyFloor();
-        long regionKey = RegionPowerTracker.regionKey(chunkX, chunkZ, cfg.getRegionSizeChunks());
+        ZoneDifficultyResolver.ResolvedFloor floor =
+                ZoneDifficultyResolver.get().resolve(rules, world, chunkX, chunkZ, cfg);
+        RegionPowerTracker.RegionKey regionKey = new RegionPowerTracker.RegionKey(floor.zoneName(),
+                RegionPowerTracker.gridKey(chunkX, chunkZ, cfg.getRegionSizeChunks()));
         double regionPower = RegionPowerTracker.get().scalarFor(world.getName(), regionKey);
-        if (regionPower <= 0.0) {
-            return floor; // cold miss: no players tracked in this region, the floor stands
+        // LOCATION drives difficulty (the escalated floor). Player/group power only ever RAISES it above
+        // that floor (never lowers it, when OnlyRaiseDifficulty is set), and is fully OFF inside the start
+        // ring near world spawn, so a fresh newcomer's home zone is never inflated by a passing strong group.
+        double difficulty = floor.effectiveFloor();
+        if (regionPower > 0.0 && !floor.insideStartRing()) {
+            double scaled = ScalingEngine.resolve(
+                    ScalingContext.openWorld(floor.effectiveFloor(), regionPower, MobScalingPresenceSystem.mode(cfg)),
+                    cfg.getGroupDeltaBandWidth(), cfg.getDifficultyMinCap(), cfg.getDifficultyMaxCap());
+            difficulty = cfg.isOnlyRaiseDifficulty() ? Math.max(scaled, floor.effectiveFloor()) : scaled;
         }
-        return ScalingEngine.resolve(
-                ScalingContext.openWorld(floor, regionPower, MobScalingPresenceSystem.mode(cfg)),
-                cfg.getGroupDeltaBandWidth(), cfg.getDifficultyMinCap(), cfg.getDifficultyMaxCap());
+        return new SpawnScaling(difficulty, floor.raritySpawnChance(), floor.zoneName(),
+                floor.baseFloor(), floor.escalationBonus(), floor.effectiveFloor(), regionPower,
+                floor.biomeName());
     }
 
     /**

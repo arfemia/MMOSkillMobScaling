@@ -19,15 +19,48 @@ affix.freezing.desc = Il suo tocco gelido intorpidisce e rallenta gli incauti.
 
 name.decorated = {base} {rarity}
 
-command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale.
-command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione.
-command.usage = Uso: /mobscaling <purge|inspect>
+command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale, regolare le sovrimpressioni HUD.
+command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni.
+command.usage = Uso: /mobscaling <purge|inspect|hud>
 command.players_only = Questo comando può essere eseguito solo da un giocatore.
+command.preset.usage = Uso: /mobscaling preset [nome]
+command.preset.active = Preset attivo: {0}
+command.preset.available = Preset disponibili: {0}
+command.preset.swapped = Passato al preset {0}.
+command.preset.unknown = Preset sconosciuto {0}. Disponibili: {1}
 command.purge.start = Rimozione dei residui di ridimensionamento dalle creature caricate in questo mondo...
 command.purge.done = Residui di ridimensionamento rimossi da {count} creature caricate.
 command.inspect.header = Ridimensionamento delle creature nella tua posizione:
 command.inspect.power = Il tuo livello di potere: {power}
 command.inspect.world = Soglia minima di difficoltà del mondo: {floor} (ridimensionamento attivo: {enabled})
+command.inspect.zone = Zona {zone}: soglia di base {base}, bonus distanza +{bonus}, soglia effettiva {floor}
 command.inspect.region = Potere registrato della regione: {power} (modalità {mode}, giocatori registrati: {tracked})
 command.inspect.difficulty = Difficoltà effettiva di comparsa qui: {difficulty}
 command.inspect.chance = Probabilità di rarità alla comparsa: {chance}
+command.inspect.curve = Curva delle statistiche per creatura comune qui: HP x{hp}, danno inflitto x{out}, danno subito x{in}
+
+command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Posizioni: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD attivato per tutti i giocatori: {target}
+command.hud.disabled = HUD disattivato per tutti i giocatori: {target}
+command.hud.moved = {target} riposizionato su {position} (scostamento {x}, {y}).
+command.hud.persist_hint = Modifica valida solo in tempo reale: per mantenerla dopo un riavvio, imposta le chiavi ZoneHud/InspectorHud in mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = HUD difficoltà zona
+command.hud.target.inspector = HUD ispettore creature
+command.arg.hud_target = Quale HUD: zone oppure inspector.
+command.arg.hud_value = on, off, oppure un preset di posizione come TOP_LEFT.
+command.arg.hud_offset_x = Scostamento in pixel opzionale dal bordo orizzontale ancorato.
+command.arg.hud_offset_y = Scostamento in pixel opzionale dal bordo verticale ancorato.
+
+hud.zone.title = DIFFICOLTÀ ZONA
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Difficoltà {value}
+hud.zone.power = Il tuo potere: {power}
+hud.zone.group = Potere del gruppo: {power}
+hud.zone.tier.trivial = Banale
+hud.zone.tier.easy = Facile
+hud.zone.tier.fair = Equilibrata
+hud.zone.tier.hard = Difficile
+hud.zone.tier.deadly = Letale
+
+hud.inspect.difficulty = Difficoltà {value}
+hud.inspect.hp = {current} / {max}

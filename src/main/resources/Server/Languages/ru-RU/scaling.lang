@@ -19,15 +19,49 @@ affix.freezing.desc = Его ледяное касание сковывает и
 
 name.decorated = {rarity} {base}
 
-command.desc = Инструменты администратора масштабирования существ: очистка остатков, проверка локальной сложности.
-command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции.
-command.usage = Использование: /mobscaling <purge|inspect>
+command.desc = Инструменты администратора масштабирования существ: очистка остатков, проверка локальной сложности, настройка HUD-оверлеев.
+command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции; hud настраивает оверлеи.
+command.usage = Использование: /mobscaling <purge|inspect|hud>
 command.players_only = Эту команду может выполнить только игрок.
 command.purge.start = Удаление остатков масштабирования с загруженных существ в этом мире...
 command.purge.done = Остатки масштабирования удалены с {count} загруженных существ.
 command.inspect.header = Масштабирование существ в вашей позиции:
 command.inspect.power = Ваш уровень силы: {power}
 command.inspect.world = Нижний порог сложности мира: {floor} (масштабирование активно: {enabled})
+command.inspect.zone = Зона {zone}: базовый порог {base}, бонус за расстояние +{bonus}, итоговый порог {floor}
 command.inspect.region = Отслеживаемая сила региона: {power} (режим {mode}, отслеживаемых игроков: {tracked})
 command.inspect.difficulty = Эффективная сложность появления здесь: {difficulty}
 command.inspect.chance = Шанс редкости при появлении: {chance}
+command.inspect.curve = Кривая характеристик обычного существа здесь: HP x{hp}, исходящий урон x{out}, входящий урон x{in}
+
+command.preset.usage = Использование: /mobscaling preset [name]
+command.preset.active = Активный пресет: {0}
+command.preset.available = Доступные пресеты: {0}
+command.preset.swapped = Переключено на пресет {0}.
+command.preset.unknown = Неизвестный пресет {0}. Доступны: {1}
+
+command.hud.usage = Использование: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Позиции: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD включён для всех игроков: {target}
+command.hud.disabled = HUD отключён для всех игроков: {target}
+command.hud.moved = {target} перемещён в {position} (смещение {x}, {y}).
+command.hud.persist_hint = Только временное изменение: чтобы сохранить его после перезапуска, задайте ключи ZoneHud/InspectorHud в mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = HUD сложности зоны
+command.hud.target.inspector = HUD инспектора существ
+command.arg.hud_target = Какой HUD: zone или inspector.
+command.arg.hud_value = on, off или пресет позиции, например TOP_LEFT.
+command.arg.hud_offset_x = Необязательное смещение в пикселях от привязанного горизонтального края.
+command.arg.hud_offset_y = Необязательное смещение в пикселях от привязанного вертикального края.
+
+hud.zone.title = СЛОЖНОСТЬ ЗОНЫ
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Сложность {value}
+hud.zone.power = Ваша сила: {power}
+hud.zone.group = Сила группы: {power}
+hud.zone.tier.trivial = Тривиально
+hud.zone.tier.easy = Легко
+hud.zone.tier.fair = Умеренно
+hud.zone.tier.hard = Сложно
+hud.zone.tier.deadly = Смертельно
+
+hud.inspect.difficulty = Сложность {value}
+hud.inspect.hp = {current} / {max}

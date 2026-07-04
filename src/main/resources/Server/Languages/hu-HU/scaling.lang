@@ -19,15 +19,48 @@ affix.freezing.desc = Dermesztő érintése elzsibbasztja és lelassítja az óv
 
 name.decorated = {rarity} {base}
 
-command.desc = A szörnyskálázás admin eszközei: maradványok eltávolítása, helyi nehézség vizsgálata.
-command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél.
-command.usage = Használat: /mobscaling <purge|inspect>
+command.desc = A szörnyskálázás admin eszközei: maradványok eltávolítása, helyi nehézség vizsgálata, a HUD kijelzők finomhangolása.
+command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél; a hud finomhangolja a kijelzőket.
+command.usage = Használat: /mobscaling <purge|inspect|hud>
 command.players_only = Ezt a parancsot csak játékos futtathatja.
+command.preset.usage = Használat: /mobscaling preset [név]
+command.preset.active = Aktív előbeállítás: {0}
+command.preset.available = Elérhető előbeállítások: {0}
+command.preset.swapped = Váltva erre az előbeállításra: {0}.
+command.preset.unknown = Ismeretlen előbeállítás: {0}. Elérhető: {1}
 command.purge.start = Skálázási maradványok eltávolítása a világ betöltött szörnyeiről...
 command.purge.done = Skálázási maradványok eltávolítva {count} betöltött szörnyről.
 command.inspect.header = Szörnyskálázás a helyzetednél:
 command.inspect.power = Az erőszinted: {power}
 command.inspect.world = A világ nehézségi alsó határa: {floor} (skálázás aktív: {enabled})
+command.inspect.zone = {zone} zóna: alap alsó határ {base}, távolsági bónusz +{bonus}, tényleges alsó határ {floor}
 command.inspect.region = Követett régióerő: {power} (mód: {mode}, követett játékosok: {tracked})
 command.inspect.difficulty = Tényleges megjelenési nehézség itt: {difficulty}
+command.inspect.curve = Sima szörny értékgörbéje itt: HP x{hp}, kimenő seb. x{out}, bejövő kapott x{in}
 command.inspect.chance = Ritkasági megjelenési esély: {chance}
+
+command.hud.usage = Használat: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Pozíciók: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD engedélyezve minden játékosnak: {target}
+command.hud.disabled = HUD letiltva minden játékosnak: {target}
+command.hud.moved = {target} áthelyezve ide: {position} (eltolás {x}, {y}).
+command.hud.persist_hint = Csak futásidejű változtatás: az újraindítások közötti megőrzéshez állítsd be a ZoneHud/InspectorHud kulcsokat itt: mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = zóna nehézségi HUD
+command.hud.target.inspector = szörnyvizsgáló HUD
+command.arg.hud_target = Melyik HUD: zone vagy inspector.
+command.arg.hud_value = on, off, vagy egy pozíció-előbeállítás, például TOP_LEFT.
+command.arg.hud_offset_x = Opcionális pixel-eltolás a rögzített vízszintes szélétől.
+command.arg.hud_offset_y = Opcionális pixel-eltolás a rögzített függőleges szélétől.
+
+hud.zone.title = ZÓNA NEHÉZSÉGE
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Nehézség {value}
+hud.zone.power = Erőd: {power}
+hud.zone.group = Csoport ereje: {power}
+hud.zone.tier.trivial = Jelentéktelen
+hud.zone.tier.easy = Könnyű
+hud.zone.tier.fair = Kiegyensúlyozott
+hud.zone.tier.hard = Nehéz
+hud.zone.tier.deadly = Halálos
+
+hud.inspect.difficulty = Nehézség {value}
+hud.inspect.hp = {current} / {max}

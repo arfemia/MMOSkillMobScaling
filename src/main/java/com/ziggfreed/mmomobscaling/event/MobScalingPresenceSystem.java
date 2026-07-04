@@ -25,13 +25,17 @@ import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
+import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
  * The player-move bookkeeping behind {@link RegionPowerTracker}: ticks every player, computes their
- * region-grid cell from the chunk coords, and ONLY on a region/world cross (or first sight) reads
- * the player's power off the frozen {@code MMOSkillTreeAPI} and moves their tracked presence (which
- * re-folds the affected region buckets). The per-tick steady-state cost per player is one map read +
- * a key compare - the plan's "refreshed on player chunk-cross" cadence, never a per-spawn scan.
+ * ZONE + PROXIMITY hybrid region key (the native worldgen zone via the memoized
+ * {@link ZoneDifficultyResolver}, plus the chunk sub-grid cell within it), and ONLY on a region/world
+ * cross (or first sight) reads the player's power off the frozen {@code MMOSkillTreeAPI} and moves
+ * their tracked presence (which re-folds the affected region buckets). The per-tick steady-state cost
+ * per player is two map reads + a key compare (the zone read hits the per-chunk memo) - the plan's
+ * "refreshed on player chunk-cross" cadence, never a per-spawn scan. Crossing a ZONE border re-keys
+ * immediately even inside the same grid cell, so a bucket never straddles two zones.
  *
  * <p>The nested {@link Removal} {@code RefSystem} drops a player's presence when their entity leaves
  * the store (disconnect / world switch-out / unload), so a bucket never holds a ghost. On a world
@@ -71,10 +75,11 @@ public final class MobScalingPresenceSystem extends EntityTickingSystem<EntitySt
                 return;
             }
             MobScalingConfig cfg = MobScalingConfig.getInstance();
-            long regionKey = RegionPowerTracker.regionKey(
-                    ChunkUtil.chunkCoordinate(transform.getPosition().x),
-                    ChunkUtil.chunkCoordinate(transform.getPosition().z),
-                    cfg.getRegionSizeChunks());
+            int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
+            int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
+            RegionPowerTracker.RegionKey regionKey = new RegionPowerTracker.RegionKey(
+                    ZoneDifficultyResolver.get().zoneKey(world, chunkX, chunkZ),
+                    RegionPowerTracker.gridKey(chunkX, chunkZ, cfg.getRegionSizeChunks()));
             String worldKey = world.getName();
             if (RegionPowerTracker.get().isCurrent(playerId, worldKey, regionKey)) {
                 return; // steady state: no cross, nothing to do

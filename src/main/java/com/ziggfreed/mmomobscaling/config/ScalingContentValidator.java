@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
  * Value-sanity validation over the FOLDED rarity/affix content (jar + pack + owner), run once per
@@ -48,6 +49,11 @@ public final class ScalingContentValidator {
             if (r.affixSlots() < 0) {
                 findings.add(at + ": AffixSlots must be >= 0");
             }
+            // NameColor is hand-authored JSON consumed verbatim as a UI TextColor; a malformed value
+            // fails silently in-game, so surface it here (absent/empty = the white fallback, fine).
+            if (!r.nameColor().isBlank() && !r.nameColor().matches("#[0-9a-fA-F]{6}")) {
+                findings.add(at + ": NameColor must be #rrggbb or absent (got '" + r.nameColor() + "')");
+            }
         }
         return findings;
     }
@@ -78,6 +84,27 @@ public final class ScalingContentValidator {
             // A behavioral/hybrid affix without a BehaviorId never dispatches its on-hit policy.
             if ((behavioral || hybrid) && isBlank(a.behaviorId())) {
                 findings.add(at + ": " + a.kind() + " affix needs a BehaviorId to dispatch");
+            }
+        }
+        return findings;
+    }
+
+    /**
+     * Validate folded difficulty mappings; one human-readable finding per violation (empty = clean).
+     * Native-name EXISTENCE cannot be checked statically (zone/biome names come from the live
+     * worldgen), so this covers the pure value/shape rules; a mapping whose TargetId never matches
+     * simply never fires.
+     */
+    @Nonnull
+    public static List<String> validateDifficultyMappings(@Nonnull Collection<DifficultyMapping> mappings) {
+        List<String> findings = new ArrayList<>();
+        for (DifficultyMapping m : mappings) {
+            String at = "difficulty mapping '" + m.id() + "'";
+            if (m.floor() < 0) {
+                findings.add(at + ": Floor must be >= 0");
+            }
+            if (m.targetId().isBlank()) {
+                findings.add(at + ": TargetId must be a native zone/biome name or '*'");
             }
         }
         return findings;

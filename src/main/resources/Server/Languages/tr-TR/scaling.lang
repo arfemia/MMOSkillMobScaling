@@ -19,15 +19,49 @@ affix.freezing.desc = Buz gibi dokunuşu dikkatsizleri uyuşturur ve yavaşlatı
 
 name.decorated = {rarity} {base}
 
-command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele.
-command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir.
-command.usage = Kullanım: /mobscaling <purge|inspect>
+command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele, HUD katmanlarını ayarla.
+command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar.
+command.usage = Kullanım: /mobscaling <purge|inspect|hud>
 command.players_only = Bu komutu yalnızca bir oyuncu çalıştırabilir.
 command.purge.start = Bu dünyadaki yüklü yaratıklardan ölçekleme kalıntıları temizleniyor...
 command.purge.done = {count} yüklü yaratıktan ölçekleme kalıntıları temizlendi.
 command.inspect.header = Bulunduğun konumda yaratık ölçekleme:
 command.inspect.power = Güç seviyen: {power}
 command.inspect.world = Dünyanın zorluk tabanı: {floor} (ölçekleme etkin: {enabled})
+command.inspect.zone = {zone} bölgesi: temel taban {base}, mesafe bonusu +{bonus}, etkin taban {floor}
 command.inspect.region = İzlenen bölge gücü: {power} (mod {mode}, izlenen oyuncular: {tracked})
 command.inspect.difficulty = Buradaki etkin belirme zorluğu: {difficulty}
 command.inspect.chance = Belirmede nadirlik şansı: {chance}
+command.inspect.curve = Buradaki sıradan yaratık istatistik eğrisi: HP x{hp}, giden hasar x{out}, alınan hasar x{in}
+
+command.preset.usage = Kullanım: /mobscaling preset [isim]
+command.preset.active = Etkin ön ayar: {0}
+command.preset.available = Mevcut ön ayarlar: {0}
+command.preset.swapped = {0} ön ayarına geçildi.
+command.preset.unknown = Bilinmeyen ön ayar {0}. Mevcut olanlar: {1}
+
+command.hud.usage = Kullanım: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Konumlar: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = Tüm oyuncular için HUD etkinleştirildi: {target}
+command.hud.disabled = Tüm oyuncular için HUD devre dışı bırakıldı: {target}
+command.hud.moved = {target}, {position} konumuna taşındı (kayma {x}, {y}).
+command.hud.persist_hint = Yalnızca anlık değişiklik: yeniden başlatmalar arasında korumak için mods/MmoMobScaling/mob-scaling.json dosyasındaki ZoneHud/InspectorHud anahtarlarını ayarla.
+command.hud.target.zone = bölge zorluğu HUD'u
+command.hud.target.inspector = yaratık inceleme HUD'u
+command.arg.hud_target = Hangi HUD: zone veya inspector.
+command.arg.hud_value = on, off veya TOP_LEFT gibi bir konum ön ayarı.
+command.arg.hud_offset_x = Sabitlenmiş yatay kenardan isteğe bağlı piksel kayması.
+command.arg.hud_offset_y = Sabitlenmiş dikey kenardan isteğe bağlı piksel kayması.
+
+hud.zone.title = BÖLGE ZORLUĞU
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Zorluk {value}
+hud.zone.power = Gücün: {power}
+hud.zone.group = Grup gücü: {power}
+hud.zone.tier.trivial = Önemsiz
+hud.zone.tier.easy = Kolay
+hud.zone.tier.fair = Dengeli
+hud.zone.tier.hard = Zor
+hud.zone.tier.deadly = Ölümcül
+
+hud.inspect.difficulty = Zorluk {value}
+hud.inspect.hp = {current} / {max}

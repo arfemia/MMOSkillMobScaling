@@ -3,9 +3,8 @@
   "DisplayNameKey": "scaling.affix.armored.name",
   "DescriptionKey": "scaling.affix.armored.desc",
   "EffectId": "Mmoscaling_Affix_Armored",
-  "SpawnWeight": 3.0,
-  "MinDifficulty": 5,
-  "AllowedRarities": ["*"],
+  "Roll": { "Weight": 3.0, "MinDifficulty": 5, "AllowedRarities": ["*"] },
   "Kind": "STAT",
-  "ResistanceBearing": true
+  "ResistanceBearing": true,
+  "Icon": { "ItemId": "Armor_Bronze_Chest" }
 }

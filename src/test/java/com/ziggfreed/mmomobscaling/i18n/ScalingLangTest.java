@@ -45,6 +45,23 @@ class ScalingLangTest {
     }
 
     @Test
+    void hudKeysArePresent() throws Exception {
+        Map<String, String> lang = loadLang();
+        for (String key : List.of(
+                "hud.zone.title", "hud.zone.difficulty", "hud.zone.power", "hud.zone.group",
+                "hud.zone.tier.trivial", "hud.zone.tier.easy", "hud.zone.tier.fair",
+                "hud.zone.tier.hard", "hud.zone.tier.deadly",
+                "hud.inspect.difficulty", "hud.inspect.hp",
+                "command.hud.usage", "command.hud.persist_hint")) {
+            assertTrue(lang.containsKey(key), "en-US scaling.lang must carry " + key);
+        }
+        // The frame keys must keep their placeholders (the HUD substitutes them client-side).
+        assertTrue(lang.get("hud.zone.power").contains("{power}"), "hud.zone.power keeps {power}");
+        assertTrue(lang.get("hud.inspect.hp").contains("{current}")
+                && lang.get("hud.inspect.hp").contains("{max}"), "hud.inspect.hp keeps {current}/{max}");
+    }
+
+    @Test
     void textUtilFallsBackToConventionKey() {
         Rarity noKey = rarity("rare", "");
         assertEquals("scaling.rarity.rare.name", MobScalingTextUtil.rarityNameKey(noKey), "convention fallback");

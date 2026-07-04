@@ -17,6 +17,7 @@ import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingHudSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingLootDropSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
@@ -111,6 +112,12 @@ public class MobScalingPlugin extends JavaPlugin {
         // so the spawn hook reads a CACHED per-region power scalar - never a per-spawn player scan.
         getEntityStoreRegistry().registerSystem(new MobScalingPresenceSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingPresenceSystem.Removal());
+
+        // Player-facing overlays: the zone-difficulty card + the crosshair mob inspector, driven by one
+        // per-player ticking system (lazy HUD install self-heals world-transfer teardown). Registered
+        // even when both HUDs start config-disabled so /mobscaling hud ... on works without a restart;
+        // a disabled tick is two boolean reads.
+        getEntityStoreRegistry().registerSystem(new MobScalingHudSystem());
 
         // Reward: register the kill-XP multiplier so a rarity kill pays more through the MMO's own kill path.
         MMOSkillTreeAPI.registerMobKillXpMultiplier(new MobScalingXpReward());

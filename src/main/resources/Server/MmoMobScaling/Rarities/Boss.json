@@ -1,15 +1,10 @@
 {
   "Name": "boss",
   "DisplayNameKey": "scaling.rarity.boss.name",
-  "Weight": 0,
-  "MinDifficulty": 0,
-  "HpMult": 4.0,
-  "OutDamageMult": 2.2,
-  "InDamageMult": 0.6,
-  "LootMult": 3.0,
-  "XpMult": 2.0,
-  "AffixSlots": 2,
+  "NameColor": "#ff5252",
+  "Roll": { "Weight": 0, "MinDifficulty": 0 },
+  "Multipliers": { "Hp": 4.0, "OutDamage": 2.2, "InDamage": 0.6, "Loot": 3.0, "Xp": 2.0 },
+  "Affixes": { "Slots": 2, "Allowed": ["*"] },
   "AuraEffectId": "Mmoscaling_Aura_Boss",
-  "BonusDropList": "Mmoscaling_Drops_Legendary",
-  "AllowedAffixes": ["*"]
+  "BonusDropList": "Mmoscaling_Drops_Legendary"
 }

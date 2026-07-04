@@ -1,15 +1,10 @@
 {
   "Name": "rare",
   "DisplayNameKey": "scaling.rarity.rare.name",
-  "Weight": 70,
-  "MinDifficulty": 5,
-  "HpMult": 1.4,
-  "OutDamageMult": 1.45,
-  "InDamageMult": 0.85,
-  "LootMult": 1.2,
-  "XpMult": 1.1,
-  "AffixSlots": 1,
+  "NameColor": "#4fc3f7",
+  "Roll": { "Weight": 70, "MinDifficulty": 5 },
+  "Multipliers": { "Hp": 1.4, "OutDamage": 1.45, "InDamage": 0.85, "Loot": 1.2, "Xp": 1.1 },
+  "Affixes": { "Slots": 1, "Allowed": ["*"] },
   "AuraEffectId": "Mmoscaling_Aura_Rare",
-  "BonusDropList": "Mmoscaling_Drops_Rare",
-  "AllowedAffixes": ["*"]
+  "BonusDropList": "Mmoscaling_Drops_Rare"
 }

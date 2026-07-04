@@ -31,10 +31,29 @@ public record Rarity(
         int affixSlots,
         @Nullable String auraEffectId,
         @Nullable String bonusDropListId,
-        @Nonnull List<String> allowedAffixes) {
+        @Nonnull List<String> allowedAffixes,
+        @Nonnull String nameColor) {
+
+    /** The fallback display colour when a tier authors no {@code NameColor} (plain white). */
+    public static final String DEFAULT_NAME_COLOR = "#ffffff";
 
     public Rarity {
         allowedAffixes = List.copyOf(allowedAffixes);
+    }
+
+    /** Convenience constructor without a display colour ({@code NameColor} absent = empty = white). */
+    public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
+            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            int affixSlots, @Nullable String auraEffectId, @Nullable String bonusDropListId,
+            @Nonnull List<String> allowedAffixes) {
+        this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+                xpMult, affixSlots, auraEffectId, bonusDropListId, allowedAffixes, "");
+    }
+
+    /** The authored HUD/name display colour ({@code #rrggbb}); {@link #DEFAULT_NAME_COLOR} when unset. */
+    @Nonnull
+    public String displayColor() {
+        return nameColor.isBlank() ? DEFAULT_NAME_COLOR : nameColor;
     }
 
     /** True when this rarity may roll the given affix id. A wildcard {@code "*"} allows all; {@code []} allows none. */

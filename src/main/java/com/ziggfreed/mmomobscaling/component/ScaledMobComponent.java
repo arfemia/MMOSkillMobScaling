@@ -35,7 +35,7 @@ public final class ScaledMobComponent implements Component<EntityStore> {
 
     /** Engine default-supplier constructor: a benign plain result (overwritten by the populated add). */
     public ScaledMobComponent() {
-        this.result = MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE);
+        this.result = MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE, MobScaleFold.DifficultyStatCurve.NONE);
     }
 
     public ScaledMobComponent(@Nonnull MobScaleResult result) {

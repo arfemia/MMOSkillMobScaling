@@ -19,15 +19,49 @@ affix.freezing.desc = Su tacto helado entumece y ralentiza a los incautos.
 
 name.decorated = {base} {rarity}
 
-command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local.
-command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición.
-command.usage = Uso: /mobscaling <purge|inspect>
+command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local, ajustar las superposiciones del HUD.
+command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones.
+command.usage = Uso: /mobscaling <purge|inspect|hud>
 command.players_only = Este comando solo puede ejecutarlo un jugador.
 command.purge.start = Eliminando residuos de escalado de las criaturas cargadas en este mundo...
 command.purge.done = Residuos de escalado eliminados de {count} criaturas cargadas.
 command.inspect.header = Escalado de criaturas en tu posición:
 command.inspect.power = Tu nivel de poder: {power}
 command.inspect.world = Dificultad mínima del mundo: {floor} (escalado activo: {enabled})
+command.inspect.zone = Zona {zone}: mínimo base {base}, bono por distancia +{bonus}, mínimo efectivo {floor}
 command.inspect.region = Poder registrado de la región: {power} (modo {mode}, jugadores registrados: {tracked})
 command.inspect.difficulty = Dificultad efectiva de aparición aquí: {difficulty}
 command.inspect.chance = Probabilidad de rareza al aparecer: {chance}
+command.inspect.curve = Curva de estadísticas de criatura común aquí: HP x{hp}, daño infligido x{out}, daño recibido x{in}
+
+command.preset.usage = Uso: /mobscaling preset [nombre]
+command.preset.active = Preset activo: {0}
+command.preset.available = Presets disponibles: {0}
+command.preset.swapped = Se cambió al preset {0}.
+command.preset.unknown = Preset desconocido {0}. Disponibles: {1}
+
+command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Posiciones: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD activado para todos los jugadores: {target}
+command.hud.disabled = HUD desactivado para todos los jugadores: {target}
+command.hud.moved = Se reposicionó {target} a {position} (desplazamiento {x}, {y}).
+command.hud.persist_hint = Solo cambio en vivo: para conservarlo entre reinicios, configura las claves ZoneHud/InspectorHud en mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = HUD de dificultad de zona
+command.hud.target.inspector = HUD de inspector de criaturas
+command.arg.hud_target = Qué HUD: zone o inspector.
+command.arg.hud_value = on, off, o un ajuste de posición como TOP_LEFT.
+command.arg.hud_offset_x = Desplazamiento opcional en píxeles desde el borde horizontal anclado.
+command.arg.hud_offset_y = Desplazamiento opcional en píxeles desde el borde vertical anclado.
+
+hud.zone.title = DIFICULTAD DE ZONA
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Dificultad {value}
+hud.zone.power = Tu poder: {power}
+hud.zone.group = Poder del grupo: {power}
+hud.zone.tier.trivial = Trivial
+hud.zone.tier.easy = Fácil
+hud.zone.tier.fair = Equilibrado
+hud.zone.tier.hard = Difícil
+hud.zone.tier.deadly = Mortal
+
+hud.inspect.difficulty = Dificultad {value}
+hud.inspect.hp = {current} / {max}

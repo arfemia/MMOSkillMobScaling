@@ -1,0 +1,21 @@
+{
+  "$Comment": "PLAYTEST preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; omitted leaves fall through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Playtest\" (owner file or /mobscaling preset Playtest). A steep, fast-ramp curve for testing: escalation starts AT spawn and climbs steeply (a point every 50 blocks) so difficulty and rarity rise quickly within a short walk, backed by a steep StatCurve (fast HP/damage growth, high caps). Not for production.",
+  "Name": "Playtest",
+  "Intensity": "hard",
+  "Difficulty": {
+    "DistanceEscalation": {
+      "Enabled": true,
+      "StartDistanceBlocks": 0.0,
+      "BlocksPerPoint": 50.0,
+      "MaxBonus": 199.0
+    },
+    "StatCurve": {
+      "HpPerPoint": 0.12,
+      "OutDamagePerPoint": 0.03,
+      "InDamageReductionPerPoint": 0.0025,
+      "MaxHpMult": 30.0,
+      "MaxOutDamageMult": 10.0,
+      "MinInDamageMult": 0.45
+    }
+  }
+}

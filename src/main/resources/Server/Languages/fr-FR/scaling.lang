@@ -19,15 +19,48 @@ affix.freezing.desc = Son toucher glacé engourdit et ralentit les imprudents.
 
 name.decorated = {base} {rarity}
 
-command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale.
-command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position.
-command.usage = Utilisation : /mobscaling <purge|inspect>
+command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale, régler les superpositions HUD.
+command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions.
+command.usage = Utilisation : /mobscaling <purge|inspect|hud>
 command.players_only = Cette commande doit être exécutée par un joueur.
 command.purge.start = Suppression des résidus de mise à l'échelle des créatures chargées dans ce monde...
 command.purge.done = Résidus de mise à l'échelle retirés de {count} créatures chargées.
 command.inspect.header = Mise à l'échelle des créatures à votre position :
 command.inspect.power = Votre niveau de puissance : {power}
 command.inspect.world = Plancher de difficulté du monde : {floor} (mise à l'échelle active : {enabled})
+command.inspect.zone = Zone {zone} : plancher de base {base}, bonus de distance +{bonus}, plancher effectif {floor}
 command.inspect.region = Puissance suivie de la région : {power} (mode {mode}, joueurs suivis : {tracked})
 command.inspect.difficulty = Difficulté d'apparition effective ici : {difficulty}
+command.inspect.curve = Courbe de statistiques des créatures ordinaires ici : HP x{hp}, dégâts infligés x{out}, dégâts subis x{in}
 command.inspect.chance = Chance de rareté à l'apparition : {chance}
+
+command.hud.usage = Utilisation : /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positions : TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD activé pour tous les joueurs : {target}
+command.hud.disabled = HUD désactivé pour tous les joueurs : {target}
+command.hud.moved = {target} repositionné en {position} (décalage {x}, {y}).
+command.hud.persist_hint = Changement en direct uniquement : pour le conserver après un redémarrage, définissez les clés ZoneHud/InspectorHud dans mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = HUD de difficulté de zone
+command.hud.target.inspector = HUD de l'inspecteur de créatures
+command.arg.hud_target = Quel HUD : zone ou inspector.
+command.arg.hud_value = on, off, ou un préréglage de position tel que TOP_LEFT.
+command.arg.hud_offset_x = Décalage optionnel en pixels depuis le bord horizontal ancré.
+command.arg.hud_offset_y = Décalage optionnel en pixels depuis le bord vertical ancré.
+command.preset.usage = Utilisation : /mobscaling preset [nom]
+command.preset.active = Préréglage actif : {0}
+command.preset.available = Préréglages disponibles : {0}
+command.preset.swapped = Basculé vers le préréglage {0}.
+command.preset.unknown = Préréglage {0} inconnu. Disponibles : {1}
+
+hud.zone.title = DIFFICULTÉ DE ZONE
+hud.zone.difficulty = Difficulté {value}
+hud.zone.power = Votre puissance : {power}
+hud.zone.group = Puissance du groupe : {power}
+hud.zone.tier.trivial = Insignifiant
+hud.zone.tier.easy = Facile
+hud.zone.tier.fair = Équilibré
+hud.zone.tier.hard = Difficile
+hud.zone.tier.deadly = Mortel
+
+hud.zone.location = {0} - {1}
+hud.inspect.difficulty = Difficulté {value}
+hud.inspect.hp = {current} / {max}

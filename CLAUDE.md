@@ -13,9 +13,20 @@ lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKi
 provider), the native `ItemDropList` death loot (`MobScalingLootDropSystem` + per-rarity
 `Server/Drops/*` tables), the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
-`boss` tier), `/mobscaling purge|inspect`, content validation, and 9-locale `scaling.lang`. The
-zone/biome/trigger-volume floor RESOLVER (layered floors replacing the flat world floor) is the
-remaining FOLLOW-UP (see the hyMMO handoff plan).
+`boss` tier), `/mobscaling purge|inspect|hud`, content validation, 9-locale `scaling.lang`, and TWO
+player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
+crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
+concerns pass ADDED: the NATIVE-ZONE floor resolver (`world/ZoneDifficultyResolver`: authored
+`Difficulty/*.json` mappings over the engine's own `Zone.name()`/`Biome.getName()`, precedence zone
+exact > zone `*` > biome exact > biome `*` > `WorldRules` baseline, one memoized zone read per chunk)
+PLUS a configurable DISTANCE ESCALATION (additive difficulty + rarity-chance bonus with distance from
+world spawn, so the deep frontier is deadly in every zone); the ZONE + PROXIMITY HYBRID region buckets
+(`RegionPowerTracker.RegionKey` = native zone name + chunk sub-grid cell; zoneless worlds fall back to
+the pure grid); and the NESTED-schema rework of every codec (see the paradigm below). Meanwhile the
+MMO jar's `getPowerLevel` became the real multi-pillar formula (combat + stat rewards + abilities +
+mastery + achievements, weights in `Server/MMOSkillTree/PowerLevel/Default.json`), so region power now
+reflects builds, not just the max combat level. Remaining FOLLOW-UPS: the TriggerVolume floor layer +
+`BossCurve` (see the hyMMO handoff plan). Everything is IN-GAME-VALIDATION PENDING.
 
 Package root: **`com.ziggfreed.mmomobscaling`**.
 
@@ -56,13 +67,25 @@ NEVER drop a loose / camelCase Gson blob into `Server/` (that namespace is for c
 This mirrors the MMO's `WorldRulesAsset`/`WorldRulesConfig`. If you are tempted to hardcode a default
 or hand-roll a JSON parser, STOP and add a codec field instead.
 
+- **HARD RULE #2 (2026-07-03, user mandate; do NOT regress): cohesive knob groups are NESTED
+  sub-objects, NEVER flat prefixed keys.** A group of related fields gets its own static nested class
+  with its own `BuilderCodec`, referenced via `new KeyedCodec<>("Group", Group.CODEC, false)` (the
+  in-repo exemplars: `MobScalingSettingsAsset.OpenWorld`/`Difficulty`/`DistanceEscalation`/`ZoneHud`,
+  `RarityAsset.Roll`/`Multipliers`/`Affixes`, `AffixAsset.Roll`/`FoldDeltas`, the MMO jar's
+  `WorldRulesAsset.MobScaling` + `PowerLevelAsset.Clamp`/`Pillars`/`Modes`). A flat suffix/prefix soup
+  (`ZoneHudOffsetX`, `HpMult`/`OutDamageMult`/...) is a schema smell: it is not future-proof (a new
+  knob lands INSIDE its group) and it does not read as a schema. Nesting composes with the partial
+  overlay: every nesting level uses NULLABLE wrapper fields and the fold walks per LEAF.
 - **[`asset/MobScalingSettingsAsset`](src/main/java/com/ziggfreed/mmomobscaling/asset/MobScalingSettingsAsset.java)**
-  is the ONE schema authority: an `AssetBuilderCodec` with PascalCase keys (`Enabled`,
-  `CompositionEnabled`, `PresetMode`, `Intensity`, `RaritySpawnChance`,
-  `AllowDifficultyIncreaseOnPartyJoin`, `LateArrivalBumpFactor`, `OpenWorldAggregationMode`,
-  `RegionSizeChunks`). Fields are NULLABLE wrappers so an absent key stays `null` (the codec's
-  `decodeJson` only calls a setter for a key present in the JSON), which is what makes the partial
-  owner overlay work.
+  is the ONE schema authority: an `AssetBuilderCodec` with PascalCase keys, top-level `Enabled` /
+  `PresetMode` / `Intensity` / `RaritySpawnChance` plus the NESTED groups `OpenWorld`
+  (`AggregationMode`/`RegionSizeChunks`/`GroupDeltaBandWidth`/`AllowDifficultyIncreaseOnPartyJoin`/
+  `LateArrivalBumpFactor`/`CompositionEnabled`), `Difficulty` (`MinCap`/`MaxCap` + nested
+  `DistanceEscalation` `Enabled`/`StartDistanceBlocks`/`BlocksPerPoint`/`MaxBonus`/
+  `RarityChancePerPoint`), `ZoneHud` and `InspectorHud` (`Enabled`/`Position`/`OffsetX`/`OffsetY`
+  (+`RangeBlocks` on the inspector); positions are named corner presets parsed by
+  `hud/HudPosition.parse`). Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
+  partially-filled group) stays `null`, which is what makes the per-leaf partial owner overlay work.
 - The **authoritative defaults** ship as the codec asset
   `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
   key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).
@@ -82,9 +105,12 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   Hytale asset (pack-overridable), not just a bundled resource. Registered only in the plugin's
   ENABLED branch (a disabled mod registers literally nothing).
 - Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT in
-  this flat settings asset: their canonical home is the per-type keyed assets. `Rarities/*.json` +
-  `Affixes/*.json` have LANDED (Pattern-A codecs, folded by `RarityConfig`/`AffixConfig`); a `Difficulty/*.json`
-  zone-floor type is a later-phase follow-up.
+  the settings asset: their canonical home is the per-type keyed assets, ALL LANDED as Pattern-A
+  codecs with nested groups: `Rarities/*.json` (`Roll`/`Multipliers`/`Affixes` groups, fold
+  `RarityConfig`), `Affixes/*.json` (`Roll`/`FoldDeltas`, fold `AffixConfig`), and
+  `Difficulty/*.json` (`TargetType` Zone|Biome + `TargetId` native name or `*` + `Floor`, fold
+  `DifficultyConfig` with a derived O(1) name index, consumed by `world/ZoneDifficultyResolver`; the
+  jar ships the Zone0..Zone4 starter gradient + the zone wildcard + an Ocean1 biome example).
 
 ## Paradigm - NATIVE-ASSET-FIRST (prefer native systems + author our own assets into them)
 
@@ -155,8 +181,8 @@ that surface lands. Package root `com.ziggfreed.mmomobscaling`.
 
 Commit + push HERE first, verify the SHA is on the remote, THEN bump the gitlink in the
 parent hyMMO repo (a root commit pointing at an unpushed mod SHA breaks fresh clones). The
-mod builds + installs independently via its own `build.ps1`; it is NOT driven by the root
-`rebuild.ps1`.
+mod builds + installs independently via its own `build.ps1`, and the root `rebuild.ps1 -Mods`
+ALSO drives it (dependency-ordered after `ziggfreed-common`) via that same `build.ps1`.
 
 ## Release notes
 

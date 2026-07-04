@@ -12,19 +12,24 @@ import com.ziggfreed.common.scaling.AggregationMode;
 import com.ziggfreed.common.scaling.PowerAggregation;
 
 /**
- * The CACHED per-region player-power aggregate (the plan's Section-8.4 bound): the open-world
- * participant source for the group difficulty delta, maintained MOD-SIDE (the binding decision keeps
- * only the per-world floor fields in-jar). {@code MobScalingPresenceSystem} updates a player's
- * presence ONLY on region/world cross (one map read + compare per player per tick otherwise), each
- * bucket re-folds its scalar on mutation, and the spawn hook reads {@link #scalarFor} in O(1) -
- * NEVER a per-spawn player scan. A cold region (no players tracked) reads {@code 0.0} = a zero
- * delta, the authored floor stands.
+ * The CACHED per-region player-power aggregate: the open-world participant source for the group
+ * difficulty delta, maintained MOD-SIDE (the binding decision keeps only the per-world floor fields
+ * in-jar). {@code MobScalingPresenceSystem} updates a player's presence ONLY on region/world cross
+ * (one map read + compare per player per tick otherwise), each bucket re-folds its scalar on
+ * mutation, and the spawn hook reads {@link #scalarFor} in O(1) - NEVER a per-spawn player scan.
+ * A cold region (no players tracked) reads {@code 0.0} = a zero delta, the authored floor stands.
  *
- * <p>Regions are a {@code regionSizeChunks}-square chunk grid per world (keyed by world name);
- * {@link #regionKey} packs the floor-divided region coords into one long. Thread-safe: presences and
- * buckets are {@code ConcurrentHashMap}s, per-bucket membership mutates under the bucket's monitor,
- * and the folded scalar is a volatile read. Pure logic + ziggfreed-common's {@link PowerAggregation}
- * only - no engine types, freely unit-testable.
+ * <p><b>Regions are the ZONE + PROXIMITY hybrid:</b> a bucket is keyed per world (by name) by
+ * {@link RegionKey} = the NATIVE worldgen zone name ({@code ZoneDifficultyResolver.zoneKey}) plus a
+ * {@code regionSizeChunks}-square chunk-grid cell WITHIN it. The zone is the authoritative 1:1
+ * namespace (two players in different zones NEVER share a bucket, even in adjacent chunks across a
+ * border), while the sub-grid keeps the group delta LOCAL inside a huge zone (a strong player on the
+ * far side of Zone2 does not harden your spawns). A world with no native zone data uses
+ * {@code zone = ""} - the key degrades to the pure chunk grid (the documented fallback).
+ *
+ * <p>Thread-safe: presences and buckets are {@code ConcurrentHashMap}s, per-bucket membership mutates
+ * under the bucket's monitor, and the folded scalar is a volatile read. Pure logic + ziggfreed-common's
+ * {@link PowerAggregation} only - no engine types, freely unit-testable.
  */
 public final class RegionPowerTracker {
 
@@ -35,8 +40,12 @@ public final class RegionPowerTracker {
         return INSTANCE;
     }
 
+    /** One bucket key: the native zone namespace + the proximity sub-grid cell within it. */
+    public record RegionKey(@Nonnull String zone, long grid) {
+    }
+
     /** One tracked player: which world/region they were last seen in, at what power. */
-    private record Presence(@Nonnull String worldKey, long regionKey, double power) {
+    private record Presence(@Nonnull String worldKey, @Nonnull RegionKey regionKey, double power) {
     }
 
     /** One region's members + the cached fold of their powers (recomputed on membership change). */
@@ -46,13 +55,13 @@ public final class RegionPowerTracker {
     }
 
     private final ConcurrentHashMap<UUID, Presence> presences = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, Bucket>> worlds = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ConcurrentHashMap<RegionKey, Bucket>> worlds = new ConcurrentHashMap<>();
 
     private RegionPowerTracker() {
     }
 
-    /** Pack the region grid coords of a chunk into one key. {@code regionSizeChunks} is clamped to >= 1. */
-    public static long regionKey(int chunkX, int chunkZ, int regionSizeChunks) {
+    /** Pack the sub-grid cell coords of a chunk into one long. {@code regionSizeChunks} is clamped to >= 1. */
+    public static long gridKey(int chunkX, int chunkZ, int regionSizeChunks) {
         int size = Math.max(1, regionSizeChunks);
         long rx = Math.floorDiv(chunkX, size);
         long rz = Math.floorDiv(chunkZ, size);
@@ -60,9 +69,9 @@ public final class RegionPowerTracker {
     }
 
     /** True when the player is already tracked in exactly this world+region (the per-tick hot path). */
-    public boolean isCurrent(@Nonnull UUID playerId, @Nonnull String worldKey, long regionKey) {
+    public boolean isCurrent(@Nonnull UUID playerId, @Nonnull String worldKey, @Nonnull RegionKey regionKey) {
         Presence p = presences.get(playerId);
-        return p != null && p.regionKey() == regionKey && p.worldKey().equals(worldKey);
+        return p != null && p.regionKey().equals(regionKey) && p.worldKey().equals(worldKey);
     }
 
     /**
@@ -70,7 +79,7 @@ public final class RegionPowerTracker {
      * removing them from their previous region (if any) and re-folding both buckets under
      * {@code mode}. Call ONLY on a cross ({@link #isCurrent} false) or to refresh power.
      */
-    public void updatePresence(@Nonnull UUID playerId, @Nonnull String worldKey, long regionKey,
+    public void updatePresence(@Nonnull UUID playerId, @Nonnull String worldKey, @Nonnull RegionKey regionKey,
             double power, @Nonnull AggregationMode mode) {
         Presence prev = presences.put(playerId, new Presence(worldKey, regionKey, power));
         if (prev != null) {
@@ -96,8 +105,8 @@ public final class RegionPowerTracker {
      * The cached aggregated power of the players in this world+region; {@code 0.0} when none are
      * tracked (the cold-miss zero delta). O(1) - two map reads + a volatile read.
      */
-    public double scalarFor(@Nonnull String worldKey, long regionKey) {
-        ConcurrentHashMap<Long, Bucket> regions = worlds.get(worldKey);
+    public double scalarFor(@Nonnull String worldKey, @Nonnull RegionKey regionKey) {
+        ConcurrentHashMap<RegionKey, Bucket> regions = worlds.get(worldKey);
         if (regions == null) {
             return 0.0;
         }
@@ -116,9 +125,9 @@ public final class RegionPowerTracker {
         worlds.clear();
     }
 
-    private void removeFromBucket(@Nonnull String worldKey, long regionKey, @Nonnull UUID playerId,
+    private void removeFromBucket(@Nonnull String worldKey, @Nonnull RegionKey regionKey, @Nonnull UUID playerId,
             @Nonnull AggregationMode mode) {
-        ConcurrentHashMap<Long, Bucket> regions = worlds.get(worldKey);
+        ConcurrentHashMap<RegionKey, Bucket> regions = worlds.get(worldKey);
         if (regions == null) {
             return;
         }
@@ -146,13 +155,16 @@ public final class RegionPowerTracker {
         bucket.scalar = PowerAggregation.fold(powers, mode);
     }
 
-    /** Presence lookup for diagnostics ({@code /mobscaling inspect} later); {@code null} when untracked. */
+    /** Presence lookup for diagnostics ({@code /mobscaling inspect}); {@code null} when untracked. */
     @Nullable
     public String describePresence(@Nonnull UUID playerId) {
         Presence p = presences.get(playerId);
         if (p == null) {
             return null;
         }
-        return p.worldKey() + "@" + (p.regionKey() >> 32) + "," + (int) p.regionKey() + " power=" + p.power();
+        RegionKey key = p.regionKey();
+        String zone = key.zone().isEmpty() ? "(no zone)" : key.zone();
+        return p.worldKey() + "@" + zone + ":" + (key.grid() >> 32) + "," + (int) key.grid()
+                + " power=" + p.power();
     }
 }

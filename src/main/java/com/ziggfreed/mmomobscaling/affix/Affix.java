@@ -33,7 +33,9 @@ public record Affix(
         double lootBonus,
         @Nonnull String kind,
         @Nullable String behaviorId,
-        boolean resistanceBearing) {
+        boolean resistanceBearing,
+        @Nullable String iconItemId,
+        @Nullable String iconTexturePath) {
 
     /** Affix kinds. STAT = pure native effect; BEHAVIORAL = mod-side on-hit; HYBRID = native effect + on-hit trigger. */
     public static final String KIND_STAT = "STAT";
@@ -42,6 +44,28 @@ public record Affix(
 
     public Affix {
         allowedRarities = List.copyOf(allowedRarities);
+    }
+
+    /**
+     * Convenience constructor without a display icon ({@code iconItemId}/{@code iconTexturePath} both
+     * {@code null} = no chip icon, label only). Keeps every pre-icon call site (tests + the roll paths)
+     * compiling unchanged; the codec {@link com.ziggfreed.mmomobscaling.asset.AffixAsset#toAffix()} uses
+     * the full constructor with the authored {@link com.ziggfreed.mmomobscaling.asset.IconSpec}.
+     */
+    public Affix(@Nonnull String id, @Nonnull String displayNameKey, @Nonnull String descriptionKey,
+            @Nullable String effectId, double spawnWeight, double minDifficulty,
+            @Nonnull List<String> allowedRarities, double outDamageDelta, double inDamageDelta,
+            double hpDelta, double lootBonus, @Nonnull String kind, @Nullable String behaviorId,
+            boolean resistanceBearing) {
+        this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
+                outDamageDelta, inDamageDelta, hpDelta, lootBonus, kind, behaviorId, resistanceBearing,
+                null, null);
+    }
+
+    /** True when this affix authors a chip icon (an item id or a texture path) for the inspector HUD. */
+    public boolean hasIcon() {
+        return (iconItemId != null && !iconItemId.isBlank())
+                || (iconTexturePath != null && !iconTexturePath.isBlank());
     }
 
     /** True when this affix may roll on the given rarity id. A wildcard {@code "*"} allows all; {@code []} allows none. */

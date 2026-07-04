@@ -1,15 +1,10 @@
 {
   "Name": "legendary",
   "DisplayNameKey": "scaling.rarity.legendary.name",
-  "Weight": 5,
-  "MinDifficulty": 50,
-  "HpMult": 3.8,
-  "OutDamageMult": 2.6,
-  "InDamageMult": 0.55,
-  "LootMult": 2.0,
-  "XpMult": 1.6,
-  "AffixSlots": 3,
+  "NameColor": "#ffd54f",
+  "Roll": { "Weight": 5, "MinDifficulty": 50 },
+  "Multipliers": { "Hp": 3.8, "OutDamage": 2.6, "InDamage": 0.55, "Loot": 2.0, "Xp": 1.6 },
+  "Affixes": { "Slots": 3, "Allowed": ["*"] },
   "AuraEffectId": "Mmoscaling_Aura_Legendary",
-  "BonusDropList": "Mmoscaling_Drops_Legendary",
-  "AllowedAffixes": ["*"]
+  "BonusDropList": "Mmoscaling_Drops_Legendary"
 }

@@ -1,0 +1,58 @@
+@ZoneTitleStyle = (FontSize: 11, TextColor: #8fa6bf, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Start);
+
+@ZoneTierStyle = (FontSize: 18, TextColor: #e0e0e0, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+@ZoneValueStyle = (FontSize: 12, TextColor: #90a4ae, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+@ZoneLineStyle = (FontSize: 12, TextColor: #b6c9de, HorizontalAlignment: Start, VerticalAlignment: Start);
+
+Group {
+  Group #MmoscalingZonePanel {
+    Anchor: (Top: 90, Left: 16, Width: 240, Height: 118);
+    LayoutMode: Top;
+    Padding: (Full: 8);
+    Background: #000000(0.35);
+
+    Label #MmoscalingZoneTitle {
+      Text: "";
+      Anchor: (Height: 16);
+      Style: @ZoneTitleStyle;
+    }
+
+    Label #MmoscalingZoneName {
+      Text: "";
+      Anchor: (Height: 14);
+      Style: @ZoneLineStyle;
+    }
+
+    Group {
+      Anchor: (Height: 26);
+      LayoutMode: Left;
+
+      Label #MmoscalingZoneTier {
+        Text: "";
+        Anchor: (Height: 26);
+        Style: @ZoneTierStyle;
+      }
+
+      Label #MmoscalingZoneValue {
+        Text: "";
+        Anchor: (Height: 26);
+        Padding: (Left: 8);
+        Style: @ZoneValueStyle;
+      }
+    }
+
+    Label #MmoscalingZonePower {
+      Text: "";
+      Anchor: (Height: 16);
+      Style: @ZoneLineStyle;
+    }
+
+    Label #MmoscalingZoneGroup {
+      Text: "";
+      Anchor: (Height: 16);
+      Style: @ZoneLineStyle;
+    }
+  }
+}

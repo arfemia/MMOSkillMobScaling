@@ -7,14 +7,13 @@ tougher, rarer enemies while a lone newcomer is not overwhelmed.
 
 ## Status
 
-**v1.0.0 (skeleton).** This build lands the foundation only:
-
-- A zero-cost registration toggle: when the config is disabled the mod registers NO
-  systems, so it carries no per-tick cost at all.
-- `MobScalingConfig` (override-based, `mods/MmoMobScaling/mob-scaling.json`), carrying the
-  SIMPLE-preset starter values.
-
-The scaling systems (spawn hook, damage filter, death listener) land in later phases.
+**v0.5.0 (first public beta, in-game-validation pending).** The full scaling system is in:
+layered native zone/biome difficulty floors + a distance-from-spawn escalation + a group-power
+delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix catalog on native
+`EntityEffect` assets, deterministic per-UUID rolls, bonus kill-XP + native drop-list loot, the
+`/mobscaling` admin tools, and two player HUD overlays (zone-difficulty card + crosshair mob
+inspector). Numbers are still being tuned in-game, so they may shift between builds; everything is
+data-driven, so any of it is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 
 ## Install
 
@@ -26,12 +25,11 @@ loaded before this mod:
 
 ## Version story
 
-This mod is compiled against the LOCAL `MMOSkillTree-1.4.4.jar` dev jar, which already
-carries the frozen 1.5.0 API (`getPowerLevel` / `aggregatePower` / `statRewardSum` /
-`getCombatLevel`). Its manifest, however, pins the RUNTIME requirement at MMOSkillTree
-`>=1.5.0` - the eventual public hyMMO release that ships those API methods. So it compiles
-now against the in-progress API and requires the 1.5.0 release at runtime. This is
-deliberate; see the comment block in `build.gradle`.
+This mod is compiled against the LOCAL `MMOSkillTree-1.5.0.jar` dev jar, which carries the
+frozen 1.5.0 API this mod reads (`getPowerLevel` / `statRewardSum` / `getCombatLevel` +
+the `registerMobKillXpMultiplier` reward hook). Its manifest pins the RUNTIME requirement at
+MMOSkillTree `>=1.5.0` and ZiggfreedCommon `>=1.2.0`; both are loaded before this mod and
+referenced `compileOnly`, never bundled. See the comment block in `build.gradle`.
 
 ## Build
 

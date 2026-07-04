@@ -34,6 +34,16 @@ class ScalingContentValidatorTest {
     }
 
     @Test
+    void malformedNameColorIsFlagged() {
+        Rarity noHash = new Rarity("nohash", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "b388ff");
+        Rarity word = new Rarity("word", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "purple");
+        Rarity good = new Rarity("good", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "#B388FF");
+        Rarity absent = new Rarity("absent", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"));
+        List<String> findings = ScalingContentValidator.validateRarities(List.of(noHash, word, good, absent));
+        assertEquals(2, findings.size(), "missing '#' and a colour word flagged; #rrggbb and absent clean: " + findings);
+    }
+
+    @Test
     void noOpAndUndispatchableAffixesAreFlagged() {
         Affix noOp = new Affix("noop", "", "", null, 1, 0, List.of("*"), 0, 0, 0, 0, Affix.KIND_STAT, null, false);
         Affix silent = new Affix("silent", "", "", "eff", 1, 0, List.of("*"), 0, 0, 0, 0, Affix.KIND_HYBRID, null, false);

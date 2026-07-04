@@ -1,0 +1,6 @@
+{
+  "$Comment": "Zone1 prefix family: floors every Zone1_* chunk (Shore, Shallow_Ocean, Temple, ...) unless a longer exact override below wins. TargetId is the engine's own Zone.name() segment; override this file (same id) in a pack or mods/ to retune.",
+  "TargetType": "Zone",
+  "TargetId": "Zone1",
+  "Floor": 8.0
+}

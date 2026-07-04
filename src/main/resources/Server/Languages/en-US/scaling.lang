@@ -13,18 +13,58 @@ rarity.boss.name = Boss
 name.decorated = {rarity} {base}
 
 # /mobscaling admin command (descriptions resolve as lang keys; hytale:Admin only).
-command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty.
-command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here.
-command.usage = Usage: /mobscaling <purge|inspect>
+command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty, tune the HUD overlays.
+command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays.
+command.usage = Usage: /mobscaling <purge|inspect|hud>
 command.players_only = This command must be run by a player.
 command.purge.start = Sweeping scaling residue off loaded mobs in this world...
 command.purge.done = Purged scaling residue from {count} loaded mobs.
 command.inspect.header = Mob scaling at your position:
 command.inspect.power = Your power level: {power}
 command.inspect.world = World difficulty floor: {floor} (scaling active: {enabled})
+command.inspect.zone = Zone {zone}: base floor {base}, distance bonus +{bonus}, effective floor {floor}
 command.inspect.region = Tracked region power: {power} (mode {mode}, tracked players: {tracked})
 command.inspect.difficulty = Effective spawn difficulty here: {difficulty}
+command.inspect.curve = Plain-mob stat curve here: HP x{hp}, outgoing dmg x{out}, incoming taken x{in}
 command.inspect.chance = Rarity spawn chance: {chance}
+
+# /mobscaling preset - switch the active settings preset live (Default, Casual, Hardcore, Playtest).
+command.preset.usage = Usage: /mobscaling preset [name]
+command.preset.active = Active preset: {0}
+command.preset.available = Available presets: {0}
+command.preset.swapped = Switched to preset {0}.
+command.preset.unknown = Unknown preset {0}. Available: {1}
+
+# /mobscaling hud - live overlay tuning (runtime only; the owner file is the persistent authority).
+command.hud.usage = Usage: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positions: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
+command.hud.enabled = HUD enabled for all players: {target}
+command.hud.disabled = HUD disabled for all players: {target}
+command.hud.moved = Repositioned {target} to {position} (offset {x}, {y}).
+command.hud.persist_hint = Live change only: to keep it across restarts, set the ZoneHud/InspectorHud keys in mods/MmoMobScaling/mob-scaling.json.
+command.hud.target.zone = zone difficulty HUD
+command.hud.target.inspector = mob inspector HUD
+command.arg.hud_target = Which HUD: zone or inspector.
+command.arg.hud_value = on, off, or a position preset such as TOP_LEFT.
+command.arg.hud_offset_x = Optional pixel offset from the anchored horizontal edge.
+command.arg.hud_offset_y = Optional pixel offset from the anchored vertical edge.
+
+# Zone-difficulty HUD (the tier words are qualitative threat reads relative to the viewer).
+hud.zone.title = ZONE DIFFICULTY
+# Location line: {0} = zone name, {1} = biome name. A pure separator template (translators reorder /
+# reglyph the separator per locale); no English words so it reads cleanly in every locale.
+hud.zone.location = {0} - {1}
+hud.zone.difficulty = Difficulty {value}
+hud.zone.power = Your power: {power}
+hud.zone.group = Group power: {power}
+hud.zone.tier.trivial = Trivial
+hud.zone.tier.easy = Easy
+hud.zone.tier.fair = Fair
+hud.zone.tier.hard = Hard
+hud.zone.tier.deadly = Deadly
+
+# Mob-inspector HUD (name + rarity render from their own keys; these are the fixed frames).
+hud.inspect.difficulty = Difficulty {value}
+hud.inspect.hp = {current} / {max}
 
 affix.armored.name = Armored
 affix.armored.desc = Clad in heavy plating that turns aside blows.
