@@ -52,8 +52,10 @@ breaks class identity):
   this mod builds on.
 - **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
   `MMOSkillTree-1.5.0.jar` dev jar (pin `mmoSkillTreeVersion=1.5.0`), which carries the frozen 1.5.0 API
-  the mod uses: `getPowerLevel` / `statRewardSum` / `getCombatLevel` (power reads) plus
-  `registerMobKillXpMultiplier` (the kill-XP reward hook). See the comment block in `build.gradle`.
+  the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /
+  `getCombatLevel` (power reads) plus `registerMobKillXpMultiplier` (the kill-XP reward hook). The
+  settings fold cross-checks `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift
+  (guarded: an older jar without the getters validates clean). See the comment block in `build.gradle`.
 
 jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
 config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.
@@ -71,7 +73,7 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   sub-objects, NEVER flat prefixed keys.** A group of related fields gets its own static nested class
   with its own `BuilderCodec`, referenced via `new KeyedCodec<>("Group", Group.CODEC, false)` (the
   in-repo exemplars: `MobScalingSettingsAsset.OpenWorld`/`Difficulty`/`DistanceEscalation`/`ZoneHud`,
-  `RarityAsset.Roll`/`Multipliers`/`Affixes`, `AffixAsset.Roll`/`FoldDeltas`, the MMO jar's
+  `RarityAsset.Roll`/`Multipliers`/`Affixes`/`Families`, `AffixAsset.Roll`/`FoldDeltas`, the MMO jar's
   `WorldRulesAsset.MobScaling` + `PowerLevelAsset.Clamp`/`Pillars`/`Modes`). A flat suffix/prefix soup
   (`ZoneHudOffsetX`, `HpMult`/`OutDamageMult`/...) is a schema smell: it is not future-proof (a new
   knob lands INSIDE its group) and it does not read as a schema. Nesting composes with the partial
@@ -106,8 +108,12 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   ENABLED branch (a disabled mod registers literally nothing).
 - Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT in
   the settings asset: their canonical home is the per-type keyed assets, ALL LANDED as Pattern-A
-  codecs with nested groups: `Rarities/*.json` (`Roll`/`Multipliers`/`Affixes` groups, fold
-  `RarityConfig`), `Affixes/*.json` (`Roll`/`FoldDeltas`, fold `AffixConfig`), and
+  codecs with nested groups: `Rarities/*.json` (`Roll`/`Multipliers`/`Affixes`/`Families` groups, fold
+  `RarityConfig`), `Variants/*.json` (the second overlay axis - `Roll` with an absolute `Chance` +
+  `AllowedRarities` requires-rarity gate, `Multipliers`/`Affixes`/`Families` + top-level `AuraEffectId`
+  (fallback tint, applied only when the base rarity has none) / `BonusDropList` (stacks on the rarity's death
+  loot), fold `VariantConfig`), `Affixes/*.json` (`Roll` incl. `AllowedRarities`
+  + `AllowedVariants`/`FoldDeltas`, fold `AffixConfig`), and
   `Difficulty/*.json` (`TargetType` Zone|Biome + `TargetId` native name or `*` + `Floor`, fold
   `DifficultyConfig` with a derived O(1) name index, consumed by `world/ZoneDifficultyResolver`; the
   jar ships the Zone0..Zone4 starter gradient + the zone wildcard + an Ocean1 biome example).
@@ -133,7 +139,29 @@ phases:
   NO body tint** (they would fight the aura with no arbitration) - affix identity is the mechanic + (follow-up)
   the name stamp / a particle telegraph. The Freezing slow is VICTIM-applied and keeps its frost tint.
 - **Classification via authored `NPCGroup` tagset assets** (`Mmoscaling_Bosses` / `Mmoscaling_Excluded`,
-  queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry.
+  queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry. The **per-family
+  rarity gate** (0.6.0) reuses the SAME native mechanism: a rarity's nested `Families` block
+  (`AllowGroups`/`DenyGroups` native `NPCGroup` ids + `AllowRoles`/`DenyRoles` role-name globs, deny wins,
+  absent = allow-all) narrows which tiers may roll on a given mob. The matcher lives in the axis-neutral
+  `family/` package (pure `FamilyFilter`/`FamilyGlob` - the glob lifts native `StringUtil.isGlobMatching`,
+  case-folded - plus the engine `MobFamilyMatcher`, which mirrors `MobClassifier`'s lazy group-index cache
+  and warns once on an unknown group id). It is a pure `Predicate<Rarity>` threaded into `RarityRoster.pick`
+  (consumes no RNG, determinism preserved); the FORCED boss tier bypasses the roll and is unaffected. The
+  package is deliberately axis-neutral so the **variant** axis (below) reuses it unchanged.
+- **Variant OVERLAY axis** (0.6.0): a `variant/` package (`Variant`/`VariantRoster`) rolls a SECOND,
+  independent family-gated overlay AFTER the base rarity (at most one), stacking MULTIPLICATIVELY on the
+  rarity in `MobScaleFold` (the fold takes a nullable `Variant`; `MobScaleResult` gained a `variantId`). A
+  variant carries its OWN affix slots + allow-list; affixes gained an `AllowedVariants` gate so an affix can
+  be variant-exclusive (the shipped `venomous` on `horrific`), and `AffixRoster.pick(rarity, variant, rng)`
+  rolls both hosts into one distinct list sharing the used-set + single-resistance cap. A variant has NO
+  aura/tint (rarity owns that channel) - identity is the `{variant} {rarity} {base}` name frame + its
+  affix(es). The variant roll is ONE deterministic draw partitioned by the eligible variants' absolute
+  `Chance`, gated by `MobFamilyMatcher` (`Families`) AND the variant's `AllowedRarities` (which base rarities
+  it may overlay; `["*"]` = any incl. plain, passed the rolled base rarity id). A variant's `BonusDropList`
+  stacks on the rarity's in `MobScalingLootDropSystem` (both lists pulled), and its `AuraEffectId` is a
+  FALLBACK tint applied by `MobScalingEffectApplySystem` only when the base rarity contributed no aura (rarity
+  always wins the single tint channel). The crosshair inspector HUD renders the variant as its own coloured
+  tag (`#MmoscalingInspectVariant`, `Variant.displayColor()`).
 - **Item drops via native `ItemDropList`** (per-rarity bonus `Drops` assets + `getRandomItemDrops` on death);
   currency / XP / notification stay on the MMO `content/reward` path.
 - **Effect apply via a native `RefSystem.onEntityAdded`** (synchronous, add-pipeline CommandBuffer), not a

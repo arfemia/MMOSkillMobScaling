@@ -1,27 +1,32 @@
-@ZoneTitleStyle = (FontSize: 11, TextColor: #8fa6bf, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Start);
+// Styled to MATCH the native Hytale objective HUD (client ObjectivePanel + ObjectiveCommon): the
+// ObjectivePanelContainer frame, an uppercase-gray heading, gold emphasis values, gray body lines, and
+// the bold + LetterSpacing 1 FontSize-15 family. The frame texture is copied alongside this file so the
+// server-shipped Custom UI can resolve it by name.
 
-@ZoneTierStyle = (FontSize: 18, TextColor: #e0e0e0, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+@ZoneTitleStyle = (FontSize: 15, TextColor: #b7b8b9, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@ZoneValueStyle = (FontSize: 12, TextColor: #90a4ae, HorizontalAlignment: Start, VerticalAlignment: Center);
+@ZoneTierStyle = (FontSize: 16, TextColor: #e0e0e0, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@ZoneLineStyle = (FontSize: 12, TextColor: #b6c9de, HorizontalAlignment: Start, VerticalAlignment: Start);
+@ZoneValueStyle = (FontSize: 13, TextColor: #ca9f37, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+@ZoneLineStyle = (FontSize: 13, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
 Group {
   Group #MmoscalingZonePanel {
-    Anchor: (Top: 90, Left: 16, Width: 240, Height: 118);
+    Anchor: (Top: 90, Left: 16, Width: 320, Height: 124);
     LayoutMode: Top;
-    Padding: (Full: 8);
-    Background: #000000(0.35);
+    Padding: (Horizontal: 16, Top: 12, Bottom: 6);
+    Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
 
     Label #MmoscalingZoneTitle {
       Text: "";
-      Anchor: (Height: 16);
+      Anchor: (Height: 20);
       Style: @ZoneTitleStyle;
     }
 
     Label #MmoscalingZoneName {
       Text: "";
-      Anchor: (Height: 14);
+      Anchor: (Height: 16);
       Style: @ZoneLineStyle;
     }
 

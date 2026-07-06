@@ -10,12 +10,17 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
-/** Verifies the additive-affix fold + the global safety-cap clamps in {@link MobScaleFold}. */
+/** Verifies the additive-affix fold + the multiplicative variant overlay + the global safety-cap clamps. */
 class MobScaleFoldTest {
 
     private static Rarity rarity(double hp, double out, double in, double loot, double xp) {
         return new Rarity("epic", "", 25, 25, hp, out, in, loot, xp, 2, "aura", null, List.of("*"));
+    }
+
+    private static Variant variant(double hp, double out, double in, double loot, double xp) {
+        return new Variant("horrific", "", 0.15, 20, hp, out, in, loot, xp, 1, List.of("venomous"));
     }
 
     private static Affix affix(double hpDelta, double outDelta, double inDelta, double lootBonus) {
@@ -68,6 +73,34 @@ class MobScaleFoldTest {
         assertEquals(0.7f, r.inDmgMult(), 1e-5f, "in additive");
         assertEquals(1.5f * 1.2f, r.lootMult(), 1e-5f, "loot multiplicative with affix bonus");
         assertEquals(1, r.affixIds().length);
+    }
+
+    @Test
+    void variantStacksMultiplicativelyOverRarity() {
+        // Epic base * horrific overlay per channel: hp 2.0*1.5=3.0, out 1.5*1.4=2.1, in 0.8*0.9=0.72,
+        // loot 1.5*1.3, xp 1.3*1.2. Identity curve, all within caps.
+        MobScaleResult r = MobScaleFold.fold(rarity(2.0, 1.5, 0.8, 1.5, 1.3),
+                variant(1.5, 1.4, 0.9, 1.3, 1.2), List.of(), 40, MobScaleResult.SCOPE_HOSTILE,
+                MobScaleFold.DifficultyStatCurve.NONE);
+        assertEquals(3.0f, r.hpMult(), 1e-4f, "hp = rarity * variant");
+        assertEquals(2.1f, r.outDmgMult(), 1e-4f, "out = rarity * variant");
+        assertEquals(0.72f, r.inDmgMult(), 1e-4f, "in = rarity * variant (tankier)");
+        assertEquals(1.5f * 1.3f, r.lootMult(), 1e-4f, "loot = rarity * variant");
+        assertEquals(1.3f * 1.2f, r.xpMult(), 1e-4f, "xp = rarity * variant");
+        assertEquals("horrific", r.variantId(), "variant id recorded");
+        assertTrue(r.hasVariant());
+        assertTrue(r.hasRarity());
+    }
+
+    @Test
+    void variantWithoutRarityFoldsOffBaseOne() {
+        // No base rarity: base = 1.0, the variant multiplier IS the result ("Horrific Spider", plain base).
+        MobScaleResult r = MobScaleFold.fold(null, variant(1.5, 1.4, 0.9, 1.3, 1.2), List.of(), 30,
+                MobScaleResult.SCOPE_HOSTILE, MobScaleFold.DifficultyStatCurve.NONE);
+        assertEquals(1.5f, r.hpMult(), 1e-4f, "hp = 1.0 base * variant");
+        assertEquals(1.4f, r.outDmgMult(), 1e-4f);
+        assertFalse(r.hasRarity(), "no base rarity");
+        assertTrue(r.hasVariant(), "but a variant overlay");
     }
 
     @Test

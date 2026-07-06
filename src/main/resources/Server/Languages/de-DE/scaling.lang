@@ -5,6 +5,7 @@ rarity.rare.name = Selten
 rarity.epic.name = Episch
 rarity.legendary.name = Legendär
 rarity.boss.name = Boss
+variant.horrific.name = Grauenhaft
 
 affix.armored.name = Gepanzert
 affix.armored.desc = In schwere Panzerplatten gehüllt, die Schläge abgleiten lassen.
@@ -16,8 +17,11 @@ affix.vampiric.name = Vampirisch
 affix.vampiric.desc = Entzieht seinen Feinden mit jedem Schlag Lebenskraft.
 affix.freezing.name = Frostig
 affix.freezing.desc = Seine eisige Berührung lähmt und verlangsamt die Unachtsamen.
+affix.venomous.name = Giftig
+affix.venomous.desc = Sein Biss brennt von glühendem Gift.
 
 name.decorated = {rarity} {base}
+name.variant_decorated = {variant} {inner}
 
 command.desc = Admin-Werkzeuge für die Mob-Skalierung: Rückstände bereinigen, lokale Schwierigkeit prüfen, HUD-Anzeigen einstellen.
 command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect zeigt die Schwierigkeitswerte an deiner Position; hud stellt die Anzeigen ein.

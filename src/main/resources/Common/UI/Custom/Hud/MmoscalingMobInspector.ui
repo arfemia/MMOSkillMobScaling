@@ -1,26 +1,29 @@
-@InspectNameStyle = (FontSize: 13, TextColor: #eceff1, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
+// Styled to MATCH the native Hytale objective HUD (client ObjectivePanel + ObjectiveCommon): the
+// ObjectivePanelContainer frame plus the bold + LetterSpacing 1 family and the gray/gold palette. The
+// frame texture is copied alongside this file so the server-shipped Custom UI can resolve it by name.
 
-@InspectRarityStyle = (FontSize: 11, TextColor: #ffffff, RenderBold: true, HorizontalAlignment: Start, VerticalAlignment: Center);
+@InspectNameStyle = (FontSize: 14, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
 
-@InspectLevelStyle = (FontSize: 11, TextColor: #90a4ae, HorizontalAlignment: Start, VerticalAlignment: Center);
+@InspectRarityStyle = (FontSize: 12, TextColor: #ffffff, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@InspectHpTextStyle = (FontSize: 10, TextColor: #eceff1, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+@InspectLevelStyle = (FontSize: 12, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@InspectAffixStyle = (FontSize: 10, TextColor: #b0bec5, HorizontalAlignment: Start, VerticalAlignment: Center);
+@InspectHpTextStyle = (FontSize: 11, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+
+@InspectAffixStyle = (FontSize: 13, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
 Group {
   Group #MmoscalingInspectPanel {
     // Static fallback anchor only - the runtime applyConfiguredPosition (MobInspectorHud.defaultPosition)
-    // always wins. Left-anchored to match: NO Horizontal here, "Horizontal: N" is a left+right inset
-    // (stretch to fill minus N), so "Horizontal: 0" would stretch this to full screen width.
-    Anchor: (Top: 216, Left: 16, Width: 280, Height: 108);
+    // always wins. Left-anchored (NO Horizontal). The native ObjectivePanelContainer frame + padding to
+    // clear its ~15px decorative border.
+    Anchor: (Top: 216, Left: 16, Width: 320, Height: 126);
     LayoutMode: Left;
-    Padding: (Full: 6);
-    Background: #000000(0.35);
+    Padding: (Horizontal: 14, Vertical: 10);
+    Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
 
     // LEFT column: the target mob's generated portrait (Icons/ModelsGenerated/<role>.png), pushed by Java.
     // Toggled whole via .Visible; when hidden the Left layout collapses it and the info column takes the room.
-    // FallbackTexturePath covers a role whose portrait was never generated.
     AssetImage #MmoscalingInspectPortrait {
       Anchor: (Width: 72, Height: 72);
       Visible: false;
@@ -44,6 +47,15 @@ Group {
         Anchor: (Height: 16);
         LayoutMode: Left;
 
+        // Variant tag (leftmost, matching the "{variant} {rarity} {base}" name order); its TextColor is
+        // pushed per-target from Variant.displayColor(). Hidden when the mob has no variant overlay.
+        Label #MmoscalingInspectVariant {
+          Text: "";
+          Anchor: (Height: 16);
+          Padding: (Right: 8);
+          Style: @InspectRarityStyle;
+        }
+
         Label #MmoscalingInspectRarity {
           Text: "";
           Anchor: (Height: 16);
@@ -58,11 +70,11 @@ Group {
         }
       }
 
-      // Fixed width so the Java-pushed fill (a fixed 188 = 190 - 2 pad) always fills the BAR exactly,
+      // Fixed width so the Java-pushed fill (a fixed 212 = 214 - 2 pad) always fills the BAR exactly,
       // independent of the info column width (which widens when the portrait column is hidden). The bar
-      // then stays 190 left-aligned rather than stretching to the column edge.
+      // then stays 214 left-aligned rather than stretching to the column edge.
       Group #MmoscalingInspectHpBg {
-        Anchor: (Width: 190, Height: 14);
+        Anchor: (Width: 214, Height: 14);
         Padding: (Full: 1);
         Background: #000000(0.6);
 
@@ -79,44 +91,45 @@ Group {
       }
 
       // Affix chips wrap onto a second line. Each chip is a fixed-width icon + name so the wrap is
-      // predictable; the two sibling icon widgets (#IcoItem / #IcoTex) are toggled by hud/IconRenderer.
+      // predictable (two 100-wide chips fit the 214 info column); the two sibling icon widgets
+      // (#IcoItem / #IcoTex) are toggled by hud/IconRenderer.
       Group #MmoscalingInspectAffixRow {
-        Anchor: (Height: 30);
+        Anchor: (Height: 40);
         LayoutMode: LeftCenterWrap;
 
         Group #Affix0 {
-          Anchor: (Width: 90, Height: 13);
+          Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 12, Height: 12); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 12, Height: 12); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 3); }
+          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
 
         Group #Affix1 {
-          Anchor: (Width: 90, Height: 13);
+          Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 12, Height: 12); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 12, Height: 12); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 3); }
+          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
 
         Group #Affix2 {
-          Anchor: (Width: 90, Height: 13);
+          Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 12, Height: 12); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 12, Height: 12); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 3); }
+          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
 
         Group #Affix3 {
-          Anchor: (Width: 90, Height: 13);
+          Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 12, Height: 12); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 12, Height: 12); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 3); }
+          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
       }

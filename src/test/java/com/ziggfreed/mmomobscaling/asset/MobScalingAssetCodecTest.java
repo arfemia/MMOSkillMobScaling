@@ -19,6 +19,7 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
@@ -32,6 +33,7 @@ class MobScalingAssetCodecTest {
     @Test
     void codecsStaticInitializeWithoutThrowing() {
         assertNotNull(RarityAsset.CODEC, "RarityAsset.CODEC static-init (PascalCase key guard)");
+        assertNotNull(VariantAsset.CODEC, "VariantAsset.CODEC static-init (PascalCase key guard)");
         assertNotNull(AffixAsset.CODEC, "AffixAsset.CODEC static-init (PascalCase key guard)");
         assertNotNull(MobScalingSettingsAsset.CODEC, "MobScalingSettingsAsset.CODEC static-init");
         assertNotNull(DifficultyMappingAsset.CODEC, "DifficultyMappingAsset.CODEC static-init");
@@ -68,6 +70,32 @@ class MobScalingAssetCodecTest {
         assertTrue(r.allowsAffix("armored"), "wildcard AllowedAffixes allows any affix");
         assertEquals("#b388ff", r.nameColor(), "NameColor (the inspector HUD tint)");
         assertEquals("#b388ff", r.displayColor(), "displayColor passes an authored colour through");
+        assertTrue(r.familyFilter().isUnrestricted(), "no Families block -> allow-all (every mob eligible)");
+    }
+
+    @Test
+    void decodesShippedHorrificVariantFamilyGate() throws Exception {
+        Variant v = decode("/Server/MmoMobScaling/Variants/Horrific.json", VariantAsset.CODEC).toVariant();
+        assertEquals(0.15, v.chance(), 1e-9, "Roll.Chance");
+        assertEquals(20.0, v.minDifficulty(), 1e-9, "Roll.MinDifficulty");
+        assertEquals(1.5, v.hpMult(), 1e-9, "Multipliers.Hp");
+        assertTrue(v.allowsAffix("venomous"), "the variant grants its unique affix");
+        assertTrue(!v.familyFilter().isUnrestricted(), "the Families block makes it restricted");
+        assertTrue(v.familyFilter().allowGroups().contains("Spiders"), "AllowGroups decoded");
+        assertTrue(v.familyFilter().allowRoles().contains("Spider*"), "AllowRoles decoded");
+        assertEquals("scaling.variant.horrific.name", v.displayNameKey(), "DisplayNameKey");
+        assertEquals("Mmoscaling_Aura_Horrific", v.auraEffectId(), "AuraEffectId (fallback tint)");
+        assertEquals("Mmoscaling_Drops_Horrific", v.bonusDropListId(), "BonusDropList (stacks on rarity drops)");
+        assertTrue(v.allowsRarity("epic"), "AllowedRarities ['*'] overlays any base rarity");
+        assertTrue(v.allowsRarity(""), "['*'] also overlays a plain-base mob");
+    }
+
+    @Test
+    void decodesShippedVenomousVariantGate() throws Exception {
+        Affix a = decode("/Server/MmoMobScaling/Affixes/Venomous.json", AffixAsset.CODEC).toAffix();
+        assertTrue(a.allowsVariant("horrific"), "venomous is granted by the horrific variant");
+        assertTrue(!a.allowsVariant("other"), "venomous is not granted by any other variant");
+        assertTrue(!a.allowsRarity("epic"), "venomous is variant-exclusive (AllowedRarities [] -> no rarity)");
     }
 
     @Test

@@ -5,6 +5,7 @@ rarity.rare.name = Редкий
 rarity.epic.name = Эпический
 rarity.legendary.name = Легендарный
 rarity.boss.name = Босс
+variant.horrific.name = Ужасающий
 
 affix.armored.name = Бронированный
 affix.armored.desc = Закован в тяжёлую броню, отражающую удары.
@@ -16,8 +17,11 @@ affix.vampiric.name = Вампирический
 affix.vampiric.desc = С каждым ударом вытягивает жизнь из врагов.
 affix.freezing.name = Леденящий
 affix.freezing.desc = Его ледяное касание сковывает и замедляет неосторожных.
+affix.venomous.name = Ядовитый
+affix.venomous.desc = Его укус пылает жгучим ядом.
 
 name.decorated = {rarity} {base}
+name.variant_decorated = {variant} {inner}
 
 command.desc = Инструменты администратора масштабирования существ: очистка остатков, проверка локальной сложности, настройка HUD-оверлеев.
 command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции; hud настраивает оверлеи.

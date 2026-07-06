@@ -1,0 +1,10 @@
+{
+  "$Comment": "Example UNIQUE affix, granted by the 'horrific' VARIANT via AllowedVariants (NOT a rarity). Because 'horrific' only rolls on spiders (Variants/Horrific.json Families block), 'venomous' is transitively spider-only with NO affix-side family filter needed. AllowedVariants gates which variants may grant this affix (mirrors AllowedRarities for the rarity axis); the variant lists it in Affixes.Allowed to actually roll it. Fold-only (an OutDamage delta, no native EntityEffect asset), so it costs nothing beyond the pipeline multiply. Delete this file (and Variants/Horrific.json) to remove the example.",
+  "Name": "venomous",
+  "DisplayNameKey": "scaling.affix.venomous.name",
+  "DescriptionKey": "scaling.affix.venomous.desc",
+  "Roll": { "Weight": 1.0, "MinDifficulty": 20, "AllowedRarities": [], "AllowedVariants": ["horrific"] },
+  "FoldDeltas": { "OutDamage": 0.2 },
+  "Kind": "STAT",
+  "Icon": { "ItemId": "Ingredient_Sac_Venom" }
+}

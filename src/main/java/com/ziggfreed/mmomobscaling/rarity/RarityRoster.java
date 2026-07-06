@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -45,14 +46,23 @@ public final class RarityRoster {
 
     /**
      * Roll a rarity for a mob at {@code effDifficulty}. Returns {@code null} for PLAIN (no special rarity):
-     * either the {@code raritySpawnChance} gate failed or no tier is eligible at this difficulty.
+     * the {@code raritySpawnChance} gate failed, no tier is eligible at this difficulty, or the mob-family
+     * predicate filtered every otherwise-eligible tier out.
+     *
+     * <p>The {@code familyEligible} predicate narrows the eligible SET only; it consumes no RNG and is applied
+     * AFTER the spawn-chance draw, so the seed-&gt;result mapping (hence per-mob determinism) is unchanged from
+     * the un-filtered roll. The caller (the spawn hook) builds it from the mob's identity via
+     * {@code family/MobFamilyMatcher}; a pure {@code r -> true} disables family gating (tests / callers with no
+     * mob context).
      *
      * @param effDifficulty     the resolved effective difficulty (drives which tiers are eligible)
      * @param raritySpawnChance probability {@code [0,1]} of rolling a non-plain rarity at all
      * @param rng               a per-mob deterministic generator (its draw order is fixed for determinism)
+     * @param familyEligible    per-mob family gate: {@code true} = this tier may roll on this mob
      */
     @Nullable
-    public Rarity pick(double effDifficulty, double raritySpawnChance, @Nonnull SplitMix64 rng) {
+    public Rarity pick(double effDifficulty, double raritySpawnChance, @Nonnull SplitMix64 rng,
+            @Nonnull Predicate<Rarity> familyEligible) {
         if (entries.length == 0) {
             return null;
         }
@@ -61,17 +71,17 @@ public final class RarityRoster {
         }
         double total = 0.0;
         for (Rarity r : entries) {
-            if (r.minDifficulty() <= effDifficulty) {
+            if (r.minDifficulty() <= effDifficulty && familyEligible.test(r)) {
                 total += r.weight();
             }
         }
         if (total <= 0.0) {
-            return null;
+            return null; // no tier eligible at this difficulty for this mob family
         }
         double roll = rng.nextDouble() * total;
         double acc = 0.0;
         for (Rarity r : entries) {
-            if (r.minDifficulty() > effDifficulty) {
+            if (r.minDifficulty() > effDifficulty || !familyEligible.test(r)) {
                 continue;
             }
             acc += r.weight();

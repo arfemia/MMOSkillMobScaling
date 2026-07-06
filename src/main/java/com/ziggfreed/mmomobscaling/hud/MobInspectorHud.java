@@ -15,6 +15,7 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
  * The MOB INSPECTOR overlay: a two-column card for the entity under the player's crosshair - a generated
@@ -43,15 +44,15 @@ public final class MobInspectorHud extends ScalingHud {
      * the fill (the ability-HUD pip layering: a later sibling paints on top), and an affix chip row that
      * wraps onto a second line ({@code LayoutMode: LeftCenterWrap}); each chip is an icon + the affix name.
      */
-    private static final int PANEL_WIDTH_PX = 280;
-    private static final int PANEL_HEIGHT_PX = 108;
+    private static final int PANEL_WIDTH_PX = 320;
+    private static final int PANEL_HEIGHT_PX = 126;
 
     /**
      * Inner HP-bar width available for the fill - must match {@code #MmoscalingInspectHpBg} inside the
-     * right INFO column (panel 280 - 2x6 panel padding - 72 portrait - 6 gap = 190 info column,
-     * minus 2x1 bar padding = 188).
+     * right INFO column (panel 320 - 2x14 native-frame padding - 72 portrait - 6 gap = 214 info column,
+     * minus 2x1 bar padding = 212).
      */
-    private static final int HP_BAR_INNER_WIDTH_PX = 188;
+    private static final int HP_BAR_INNER_WIDTH_PX = 212;
 
     /** Affix label slots shipped by the .ui ({@code #Affix0..#Affix3}); surplus affixes are not shown. */
     private static final int MAX_AFFIX_LABELS = 4;
@@ -75,6 +76,7 @@ public final class MobInspectorHud extends ScalingHud {
             @Nonnull String targetKey,
             @Nullable Message name,
             @Nullable Rarity rarity,
+            @Nullable Variant variant,
             @Nonnull List<Affix> affixes,
             double difficulty,
             boolean scaled,
@@ -184,6 +186,16 @@ public final class MobInspectorHud extends ScalingHud {
             cmd.set("#MmoscalingInspectName.TextSpans", target.name());
         }
 
+        // Variant tag (leftmost, coloured from Variant.displayColor()) - scaled targets carrying a variant.
+        Variant variant = target.variant();
+        boolean hasVariant = variant != null;
+        cmd.set("#MmoscalingInspectVariant.Visible", hasVariant);
+        if (hasVariant) {
+            cmd.set("#MmoscalingInspectVariant.TextSpans",
+                    Message.translation(MobScalingTextUtil.variantNameKey(variant)));
+            cmd.set("#MmoscalingInspectVariant.Style.TextColor", variant.displayColor());
+        }
+
         // Rarity tag + frozen difficulty (scaled targets only).
         Rarity rarity = target.rarity();
         boolean hasRarity = rarity != null;
@@ -245,6 +257,7 @@ public final class MobInspectorHud extends ScalingHud {
                 .append(t.targetKey())
                 .append('|').append(t.name() != null ? System.identityHashCode(t.name()) : -1)
                 .append('|').append(t.rarity() != null ? t.rarity().id() + t.rarity().displayColor() : "")
+                .append('|').append(t.variant() != null ? t.variant().id() + t.variant().displayColor() : "")
                 .append('|').append(t.scaled() ? Math.round(t.difficulty()) : -1)
                 .append('|').append(Math.round(t.hp()))
                 .append('/').append(Math.round(t.hpMax()))

@@ -5,6 +5,7 @@ rarity.rare.name = Raro
 rarity.epic.name = Epico
 rarity.legendary.name = Leggendario
 rarity.boss.name = Boss
+variant.horrific.name = Orribile
 
 affix.armored.name = Corazzato
 affix.armored.desc = Coperto di pesanti piastre che deviano i colpi.
@@ -16,8 +17,11 @@ affix.vampiric.name = Vampirico
 affix.vampiric.desc = Drena la vita dei nemici a ogni colpo.
 affix.freezing.name = Gelido
 affix.freezing.desc = Il suo tocco gelido intorpidisce e rallenta gli incauti.
+affix.venomous.name = Velenoso
+affix.venomous.desc = Il suo morso arde di veleno bruciante.
 
 name.decorated = {base} {rarity}
+name.variant_decorated = {variant} {inner}
 
 command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale, regolare le sovrimpressioni HUD.
 command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni.

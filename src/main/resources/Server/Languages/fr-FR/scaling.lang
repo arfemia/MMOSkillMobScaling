@@ -5,6 +5,7 @@ rarity.rare.name = Rare
 rarity.epic.name = Épique
 rarity.legendary.name = Légendaire
 rarity.boss.name = Boss
+variant.horrific.name = Horrifique
 
 affix.armored.name = Blindé
 affix.armored.desc = Couvert d'un épais blindage qui détourne les coups.
@@ -16,8 +17,11 @@ affix.vampiric.name = Vampirique
 affix.vampiric.desc = Draine la vie de ses ennemis à chaque coup.
 affix.freezing.name = Glacial
 affix.freezing.desc = Son toucher glacé engourdit et ralentit les imprudents.
+affix.venomous.name = Venimeux
+affix.venomous.desc = Sa morsure brûle d'un venin ardent.
 
 name.decorated = {base} {rarity}
+name.variant_decorated = {variant} {inner}
 
 command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale, régler les superpositions HUD.
 command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions.

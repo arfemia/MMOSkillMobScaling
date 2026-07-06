@@ -2,6 +2,47 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
+## 0.6.0 (in-game-validation pending)
+
+- New: PER-FAMILY gating for rarities AND variants. A rarity tier (or a variant, below) can be whitelisted /
+  blacklisted to mob FAMILIES via a nested `Families` block (`AllowGroups`/`DenyGroups` = native `NPCGroup`
+  tagset ids, `AllowRoles`/`DenyRoles` = role-name globs like `Spider*`, native `IncludeRoles` semantics,
+  case-insensitive; deny wins, an absent block = every mob eligible). The gate only NARROWS the roll,
+  consumes no RNG so per-mob determinism is unchanged, and reuses the same native `hasTagInGroup`
+  classification the boss/excluded tagsets already use. New `family/` package (`FamilyFilter`/`FamilyGlob`
+  pure + `MobFamilyMatcher` engine); a validator flags a self-contradictory filter (deny `*`, or an id in
+  both allow + deny), and the matcher warns once on a referenced NPCGroup id that does not exist.
+- New: mob VARIANT overlays (`Server/MmoMobScaling/Variants/*.json`). A variant is a SECOND, independent roll
+  axis that STACKS on top of the base rarity: a mob rolls its rarity as before, then independently rolls at
+  most one family-gated variant, so you get "Horrific Epic Spider" (epic base * horrific overlay). A variant
+  carries its own absolute-`Chance` roll gate, `MinDifficulty` band, a `Families` filter, stat `Multipliers`
+  that stack MULTIPLICATIVELY on the base rarity, and its own affix slots + allow-list. Affixes gain an
+  `AllowedVariants` gate (mirroring `AllowedRarities`), so an affix can be variant-exclusive. A variant carries
+  NO aura/tint (the rarity owns that single channel); its identity is the name decoration (`{variant} {rarity}
+  {base}`) + its granted affix(es). New `variant/` package (`Variant`/`VariantRoster`) + `VariantConfig` fold
+  + a `Variants` asset store; the variant roll is a single deterministic draw whose eligible chances partition
+  it. Ships an example: a spider-only `horrific` variant (`Variants/Horrific.json`) granting a unique
+  `venomous` affix (`Affixes/Venomous.json`, gated to the `horrific` variant, so it is transitively spider-only
+  with no affix-side family filter).
+  - A variant also carries an optional `BonusDropList` (its death loot STACKS on top of the base rarity's
+    drops; the example ships venom/silk `Mmoscaling_Drops_Horrific`), an optional `AuraEffectId` applied ONLY
+    when the base rarity has no aura of its own (a fallback body-tint for a plain-base variant mob - the rarity
+    still owns the single tint channel; the example ships a green `Mmoscaling_Aura_Horrific`), and a
+    `Roll.AllowedRarities` requires-rarity gate (absent = `["*"]` = any base incl. plain; e.g.
+    `["epic","legendary"]` = only on epic+). The crosshair mob-inspector HUD now renders the variant as its
+    own coloured tag (`Variant.NameColor`) beside the rarity tag.
+- Improvement: the settings fold now cross-checks `Difficulty.MinCap`/`MaxCap` against the MMO jar's
+  PowerLevel clamp (the new `MMOSkillTreeAPI.getPowerLevelMin()`/`getPowerLevelMax()` reads) and warns
+  when the two scales drift. The group delta subtracts aggregated power from base difficulty directly,
+  so a one-sided retune of either config silently miscalibrated every spawn before this check; an
+  unreadable clamp (older MMO jar) validates as clean, it is advisory only.
+- Improvement: both HUD overlays (the zone-difficulty card + the crosshair mob inspector) restyled to
+  MATCH the native Hytale objective HUD (the client's own `ObjectivePanel`/`ObjectiveCommon`): the
+  `ObjectivePanelContainer` frame plus the native palette (gray `#b7b8b9` headings, gold `#ca9f37`
+  emphasis) and the bold + letter-spacing font family, in place of the plain translucent plate. The
+  frame texture is copied alongside each `.ui`. Panel heights adjusted for the frame padding; the
+  inspector HP bar re-fit to the reframed info column (172px inner). Styling only, no behavior change.
+
 ## 0.5.0 (2026-07-04, first public beta, in-game-validation pending)
 
 The first public release of MMO Mob Scaling, folding the earlier never-shipped internal skeleton (the

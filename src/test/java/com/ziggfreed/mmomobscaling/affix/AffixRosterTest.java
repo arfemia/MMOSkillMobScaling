@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.common.util.SplitMix64;
 
 /** Slot-count, resistance-uniqueness, no-duplicate, gating + determinism tests for {@link AffixRoster}. */
@@ -15,6 +16,12 @@ class AffixRosterTest {
 
     private static Affix affix(String id, double weight, double minDiff, List<String> allowedRarities, boolean resist) {
         return new Affix(id, "", "", null, weight, minDiff, allowedRarities, 0, 0, 0, 0, Affix.KIND_STAT, null, resist);
+    }
+
+    /** An affix gated to VARIANTS only (empty AllowedRarities = no rarity may grant it). */
+    private static Affix variantAffix(String id, List<String> allowedVariants) {
+        return new Affix(id, "", "", null, 5, 5, List.of(), allowedVariants, 0, 0, 0, 0,
+                Affix.KIND_STAT, null, false, null, null);
     }
 
     private static Rarity legendary() {
@@ -67,6 +74,40 @@ class AffixRosterTest {
         Rarity rare = new Rarity("rare", "", 70, 5, 1, 1, 1, 1, 1, 1, null, null, List.of("*"));
         for (long s = 0; s < 128; s++) {
             assertTrue(p.pick(60, rare, 1, new SplitMix64(s)).isEmpty(), "epic-only affix blocked on a rare mob");
+        }
+    }
+
+    @Test
+    void combinedRollGrantsVariantAffix() {
+        // A pool with a rarity affix (rarity-only) + a variant-exclusive affix (variant-only). The combined
+        // roll for an epic base + horrific variant should be able to yield BOTH; the rarity never grants the
+        // variant affix, and the variant never grants the rarity affix.
+        AffixRoster p = AffixRoster.build(List.of(
+                affix("stalwart", 3, 5, List.of("*"), false),
+                variantAffix("venomous", List.of("horrific"))));
+        Rarity epic = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 1, null, null, List.of("*"));
+        Variant horrific = new Variant("horrific", "", 0.15, 20, 1, 1, 1, 1, 1, 1, List.of("venomous"));
+        boolean sawVenom = false;
+        boolean sawStalwart = false;
+        for (long s = 0; s < 256; s++) {
+            List<String> ids = p.pick(60, epic, horrific, new SplitMix64(s)).stream().map(Affix::id).toList();
+            // venomous only ever appears via the variant slot; stalwart only via the rarity slot.
+            sawVenom |= ids.contains("venomous");
+            sawStalwart |= ids.contains("stalwart");
+            assertEquals(ids.size(), ids.stream().distinct().count(), "no dupes across hosts");
+        }
+        assertTrue(sawVenom, "the variant grants venomous");
+        assertTrue(sawStalwart, "the rarity grants stalwart");
+    }
+
+    @Test
+    void variantAffixNotGrantedWithoutTheVariant() {
+        AffixRoster p = AffixRoster.build(List.of(variantAffix("venomous", List.of("horrific"))));
+        Rarity epic = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, null, null, List.of("*"));
+        for (long s = 0; s < 128; s++) {
+            // Rarity-only roll (no variant): venomous is variant-exclusive, so it never appears.
+            assertTrue(p.pick(60, epic, (Variant) null, new SplitMix64(s)).isEmpty(),
+                    "a variant-exclusive affix never rolls from the rarity alone");
         }
     }
 

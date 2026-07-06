@@ -1,0 +1,9 @@
+{
+  "$Comment": "Body-tint aura for the 'horrific' VARIANT (a sickly green matching its NameColor). Applied by MobScalingEffectApplySystem ONLY when the base rarity has no aura of its own (the rarity owns the single tint channel), so it tints a plain-base horrific mob without fighting a rarity aura. Tint-only (no particle/ModelVFX) to stay engine-safe; add an Mmoscaling_* particle system here if you have one.",
+  "ApplicationEffects": {
+    "EntityBottomTint": "#4c7a2a",
+    "EntityTopTint": "#7cb342"
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

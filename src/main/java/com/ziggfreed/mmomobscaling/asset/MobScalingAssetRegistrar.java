@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
@@ -16,8 +17,10 @@ import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.ScalingContentValidator;
+import com.ziggfreed.mmomobscaling.config.VariantConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
@@ -45,6 +48,8 @@ public final class MobScalingAssetRegistrar {
     private static final String RARITIES_PATH = "MmoMobScaling/Rarities";
     /** Keyed affix store ({@code Server/MmoMobScaling/Affixes/*.json}). */
     private static final String AFFIXES_PATH = "MmoMobScaling/Affixes";
+    /** Keyed variant-overlay store ({@code Server/MmoMobScaling/Variants/*.json}). */
+    private static final String VARIANTS_PATH = "MmoMobScaling/Variants";
     /** Keyed difficulty-floor mapping store ({@code Server/MmoMobScaling/Difficulty/*.json}). */
     private static final String DIFFICULTY_PATH = "MmoMobScaling/Difficulty";
 
@@ -85,6 +90,18 @@ public final class MobScalingAssetRegistrar {
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, AffixAsset.class,
                 MobScalingAssetRegistrar::onAffixesLoaded);
 
+        // Variant overlays (keyed multi-asset store; folded into VariantConfig on load, rolled at spawn as
+        // the second axis beside the rarity ladder).
+        AssetStoreRegistrar.registerStore(
+                VariantAsset.class,
+                new DefaultAssetMap<String, VariantAsset>(),
+                VARIANTS_PATH,
+                VariantAsset::getId,
+                VariantAsset.CODEC,
+                null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, VariantAsset.class,
+                MobScalingAssetRegistrar::onVariantsLoaded);
+
         // Difficulty-floor mappings (keyed multi-asset store; folded into DifficultyConfig on load,
         // read per spawn/presence/HUD resolve through ZoneDifficultyResolver).
         AssetStoreRegistrar.registerStore(
@@ -124,6 +141,34 @@ public final class MobScalingAssetRegistrar {
             } catch (Throwable ignored) {
                 // log-manager-less JVMs
             }
+            warnFindings(ScalingContentValidator.validateDifficultyCaps(
+                    MobScalingConfig.getInstance().getDifficultyMinCap(),
+                    MobScalingConfig.getInstance().getDifficultyMaxCap(),
+                    powerLevelMin(), powerLevelMax()));
+        }
+    }
+
+    /**
+     * The MMO jar's PowerLevel clamp minimum via the frozen API, or null when unreadable
+     * (unit JVMs; an older MMO dev jar without the getter). The caps cross-check treats
+     * null as clean - it is an advisory calibration check, never a load blocker.
+     */
+    @Nullable
+    private static Double powerLevelMin() {
+        try {
+            return com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI.getPowerLevelMin();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The MMO jar's PowerLevel clamp maximum via the frozen API, or null when unreadable. */
+    @Nullable
+    private static Double powerLevelMax() {
+        try {
+            return com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI.getPowerLevelMax();
+        } catch (Throwable t) {
+            return null;
         }
     }
 
@@ -145,6 +190,22 @@ public final class MobScalingAssetRegistrar {
         Rosters.rebuild();
         logApplied("rarities", layer.size());
         warnFindings(ScalingContentValidator.validateRarities(layer.values()));
+    }
+
+    /** Fold the loaded variant assets into {@link VariantConfig}'s pack layer (same all-entries fold as rarities). */
+    static void onVariantsLoaded(
+            LoadedAssetsEvent<String, VariantAsset, DefaultAssetMap<String, VariantAsset>> event) {
+        Map<String, Variant> layer = new LinkedHashMap<>();
+        for (Map.Entry<String, VariantAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
+            VariantAsset asset = entry.getValue();
+            if (asset != null) {
+                layer.put(entry.getKey(), asset.toVariant());
+            }
+        }
+        VariantConfig.getInstance().mergePackLayer(layer);
+        Rosters.rebuild();
+        logApplied("variants", layer.size());
+        warnFindings(ScalingContentValidator.validateVariants(layer.values()));
     }
 
     /** Fold the loaded affix assets into {@link AffixConfig}'s pack layer (same all-entries fold as rarities). */

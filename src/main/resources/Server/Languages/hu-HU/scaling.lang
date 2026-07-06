@@ -5,6 +5,7 @@ rarity.rare.name = Ritka
 rarity.epic.name = Epikus
 rarity.legendary.name = Legendás
 rarity.boss.name = Főellenség
+variant.horrific.name = Rémisztő
 
 affix.armored.name = Páncélozott
 affix.armored.desc = Nehéz páncélzat borítja, amely elhárítja a csapásokat.
@@ -16,8 +17,11 @@ affix.vampiric.name = Vámpírikus
 affix.vampiric.desc = Minden csapással életerőt szív el ellenfeleitől.
 affix.freezing.name = Fagyasztó
 affix.freezing.desc = Dermesztő érintése elzsibbasztja és lelassítja az óvatlanokat.
+affix.venomous.name = Mérgező
+affix.venomous.desc = Harapása perzselő méregtől lüktet.
 
 name.decorated = {rarity} {base}
+name.variant_decorated = {variant} {inner}
 
 command.desc = A szörnyskálázás admin eszközei: maradványok eltávolítása, helyi nehézség vizsgálata, a HUD kijelzők finomhangolása.
 command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél; a hud finomhangolja a kijelzőket.

@@ -18,6 +18,7 @@ import javax.annotation.Nonnull;
 public record MobScaleResult(
         float difficulty,
         @Nonnull String rarityId,
+        @Nonnull String variantId,
         @Nonnull String[] affixIds,
         float hpMult,
         float outDmgMult,
@@ -34,6 +35,11 @@ public record MobScaleResult(
     /** True when a non-plain rarity was rolled/forced (an empty id means plain). */
     public boolean hasRarity() {
         return !rarityId.isEmpty();
+    }
+
+    /** True when a variant overlay was rolled (an empty id means no variant). */
+    public boolean hasVariant() {
+        return !variantId.isEmpty();
     }
 
     /** True when at least one affix is present. */

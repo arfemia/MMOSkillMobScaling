@@ -27,6 +27,7 @@ public record Affix(
         double spawnWeight,
         double minDifficulty,
         @Nonnull List<String> allowedRarities,
+        @Nonnull List<String> allowedVariants,
         double outDamageDelta,
         double inDamageDelta,
         double hpDelta,
@@ -44,13 +45,14 @@ public record Affix(
 
     public Affix {
         allowedRarities = List.copyOf(allowedRarities);
+        allowedVariants = List.copyOf(allowedVariants);
     }
 
     /**
-     * Convenience constructor without a display icon ({@code iconItemId}/{@code iconTexturePath} both
-     * {@code null} = no chip icon, label only). Keeps every pre-icon call site (tests + the roll paths)
-     * compiling unchanged; the codec {@link com.ziggfreed.mmomobscaling.asset.AffixAsset#toAffix()} uses
-     * the full constructor with the authored {@link com.ziggfreed.mmomobscaling.asset.IconSpec}.
+     * Convenience constructor without an {@code allowedVariants} gate (defaults to {@code []} = this affix is
+     * NOT granted by any variant, only by a rarity via {@code allowedRarities}) or a display icon. Keeps every
+     * pre-variant / pre-icon call site (tests + the roll paths) compiling unchanged; the codec
+     * {@link com.ziggfreed.mmomobscaling.asset.AffixAsset#toAffix()} uses the full constructor.
      */
     public Affix(@Nonnull String id, @Nonnull String displayNameKey, @Nonnull String descriptionKey,
             @Nullable String effectId, double spawnWeight, double minDifficulty,
@@ -58,8 +60,19 @@ public record Affix(
             double hpDelta, double lootBonus, @Nonnull String kind, @Nullable String behaviorId,
             boolean resistanceBearing) {
         this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
-                outDamageDelta, inDamageDelta, hpDelta, lootBonus, kind, behaviorId, resistanceBearing,
+                List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, kind, behaviorId, resistanceBearing,
                 null, null);
+    }
+
+    /** Convenience constructor with an icon but the pre-variant gate list order (adds {@code allowedVariants}). */
+    public Affix(@Nonnull String id, @Nonnull String displayNameKey, @Nonnull String descriptionKey,
+            @Nullable String effectId, double spawnWeight, double minDifficulty,
+            @Nonnull List<String> allowedRarities, double outDamageDelta, double inDamageDelta,
+            double hpDelta, double lootBonus, @Nonnull String kind, @Nullable String behaviorId,
+            boolean resistanceBearing, @Nullable String iconItemId, @Nullable String iconTexturePath) {
+        this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
+                List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, kind, behaviorId, resistanceBearing,
+                iconItemId, iconTexturePath);
     }
 
     /** True when this affix authors a chip icon (an item id or a texture path) for the inspector HUD. */
@@ -70,9 +83,22 @@ public record Affix(
 
     /** True when this affix may roll on the given rarity id. A wildcard {@code "*"} allows all; {@code []} allows none. */
     public boolean allowsRarity(@Nonnull String rarityId) {
-        String want = rarityId.toLowerCase(Locale.ROOT);
-        for (String r : allowedRarities) {
-            if ("*".equals(r) || r.toLowerCase(Locale.ROOT).equals(want)) {
+        return matches(allowedRarities, rarityId);
+    }
+
+    /**
+     * True when this affix may be granted by the given VARIANT id. A wildcard {@code "*"} allows any variant;
+     * an empty list (the default) allows NONE - an affix is variant-granted only when it opts in via
+     * {@code AllowedVariants}, so the shipped rarity affixes never leak onto a variant's slots.
+     */
+    public boolean allowsVariant(@Nonnull String variantId) {
+        return matches(allowedVariants, variantId);
+    }
+
+    private static boolean matches(@Nonnull List<String> ids, @Nonnull String want) {
+        String w = want.toLowerCase(Locale.ROOT);
+        for (String id : ids) {
+            if ("*".equals(id) || id.toLowerCase(Locale.ROOT).equals(w)) {
                 return true;
             }
         }

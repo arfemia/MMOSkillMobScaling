@@ -1,0 +1,30 @@
+{
+  "$Comment": "Bonus death drops for the 'horrific' VARIANT (venom/silk themed). Pulled IN ADDITION to the base rarity's BonusDropList, floor(lootMult)+chance times. Native ItemDropList shape (same as Mmoscaling_Drops_Epic); an owner/pack overrides it by id.",
+  "Container": {
+    "Type": "Choice",
+    "RollsMin": 1,
+    "RollsMax": 1,
+    "Containers": [
+      {
+        "Type": "Single",
+        "Weight": 100,
+        "Item": { "ItemId": "Ingredient_Sac_Venom", "QuantityMin": 1, "QuantityMax": 3 }
+      },
+      {
+        "Type": "Single",
+        "Weight": 70,
+        "Item": { "ItemId": "Ingredient_Bolt_Silk", "QuantityMin": 1, "QuantityMax": 2 }
+      },
+      {
+        "Type": "Single",
+        "Weight": 40,
+        "Item": { "ItemId": "Ingredient_Fabric_Scrap_Silk", "QuantityMin": 1, "QuantityMax": 2 }
+      },
+      {
+        "Type": "Single",
+        "Weight": 20,
+        "Item": { "ItemId": "Ingredient_Crystal_Blue", "QuantityMin": 1, "QuantityMax": 1 }
+      }
+    ]
+  }
+}

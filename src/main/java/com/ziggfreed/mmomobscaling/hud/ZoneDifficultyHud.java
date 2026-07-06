@@ -26,9 +26,9 @@ public final class ZoneDifficultyHud extends ScalingHud {
 
     public static final String HUD_KEY = "mmoscaling:zone_difficulty";
 
-    /** Panel size in pixels - must match {@code #MmoscalingZonePanel} in the {@code .ui}. */
-    private static final int PANEL_WIDTH_PX = 240;
-    private static final int PANEL_HEIGHT_PX = 118;
+    /** Panel size in pixels - must match {@code #MmoscalingZonePanel} in the {@code .ui} (native frame). */
+    private static final int PANEL_WIDTH_PX = 320;
+    private static final int PANEL_HEIGHT_PX = 124;
 
     /** Zone data moves slowly (region cross / power growth), so a coarse cadence is plenty. */
     private static final long UPDATE_INTERVAL_MS = 1000L;
@@ -87,13 +87,12 @@ public final class ZoneDifficultyHud extends ScalingHud {
     protected void build(@Nonnull UICommandBuilder cmd) {
         cmd.append("Hud/MmoscalingZoneHud.ui");
         applyConfiguredPosition(cmd);
-        // Static header; data rows start hidden until the first data push so the authored
-        // placeholder text never flashes.
-        cmd.set("#MmoscalingZoneTitle.TextSpans", Message.translation("scaling.hud.zone.title"));
+        // The title (the zone name) + all data rows are set on the first data push; start hidden so the
+        // authored placeholder text never flashes.
         cmd.set("#MmoscalingZonePanel.Visible", false);
     }
 
-    /** Neutral placeholder shown for the location row when no zone name is available. */
+    /** Neutral placeholder shown for the biome sub-line when no biome name is available. */
     private static final String NO_LOCATION_PLACEHOLDER = "-";
 
     /**
@@ -141,18 +140,21 @@ public final class ZoneDifficultyHud extends ScalingHud {
                 cmd.set("#MmoscalingZoneGroup.TextSpans",
                         Message.translation("scaling.hud.zone.group").param("power", groupRounded));
             }
-            cmd.set("#MmoscalingZoneName.Visible", hasLocation);
-            if (hasLocation) {
-                // Resolve the raw native ids to CLIENT-resolved friendly names (nested Messages, never
-                // pre-resolved Strings): zone via the base game's own "server.map.region.<id>" keys,
-                // biome prettified (vanilla ships no biome name key). A blank half falls to the placeholder.
-                Message placeholder = Message.raw(NO_LOCATION_PLACEHOLDER);
-                Message zonePart = LocationNameResolver.displayName(zoneName, zonePrefix, placeholder);
-                Message biomePart = LocationNameResolver.displayName(biomeName, biomePrefix, placeholder);
+            // The ZONE name is the panel TITLE (the redundant static "ZONE DIFFICULTY" header is gone); the
+            // BIOME is the sub-line below it. Both resolve to CLIENT-resolved friendly names (nested
+            // Messages, never pre-resolved Strings): the zone via the base game's own "server.map.region.<id>"
+            // keys, the biome prettified (vanilla ships no biome name key). When the zone name is unavailable
+            // (a zoneless world, or the location toggle is off) the title falls back to the generic label.
+            boolean hasZone = showLocation && !zoneName.isBlank();
+            boolean hasBiome = showLocation && !biomeName.isBlank();
+            Message zoneTitle = hasZone
+                    ? LocationNameResolver.displayName(zoneName, zonePrefix, Message.translation("scaling.hud.zone.title"))
+                    : Message.translation("scaling.hud.zone.title");
+            cmd.set("#MmoscalingZoneTitle.TextSpans", zoneTitle);
+            cmd.set("#MmoscalingZoneName.Visible", hasBiome);
+            if (hasBiome) {
                 cmd.set("#MmoscalingZoneName.TextSpans",
-                        Message.translation("scaling.hud.zone.location")
-                                .param("0", zonePart)
-                                .param("1", biomePart));
+                        LocationNameResolver.displayName(biomeName, biomePrefix, Message.raw(NO_LOCATION_PLACEHOLDER)));
             }
         }
         update(false, cmd);

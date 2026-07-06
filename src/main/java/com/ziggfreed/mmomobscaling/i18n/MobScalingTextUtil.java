@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
  * Resolves the localization KEY for a rarity/affix display string: the asset's explicit {@code DisplayNameKey}
@@ -24,6 +25,12 @@ public final class MobScalingTextUtil {
     @Nonnull
     public static String rarityNameKey(@Nonnull Rarity rarity) {
         return keyOr(rarity.displayNameKey(), "scaling.rarity." + lower(rarity.id()) + ".name");
+    }
+
+    /** The key for a variant's display name: explicit {@code DisplayNameKey}, else {@code scaling.variant.<id>.name}. */
+    @Nonnull
+    public static String variantNameKey(@Nonnull Variant variant) {
+        return keyOr(variant.displayNameKey(), "scaling.variant." + lower(variant.id()) + ".name");
     }
 
     /** The key for an affix's display name: explicit {@code DisplayNameKey}, else {@code scaling.affix.<id>.name}. */

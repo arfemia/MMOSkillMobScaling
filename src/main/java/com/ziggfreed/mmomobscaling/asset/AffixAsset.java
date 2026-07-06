@@ -114,6 +114,10 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
         double minDifficulty = roll != null && roll.minDifficulty != null ? roll.minDifficulty : 0.0;
         List<String> allowed = roll != null && roll.allowedRarities != null
                 ? List.of(roll.allowedRarities) : List.of("*");
+        // AllowedVariants defaults to EMPTY (an affix is variant-granted only when it opts in), NOT ["*"] -
+        // otherwise every rarity affix would leak onto every variant's slots.
+        List<String> allowedVariants = roll != null && roll.allowedVariants != null
+                ? List.of(roll.allowedVariants) : List.of();
         double outDelta = delta(foldDeltas != null ? foldDeltas.outDamage : null);
         double inDelta = delta(foldDeltas != null ? foldDeltas.inDamage : null);
         double hpDelta = delta(foldDeltas != null ? foldDeltas.hp : null);
@@ -123,7 +127,7 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
         String k = kind != null ? kind : Affix.KIND_STAT;
         String iconItemId = icon != null ? icon.itemId() : null;
         String iconTexturePath = icon != null ? icon.texturePath() : null;
-        return new Affix(id, nameKey, descKey, effectId, weight, minDifficulty, allowed,
+        return new Affix(id, nameKey, descKey, effectId, weight, minDifficulty, allowed, allowedVariants,
                 outDelta, inDelta, hpDelta, lootBonus, k, behaviorId, resistanceBearing,
                 iconItemId, iconTexturePath);
     }
@@ -144,11 +148,17 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .append(new KeyedCodec<>("AllowedRarities", Codec.STRING_ARRAY, false),
                         (r, v) -> r.allowedRarities = v, r -> r.allowedRarities)
                 .add()
+                // Which VARIANTS may grant this affix (absent/empty = none; a variant-exclusive affix like
+                // 'venomous' lists its variant here, mirroring AllowedRarities for the rarity axis).
+                .append(new KeyedCodec<>("AllowedVariants", Codec.STRING_ARRAY, false),
+                        (r, v) -> r.allowedVariants = v, r -> r.allowedVariants)
+                .add()
                 .build();
 
         @Nullable private Double weight;
         @Nullable private Double minDifficulty;
         @Nullable private String[] allowedRarities;
+        @Nullable private String[] allowedVariants;
     }
 
     /** Additive fold deltas on the frozen spawn result (each absent leaf = 0.0, no contribution). */

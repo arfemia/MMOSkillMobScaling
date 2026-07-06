@@ -4,10 +4,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.common.util.SplitMix64;
 
 /**
@@ -45,7 +48,9 @@ public final class AffixRoster {
     /**
      * Pick up to {@code slots} distinct affixes for a mob of {@code rarity} at {@code effDifficulty}. Gating:
      * {@code minDifficulty <= effDifficulty}, {@code rarity.allowsAffix(id)} AND {@code affix.allowsRarity}, no
-     * duplicates, and at most one resistance-bearing affix. Returns an immutable list (possibly empty).
+     * duplicates, and at most one resistance-bearing affix. Returns an immutable list (possibly empty). Retained
+     * for callers/tests that roll the RARITY axis alone; the spawn hook uses the combined
+     * {@link #pick(double, Rarity, Variant, SplitMix64)}.
      */
     @Nonnull
     public List<Affix> pick(double effDifficulty, @Nonnull Rarity rarity, int slots, @Nonnull SplitMix64 rng) {
@@ -53,24 +58,63 @@ public final class AffixRoster {
             return List.of();
         }
         boolean[] used = new boolean[entries.length];
+        boolean[] resistanceTaken = {false};
         List<Affix> out = new ArrayList<>(Math.min(slots, entries.length));
-        boolean resistanceTaken = false;
+        rollInto(effDifficulty, slots, rng, out, used, resistanceTaken,
+                a -> rarity.allowsAffix(a.id()) && a.allowsRarity(rarity.id()));
+        return List.copyOf(out);
+    }
 
+    /**
+     * The COMBINED roll: the {@code rarity}'s affixes THEN the {@code variant}'s affixes (either nullable), into
+     * one distinct list that shares the used-affix set + the single-resistance cap across BOTH hosts (so a mob
+     * never draws the same affix twice, nor two resistance-bearing affixes, whichever axis granted them). Each
+     * host contributes its own {@code affixSlots()} and its own gate ({@code allowsAffix} + the affix's
+     * reciprocal {@code allowsRarity}/{@code allowsVariant}). The rarity axis draws first, so the rng sequence
+     * is fixed for determinism. Returns an immutable list (possibly empty).
+     */
+    @Nonnull
+    public List<Affix> pick(double effDifficulty, @Nullable Rarity rarity, @Nullable Variant variant,
+            @Nonnull SplitMix64 rng) {
+        if (entries.length == 0) {
+            return List.of();
+        }
+        boolean[] used = new boolean[entries.length];
+        boolean[] resistanceTaken = {false};
+        List<Affix> out = new ArrayList<>();
+        if (rarity != null && rarity.affixSlots() > 0) {
+            rollInto(effDifficulty, rarity.affixSlots(), rng, out, used, resistanceTaken,
+                    a -> rarity.allowsAffix(a.id()) && a.allowsRarity(rarity.id()));
+        }
+        if (variant != null && variant.affixSlots() > 0) {
+            rollInto(effDifficulty, variant.affixSlots(), rng, out, used, resistanceTaken,
+                    a -> variant.allowsAffix(a.id()) && a.allowsVariant(variant.id()));
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Roll up to {@code slots} distinct affixes matching {@code hostGate}, appending to {@code out} and
+     * threading the shared {@code used} set + {@code resistanceTaken[0]} cap (so a second host call never
+     * re-picks or exceeds the single-resistance rule). Weighted pick WITHOUT replacement, difficulty-gated.
+     */
+    private void rollInto(double effDifficulty, int slots, @Nonnull SplitMix64 rng, @Nonnull List<Affix> out,
+            @Nonnull boolean[] used, @Nonnull boolean[] resistanceTaken, @Nonnull Predicate<Affix> hostGate) {
         for (int s = 0; s < slots; s++) {
             double total = 0.0;
             for (int i = 0; i < entries.length; i++) {
-                if (!used[i] && eligible(entries[i], effDifficulty, rarity, resistanceTaken)) {
+                if (!used[i] && eligible(entries[i], effDifficulty, resistanceTaken[0], hostGate)) {
                     total += entries[i].spawnWeight();
                 }
             }
             if (total <= 0.0) {
-                break; // nothing left to pick
+                break; // nothing left to pick for this host
             }
             double roll = rng.nextDouble() * total;
             double acc = 0.0;
             int chosen = -1;
             for (int i = 0; i < entries.length; i++) {
-                if (used[i] || !eligible(entries[i], effDifficulty, rarity, resistanceTaken)) {
+                if (used[i] || !eligible(entries[i], effDifficulty, resistanceTaken[0], hostGate)) {
                     continue;
                 }
                 acc += entries[i].spawnWeight();
@@ -86,21 +130,20 @@ public final class AffixRoster {
             Affix a = entries[chosen];
             out.add(a);
             if (a.resistanceBearing()) {
-                resistanceTaken = true;
+                resistanceTaken[0] = true;
             }
         }
-        return List.copyOf(out);
     }
 
-    private static boolean eligible(@Nonnull Affix a, double effDifficulty, @Nonnull Rarity rarity,
-            boolean resistanceTaken) {
+    private static boolean eligible(@Nonnull Affix a, double effDifficulty, boolean resistanceTaken,
+            @Nonnull Predicate<Affix> hostGate) {
         if (a.minDifficulty() > effDifficulty) {
             return false;
         }
         if (resistanceTaken && a.resistanceBearing()) {
             return false;
         }
-        return rarity.allowsAffix(a.id()) && a.allowsRarity(rarity.id());
+        return hostGate.test(a);
     }
 
     /** Number of rollable affixes (test/inspect hook). */

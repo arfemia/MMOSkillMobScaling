@@ -7,10 +7,12 @@ rarity.rare.name = Rare
 rarity.epic.name = Epic
 rarity.legendary.name = Legendary
 rarity.boss.name = Boss
+variant.horrific.name = Horrific
 
 # Decorated display-name FRAME (death messages / kill feed / logs, NOT the overhead nameplate).
 # Both params are NESTED client-resolved messages; translators reorder the frame per locale.
 name.decorated = {rarity} {base}
+name.variant_decorated = {variant} {inner}
 
 # /mobscaling admin command (descriptions resolve as lang keys; hytale:Admin only).
 command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty, tune the HUD overlays.
@@ -76,3 +78,5 @@ affix.vampiric.name = Vampiric
 affix.vampiric.desc = Drains life from its foes with every strike.
 affix.freezing.name = Freezing
 affix.freezing.desc = Its chilling touch numbs and slows the unwary.
+affix.venomous.name = Venomous
+affix.venomous.desc = Its bite courses with burning venom.

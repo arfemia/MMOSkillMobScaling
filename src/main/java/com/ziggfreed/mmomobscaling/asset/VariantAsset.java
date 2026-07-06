@@ -13,32 +13,33 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
-import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
- * A pack-authorable mob RARITY tier, loaded from {@code Server/MmoMobScaling/Rarities/*.json}. Pattern A -
- * the {@link #CODEC} decodes directly into typed fields (the codec IS the schema authority). Every
- * {@link KeyedCodec} key is PascalCase (the constructor rejects a lower-case first letter at static init;
- * the mod's {@code AssetCodecInitTest} guards it). The jar ships the starter ladder; a pack or owner
- * overrides any field by id, folded {@code defaults < pack < owner} through
- * {@link com.ziggfreed.mmomobscaling.config.RarityConfig}.
+ * A pack-authorable mob VARIANT: a family-flavored OVERLAY that stacks on a base rarity, loaded from
+ * {@code Server/MmoMobScaling/Variants/*.json}. Pattern A (the {@link #CODEC} IS the schema, PascalCase keys,
+ * guarded by {@code AssetCodecInitTest}), mirroring {@link RarityAsset} but with two deliberate differences:
+ * the roll gate is an ABSOLUTE {@code Chance} (not a relative {@code Weight}, since a variant is an
+ * independent yes/no overlay rolled separately from the rarity ladder - see
+ * {@link com.ziggfreed.mmomobscaling.variant.VariantRoster}), and there is NO {@code AuraEffectId}/
+ * {@code BonusDropList} (the rarity owns the single body-tint + bonus-drop channels; a variant's identity is
+ * its name decoration + its granted affix(es) + its multiplier stack).
  *
- * <p><b>Cohesive field groups are NESTED sub-objects</b> (the schema-design rule): the roll gate is
- * {@code Roll}, the stat/reward multipliers are {@code Multipliers}, the affix policy is
- * {@code Affixes}, the mob-family gate is {@code Families} - each its own {@link BuilderCodec}, so a future
- * knob lands INSIDE its group instead of growing a flat suffix-soup ({@code HpMult}/{@code OutDamageMult}/...).
+ * <p><b>Cohesive field groups are NESTED sub-objects</b> (the schema rule): {@code Roll} (chance + band +
+ * family... no, family is its own group), {@code Multipliers}, {@code Affixes}, {@code Families} - each its
+ * own {@link BuilderCodec}. The {@code Families} block is the SAME shape the rarity gate uses (native
+ * {@code NPCGroup} ids + role globs, deny wins, absent = allow-all), so a variant reuses the exact matcher.
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "epic", "DisplayNameKey": "scaling.rarity.epic.name", "NameColor": "#b388ff",
- *   "Roll": { "Weight": 25, "MinDifficulty": 25 },
- *   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },
- *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
- *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [] },
- *   "AuraEffectId": "Mmoscaling_Aura_Epic", "BonusDropList": "Mmoscaling_Drops_Epic" }
+ * { "Name": "horrific", "DisplayNameKey": "scaling.variant.horrific.name", "NameColor": "#7cb342",
+ *   "Roll": { "Chance": 0.15, "MinDifficulty": 20 },
+ *   "Multipliers": { "Hp": 1.5, "OutDamage": 1.4, "InDamage": 0.9, "Loot": 1.3, "Xp": 1.2 },
+ *   "Affixes": { "Slots": 1, "Allowed": ["venomous"] },
+ *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"] } }
  * }</pre>
  */
-public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, RarityAsset>> {
+public final class VariantAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, VariantAsset>> {
 
     private String id;
     private AssetExtraInfo.Data data;
@@ -52,15 +53,14 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private String auraEffectId;
     @Nullable private String bonusDropList;
 
-    public static final AssetBuilderCodec<String, RarityAsset> CODEC = AssetBuilderCodec.builder(
-                    RarityAsset.class,
-                    RarityAsset::new,
+    public static final AssetBuilderCodec<String, VariantAsset> CODEC = AssetBuilderCodec.builder(
+                    VariantAsset.class,
+                    VariantAsset::new,
                     Codec.STRING,
                     (a, id) -> a.id = id,
                     a -> a.id,
                     (a, extra) -> a.data = extra,
                     a -> a.data)
-            // Optional human-readable echo of the asset key (the filename is authoritative).
             .append(new KeyedCodec<>("Name", Codec.STRING, false),
                     (a, name) -> { /* no-op - id comes from the filename */ },
                     a -> a.id)
@@ -68,33 +68,30 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
             .append(new KeyedCodec<>("DisplayNameKey", Codec.STRING, false),
                     (a, v) -> a.displayNameKey = v, a -> a.displayNameKey)
             .add()
-            // Display colour (#rrggbb) for this tier's name on the mob-inspector HUD (and any future
-            // rarity-coloured render site). Absent = plain white at render time.
             .append(new KeyedCodec<>("NameColor", Codec.STRING, false), (a, v) -> a.nameColor = v, a -> a.nameColor)
             .add()
-            // The roll gate: how often this tier is picked and from which difficulty band on.
             .append(new KeyedCodec<>("Roll", Roll.CODEC, false), (a, v) -> a.roll = v, a -> a.roll)
             .add()
-            // The stat/reward multipliers folded into the frozen spawn result.
             .append(new KeyedCodec<>("Multipliers", Multipliers.CODEC, false),
                     (a, v) -> a.multipliers = v, a -> a.multipliers)
             .add()
-            // The affix policy: how many slots this tier rolls and which affixes it may draw.
             .append(new KeyedCodec<>("Affixes", AffixPolicy.CODEC, false), (a, v) -> a.affixes = v, a -> a.affixes)
             .add()
-            // The mob-family gate: which mob families (native NPCGroup ids and/or role-name globs) this
-            // tier may / may not roll on. Absent = every mob eligible.
             .append(new KeyedCodec<>("Families", Families.CODEC, false), (a, v) -> a.families = v, a -> a.families)
             .add()
+            // Optional aura effect (an Mmoscaling_* infinite EntityEffect); applied ONLY when the base rarity
+            // has no aura of its own (the rarity owns the single body-tint channel), so it tints a variant on
+            // a plain mob without fighting a rarity aura.
             .append(new KeyedCodec<>("AuraEffectId", Codec.STRING, false),
                     (a, v) -> a.auraEffectId = v, a -> a.auraEffectId)
             .add()
+            // Optional native ItemDropList pulled on death IN ADDITION to the base rarity's bonus drops.
             .append(new KeyedCodec<>("BonusDropList", Codec.STRING, false),
                     (a, v) -> a.bonusDropList = v, a -> a.bonusDropList)
             .add()
             .build();
 
-    public RarityAsset() {
+    public VariantAsset() {
     }
 
     @Override
@@ -103,14 +100,14 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     }
 
     /**
-     * Build the runtime {@link Rarity} (the map key is the id). Absent groups/leaves take the neutral
-     * defaults (weight 1, no band gate, all multipliers 1.0, zero affix slots). An absent
-     * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow
-     * none". An absent display key stays {@code ""} so the text util falls back to the convention key.
+     * Build the runtime {@link Variant} (the map key is the id). Absent groups/leaves take the neutral
+     * defaults (chance 0 = not rollable, no band gate, all multipliers 1.0, zero affix slots). An absent
+     * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow none".
+     * An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL} (every mob eligible).
      */
     @Nonnull
-    public Rarity toRarity() {
-        double weight = roll != null && roll.weight != null ? roll.weight : 1.0;
+    public Variant toVariant() {
+        double chance = roll != null && roll.chance != null ? roll.chance : 0.0;
         double minDifficulty = roll != null && roll.minDifficulty != null ? roll.minDifficulty : 0.0;
         double hp = mult(multipliers != null ? multipliers.hp : null);
         double out = mult(multipliers != null ? multipliers.outDamage : null);
@@ -119,11 +116,15 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
         List<String> allowed = affixes != null && affixes.allowed != null ? List.of(affixes.allowed) : List.of("*");
+        // Absent AllowedRarities -> ["*"] = overlays ANY base rarity (including a plain mob); an explicit
+        // list requires the base rarity id to match (a plain mob's "" only matches "*").
+        List<String> allowedRarities = roll != null && roll.allowedRarities != null
+                ? List.of(roll.allowedRarities) : List.of("*");
         String nameKey = displayNameKey != null ? displayNameKey : "";
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
-        return new Rarity(id, nameKey, weight, minDifficulty, hp, out, in,
-                loot, xp, slots, auraEffectId, bonusDropList, allowed, color, filter);
+        return new Variant(id, nameKey, chance, minDifficulty, hp, out, in, loot, xp, slots, allowed,
+                allowedRarities, auraEffectId, bonusDropList, color, filter);
     }
 
     private static double mult(@Nullable Double v) {
@@ -134,22 +135,29 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         return arr != null ? List.of(arr) : List.of();
     }
 
-    /** The roll gate: pick weight + the difficulty band this tier unlocks at. */
+    /**
+     * The roll gate: this variant's absolute spawn chance, the difficulty band it unlocks at, and which
+     * BASE rarities it may overlay ({@code AllowedRarities}, absent = {@code ["*"]} = any incl. plain).
+     */
     public static final class Roll {
         public static final BuilderCodec<Roll> CODEC = BuilderCodec.builder(Roll.class, Roll::new)
-                .append(new KeyedCodec<>("Weight", Codec.DOUBLE, false),
-                        (r, v) -> r.weight = v, r -> r.weight)
+                .append(new KeyedCodec<>("Chance", Codec.DOUBLE, false),
+                        (r, v) -> r.chance = v, r -> r.chance)
                 .add()
                 .append(new KeyedCodec<>("MinDifficulty", Codec.DOUBLE, false),
                         (r, v) -> r.minDifficulty = v, r -> r.minDifficulty)
                 .add()
+                .append(new KeyedCodec<>("AllowedRarities", Codec.STRING_ARRAY, false),
+                        (r, v) -> r.allowedRarities = v, r -> r.allowedRarities)
+                .add()
                 .build();
 
-        @Nullable private Double weight;
+        @Nullable private Double chance;
         @Nullable private Double minDifficulty;
+        @Nullable private String[] allowedRarities;
     }
 
-    /** The stat/reward multipliers (each absent leaf = 1.0, the plain baseline). */
+    /** The stat/reward multipliers (each absent leaf = 1.0), stacked MULTIPLICATIVELY on the base rarity. */
     public static final class Multipliers {
         public static final BuilderCodec<Multipliers> CODEC = BuilderCodec
                 .builder(Multipliers.class, Multipliers::new)
@@ -174,7 +182,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         @Nullable private Double xp;
     }
 
-    /** The affix policy: slot count + the allow-list of affix ids ({@code ["*"]} = any). */
+    /** The affix policy: slot count + the allow-list of affix ids ({@code ["*"]} = any) this variant grants. */
     public static final class AffixPolicy {
         public static final BuilderCodec<AffixPolicy> CODEC = BuilderCodec
                 .builder(AffixPolicy.class, AffixPolicy::new)
@@ -190,13 +198,9 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     }
 
     /**
-     * The mob-family gate: which mob families this tier may / may not roll on. Two composable match
-     * mechanisms per side - native {@code NPCGroup} tagset ids ({@code AllowGroups}/{@code DenyGroups}) and
-     * role-name globs ({@code AllowRoles}/{@code DenyRoles}, native {@code IncludeRoles} semantics like
-     * {@code Spider*}, case-insensitive). Deny wins; an empty allow SIDE (both allow lists empty) allows all;
-     * an entirely absent/empty block = {@link FamilyFilter#ALLOW_ALL}. Every leaf is a nullable
-     * {@code String[]} so a partial owner overlay folds per-leaf (absent = the empty list, i.e. no constraint
-     * on that leaf).
+     * The mob-family gate (identical shape to {@code RarityAsset.Families}): native {@code NPCGroup} ids
+     * ({@code AllowGroups}/{@code DenyGroups}) + role-name globs ({@code AllowRoles}/{@code DenyRoles}). Deny
+     * wins; an empty allow side allows all; an absent/empty block = {@link FamilyFilter#ALLOW_ALL}.
      */
     public static final class Families {
         public static final BuilderCodec<Families> CODEC = BuilderCodec.builder(Families.class, Families::new)

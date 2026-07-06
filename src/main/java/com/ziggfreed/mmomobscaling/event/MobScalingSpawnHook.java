@@ -3,8 +3,10 @@ package com.ziggfreed.mmomobscaling.event;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Archetype;
@@ -39,12 +41,14 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.family.MobFamilyMatcher;
 import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 import com.ziggfreed.common.util.SplitMix64;
 
@@ -129,28 +133,42 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
 
             SplitMix64 rng = new SplitMix64(seedFor(npc, world, holder));
 
+            // The per-mob family gate: narrows which rarity tiers / variant overlays may apply to THIS mob (an
+            // authored Families allow/deny block resolved against the mob's role name + native NPCGroup
+            // membership). Pure function of the mob's stable identity, so it consumes no RNG and keeps the roll
+            // deterministic. Unrestricted tiers short-circuit cheaply (the common case).
+            Predicate<Rarity> rarityFamilyEligible = r -> MobFamilyMatcher.get().eligible(r.familyFilter(), npc);
+            Predicate<Variant> variantFamilyEligible = v -> MobFamilyMatcher.get().eligible(v.familyFilter(), npc);
+
             Rarity rarity;
             if (scope == MobScaleResult.SCOPE_BOSS) {
                 // Boss scope FORCES the authored boss tier (Weight 0 keeps it off the normal roll);
-                // an owner who stripped Rarities/Boss.json falls back to the normal curve.
+                // an owner who stripped Rarities/Boss.json falls back to the normal (family-gated) curve.
                 rarity = RarityConfig.getInstance().resolve("boss");
                 if (rarity == null) {
-                    rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng);
+                    rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
                 }
             } else {
-                rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng);
+                rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
             }
-            List<Affix> affixes = rarity == null
-                    ? List.of()
-                    : Rosters.affix().pick(effDifficulty, rarity, rarity.affixSlots(), rng);
+            // The SECOND axis: an independent family-gated variant OVERLAY (at most one), rolled after the base
+            // rarity. Draws exactly once (VariantRoster) so the seed->result mapping stays stable. The base
+            // rarity id (or "" for a plain mob) feeds the variant's requires-rarity gate.
+            String baseRarityId = rarity != null ? rarity.id() : "";
+            Variant variant = Rosters.variant().pick(effDifficulty, baseRarityId, rng, variantFamilyEligible);
 
-            // The base difficulty->stat curve scales plain + rare mobs alike; rarity/affix mults stack on top.
+            // Affixes come from BOTH hosts (rarity slots + variant slots), one combined distinct roll that
+            // shares the used-set + single-resistance cap; a plain-but-variant mob still gets the variant's.
+            List<Affix> affixes = Rosters.affix().pick(effDifficulty, rarity, variant, rng);
+
+            // The base difficulty->stat curve scales plain + rare mobs alike; rarity/affix mults stack on top,
+            // then the variant multiplier stacks multiplicatively over that.
             MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
-            MobScaleResult result = MobScaleFold.fold(rarity, affixes, effDifficulty, scope, curve);
+            MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, effDifficulty, scope, curve);
             holder.addComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
 
-            if (rarity != null) {
-                decorateDisplayName(holder, rarity);
+            if (rarity != null || variant != null) {
+                decorateDisplayName(holder, rarity, variant);
             }
 
             // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap, ref-less on
@@ -187,16 +205,19 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     }
 
     /**
-     * Stamp the rarity-decorated display name (surfaces in DEATH MESSAGES / kill feed / logs - the engine
-     * does not render {@code DisplayNameComponent} as an overhead nameplate). Composes the localized FRAME
-     * key {@code scaling.name.decorated} ({@code {rarity} {base}}) with NESTED client-resolved {@code Message}
-     * params - never a joined/raw English-order string - so every locale reorders the frame its own way.
-     * Reads the base name RoleBuilderSystem already stamped this same add cycle (we order AFTER it), so a
-     * reload never double-decorates (the builder re-stamps the plain role name first). SKIPS a mob carrying
-     * {@code PersistentDisplayName} (a player-authored custom name must never be overwritten) - the same
-     * guard RoleBuilderSystem itself uses.
+     * Stamp the rarity/variant-decorated display name (surfaces in DEATH MESSAGES / kill feed / logs - the
+     * engine does not render {@code DisplayNameComponent} as an overhead nameplate). Composes localized FRAME
+     * keys with NESTED client-resolved {@code Message} params - never a joined/raw English-order string - so
+     * every locale reorders the frame its own way: the rarity frame {@code scaling.name.decorated}
+     * ({@code {rarity} {base}}) wraps the base, then the variant frame {@code scaling.name.variant_decorated}
+     * ({@code {variant} {inner}}) wraps THAT (so "Horrific Epic Spider"). Either host may be absent (a
+     * variant-only mob is "Horrific Spider"; caller guarantees at least one is present). Reads the base name
+     * RoleBuilderSystem already stamped this same add cycle (we order AFTER it), so a reload never
+     * double-decorates. SKIPS a mob carrying {@code PersistentDisplayName} (a player-authored custom name must
+     * never be overwritten) - the same guard RoleBuilderSystem itself uses.
      */
-    private static void decorateDisplayName(@Nonnull Holder<EntityStore> holder, @Nonnull Rarity rarity) {
+    private static void decorateDisplayName(@Nonnull Holder<EntityStore> holder, @Nullable Rarity rarity,
+            @Nullable Variant variant) {
         if (holder.getComponent(PersistentDisplayName.getComponentType()) != null) {
             return;
         }
@@ -205,9 +226,17 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         if (base == null) {
             return; // no base name to decorate (nameless archetype)
         }
-        Message decorated = Message.translation("scaling.name.decorated")
-                .param("rarity", Message.translation(MobScalingTextUtil.rarityNameKey(rarity)))
-                .param("base", base);
+        Message decorated = base;
+        if (rarity != null) {
+            decorated = Message.translation("scaling.name.decorated")
+                    .param("rarity", Message.translation(MobScalingTextUtil.rarityNameKey(rarity)))
+                    .param("base", decorated);
+        }
+        if (variant != null) {
+            decorated = Message.translation("scaling.name.variant_decorated")
+                    .param("variant", Message.translation(MobScalingTextUtil.variantNameKey(variant)))
+                    .param("inner", decorated);
+        }
         holder.putComponent(DisplayNameComponent.getComponentType(), new DisplayNameComponent(decorated));
     }
 

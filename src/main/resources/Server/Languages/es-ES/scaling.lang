@@ -5,6 +5,7 @@ rarity.rare.name = Raro
 rarity.epic.name = Épico
 rarity.legendary.name = Legendario
 rarity.boss.name = Jefe
+variant.horrific.name = Horrible
 
 affix.armored.name = Acorazado
 affix.armored.desc = Cubierto de placas pesadas que desvían los golpes.
@@ -16,8 +17,11 @@ affix.vampiric.name = Vampírico
 affix.vampiric.desc = Drena la vida de sus enemigos con cada golpe.
 affix.freezing.name = Gélido
 affix.freezing.desc = Su tacto helado entumece y ralentiza a los incautos.
+affix.venomous.name = Venenoso
+affix.venomous.desc = Su mordedura arde con veneno abrasador.
 
 name.decorated = {base} {rarity}
+name.variant_decorated = {variant} {inner}
 
 command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local, ajustar las superposiciones del HUD.
 command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones.

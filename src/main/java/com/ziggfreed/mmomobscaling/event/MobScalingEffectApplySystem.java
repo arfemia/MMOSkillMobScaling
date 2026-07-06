@@ -25,8 +25,10 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.config.VariantConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
  * The post-add companion to {@link MobScalingSpawnHook}: a {@link RefSystem} (query = the
@@ -99,14 +101,28 @@ public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
         // No-op: DeathSystems.ClearEntityEffects clears our infinite effects on death.
     }
 
-    /** The Mmoscaling_ effect ids this roll WANTS: the rarity aura + each STAT/BEHAVIORAL affix's self effect. */
+    /**
+     * The Mmoscaling_ effect ids this roll WANTS: the rarity aura (or, when the rarity has none, the VARIANT's
+     * aura as a fallback - the rarity always wins the single body-tint channel, so the two never fight) + each
+     * STAT/BEHAVIORAL affix's self effect.
+     */
     @Nonnull
     private static Set<String> desiredEffectIds(@Nonnull MobScaleResult r) {
         Set<String> desired = new HashSet<>();
+        boolean rarityAura = false;
         if (r.hasRarity()) {
             Rarity rarity = RarityConfig.getInstance().resolve(r.rarityId());
             if (rarity != null && rarity.auraEffectId() != null) {
                 desired.add(rarity.auraEffectId());
+                rarityAura = true;
+            }
+        }
+        // Variant aura is a FALLBACK tint: applied only when the base rarity contributed no aura (a plain-base
+        // variant mob, e.g. a "Horrific Spider"), so a variant riding a rarity keeps the rarity's tint.
+        if (!rarityAura && r.hasVariant()) {
+            Variant variant = VariantConfig.getInstance().resolve(r.variantId());
+            if (variant != null && variant.auraEffectId() != null) {
+                desired.add(variant.auraEffectId());
             }
         }
         for (String affixId : r.affixIds()) {

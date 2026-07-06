@@ -7,14 +7,17 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
- * Folds a rolled {@link Rarity} + its {@link Affix}es into the single frozen {@link MobScaleResult} at spawn.
- * A configurable {@link DifficultyStatCurve} scales EVERY hostile mob off the resolved difficulty (read as an
- * effective content level, 1-200) FIRST; rarity + affix contributions then stack multiplicatively on top.
- * Affix contributions are ADDITIVE deltas on the damage/HP axes (predictable for owners, no runaway nested
- * multiply) summed into per-axis base multipliers, the curve factor multiplies those bases, then every axis
- * is CLAMPED to the safety caps (the plan's balance decision):
+ * Folds a rolled {@link Rarity} + an optional {@link Variant} overlay + their {@link Affix}es into the single
+ * frozen {@link MobScaleResult} at spawn. A configurable {@link DifficultyStatCurve} scales EVERY hostile mob
+ * off the resolved difficulty (read as an effective content level, 1-200) FIRST; rarity + affix contributions
+ * then stack on top, and a VARIANT's multipliers stack MULTIPLICATIVELY on top of that (an independent overlay
+ * axis - "Horrific Epic" = epic base * horrific overlay). Affix contributions are ADDITIVE deltas on the
+ * damage/HP axes (predictable for owners, no runaway nested multiply) summed into per-axis base multipliers,
+ * the curve factor multiplies those bases, the variant factor multiplies again, then every axis is CLAMPED to
+ * the safety caps (the plan's balance decision):
  *
  * <ul>
  *   <li>HP mult: {@code curve.hpFactor(d) * (rarity.hpMult + sum(affix.hpDelta))}, clamped to
@@ -97,28 +100,40 @@ public final class MobScaleFold {
      */
     @Nonnull
     public static MobScaleResult plain(double difficulty, byte scope, @Nonnull DifficultyStatCurve curve) {
-        return new MobScaleResult((float) difficulty, "", new String[0],
+        return new MobScaleResult((float) difficulty, "", "", new String[0],
                 (float) curve.hpFactor(difficulty), (float) curve.outFactor(difficulty), (float) curve.inFactor(difficulty),
                 1f, 1f, scope);
     }
 
     /**
-     * Fold a rolled rarity + affixes into the frozen result, with the difficulty curve applied first. A
-     * {@code null} rarity yields the plain (curve-only) result (affixes are ignored without a rarity, since
-     * affix slots come from the rarity). Otherwise rarity + affix deltas sum into per-axis base multipliers, the
-     * curve factor multiplies each base, then every axis is clamped to the curve's caps.
+     * Back-compat overload: fold a rarity + affixes with NO variant overlay. Delegates to
+     * {@link #fold(Rarity, Variant, List, double, byte, DifficultyStatCurve)}.
      */
     @Nonnull
-    public static MobScaleResult fold(@Nullable Rarity rarity, @Nonnull List<Affix> affixes, double difficulty, byte scope,
-            @Nonnull DifficultyStatCurve curve) {
-        if (rarity == null) {
+    public static MobScaleResult fold(@Nullable Rarity rarity, @Nonnull List<Affix> affixes, double difficulty,
+            byte scope, @Nonnull DifficultyStatCurve curve) {
+        return fold(rarity, null, affixes, difficulty, scope, curve);
+    }
+
+    /**
+     * Fold a rolled rarity + an optional {@code variant} overlay + their combined affixes into the frozen
+     * result, with the difficulty curve applied first. Both {@code null} (and no affixes) yields the plain
+     * (curve-only) result. Rarity + affix deltas sum into per-axis base multipliers, the curve factor
+     * multiplies each base, the VARIANT factor multiplies again (multiplicative overlay), then every axis is
+     * clamped to the curve's caps. A {@code null} rarity with a non-null variant still folds (base = 1.0, so a
+     * plain mob can still carry a variant: "Horrific Spider").
+     */
+    @Nonnull
+    public static MobScaleResult fold(@Nullable Rarity rarity, @Nullable Variant variant,
+            @Nonnull List<Affix> affixes, double difficulty, byte scope, @Nonnull DifficultyStatCurve curve) {
+        if (rarity == null && variant == null) {
             return plain(difficulty, scope, curve);
         }
-        double hpBase = rarity.hpMult();
-        double outBase = rarity.outDamageMult();
-        double inBase = rarity.inDamageMult();
-        double lootBase = rarity.lootMult();
-        double xp = rarity.xpMult();
+        double hpBase = rarity != null ? rarity.hpMult() : 1.0;
+        double outBase = rarity != null ? rarity.outDamageMult() : 1.0;
+        double inBase = rarity != null ? rarity.inDamageMult() : 1.0;
+        double lootBase = rarity != null ? rarity.lootMult() : 1.0;
+        double xp = rarity != null ? rarity.xpMult() : 1.0;
         double lootBonus = 0.0;
         for (Affix a : affixes) {
             hpBase += a.hpDelta();
@@ -126,16 +141,26 @@ public final class MobScaleFold {
             inBase += a.inDamageDelta();
             lootBonus += a.lootBonus();
         }
-        double hp = clamp(curve.hpFactor(difficulty) * hpBase, MIN_HP_MULT, curve.maxHpMult());
-        double out = clamp(curve.outFactor(difficulty) * outBase, OUT_DMG_MIN, curve.maxOutDamageMult());
-        double in = clamp(curve.inFactor(difficulty) * inBase, curve.minInDamageMult(), IN_DMG_MAX);
-        double loot = clamp(lootBase * (1.0 + lootBonus), LOOT_MULT_MIN, LOOT_MULT_MAX);
+        // Variant multipliers stack MULTIPLICATIVELY on top of the base rarity+affix layer (1.0 = no variant).
+        double vHp = variant != null ? variant.hpMult() : 1.0;
+        double vOut = variant != null ? variant.outDamageMult() : 1.0;
+        double vIn = variant != null ? variant.inDamageMult() : 1.0;
+        double vLoot = variant != null ? variant.lootMult() : 1.0;
+        double vXp = variant != null ? variant.xpMult() : 1.0;
+
+        double hp = clamp(curve.hpFactor(difficulty) * hpBase * vHp, MIN_HP_MULT, curve.maxHpMult());
+        double out = clamp(curve.outFactor(difficulty) * outBase * vOut, OUT_DMG_MIN, curve.maxOutDamageMult());
+        double in = clamp(curve.inFactor(difficulty) * inBase * vIn, curve.minInDamageMult(), IN_DMG_MAX);
+        double loot = clamp(lootBase * (1.0 + lootBonus) * vLoot, LOOT_MULT_MIN, LOOT_MULT_MAX);
+        xp = xp * vXp;
 
         String[] affixIds = new String[affixes.size()];
         for (int i = 0; i < affixes.size(); i++) {
             affixIds[i] = affixes.get(i).id();
         }
-        return new MobScaleResult((float) difficulty, rarity.id(), affixIds,
+        String rarityId = rarity != null ? rarity.id() : "";
+        String variantId = variant != null ? variant.id() : "";
+        return new MobScaleResult((float) difficulty, rarityId, variantId, affixIds,
                 (float) hp, (float) out, (float) in, (float) loot, (float) xp, scope);
     }
 

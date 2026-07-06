@@ -36,8 +36,10 @@ import com.ziggfreed.common.util.SplitMix64;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.config.VariantConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.joml.Vector3d;
@@ -57,8 +59,9 @@ import org.joml.Vector3d;
  * <p>The folded {@link MobScaleResult#lootMult()} is consumed HERE as the pull count: {@code floor(lootMult)}
  * guaranteed pulls plus one extra with probability {@code frac(lootMult)}, decided deterministically per mob
  * ({@link SplitMix64} off the persisted entity UUID - the convention RNG; item CONTENT stays the native
- * droplist roll). A plain mob (no rarity) or a rarity without a {@code BonusDropList} drops nothing extra.
- * Whole body try-guarded; a loot throw must never break the death pipeline.
+ * droplist roll). Both the rarity's AND the variant overlay's authored {@code BonusDropList}s are pulled (each
+ * that count), so a variant stacks its own bonus loot on top of the rarity's. A fully plain mob (no rarity, no
+ * variant) drops nothing extra. Whole body try-guarded; a loot throw must never break the death pipeline.
  */
 public final class MobScalingLootDropSystem extends EntityTickingSystem<EntityStore> {
 
@@ -105,7 +108,7 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
                 return;
             }
             MobScaleResult r = comp.result();
-            if (!r.hasRarity()) {
+            if (!r.hasRarity() && !r.hasVariant()) {
                 comp.markBonusLootDropped(); // plain mob: latch so this corpse never re-evaluates
                 return;
             }
@@ -118,28 +121,22 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
             }
             comp.markBonusLootDropped();
 
-            Rarity rarity = RarityConfig.getInstance().resolve(r.rarityId());
-            String dropListId = rarity != null ? rarity.bonusDropListId() : null;
-            if (dropListId == null || dropListId.isEmpty()) {
-                return; // no bonus table authored for this tier - a legit authoring choice
-            }
-            if (ItemDropList.getAssetMap().getAsset(dropListId) == null) {
-                if (WARNED_IDS.add(dropListId)) {
-                    safeWarn("rarity '" + r.rarityId() + "' names BonusDropList '" + dropListId
-                            + "' but no ItemDropList asset claims that id; no bonus loot will drop");
-                }
-                return;
-            }
-
             ItemModule itemModule = ItemModule.get();
             if (!itemModule.isEnabled()) {
                 return;
             }
             int pulls = lootPulls(r.lootMult(), pullRoll(archetypeChunk, index));
+
+            // Pull from the rarity's bonus table AND the variant's (either may be absent). The variant is an
+            // independent overlay, so its authored drops stack on top of the rarity's; the pull COUNT (already
+            // reflecting the variant's loot multiplier via r.lootMult()) applies to each authored list.
             List<ItemStack> itemsToDrop = new ObjectArrayList<>();
-            for (int i = 0; i < pulls; i++) {
-                itemsToDrop.addAll(itemModule.getRandomItemDrops(dropListId));
-            }
+            Rarity rarity = r.hasRarity() ? RarityConfig.getInstance().resolve(r.rarityId()) : null;
+            collectDrops(rarity != null ? rarity.bonusDropListId() : null, "rarity '" + r.rarityId() + "'",
+                    pulls, itemModule, itemsToDrop);
+            Variant variant = r.hasVariant() ? VariantConfig.getInstance().resolve(r.variantId()) : null;
+            collectDrops(variant != null ? variant.bonusDropListId() : null, "variant '" + r.variantId() + "'",
+                    pulls, itemModule, itemsToDrop);
             if (itemsToDrop.isEmpty()) {
                 return;
             }
@@ -155,6 +152,28 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
             commandBuffer.addEntities(drops, AddReason.SPAWN);
         } catch (Throwable t) {
             safeWarn("bonus loot drop failed: " + t);
+        }
+    }
+
+    /**
+     * Pull {@code pulls} times from the native {@code ItemDropList} named {@code dropListId} (an authored
+     * rarity/variant bonus table) into {@code out}. A null/blank id is a legit "no bonus table" choice (no-op);
+     * an id no {@code ItemDropList} asset claims warns once (attributed to {@code owner}) and drops nothing.
+     */
+    private static void collectDrops(@Nullable String dropListId, @Nonnull String owner, int pulls,
+            @Nonnull ItemModule itemModule, @Nonnull List<ItemStack> out) {
+        if (dropListId == null || dropListId.isEmpty()) {
+            return;
+        }
+        if (ItemDropList.getAssetMap().getAsset(dropListId) == null) {
+            if (WARNED_IDS.add(dropListId)) {
+                safeWarn(owner + " names BonusDropList '" + dropListId
+                        + "' but no ItemDropList asset claims that id; no bonus loot will drop");
+            }
+            return;
+        }
+        for (int i = 0; i < pulls; i++) {
+            out.addAll(itemModule.getRandomItemDrops(dropListId));
         }
     }
 

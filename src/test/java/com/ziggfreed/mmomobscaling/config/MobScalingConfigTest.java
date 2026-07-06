@@ -64,11 +64,11 @@ class MobScalingConfigTest {
         assertEquals(0.01, cfg.getEscalationRarityChancePerPoint(), 1e-9, "escalation chance-bonus default");
         // Difficulty.StatCurve: the shipped steep per-difficulty stat curve.
         assertEquals(0.08, cfg.getStatCurveHpPerPoint(), 1e-9, "StatCurve.HpPerPoint default");
-        assertEquals(0.02, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
+        assertEquals(0.06, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
         assertEquals(0.002, cfg.getStatCurveInDamageReductionPerPoint(), 1e-9,
                 "StatCurve.InDamageReductionPerPoint default");
         assertEquals(20.0, cfg.getStatCurveMaxHpMult(), 1e-9, "StatCurve.MaxHpMult default");
-        assertEquals(8.0, cfg.getStatCurveMaxOutDamageMult(), 1e-9, "StatCurve.MaxOutDamageMult default");
+        assertEquals(12.0, cfg.getStatCurveMaxOutDamageMult(), 1e-9, "StatCurve.MaxOutDamageMult default");
         assertEquals(0.5, cfg.getStatCurveMinInDamageMult(), 1e-9, "StatCurve.MinInDamageMult default");
         assertTrue(cfg.isZoneHudEnabled(), "ZoneHudEnabled default");
         assertEquals("TOP_LEFT", cfg.getZoneHudPosition(), "ZoneHudPosition default");

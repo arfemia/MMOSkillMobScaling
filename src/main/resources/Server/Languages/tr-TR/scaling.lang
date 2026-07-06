@@ -5,6 +5,7 @@ rarity.rare.name = Nadir
 rarity.epic.name = Destansı
 rarity.legendary.name = Efsanevi
 rarity.boss.name = Boss
+variant.horrific.name = Korkunç
 
 affix.armored.name = Zırhlı
 affix.armored.desc = Darbeleri savuşturan ağır zırh plakalarıyla kaplı.
@@ -16,8 +17,11 @@ affix.vampiric.name = Vampirik
 affix.vampiric.desc = Her vuruşta düşmanlarının canını emer.
 affix.freezing.name = Dondurucu
 affix.freezing.desc = Buz gibi dokunuşu dikkatsizleri uyuşturur ve yavaşlatır.
+affix.venomous.name = Zehirli
+affix.venomous.desc = Isırığı yakıcı zehirle kaynar.
 
 name.decorated = {rarity} {base}
+name.variant_decorated = {variant} {inner}
 
 command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele, HUD katmanlarını ayarla.
 command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar.

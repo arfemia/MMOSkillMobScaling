@@ -36,10 +36,12 @@ import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.config.VariantConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
  * Drives the two player-facing overlays - {@link ZoneDifficultyHud} and {@link MobInspectorHud} -
@@ -112,8 +114,16 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, int index,
             @Nonnull MobScalingConfig cfg, long now) {
+        // Per-player /mmohud preference (an MMO-side flag; string-keyed so this mod needs no HudKey
+        // import). True when the MMO jar has no stored flag for the player, so it never hides on its own.
+        boolean playerWantsVisible = MMOSkillTreeAPI.isHudVisible(store, ref, "difficulty");
         ZoneDifficultyHud hud = ZoneDifficultyHud.get(player);
         if (hud == null) {
+            // Not installed yet: if the player hid it, do NOT install just to hide it (no flash on a
+            // fresh join). When they /mmohud show difficulty, this stops returning and install proceeds.
+            if (!playerWantsVisible) {
+                return;
+            }
             hud = new ZoneDifficultyHud(playerRef);
             player.getHudManager().addCustomHud(playerRef, hud);
         }
@@ -126,7 +136,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
             return;
         }
         WorldRules rules = WorldScope.rulesFor(world);
-        boolean visible = cfg.isEnabled() && rules.mobScalingEnabled();
+        boolean visible = playerWantsVisible && cfg.isEnabled() && rules.mobScalingEnabled();
         if (!visible) {
             hud.pushUpdate(0, 0, 0, false, "", "", false);
             return;
@@ -153,12 +163,22 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
     private void tickInspectorHud(@Nonnull Player player, @Nonnull PlayerRef playerRef,
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull MobScalingConfig cfg, long now) {
+        // Per-player /mmohud preference (an MMO-side flag; string-keyed so this mod needs no HudKey
+        // import). True when the MMO jar has no stored flag for the player, so it never hides on its own.
+        boolean playerWantsVisible = MMOSkillTreeAPI.isHudVisible(store, ref, "npc");
         MobInspectorHud hud = MobInspectorHud.get(player);
         if (hud == null) {
+            if (!playerWantsVisible) {
+                return; // don't install just to hide it (no flash before the player's first look)
+            }
             hud = new MobInspectorHud(playerRef);
             player.getHudManager().addCustomHud(playerRef, hud);
         }
         if (!hud.dueForPush(now)) {
+            return;
+        }
+        if (!playerWantsVisible) {
+            hud.pushTarget(null); // installed HUD -> Visible=false; also skips the crosshair raycast
             return;
         }
         hud.pushTarget(resolveTarget(store, ref, cfg));
@@ -201,6 +221,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         }
 
         Rarity rarity = null;
+        Variant variant = null;
         List<Affix> affixes = List.of();
         double difficulty = 0.0;
         boolean scaled = false;
@@ -211,6 +232,9 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
             difficulty = result.difficulty();
             if (result.hasRarity()) {
                 rarity = RarityConfig.getInstance().resolve(result.rarityId());
+            }
+            if (result.hasVariant()) {
+                variant = VariantConfig.getInstance().resolve(result.variantId());
             }
             if (result.hasAffixes()) {
                 List<Affix> resolved = new ArrayList<>(result.affixIds().length);
@@ -225,7 +249,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         }
 
         return new MobInspectorHud.TargetSnapshot(
-                targetKey(store, target), name, rarity, affixes, difficulty, scaled,
+                targetKey(store, target), name, rarity, variant, affixes, difficulty, scaled,
                 health.get(), health.getMax(), modelRole);
     }
 
