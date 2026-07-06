@@ -1,5 +1,7 @@
 # MMO Mob Scaling
 
+**[Download on CurseForge](https://www.curseforge.com/hytale/mods/mmo-mob-scaling)**
+
 A standalone open-world mob difficulty-scaling companion to the
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod. It scales
 the difficulty of open-world mobs to the players around them, so a high-power group meets
@@ -7,7 +9,7 @@ tougher, rarer enemies while a lone newcomer is not overwhelmed.
 
 ## Status
 
-**v0.5.0 (first public beta, in-game-validation pending).** The full scaling system is in:
+**v1.0.0 (first release, in-game-validation pending).** The full scaling system is in:
 layered native zone/biome difficulty floors + a distance-from-spawn escalation + a group-power
 delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix catalog on native
 `EntityEffect` assets, deterministic per-UUID rolls, bonus kill-XP + native drop-list loot, the

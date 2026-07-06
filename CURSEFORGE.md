@@ -5,7 +5,7 @@ affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
 world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
 
-> **v0.5.0 - first public beta.** The full scaling system is in. It is still in active in-game
+> **v1.0.0 - first release.** The full scaling system is in. It is still in active in-game
 > tuning, so numbers may shift between builds. Everything is data-driven, so you can retune any of it.
 
 ## Requirements
