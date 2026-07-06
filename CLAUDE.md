@@ -140,7 +140,7 @@ phases:
   the name stamp / a particle telegraph. The Freezing slow is VICTIM-applied and keeps its frost tint.
 - **Classification via authored `NPCGroup` tagset assets** (`Mmoscaling_Bosses` / `Mmoscaling_Excluded`,
   queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry. The **per-family
-  rarity gate** (0.6.0) reuses the SAME native mechanism: a rarity's nested `Families` block
+  rarity gate** (1.0.0) reuses the SAME native mechanism: a rarity's nested `Families` block
   (`AllowGroups`/`DenyGroups` native `NPCGroup` ids + `AllowRoles`/`DenyRoles` role-name globs, deny wins,
   absent = allow-all) narrows which tiers may roll on a given mob. The matcher lives in the axis-neutral
   `family/` package (pure `FamilyFilter`/`FamilyGlob` - the glob lifts native `StringUtil.isGlobMatching`,
@@ -148,7 +148,7 @@ phases:
   and warns once on an unknown group id). It is a pure `Predicate<Rarity>` threaded into `RarityRoster.pick`
   (consumes no RNG, determinism preserved); the FORCED boss tier bypasses the roll and is unaffected. The
   package is deliberately axis-neutral so the **variant** axis (below) reuses it unchanged.
-- **Variant OVERLAY axis** (0.6.0): a `variant/` package (`Variant`/`VariantRoster`) rolls a SECOND,
+- **Variant OVERLAY axis** (1.0.0): a `variant/` package (`Variant`/`VariantRoster`) rolls a SECOND,
   independent family-gated overlay AFTER the base rarity (at most one), stacking MULTIPLICATIVELY on the
   rarity in `MobScaleFold` (the fold takes a nullable `Variant`; `MobScaleResult` gained a `variantId`). A
   variant carries its OWN affix slots + allow-list; affixes gained an `AllowedVariants` gate so an affix can
