@@ -24,8 +24,9 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local, ajustar las superposiciones del HUD.
-command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones.
-command.usage = Uso: /mobscaling <purge|inspect|hud>
+command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; intensity ajusta el multiplicador de dificultad.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.intensity = El multiplicador de intensidad (>= 0; 1.0 neutral, más alto = criaturas más difíciles). Omite para ver el valor actual.
 command.players_only = Este comando solo puede ejecutarlo un jugador.
 command.purge.start = Eliminando residuos de escalado de las criaturas cargadas en este mundo...
 command.purge.done = Residuos de escalado eliminados de {count} criaturas cargadas.
@@ -43,6 +44,11 @@ command.preset.active = Preset activo: {0}
 command.preset.available = Presets disponibles: {0}
 command.preset.swapped = Se cambió al preset {0}.
 command.preset.unknown = Preset desconocido {0}. Disponibles: {1}
+
+command.intensity.current = Multiplicador de intensidad actual: {value}
+command.intensity.set = Multiplicador de intensidad establecido en {value}.
+command.intensity.usage = Uso: /mobscaling intensity [multiplicador]. Un número >= 0 (1.0 = neutral, más alto = criaturas más difíciles).
+command.intensity.persist_hint = Solo cambio en vivo: para conservarlo entre reinicios, configura la clave Intensity en mods/MmoMobScaling/mob-scaling.json.
 
 command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Posiciones: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD activado para todos los jugadores: {target}

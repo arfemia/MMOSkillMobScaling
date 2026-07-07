@@ -2,12 +2,18 @@ package com.ziggfreed.mmomobscaling.config;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.WorldOverride;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
@@ -204,6 +210,67 @@ public final class ScalingContentValidator {
             findings.add("Difficulty.MinCap (" + difficultyMinCap + ") != MMO PowerLevel Clamp.MinPower ("
                     + powerMin + "): the two scales should share a floor;"
                     + " align mob-scaling.json Difficulty.MinCap with the MMO's power-level.json Clamp.MinPower");
+        }
+        return findings;
+    }
+
+    /**
+     * Validate one folded settings asset's 1.0.1 additions: the top-level {@code Intensity} multiplier
+     * ({@code >= 0}) plus its per-world {@code WorldOverrides}. Empty = clean. Findings are prefixed with the
+     * preset name so an admin can locate the offending file.
+     */
+    @Nonnull
+    public static List<String> validateSettings(@Nonnull String presetName,
+            @Nonnull MobScalingSettingsAsset asset) {
+        List<String> findings = new ArrayList<>();
+        String pfx = "preset '" + presetName + "' ";
+        Double intensity = asset.getIntensity();
+        if (intensity != null && intensity < 0) {
+            findings.add(pfx + "Intensity must be >= 0 (got " + intensity + ")");
+        }
+        findings.addAll(validateWorldOverrides(pfx, asset.getWorldOverrides()));
+        return findings;
+    }
+
+    /**
+     * Validate a per-world overrides array (1.0.1): blank Match, DUPLICATE Match WITHIN this file (a later
+     * entry silently wins), out-of-range {@code RaritySpawnChance}, negative {@code Intensity}, and an
+     * inverted {@code Difficulty.MinCap > MaxCap}. A duplicate Match ACROSS layers is legal (the concat fold
+     * dedups by design, owner &gt; preset &gt; jar), so only within-file dups warn. {@code context} is a
+     * human prefix (e.g. {@code "preset 'Default' "}).
+     */
+    @Nonnull
+    public static List<String> validateWorldOverrides(@Nonnull String context, @Nullable WorldOverride[] overrides) {
+        List<String> findings = new ArrayList<>();
+        if (overrides == null) {
+            return findings;
+        }
+        Set<String> seen = new HashSet<>();
+        for (int i = 0; i < overrides.length; i++) {
+            WorldOverride ov = overrides[i];
+            if (ov == null) {
+                continue;
+            }
+            String match = ov.getMatch();
+            String at = context + "world override #" + (i + 1)
+                    + (match != null && !match.isBlank() ? " '" + match + "'" : "");
+            if (match == null || match.isBlank()) {
+                findings.add(at + ": Match must be a world name, a trailing-'*' prefix, or '*'");
+            } else if (!seen.add(match.trim().toLowerCase(Locale.ROOT))) {
+                findings.add(at + ": duplicate Match in this file (a later entry silently wins)");
+            }
+            Double intensity = ov.getIntensity();
+            if (intensity != null && intensity < 0) {
+                findings.add(at + ": Intensity must be >= 0");
+            }
+            Double chance = ov.getRaritySpawnChance();
+            if (chance != null && (chance < 0 || chance > 1)) {
+                findings.add(at + ": RaritySpawnChance must be in [0,1]");
+            }
+            Difficulty d = ov.getDifficulty();
+            if (d != null && d.getMinCap() != null && d.getMaxCap() != null && d.getMinCap() > d.getMaxCap()) {
+                findings.add(at + ": Difficulty.MinCap (" + d.getMinCap() + ") > MaxCap (" + d.getMaxCap() + ")");
+            }
         }
         return findings;
     }

@@ -1,8 +1,7 @@
 {
   "$Comment": "HARDCORE preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; omitted leaves fall through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Hardcore\" (owner file or /mobscaling preset Hardcore). A harsher curve: hard intensity, dense specials, a wider group swing, an early near-max distance escalation, and a steeper StatCurve (faster HP/damage growth, higher caps).",
   "Name": "Hardcore",
-  "Intensity": "hard",
-  "RaritySpawnChance": 0.20,
+  "RaritySpawnChance": 0.2,
   "OpenWorld": {
     "GroupDeltaBandWidth": 35.0
   },
@@ -13,7 +12,7 @@
     },
     "StatCurve": {
       "HpPerPoint": 0.12,
-      "OutDamagePerPoint": 0.09,
+      "OutDamagePerPoint": 0.08,
       "InDamageReductionPerPoint": 0.0025,
       "MaxHpMult": 30.0,
       "MaxOutDamageMult": 15.0,

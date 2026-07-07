@@ -24,14 +24,18 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale, regolare le sovrimpressioni HUD.
-command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni.
-command.usage = Uso: /mobscaling <purge|inspect|hud>
+command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni; preset attiva il preset selezionato; intensity regola il moltiplicatore di difficoltà.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Questo comando può essere eseguito solo da un giocatore.
 command.preset.usage = Uso: /mobscaling preset [nome]
 command.preset.active = Preset attivo: {0}
 command.preset.available = Preset disponibili: {0}
 command.preset.swapped = Passato al preset {0}.
 command.preset.unknown = Preset sconosciuto {0}. Disponibili: {1}
+command.intensity.current = Moltiplicatore di intensità attuale: {value}
+command.intensity.set = Moltiplicatore di intensità impostato a {value}.
+command.intensity.usage = Uso: /mobscaling intensity [moltiplicatore]. Un numero >= 0 (1.0 = neutrale, valori più alti = creature più difficili).
+command.intensity.persist_hint = Modifica valida solo in tempo reale: per mantenerla dopo un riavvio, imposta la chiave Intensity in mods/MmoMobScaling/mob-scaling.json.
 command.purge.start = Rimozione dei residui di ridimensionamento dalle creature caricate in questo mondo...
 command.purge.done = Residui di ridimensionamento rimossi da {count} creature caricate.
 command.inspect.header = Ridimensionamento delle creature nella tua posizione:
@@ -54,6 +58,7 @@ command.arg.hud_target = Quale HUD: zone oppure inspector.
 command.arg.hud_value = on, off, oppure un preset di posizione come TOP_LEFT.
 command.arg.hud_offset_x = Scostamento in pixel opzionale dal bordo orizzontale ancorato.
 command.arg.hud_offset_y = Scostamento in pixel opzionale dal bordo verticale ancorato.
+command.arg.intensity = Il moltiplicatore di intensità (>= 0; 1.0 neutrale, valori più alti = creature più difficili). Ometti per mostrare il valore attuale.
 
 hud.zone.title = DIFFICOLTÀ ZONA
 hud.zone.location = {0} - {1}

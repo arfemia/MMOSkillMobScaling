@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Admin-Werkzeuge für die Mob-Skalierung: Rückstände bereinigen, lokale Schwierigkeit prüfen, HUD-Anzeigen einstellen.
-command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect zeigt die Schwierigkeitswerte an deiner Position; hud stellt die Anzeigen ein.
-command.usage = Verwendung: /mobscaling <purge|inspect|hud>
+command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect meldet die Schwierigkeitswerte hier; hud passt die Anzeigen an; preset wechselt die aktive Voreinstellung; intensity passt den Schwierigkeitsmultiplikator an.
+command.usage = Verwendung: /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Dieser Befehl kann nur von einem Spieler ausgeführt werden.
 command.purge.start = Entferne Skalierungsrückstände von geladenen Mobs in dieser Welt...
 command.purge.done = Skalierungsrückstände von {count} geladenen Mobs entfernt.
@@ -44,6 +44,12 @@ command.preset.available = Verfügbare Presets: {0}
 command.preset.swapped = Zu Preset {0} gewechselt.
 command.preset.unknown = Unbekanntes Preset {0}. Verfügbar: {1}
 
+# /mobscaling intensity - Schwierigkeitsmultiplikator live einstellen (nur zur Laufzeit; die Datei ist die persistent Autorität).
+command.intensity.current = Aktueller Schwierigkeitsmultiplikator: {value}
+command.intensity.set = Schwierigkeitsmultiplikator auf {value} gesetzt.
+command.intensity.usage = Verwendung: /mobscaling intensity [multiplier]. Eine Zahl >= 0 (1.0 = neutral, höher = schwierigere Mobs).
+command.intensity.persist_hint = Nur zur Laufzeit: um die Änderung über Neustarts zu behalten, setze den Intensity-Schlüssel in mods/MmoMobScaling/mob-scaling.json.
+
 command.hud.usage = Verwendung: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positionen: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD für alle Spieler aktiviert: {target}
 command.hud.disabled = HUD für alle Spieler deaktiviert: {target}
@@ -55,6 +61,7 @@ command.arg.hud_target = Welches HUD: zone oder inspector.
 command.arg.hud_value = on, off oder eine Positionsvorgabe wie TOP_LEFT.
 command.arg.hud_offset_x = Optionaler Pixelversatz von der verankerten horizontalen Kante.
 command.arg.hud_offset_y = Optionaler Pixelversatz von der verankerten vertikalen Kante.
+command.arg.intensity = Der Schwierigkeitsmultiplikator (>= 0; 1.0 neutral, höher = schwierigere Mobs). Weglassen, um den aktuellen Wert anzuzeigen.
 
 hud.zone.title = ZONEN-SCHWIERIGKEIT
 hud.zone.location = {0} - {1}

@@ -9,6 +9,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 
 /**
  * The mob-scaling settings, authored as a PROPER Hytale asset codec (Pattern A,
@@ -48,12 +49,13 @@ public final class MobScalingSettingsAsset
     @Nullable private String activePreset;
     @Nullable private Boolean enabled;
     @Nullable private String presetMode;
-    @Nullable private String intensity;
+    @Nullable private Double intensity;
     @Nullable private Double raritySpawnChance;
     @Nullable private OpenWorld openWorld;
     @Nullable private Difficulty difficulty;
     @Nullable private Hud zoneHud;
     @Nullable private InspectorHud inspectorHud;
+    @Nullable private WorldOverride[] worldOverrides;
 
     public static final AssetBuilderCodec<String, MobScalingSettingsAsset> CODEC = AssetBuilderCodec.builder(
                     MobScalingSettingsAsset.class,
@@ -81,8 +83,10 @@ public final class MobScalingSettingsAsset
             .append(new KeyedCodec<>("PresetMode", Codec.STRING, false),
                     (a, v) -> a.presetMode = v, a -> a.presetMode)
             .add()
-            // Intensity dial: "off" | "soft" | "medium" | "hard" | "brutal".
-            .append(new KeyedCodec<>("Intensity", Codec.STRING, false),
+            // Intensity dial (1.0.1): a numeric multiplier (default 1.0) on the difficulty->stat curve
+            // SLOPES (how tanky mobs are + how hard they hit). 1.0 neutral; 0 = no difficulty-based stat
+            // boost. Bounded by the curve's own per-factor caps. Runtime-tunable via /mobscaling intensity.
+            .append(new KeyedCodec<>("Intensity", Codec.DOUBLE, false),
                     (a, v) -> a.intensity = v, a -> a.intensity)
             .add()
             // Chance a hostile mob rolls a non-plain rarity (before the distance-escalation bonus).
@@ -105,6 +109,14 @@ public final class MobScalingSettingsAsset
             .append(new KeyedCodec<>("InspectorHud", InspectorHud.CODEC, false),
                     (a, v) -> a.inspectorHud = v, a -> a.inspectorHud)
             .add()
+            // Per-world settings overlays (1.0.1): each entry is a world-name Match pattern (same fuzzy
+            // matching as the MMO WorldRulesMatcher) bound to a partial settings body that overlays the
+            // global fold for matching worlds at spawn time. Layers CONCATENATE (deduped by Match), so an
+            // owner file ADDS/overrides worlds without clobbering the jar-shipped dungeon defaults.
+            .append(new KeyedCodec<>("WorldOverrides",
+                    new ArrayCodec<>(WorldOverride.CODEC, WorldOverride[]::new), false),
+                    (a, v) -> a.worldOverrides = v, a -> a.worldOverrides)
+            .add()
             .build();
 
     public MobScalingSettingsAsset() {
@@ -118,12 +130,13 @@ public final class MobScalingSettingsAsset
     @Nullable public String getActivePreset() { return activePreset; }
     @Nullable public Boolean getEnabled() { return enabled; }
     @Nullable public String getPresetMode() { return presetMode; }
-    @Nullable public String getIntensity() { return intensity; }
+    @Nullable public Double getIntensity() { return intensity; }
     @Nullable public Double getRaritySpawnChance() { return raritySpawnChance; }
     @Nullable public OpenWorld getOpenWorld() { return openWorld; }
     @Nullable public Difficulty getDifficulty() { return difficulty; }
     @Nullable public Hud getZoneHud() { return zoneHud; }
     @Nullable public InspectorHud getInspectorHud() { return inspectorHud; }
+    @Nullable public WorldOverride[] getWorldOverrides() { return worldOverrides; }
 
     /** Open-world group-power aggregation: how nearby players fold into a region's difficulty delta. */
     public static final class OpenWorld {
@@ -158,6 +171,12 @@ public final class MobScalingSettingsAsset
                 .append(new KeyedCodec<>("OnlyRaiseDifficulty", Codec.BOOLEAN, false),
                         (o, v) -> o.onlyRaiseDifficulty = v, o -> o.onlyRaiseDifficulty)
                 .add()
+                // Whether player/group-based scaling (the region-power group delta) applies at all (1.0.1;
+                // default true). false pins difficulty to the escalated floor regardless of nearby player
+                // power - the per-world toggle a fixed-difficulty authored dungeon overrides to false.
+                .append(new KeyedCodec<>("PlayerScalingEnabled", Codec.BOOLEAN, false),
+                        (o, v) -> o.playerScalingEnabled = v, o -> o.playerScalingEnabled)
+                .add()
                 .build();
 
         @Nullable private String aggregationMode;
@@ -167,6 +186,7 @@ public final class MobScalingSettingsAsset
         @Nullable private Double lateArrivalBumpFactor;
         @Nullable private Boolean compositionEnabled;
         @Nullable private Boolean onlyRaiseDifficulty;
+        @Nullable private Boolean playerScalingEnabled;
 
         @Nullable public String getAggregationMode() { return aggregationMode; }
         @Nullable public Integer getRegionSizeChunks() { return regionSizeChunks; }
@@ -175,6 +195,7 @@ public final class MobScalingSettingsAsset
         @Nullable public Double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
         @Nullable public Boolean getCompositionEnabled() { return compositionEnabled; }
         @Nullable public Boolean getOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
+        @Nullable public Boolean getPlayerScalingEnabled() { return playerScalingEnabled; }
     }
 
     /** Effective-difficulty clamps + the nested distance-from-spawn escalation curve. */
@@ -395,5 +416,53 @@ public final class MobScalingSettingsAsset
 
         @Nullable public Double getRangeBlocks() { return rangeBlocks; }
         @Nullable public Boolean getPortraitEnabled() { return portraitEnabled; }
+    }
+
+    /**
+     * One per-world settings overlay (1.0.1): a world-name {@code Match} pattern (exact, a trailing-{@code *}
+     * prefix, or bare {@code *}, resolved by {@code world/WorldOverrideMatcher} with the SAME precedence as
+     * the MMO {@code WorldRulesMatcher}) bound to a PARTIAL settings body. Every leaf is a NULLABLE wrapper:
+     * an unset leaf inherits the global fold for a matching world. Exposed knobs are exactly the ones that
+     * take effect at spawn - {@code Intensity}, {@code RaritySpawnChance}, {@code PlayerScalingEnabled}, and
+     * the full {@code Difficulty} group (caps + {@code DistanceEscalation} + {@code StatCurve}, REUSING the
+     * top-level {@link Difficulty} codec). {@code RegionSizeChunks} is deliberately NOT here (it stays global
+     * for {@code RegionPowerTracker} grid consistency).
+     */
+    public static final class WorldOverride {
+        public static final BuilderCodec<WorldOverride> CODEC = BuilderCodec
+                .builder(WorldOverride.class, WorldOverride::new)
+                // The world selector: an exact world name, a trailing-"*" prefix, or bare "*".
+                .append(new KeyedCodec<>("Match", Codec.STRING, false),
+                        (w, v) -> w.match = v, w -> w.match)
+                .add()
+                // Per-world intensity multiplier on the stat-curve slopes (overrides the global intensity).
+                .append(new KeyedCodec<>("Intensity", Codec.DOUBLE, false),
+                        (w, v) -> w.intensity = v, w -> w.intensity)
+                .add()
+                // Per-world rarity spawn chance (overrides the global; clamped [0,1] at resolve).
+                .append(new KeyedCodec<>("RaritySpawnChance", Codec.DOUBLE, false),
+                        (w, v) -> w.raritySpawnChance = v, w -> w.raritySpawnChance)
+                .add()
+                // Per-world player/group-scaling toggle (false pins to the escalated floor).
+                .append(new KeyedCodec<>("PlayerScalingEnabled", Codec.BOOLEAN, false),
+                        (w, v) -> w.playerScalingEnabled = v, w -> w.playerScalingEnabled)
+                .add()
+                // Per-world difficulty group: caps + distance escalation + stat curve (reuses Difficulty).
+                .append(new KeyedCodec<>("Difficulty", Difficulty.CODEC, false),
+                        (w, v) -> w.difficulty = v, w -> w.difficulty)
+                .add()
+                .build();
+
+        @Nullable private String match;
+        @Nullable private Double intensity;
+        @Nullable private Double raritySpawnChance;
+        @Nullable private Boolean playerScalingEnabled;
+        @Nullable private Difficulty difficulty;
+
+        @Nullable public String getMatch() { return match; }
+        @Nullable public Double getIntensity() { return intensity; }
+        @Nullable public Double getRaritySpawnChance() { return raritySpawnChance; }
+        @Nullable public Boolean getPlayerScalingEnabled() { return playerScalingEnabled; }
+        @Nullable public Difficulty getDifficulty() { return difficulty; }
     }
 }

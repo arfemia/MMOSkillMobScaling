@@ -6,8 +6,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -24,7 +27,9 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.WorldOverride;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
+import com.ziggfreed.mmomobscaling.world.WorldOverrideMatcher;
 
 /**
  * The open-world mob-scaling configuration, driven ENTIRELY by an asset codec
@@ -44,10 +49,27 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
  * {@code Server/}; there are no Java default VALUES in this class (only a neutral fail-safe used when
  * a broken jar is missing its bundled default asset).
  */
-public final class MobScalingConfig {
+public final class MobScalingConfig implements SpawnScalingSettings {
 
     /** Jar-bundled authoritative defaults, decoded via the codec (classpath resource). */
     private static final String DEFAULTS_RESOURCE = "/Server/MmoMobScaling/Settings/Default.json";
+
+    /** The reference dump filename written under {@code mods/MmoMobScaling/_reference/}. */
+    private static final String REFERENCE_FILE = "defaults-mob-scaling.json";
+
+    /**
+     * The empty override scaffold seeded at {@code mods/MmoMobScaling/mob-scaling.json} on first run.
+     * It carries NO real overrides (an empty {@code {}} folds to the jar defaults on every leaf), only a
+     * self-documenting {@code $Comment} the codec ignores, so a fresh install has a file to edit + a
+     * pointer to the full schema.
+     */
+    private static final String OWNER_SCAFFOLD =
+            "{\n"
+          + "  \"$Comment\": \"MMO Mob Scaling owner overrides. Starts EMPTY: every setting falls back to the "
+          + "jar default. Copy any key you want to change from _reference/" + REFERENCE_FILE + " into this "
+          + "object (same PascalCase shape, partial allowed; a nested group may be partially filled). Changes "
+          + "apply on server restart.\"\n"
+          + "}\n";
 
     /**
      * This class's OWN logger (NOT {@code MobScalingPlugin.LOGGER}: that class is unloadable in a plain unit
@@ -96,8 +118,13 @@ public final class MobScalingConfig {
     private boolean compositionEnabled;
     // Group-power delta may only raise a region's difficulty over the floor, never soften it. Spawn-path read.
     private volatile boolean onlyRaiseDifficulty = true;
+    // Whether player/group-based scaling applies at all (1.0.1; default on). Spawn-path read (volatile);
+    // a world with PlayerScalingEnabled=false pins difficulty to the escalated floor.
+    private volatile boolean playerScalingEnabled = true;
     @Nonnull private String presetMode = "";
-    @Nonnull private String intensity = "";
+    // Intensity multiplier on the difficulty->stat curve slopes (1.0.1; default 1.0, clamped >= 0). Spawn-path
+    // read (statCurveModel) so volatile; runtime-tunable via setIntensityRuntime (/mobscaling intensity).
+    private volatile double intensity = 1.0;
     private volatile double raritySpawnChance;
     private boolean allowDifficultyIncreaseOnPartyJoin;
     private double lateArrivalBumpFactor;
@@ -140,6 +167,12 @@ public final class MobScalingConfig {
     private volatile double inspectorRangeBlocks;
     private volatile boolean inspectorPortraitEnabled = true;
 
+    // Per-world settings overlays (1.0.1): the resolved, pre-parsed WorldOverrides matcher entries (rebuilt
+    // at every fold, CONCATENATED across jar+preset+owner and deduped by Match), plus a per-world resolved-view
+    // cache (cleared on any refold + on setIntensityRuntime). spawnSettingsFor(worldName) reads both.
+    @Nonnull private volatile List<WorldOverrideMatcher.Entry> worldOverrideEntries = List.of();
+    @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> worldViewCache = new ConcurrentHashMap<>();
+
     private MobScalingConfig() {
     }
 
@@ -162,7 +195,8 @@ public final class MobScalingConfig {
      * default fails SAFE (disabled).
      */
     public void load() {
-        this.jarDefaults = decode(readResource(DEFAULTS_RESOURCE), "jar Default.json");
+        String rawDefaults = readResource(DEFAULTS_RESOURCE);
+        this.jarDefaults = decode(rawDefaults, "jar Default.json");
         if (this.jarDefaults == null) {
             warn("bundled Server/MmoMobScaling/Settings/Default.json missing or unreadable; failing safe (disabled)");
         }
@@ -174,6 +208,9 @@ public final class MobScalingConfig {
         // overrides Enabled - see the registration-gate note in the router.
         this.activePreset = or(fold3(owner, null, jarDefaults, MobScalingSettingsAsset::getActivePreset), "Default");
         applyFold(jarDefaults, null, owner);
+        // AFTER the fold (so this run reads real state, not the freshly-seeded empty file): auto-generate
+        // the on-disk config scaffold + the reference schema dump for a fresh install.
+        scaffoldConfigFiles(rawDefaults);
     }
 
     /**
@@ -302,7 +339,8 @@ public final class MobScalingConfig {
             @Nullable MobScalingSettingsAsset owner) {
         this.enabled = or(fold3(owner, store, jar, MobScalingSettingsAsset::getEnabled), false);
         this.presetMode = or(fold3(owner, store, jar, MobScalingSettingsAsset::getPresetMode), "");
-        this.intensity = or(fold3(owner, store, jar, MobScalingSettingsAsset::getIntensity), "");
+        // Intensity is now a numeric multiplier (1.0.1); neutral fallback 1.0, clamped >= 0.
+        this.intensity = Math.max(0.0, or(fold3(owner, store, jar, MobScalingSettingsAsset::getIntensity), 1.0));
         double chance = or(fold3(owner, store, jar, MobScalingSettingsAsset::getRaritySpawnChance), 0.0);
         this.raritySpawnChance = Math.max(0.0, Math.min(1.0, chance)); // clamp: an unclamped chance is a footgun
 
@@ -322,6 +360,8 @@ public final class MobScalingConfig {
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getCompositionEnabled), false);
         this.onlyRaiseDifficulty = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getOnlyRaiseDifficulty), true);
+        this.playerScalingEnabled = or(
+                fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getPlayerScalingEnabled), true);
 
         // Difficulty group (nested; caps + the doubly-nested distance escalation).
         this.difficultyMinCap = or(
@@ -387,6 +427,11 @@ public final class MobScalingConfig {
         this.inspectorRangeBlocks = Math.max(2.0, Math.min(32.0, range)); // sane raycast bounds
         this.inspectorPortraitEnabled = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getInspectorHud, InspectorHud::getPortraitEnabled), true);
+
+        // Per-world overlays (1.0.1): CONCATENATE across layers + dedup by Match (owner > preset > jar wins a
+        // collision), then drop the resolved-view cache so the next spawn re-resolves against the fresh set.
+        this.worldOverrideEntries = foldWorldOverrides(jar, store, owner);
+        this.worldViewCache.clear();
     }
 
     /** The doubly-nested escalation group ({@code Difficulty.DistanceEscalation}); {@code null} when absent. */
@@ -401,6 +446,53 @@ public final class MobScalingConfig {
     private static StatCurve statCurve(@Nonnull MobScalingSettingsAsset a) {
         Difficulty d = a.getDifficulty();
         return d == null ? null : d.getStatCurve();
+    }
+
+    /**
+     * Fold the per-world overlays (1.0.1) by CONCATENATION, not the whole-array replace the generic leaf fold
+     * uses: gather jar -> preset -> owner entries into a {@code LinkedHashMap} keyed by lower-cased {@code Match}
+     * so a LATER layer wins a same-{@code Match} collision (owner > preset > jar) while distinct patterns from
+     * every layer coexist. So an owner file ADDS to / overrides the jar-shipped dungeon defaults rather than
+     * replacing the whole list. Blank-{@code Match} entries are dropped. Returns pre-parsed matcher entries.
+     */
+    @Nonnull
+    private static List<WorldOverrideMatcher.Entry> foldWorldOverrides(@Nullable MobScalingSettingsAsset jar,
+            @Nullable MobScalingSettingsAsset store, @Nullable MobScalingSettingsAsset owner) {
+        LinkedHashMap<String, WorldOverride> byMatch = new LinkedHashMap<>();
+        collectOverrides(byMatch, jar);
+        collectOverrides(byMatch, store);
+        collectOverrides(byMatch, owner);
+        if (byMatch.isEmpty()) {
+            return List.of();
+        }
+        List<WorldOverrideMatcher.Entry> entries = new ArrayList<>(byMatch.size());
+        for (WorldOverride ov : byMatch.values()) {
+            String match = ov.getMatch();
+            entries.add(new WorldOverrideMatcher.Entry(match.trim(), ov)); // getMatch non-blank (collect filters)
+        }
+        return entries;
+    }
+
+    /** Add one layer's non-blank-{@code Match} overrides into the dedup map (later put wins the same key). */
+    private static void collectOverrides(@Nonnull LinkedHashMap<String, WorldOverride> byMatch,
+            @Nullable MobScalingSettingsAsset asset) {
+        if (asset == null) {
+            return;
+        }
+        WorldOverride[] arr = asset.getWorldOverrides();
+        if (arr == null) {
+            return;
+        }
+        for (WorldOverride ov : arr) {
+            if (ov == null) {
+                continue;
+            }
+            String match = ov.getMatch();
+            if (match == null || match.isBlank()) {
+                continue;
+            }
+            byMatch.put(match.trim().toLowerCase(Locale.ROOT), ov);
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -478,6 +570,18 @@ public final class MobScalingConfig {
         }
     }
 
+    /** Guarded info (own logger; same log-manager-less-JVM guard as {@link #warn}). */
+    private static void info(@Nonnull String message) {
+        if (LOGGER == null) {
+            return;
+        }
+        try {
+            LOGGER.atInfo().log("[MobScalingConfig] " + message);
+        } catch (Throwable ignored) {
+            // log-manager-less unit JVM
+        }
+    }
+
     /**
      * Guarded warn through {@code MobScalingPlugin.LOGGER}, for the RUNTIME-only paths (preset fold on
      * {@code LoadedAssetsEvent} / {@code /mobscaling preset}) that never run in a unit JVM. The
@@ -505,6 +609,41 @@ public final class MobScalingConfig {
         }
     }
 
+    /**
+     * Auto-generate the on-disk config scaffold for a fresh install (mirrors the MMO jar's
+     * {@code AbstractOverrideConfig}): ensure {@code mods/MmoMobScaling/} exists, (re)write
+     * {@code _reference/}{@value #REFERENCE_FILE} = the jar-bundled {@code Default.json} verbatim (the full
+     * schema an owner can read + copy from, refreshed every load so it tracks the jar), and seed an EMPTY
+     * {@code mob-scaling.json} owner file ONLY when it does not already exist (never clobber admin edits;
+     * an empty {@code {}} overrides nothing, so defaults still apply). Fully guarded - a write failure only
+     * warns and never breaks the {@code setup()}-time registration gate. No-op when {@link #configPath} is
+     * null (defaults-only / unit tests).
+     */
+    private void scaffoldConfigFiles(@Nullable String rawDefaults) {
+        Path owner = this.configPath;
+        if (owner == null) {
+            return;
+        }
+        Path dir = owner.getParent();
+        try {
+            if (dir != null) {
+                Files.createDirectories(dir);
+                if (rawDefaults != null && !rawDefaults.isBlank()) {
+                    Path refDir = dir.resolve("_reference");
+                    Files.createDirectories(refDir);
+                    Files.writeString(refDir.resolve(REFERENCE_FILE), rawDefaults, StandardCharsets.UTF_8);
+                }
+            }
+            if (!Files.exists(owner)) {
+                Files.writeString(owner, OWNER_SCAFFOLD, StandardCharsets.UTF_8);
+                info("first run: wrote an empty override scaffold at " + owner
+                        + " - edit it to override defaults; the full schema is in _reference/" + REFERENCE_FILE);
+            }
+        } catch (Exception e) {
+            warn("could not write the config scaffold (" + owner + "): " + e.getMessage());
+        }
+    }
+
     /** Read the owner override file if a path is set and it exists; {@code null} otherwise. */
     @Nullable
     private String readOwnerFile() {
@@ -528,10 +667,12 @@ public final class MobScalingConfig {
 
     public boolean isEnabled() { return enabled; }
     public boolean isCompositionEnabled() { return compositionEnabled; }
-    public boolean isOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
+    @Override public boolean isOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
+    @Override public boolean isPlayerScalingEnabled() { return playerScalingEnabled; }
     @Nonnull public String getPresetMode() { return presetMode; }
-    @Nonnull public String getIntensity() { return intensity; }
-    public double getRaritySpawnChance() { return raritySpawnChance; }
+    /** The GLOBAL intensity multiplier on the stat-curve slopes (1.0.1; default 1.0). */
+    public double getIntensity() { return intensity; }
+    @Override public double getRaritySpawnChance() { return raritySpawnChance; }
     public boolean isAllowDifficultyIncreaseOnPartyJoin() { return allowDifficultyIncreaseOnPartyJoin; }
     public double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
     @Nonnull public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
@@ -551,11 +692,30 @@ public final class MobScalingConfig {
     public double getStatCurveMaxOutDamageMult() { return statCurveMaxOutDamageMult; }
     public double getStatCurveMinInDamageMult() { return statCurveMinInDamageMult; }
 
-    /** Build the difficulty stat curve ({@code hp/out/inReduction} slopes + their ceilings) from the folded leaves. */
+    /**
+     * Build the GLOBAL difficulty stat curve from the folded leaves, with the {@code Intensity} multiplier
+     * (1.0.1) applied to the three slopes. A per-world overlay builds its own curve in
+     * {@link ResolvedWorldSettings#statCurveModel()} with the effective per-world intensity + slopes.
+     */
     @Nonnull
+    @Override
     public MobScaleFold.DifficultyStatCurve statCurveModel() {
-        return new MobScaleFold.DifficultyStatCurve(statCurveHpPerPoint, statCurveOutDamagePerPoint,
-                statCurveInDamageReductionPerPoint, statCurveMaxHpMult, statCurveMaxOutDamageMult, statCurveMinInDamageMult);
+        return buildCurve(statCurveHpPerPoint, statCurveOutDamagePerPoint, statCurveInDamageReductionPerPoint,
+                statCurveMaxHpMult, statCurveMaxOutDamageMult, statCurveMinInDamageMult, intensity);
+    }
+
+    /**
+     * Build a {@link MobScaleFold.DifficultyStatCurve}, multiplying the three SLOPES by {@code intensity}
+     * (clamped {@code >= 0}); the caps are unchanged (the curve's own per-factor ceilings still bound the
+     * result). Shared by the global {@link #statCurveModel()} and the per-world overlay view.
+     */
+    @Nonnull
+    private static MobScaleFold.DifficultyStatCurve buildCurve(double hpPerPoint, double outPerPoint,
+            double inReductionPerPoint, double maxHpMult, double maxOutDamageMult, double minInDamageMult,
+            double intensity) {
+        double k = Math.max(0.0, intensity);
+        return new MobScaleFold.DifficultyStatCurve(hpPerPoint * k, outPerPoint * k, inReductionPerPoint * k,
+                maxHpMult, maxOutDamageMult, minInDamageMult);
     }
 
     public boolean isZoneHudEnabled() { return zoneHudEnabled; }
@@ -593,5 +753,141 @@ public final class MobScalingConfig {
         this.inspectorHudPosition = position;
         this.inspectorHudOffsetX = offsetX;
         this.inspectorHudOffsetY = offsetY;
+    }
+
+    /**
+     * Live-tune the GLOBAL {@code Intensity} multiplier ({@code /mobscaling intensity}). RUNTIME-ONLY: lost
+     * on restart or the next {@code applyStoreLayer} refold; the owner file's {@code Intensity} is the
+     * persistent authority (the command reminds the admin). A world with an AUTHORED per-world
+     * {@code Intensity} override is UNAFFECTED (authoring wins). Clamped {@code >= 0}; clears the per-world
+     * view cache so the effective per-world curves re-resolve against the new global.
+     */
+    public void setIntensityRuntime(double value) {
+        this.intensity = Math.max(0.0, value);
+        this.worldViewCache.clear();
+    }
+
+    // ---------------------------------------------------------------------
+    // Per-world settings overlay (1.0.1)
+    // ---------------------------------------------------------------------
+
+    /**
+     * The effective spawn-time settings for {@code worldName}: the GLOBAL config itself when no
+     * {@code WorldOverride} matches (zero-alloc common case), else a cached {@link ResolvedWorldSettings}
+     * overlay where every exposed leaf is {@code override-leaf ?? global}. The cache is dropped on any refold
+     * ({@link #applyFold}) and on {@link #setIntensityRuntime}, so a reload / preset swap / intensity change
+     * takes effect on the next spawn.
+     */
+    @Nonnull
+    public SpawnScalingSettings spawnSettingsFor(@Nullable String worldName) {
+        if (worldName == null || worldName.isEmpty() || this.worldOverrideEntries.isEmpty()) {
+            return this;
+        }
+        return worldViewCache.computeIfAbsent(worldName, this::resolveView);
+    }
+
+    @Nonnull
+    private SpawnScalingSettings resolveView(@Nonnull String worldName) {
+        WorldOverride ov = WorldOverrideMatcher.resolve(this.worldOverrideEntries, worldName);
+        return ov == null ? this : new ResolvedWorldSettings(this, ov);
+    }
+
+    /**
+     * A per-world overlay view over the global config: every EXPOSED leaf is {@code override-leaf ?? global},
+     * and {@link #statCurveModel()} multiplies the resolved slopes by the effective intensity
+     * ({@code override.Intensity ?? global}). The un-exposed getters (region size, group band, only-raise,
+     * aggregation) delegate straight to the global config, so {@code RegionSizeChunks} stays global (region
+     * grid consistency). Immutable + stateless beyond its two references, safe to cache + read cross-thread.
+     */
+    private static final class ResolvedWorldSettings implements SpawnScalingSettings {
+        @Nonnull private final MobScalingConfig g;
+        @Nonnull private final WorldOverride ov;
+
+        ResolvedWorldSettings(@Nonnull MobScalingConfig g, @Nonnull WorldOverride ov) {
+            this.g = g;
+            this.ov = ov;
+        }
+
+        @Nullable private DistanceEscalation esc() {
+            Difficulty d = ov.getDifficulty();
+            return d == null ? null : d.getDistanceEscalation();
+        }
+
+        @Override public double getRaritySpawnChance() {
+            Double v = ov.getRaritySpawnChance();
+            return v != null ? Math.max(0.0, Math.min(1.0, v)) : g.getRaritySpawnChance();
+        }
+
+        @Override public boolean isDistanceEscalationEnabled() {
+            DistanceEscalation e = esc();
+            return e != null && e.getEnabled() != null ? e.getEnabled() : g.isDistanceEscalationEnabled();
+        }
+
+        @Override public double getEscalationStartDistanceBlocks() {
+            DistanceEscalation e = esc();
+            return e != null && e.getStartDistanceBlocks() != null
+                    ? Math.max(0.0, e.getStartDistanceBlocks()) : g.getEscalationStartDistanceBlocks();
+        }
+
+        @Override public double getEscalationBlocksPerPoint() {
+            DistanceEscalation e = esc();
+            return e != null && e.getBlocksPerPoint() != null
+                    ? Math.max(1.0, e.getBlocksPerPoint()) : g.getEscalationBlocksPerPoint();
+        }
+
+        @Override public double getEscalationMaxBonus() {
+            DistanceEscalation e = esc();
+            return e != null && e.getMaxBonus() != null
+                    ? Math.max(0.0, e.getMaxBonus()) : g.getEscalationMaxBonus();
+        }
+
+        @Override public double getEscalationRarityChancePerPoint() {
+            DistanceEscalation e = esc();
+            return e != null && e.getRarityChancePerPoint() != null
+                    ? Math.max(0.0, e.getRarityChancePerPoint()) : g.getEscalationRarityChancePerPoint();
+        }
+
+        @Override public double getDifficultyMinCap() {
+            Difficulty d = ov.getDifficulty();
+            return d != null && d.getMinCap() != null ? d.getMinCap() : g.getDifficultyMinCap();
+        }
+
+        @Override public double getDifficultyMaxCap() {
+            double min = getDifficultyMinCap();
+            Difficulty d = ov.getDifficulty();
+            double max = d != null && d.getMaxCap() != null ? d.getMaxCap() : g.getDifficultyMaxCap();
+            return Math.max(min, max); // an inverted cap pair is a footgun
+        }
+
+        @Override public int getRegionSizeChunks() { return g.getRegionSizeChunks(); }
+        @Override public double getGroupDeltaBandWidth() { return g.getGroupDeltaBandWidth(); }
+        @Override public boolean isOnlyRaiseDifficulty() { return g.isOnlyRaiseDifficulty(); }
+
+        @Override public boolean isPlayerScalingEnabled() {
+            Boolean v = ov.getPlayerScalingEnabled();
+            return v != null ? v : g.isPlayerScalingEnabled();
+        }
+
+        @Nonnull @Override public String getOpenWorldAggregationMode() { return g.getOpenWorldAggregationMode(); }
+
+        @Nonnull
+        @Override
+        public MobScaleFold.DifficultyStatCurve statCurveModel() {
+            StatCurve c = ov.getDifficulty() == null ? null : ov.getDifficulty().getStatCurve();
+            double hp = c != null && c.getHpPerPoint() != null
+                    ? Math.max(0.0, c.getHpPerPoint()) : g.statCurveHpPerPoint;
+            double out = c != null && c.getOutDamagePerPoint() != null
+                    ? Math.max(0.0, c.getOutDamagePerPoint()) : g.statCurveOutDamagePerPoint;
+            double in = c != null && c.getInDamageReductionPerPoint() != null
+                    ? Math.max(0.0, c.getInDamageReductionPerPoint()) : g.statCurveInDamageReductionPerPoint;
+            double maxHp = c != null && c.getMaxHpMult() != null
+                    ? Math.max(1.0, c.getMaxHpMult()) : g.statCurveMaxHpMult;
+            double maxOut = c != null && c.getMaxOutDamageMult() != null
+                    ? Math.max(1.0, c.getMaxOutDamageMult()) : g.statCurveMaxOutDamageMult;
+            double minIn = c != null && c.getMinInDamageMult() != null
+                    ? Math.max(0.01, Math.min(1.0, c.getMinInDamageMult())) : g.statCurveMinInDamageMult;
+            double eff = ov.getIntensity() != null ? Math.max(0.0, ov.getIntensity()) : g.intensity;
+            return buildCurve(hp, out, in, maxHp, maxOut, minIn, eff);
+        }
     }
 }

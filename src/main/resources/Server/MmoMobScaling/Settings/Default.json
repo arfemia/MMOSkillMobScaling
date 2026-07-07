@@ -3,7 +3,7 @@
   "ActivePreset": "Default",
   "Enabled": true,
   "PresetMode": "SIMPLE",
-  "Intensity": "medium",
+  "Intensity": 1.0,
   "RaritySpawnChance": 0.12,
   "OpenWorld": {
     "AggregationMode": "AVERAGE",
@@ -26,7 +26,7 @@
     },
     "StatCurve": {
       "HpPerPoint": 0.08,
-      "OutDamagePerPoint": 0.06,
+      "OutDamagePerPoint": 0.04,
       "InDamageReductionPerPoint": 0.002,
       "MaxHpMult": 20.0,
       "MaxOutDamageMult": 12.0,
@@ -49,5 +49,22 @@
     "OffsetY": 216,
     "RangeBlocks": 12.0,
     "PortraitEnabled": true
-  }
+  },
+  "$WorldOverridesComment": "Per-world settings overlays (1.0.1). Each Match is fuzzy (exact > longest trailing-* prefix > *), so the _i*/_ii*/_iii* prefixes self-disambiguate AND catch suffixed instance worlds. Dungeon of Fear I + II have player/group scaling OFF (fixed difficulty); all three have distance-from-spawn escalation OFF. Unset leaves inherit the global settings; an owner file's WorldOverrides CONCATENATE with (and override same-Match) these shipped defaults.",
+  "WorldOverrides": [
+    {
+      "Match": "instance-dungeon_of_fear_i*",
+      "PlayerScalingEnabled": false,
+      "Difficulty": { "DistanceEscalation": { "Enabled": false } }
+    },
+    {
+      "Match": "instance-dungeon_of_fear_ii*",
+      "PlayerScalingEnabled": false,
+      "Difficulty": { "DistanceEscalation": { "Enabled": false } }
+    },
+    {
+      "Match": "instance-dungeon_of_fear_iii*",
+      "Difficulty": { "DistanceEscalation": { "Enabled": false } }
+    }
+  ]
 }

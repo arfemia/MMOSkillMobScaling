@@ -88,6 +88,20 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   (+`RangeBlocks` on the inspector); positions are named corner presets parsed by
   `hud/HudPosition.parse`). Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
   partially-filled group) stays `null`, which is what makes the per-leaf partial owner overlay work.
+  **1.0.1**: `Intensity` is a NUMERIC multiplier (default 1.0, was a dead string) applied to the
+  `StatCurve` slopes in `config/MobScalingConfig.statCurveModel()` (runtime-tunable via `/mobscaling
+  intensity`, `setIntensityRuntime`); `OpenWorld` gained `PlayerScalingEnabled` (default true; false
+  skips the group delta); and a top-level `WorldOverrides` ARRAY (`new ArrayCodec<>(WorldOverride.CODEC,
+  WorldOverride[]::new)`, backing field `WorldOverride[]`) holds per-world overlays. Each `WorldOverride`
+  is a `Match` pattern (resolved by `world/WorldOverrideMatcher`, mirroring the MMO `WorldRulesMatcher`
+  precedence exact > longest `*`-prefix > `*`) + partial `Intensity`/`RaritySpawnChance`/
+  `PlayerScalingEnabled`/`Difficulty` (reuses `Difficulty.CODEC`). **The spawn hook + HUD + inspect read
+  the per-world view via `config/SpawnScalingSettings` (interface; `MobScalingConfig implements` it) +
+  `MobScalingConfig.spawnSettingsFor(worldName)` (cached, returns `this` on no-match), NEVER the global
+  getters directly.** `WorldOverrides` fold CONCATENATES across layers (deduped by `Match`, owner >
+  preset > jar), so an owner file augments rather than replaces the jar-shipped dungeon defaults
+  (`Default.json` ships `instance-dungeon_of_fear_i/ii/iii`). `RegionSizeChunks` stays GLOBAL (grid
+  consistency) - not per-world overridable.
 - The **authoritative defaults** ship as the codec asset
   `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
   key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).

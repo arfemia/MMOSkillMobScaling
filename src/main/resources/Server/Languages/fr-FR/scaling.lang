@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale, régler les superpositions HUD.
-command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions.
-command.usage = Utilisation : /mobscaling <purge|inspect|hud>
+command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions ; preset bascule vers le préréglage actif ; intensity règle le multiplicateur de difficulté.
+command.usage = Utilisation : /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Cette commande doit être exécutée par un joueur.
 command.purge.start = Suppression des résidus de mise à l'échelle des créatures chargées dans ce monde...
 command.purge.done = Résidus de mise à l'échelle retirés de {count} créatures chargées.
@@ -49,11 +49,17 @@ command.arg.hud_target = Quel HUD : zone ou inspector.
 command.arg.hud_value = on, off, ou un préréglage de position tel que TOP_LEFT.
 command.arg.hud_offset_x = Décalage optionnel en pixels depuis le bord horizontal ancré.
 command.arg.hud_offset_y = Décalage optionnel en pixels depuis le bord vertical ancré.
+command.arg.intensity = Le multiplicateur d'intensité (>= 0 ; 1.0 neutre, plus élevé = créatures plus coriaces). Omettez-le pour afficher la valeur actuelle.
 command.preset.usage = Utilisation : /mobscaling preset [nom]
 command.preset.active = Préréglage actif : {0}
 command.preset.available = Préréglages disponibles : {0}
 command.preset.swapped = Basculé vers le préréglage {0}.
 command.preset.unknown = Préréglage {0} inconnu. Disponibles : {1}
+
+command.intensity.current = Multiplicateur d'intensité actuel : {value}
+command.intensity.set = Multiplicateur d'intensité défini à {value}.
+command.intensity.usage = Utilisation : /mobscaling intensity [multiplicateur]. Un nombre >= 0 (1.0 = neutre, plus élevé = créatures plus coriaces).
+command.intensity.persist_hint = Changement en direct uniquement : pour le conserver après un redémarrage, définissez la clé Intensity dans mods/MmoMobScaling/mob-scaling.json.
 
 hud.zone.title = DIFFICULTÉ DE ZONE
 hud.zone.difficulty = Difficulté {value}

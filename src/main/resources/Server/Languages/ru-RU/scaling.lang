@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Инструменты администратора масштабирования существ: очистка остатков, проверка локальной сложности, настройка HUD-оверлеев.
-command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции; hud настраивает оверлеи.
-command.usage = Использование: /mobscaling <purge|inspect|hud>
+command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции; hud настраивает оверлеи; preset переключает активный пресет; intensity настраивает множитель сложности.
+command.usage = Использование: /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Эту команду может выполнить только игрок.
 command.purge.start = Удаление остатков масштабирования с загруженных существ в этом мире...
 command.purge.done = Остатки масштабирования удалены с {count} загруженных существ.
@@ -44,6 +44,11 @@ command.preset.available = Доступные пресеты: {0}
 command.preset.swapped = Переключено на пресет {0}.
 command.preset.unknown = Неизвестный пресет {0}. Доступны: {1}
 
+command.intensity.current = Текущий множитель интенсивности: {value}
+command.intensity.set = Множитель интенсивности установлен на {value}.
+command.intensity.usage = Использование: /mobscaling intensity [множитель]. Число >= 0 (1.0 = нейтрально, выше = сложнее существа).
+command.intensity.persist_hint = Только временное изменение: чтобы сохранить его после перезапуска, установите ключ Intensity в mods/MmoMobScaling/mob-scaling.json.
+
 command.hud.usage = Использование: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Позиции: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD включён для всех игроков: {target}
 command.hud.disabled = HUD отключён для всех игроков: {target}
@@ -55,6 +60,7 @@ command.arg.hud_target = Какой HUD: zone или inspector.
 command.arg.hud_value = on, off или пресет позиции, например TOP_LEFT.
 command.arg.hud_offset_x = Необязательное смещение в пикселях от привязанного горизонтального края.
 command.arg.hud_offset_y = Необязательное смещение в пикселях от привязанного вертикального края.
+command.arg.intensity = Множитель интенсивности (>= 0; 1.0 нейтрально, выше = сложнее существа). Пропустите, чтобы показать текущее значение.
 
 hud.zone.title = СЛОЖНОСТЬ ЗОНЫ
 hud.zone.location = {0} - {1}

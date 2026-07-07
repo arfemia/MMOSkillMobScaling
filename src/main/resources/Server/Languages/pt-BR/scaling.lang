@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Ferramentas de administração do escalonamento de criaturas: limpar resíduos, inspecionar a dificuldade local, ajustar as sobreposições de HUD.
-command.arg.sub = Subcomando: purge remove os resíduos de escalonamento das criaturas carregadas; inspect mostra os valores de dificuldade na sua posição; hud ajusta as sobreposições.
-command.usage = Uso: /mobscaling <purge|inspect|hud>
+command.arg.sub = Subcomando: purge remove os resíduos de escalonamento das criaturas carregadas; inspect mostra os valores de dificuldade na sua posição; hud ajusta as sobreposições; preset alterna a predefinição ativa; intensity ajusta o multiplicador de dificuldade.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Este comando só pode ser executado por um jogador.
 command.purge.start = Removendo resíduos de escalonamento das criaturas carregadas neste mundo...
 command.purge.done = Resíduos de escalonamento removidos de {count} criaturas carregadas.
@@ -44,6 +44,11 @@ command.preset.available = Predefinições disponíveis: {0}
 command.preset.swapped = Alterado para a predefinição {0}.
 command.preset.unknown = Predefinição desconhecida {0}. Disponíveis: {1}
 
+command.intensity.current = Multiplicador de intensidade atual: {value}
+command.intensity.set = Multiplicador de intensidade definido como {value}.
+command.intensity.usage = Uso: /mobscaling intensity [multiplicador]. Um número >= 0 (1,0 = neutro, maior = criaturas mais difíceis).
+command.intensity.persist_hint = Alteração apenas em tempo real: para mantê-la após reinicializações, defina a chave Intensity em mods/MmoMobScaling/mob-scaling.json.
+
 command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Posições: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD ativado para todos os jogadores: {target}
 command.hud.disabled = HUD desativado para todos os jogadores: {target}
@@ -55,6 +60,7 @@ command.arg.hud_target = Qual HUD: zone ou inspector.
 command.arg.hud_value = on, off, ou uma predefinição de posição como TOP_LEFT.
 command.arg.hud_offset_x = Deslocamento opcional em pixels a partir da borda horizontal ancorada.
 command.arg.hud_offset_y = Deslocamento opcional em pixels a partir da borda vertical ancorada.
+command.arg.intensity = O multiplicador de intensidade (>= 0; 1,0 neutro, maior = criaturas mais difíceis). Omita para mostrar o valor atual.
 
 hud.zone.title = DIFICULDADE DA ZONA
 hud.zone.location = {0} - {1}

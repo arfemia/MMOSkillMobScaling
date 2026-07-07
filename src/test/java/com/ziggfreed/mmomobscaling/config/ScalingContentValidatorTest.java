@@ -7,7 +7,10 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.variant.Variant;
@@ -109,5 +112,34 @@ class ScalingContentValidatorTest {
         assertEquals(1, ScalingContentValidator.validateDifficultyCaps(1.0, 200.0, 1.0, 120.0).size());
         assertEquals(1, ScalingContentValidator.validateDifficultyCaps(5.0, 200.0, 1.0, 200.0).size());
         assertEquals(2, ScalingContentValidator.validateDifficultyCaps(5.0, 150.0, 1.0, 200.0).size());
+    }
+
+    @Test
+    void worldOverrideAndIntensityIssuesAreFlagged() throws Exception {
+        // Negative global Intensity + a blank Match + rarity chance > 1 + a negative override Intensity +
+        // inverted caps + a duplicate Match within this file = 6 findings (a cross-layer dup is legal).
+        MobScalingSettingsAsset a = decodeSettings("""
+                { "Intensity": -1.0, "WorldOverrides": [
+                    { "Match": "", "RaritySpawnChance": 2.0 },
+                    { "Match": "dup_*", "Intensity": -0.5, "Difficulty": { "MinCap": 100.0, "MaxCap": 50.0 } },
+                    { "Match": "dup_*" }
+                ] }
+                """);
+        List<String> findings = ScalingContentValidator.validateSettings("Test", a);
+        assertEquals(6, findings.size(), "all 1.0.1 issues flagged: " + findings);
+    }
+
+    @Test
+    void cleanWorldOverridesPass() throws Exception {
+        MobScalingSettingsAsset a = decodeSettings("""
+                { "Intensity": 2.0, "WorldOverrides": [
+                    { "Match": "instance-dungeon_of_fear_i*", "PlayerScalingEnabled": false,
+                      "Difficulty": { "MinCap": 40.0, "MaxCap": 120.0, "DistanceEscalation": { "Enabled": false } } } ] }
+                """);
+        assertTrue(ScalingContentValidator.validateSettings("Test", a).isEmpty(), "a clean overlay passes");
+    }
+
+    private static MobScalingSettingsAsset decodeSettings(String json) throws Exception {
+        return MobScalingSettingsAsset.CODEC.decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
     }
 }

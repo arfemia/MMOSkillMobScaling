@@ -68,10 +68,11 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
 | --- | --- |
 | `inspect` | Report the difficulty inputs at your position (zone floor, distance bonus, effective difficulty, region power, rarity chance). The default subcommand. |
 | `preset <name>` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. |
+| `intensity [multiplier]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
 | `hud <zone\|inspector> <on\|off\|POSITION> [offsetX] [offsetY]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
 | `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |
 
-Live HUD and preset changes are runtime-only; the config file is the persistent authority.
+Live HUD, preset, and intensity changes are runtime-only; the config file is the persistent authority.
 
 ## Configuration
 
@@ -89,8 +90,14 @@ and the mod's asset stores. You never edit Java.
   (`TargetType` Zone or Biome, the native name or a `*` wildcard, and a `Floor`).
 - **Rarities and affixes** are one file each (roll weight, difficulty band, multipliers, affix slots,
   the native effect, bonus drop table, display color, and the inspector icon).
-- **Per-world control.** MMO Skill Tree's per-world rules can disable scaling or set a difficulty
-  floor for an individual world.
+- **Per-world control.** A `WorldOverrides` list in any `Settings/*.json` (or `mob-scaling.json`) tunes
+  one world or instance on its own: match a world by name (exact, a `Prefix_*`, or `*`, the same matching
+  MMO Skill Tree's world rules use, so it also catches suffixed instance worlds) and set its intensity,
+  rarity spawn chance, a player-scaling on/off switch, and the full difficulty group (caps, escalation,
+  stat curve). Unset keys inherit the global settings; your overrides stack on top of (or replace, by
+  world name) the shipped defaults. Three Dungeon of Fear instances ship pre-tuned (player-based scaling
+  off for I and II; distance escalation off for all three). MMO Skill Tree's per-world rules still set the
+  world difficulty FLOOR and can disable scaling entirely for a world.
 
 Content packs can add or replace rarities, affixes, zone floors, and drop tables; the fold order is
 `mod defaults < content pack < server owner`.

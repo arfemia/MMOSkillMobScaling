@@ -24,14 +24,19 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = A szörnyskálázás admin eszközei: maradványok eltávolítása, helyi nehézség vizsgálata, a HUD kijelzők finomhangolása.
-command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél; a hud finomhangolja a kijelzőket.
-command.usage = Használat: /mobscaling <purge|inspect|hud>
+command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél; a hud finomhangolja a kijelzőket; a preset váltja az aktív előbeállítást; az intensity beállítja a nehézségi szorzót.
+command.usage = Használat: /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Ezt a parancsot csak játékos futtathatja.
+command.arg.intensity = Az intenzitás szorzó (>= 0; 1,0 semleges, magasabb = keményebb szörnyek). Hagyj ki a jelenlegi érték megjelenítéséhez.
 command.preset.usage = Használat: /mobscaling preset [név]
 command.preset.active = Aktív előbeállítás: {0}
 command.preset.available = Elérhető előbeállítások: {0}
 command.preset.swapped = Váltva erre az előbeállításra: {0}.
 command.preset.unknown = Ismeretlen előbeállítás: {0}. Elérhető: {1}
+command.intensity.current = Jelenlegi intenzitás szorzó: {value}
+command.intensity.set = Az intenzitás szorzó beállítva: {value}.
+command.intensity.usage = Használat: /mobscaling intensity [szorzó]. Egy szám >= 0 (1,0 = semleges, magasabb = keményebb szörnyek).
+command.intensity.persist_hint = Csak futásidejű változtatás: az újraindítások közötti megőrzéshez állítsd be az Intensity kulcsot itt: mods/MmoMobScaling/mob-scaling.json.
 command.purge.start = Skálázási maradványok eltávolítása a világ betöltött szörnyeiről...
 command.purge.done = Skálázási maradványok eltávolítva {count} betöltött szörnyről.
 command.inspect.header = Szörnyskálázás a helyzetednél:

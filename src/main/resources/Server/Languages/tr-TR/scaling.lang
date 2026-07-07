@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele, HUD katmanlarını ayarla.
-command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar.
-command.usage = Kullanım: /mobscaling <purge|inspect|hud>
+command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar; preset etkin ön ayarı değiştirir; intensity zorluk çarpanını ayarlar.
+command.usage = Kullanım: /mobscaling <purge|inspect|hud|preset|intensity>
 command.players_only = Bu komutu yalnızca bir oyuncu çalıştırabilir.
 command.purge.start = Bu dünyadaki yüklü yaratıklardan ölçekleme kalıntıları temizleniyor...
 command.purge.done = {count} yüklü yaratıktan ölçekleme kalıntıları temizlendi.
@@ -44,6 +44,11 @@ command.preset.available = Mevcut ön ayarlar: {0}
 command.preset.swapped = {0} ön ayarına geçildi.
 command.preset.unknown = Bilinmeyen ön ayar {0}. Mevcut olanlar: {1}
 
+command.intensity.usage = Kullanım: /mobscaling intensity [çarpan]. >= 0 olan bir sayı (1.0 = tarafsız, daha yüksek = daha zor yaratıklar).
+command.intensity.current = Geçerli zorluk çarpanı: {value}
+command.intensity.set = Zorluk çarpanı {value} olarak ayarlandı.
+command.intensity.persist_hint = Yalnızca anlık değişiklik: yeniden başlatmalar arasında korumak için mods/MmoMobScaling/mob-scaling.json dosyasındaki Intensity anahtarını ayarla.
+
 command.hud.usage = Kullanım: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Konumlar: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = Tüm oyuncular için HUD etkinleştirildi: {target}
 command.hud.disabled = Tüm oyuncular için HUD devre dışı bırakıldı: {target}
@@ -55,6 +60,7 @@ command.arg.hud_target = Hangi HUD: zone veya inspector.
 command.arg.hud_value = on, off veya TOP_LEFT gibi bir konum ön ayarı.
 command.arg.hud_offset_x = Sabitlenmiş yatay kenardan isteğe bağlı piksel kayması.
 command.arg.hud_offset_y = Sabitlenmiş dikey kenardan isteğe bağlı piksel kayması.
+command.arg.intensity = Zorluk çarpanı (>= 0; 1.0 tarafsız, daha yüksek = daha zor yaratıklar). Geçerli değeri görmek için atlayın.
 
 hud.zone.title = BÖLGE ZORLUĞU
 hud.zone.location = {0} - {1}

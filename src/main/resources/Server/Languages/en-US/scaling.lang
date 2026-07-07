@@ -16,8 +16,9 @@ name.variant_decorated = {variant} {inner}
 
 # /mobscaling admin command (descriptions resolve as lang keys; hytale:Admin only).
 command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty, tune the HUD overlays.
-command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays.
-command.usage = Usage: /mobscaling <purge|inspect|hud>
+command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays; preset switches the active preset; intensity tunes the difficulty multiplier.
+command.usage = Usage: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.intensity = The intensity multiplier (>= 0; 1.0 neutral, higher = tougher mobs). Omit to show the current value.
 command.players_only = This command must be run by a player.
 command.purge.start = Sweeping scaling residue off loaded mobs in this world...
 command.purge.done = Purged scaling residue from {count} loaded mobs.
@@ -36,6 +37,12 @@ command.preset.active = Active preset: {0}
 command.preset.available = Available presets: {0}
 command.preset.swapped = Switched to preset {0}.
 command.preset.unknown = Unknown preset {0}. Available: {1}
+
+# /mobscaling intensity - live-tune the GLOBAL difficulty-to-stat multiplier (runtime only; the owner file is the persistent authority).
+command.intensity.current = Current intensity multiplier: {value}
+command.intensity.set = Intensity multiplier set to {value}.
+command.intensity.usage = Usage: /mobscaling intensity [multiplier]. A number >= 0 (1.0 = neutral, higher = tougher mobs).
+command.intensity.persist_hint = Live change only: to keep it across restarts, set the Intensity key in mods/MmoMobScaling/mob-scaling.json.
 
 # /mobscaling hud - live overlay tuning (runtime only; the owner file is the persistent authority).
 command.hud.usage = Usage: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positions: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.

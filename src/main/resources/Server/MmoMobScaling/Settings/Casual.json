@@ -1,7 +1,6 @@
 {
   "$Comment": "CASUAL preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; every omitted leaf (and every un-listed leaf inside a partially-filled nested group) falls through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Casual\" (owner file or /mobscaling preset Casual). A gentler curve: softer intensity, rarer specials, a narrower group swing, a far-out capped distance escalation, and a gentler StatCurve (slower HP/damage growth, softer caps).",
   "Name": "Casual",
-  "Intensity": "soft",
   "RaritySpawnChance": 0.06,
   "OpenWorld": {
     "GroupDeltaBandWidth": 15.0
@@ -13,7 +12,7 @@
     },
     "StatCurve": {
       "HpPerPoint": 0.05,
-      "OutDamagePerPoint": 0.04,
+      "OutDamagePerPoint": 0.02,
       "InDamageReductionPerPoint": 0.0015,
       "MaxHpMult": 12.0,
       "MaxOutDamageMult": 9.0,

@@ -27,6 +27,7 @@ import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
@@ -39,8 +40,8 @@ import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
- * {@code /mobscaling <purge|inspect|hud>} - the admin maintenance + tuning tools (permission group
- * {@code hytale:Admin}; all strings are lang keys).
+ * {@code /mobscaling <purge|inspect|hud|preset|intensity>} - the admin maintenance + tuning tools
+ * (permission group {@code hytale:Admin}; all strings are lang keys).
  *
  * <ul>
  *   <li>{@code purge} - strip ALL scaling residue (the {@code mmoscaling_hp} MAX modifier + every
@@ -68,6 +69,11 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *       players. RUNTIME ONLY: the swap is lost on restart; the persistent authority is the
  *       {@code ActivePreset} key in {@code mods/MmoMobScaling/mob-scaling.json} (the command reminds
  *       the admin).</li>
+ *   <li>{@code intensity [multiplier]} - with no value, report the current GLOBAL intensity multiplier
+ *       on the difficulty-&gt;stat curve; with a value ({@code >= 0}), LIVE-set it (denser HP / harder
+ *       hits scale with the multiplier). RUNTIME ONLY: lost on restart; the persistent authority is the
+ *       {@code Intensity} key in {@code mods/MmoMobScaling/mob-scaling.json}. A world with an authored
+ *       per-world {@code Intensity} override is unaffected.</li>
  * </ul>
  */
 public final class MobScalingCommand extends CommandBase {
@@ -78,6 +84,7 @@ public final class MobScalingCommand extends CommandBase {
     private final OptionalArg<String> hudOffsetXArg;
     private final OptionalArg<String> hudOffsetYArg;
     private final OptionalArg<String> presetNameArg;
+    private final OptionalArg<String> intensityArg;
 
     public MobScalingCommand() {
         // The engine resolves the command + arg descriptions as localization keys.
@@ -89,6 +96,7 @@ public final class MobScalingCommand extends CommandBase {
         this.hudOffsetXArg = withOptionalArg("hudOffsetX", "scaling.command.arg.hud_offset_x", ArgTypes.STRING);
         this.hudOffsetYArg = withOptionalArg("hudOffsetY", "scaling.command.arg.hud_offset_y", ArgTypes.STRING);
         this.presetNameArg = withOptionalArg("presetName", "scaling.command.arg.preset_name", ArgTypes.STRING);
+        this.intensityArg = withOptionalArg("intensity", "scaling.command.arg.intensity", ArgTypes.STRING);
     }
 
     @Override
@@ -99,6 +107,7 @@ public final class MobScalingCommand extends CommandBase {
             case "inspect" -> inspect(ctx);
             case "hud" -> hud(ctx);
             case "preset" -> preset(ctx);
+            case "intensity" -> intensity(ctx);
             default -> ctx.sendMessage(Message.translation("scaling.command.usage"));
         }
     }
@@ -135,6 +144,36 @@ public final class MobScalingCommand extends CommandBase {
         }
         ctx.sendMessage(Message.translation("scaling.command.preset.swapped").param("0", cfg.getActivePreset()));
         ctx.sendMessage(Message.translation("scaling.command.hud.persist_hint"));
+    }
+
+    /**
+     * Report or LIVE-tune the GLOBAL intensity multiplier on the difficulty-&gt;stat curve (1.0.1). With no
+     * value, print the current multiplier; with a value ({@code >= 0}), set it. RUNTIME ONLY: lost on
+     * restart; the persistent authority is the {@code Intensity} key in
+     * {@code mods/MmoMobScaling/mob-scaling.json} (the command reminds the admin). A world with an authored
+     * per-world {@code Intensity} override is unaffected (authoring wins).
+     */
+    private void intensity(@Nonnull CommandContext ctx) {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        if (!ctx.provided(intensityArg)) {
+            ctx.sendMessage(Message.translation("scaling.command.intensity.current")
+                    .param("value", cfg.getIntensity()));
+            return;
+        }
+        double value;
+        try {
+            value = Double.parseDouble(intensityArg.get(ctx).trim());
+        } catch (NumberFormatException e) {
+            ctx.sendMessage(Message.translation("scaling.command.intensity.usage"));
+            return;
+        }
+        if (Double.isNaN(value) || value < 0.0) {
+            ctx.sendMessage(Message.translation("scaling.command.intensity.usage"));
+            return;
+        }
+        cfg.setIntensityRuntime(value);
+        ctx.sendMessage(Message.translation("scaling.command.intensity.set").param("value", cfg.getIntensity()));
+        ctx.sendMessage(Message.translation("scaling.command.intensity.persist_hint"));
     }
 
     /** Live-tune one HUD overlay: on/off for everyone, or a named-corner reposition (runtime only). */
@@ -269,11 +308,13 @@ public final class MobScalingCommand extends CommandBase {
                     return;
                 }
                 MobScalingConfig cfg = MobScalingConfig.getInstance();
+                // 1.0.1: resolve against the per-world overlay so inspect reports the world's ACTUAL numbers.
+                SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
                 WorldRules rules = WorldScope.rulesFor(world);
                 int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
                 int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
                 MobScalingSpawnHook.SpawnScaling scaling =
-                        MobScalingSpawnHook.resolveSpawnScaling(rules, world, chunkX, chunkZ, cfg);
+                        MobScalingSpawnHook.resolveSpawnScaling(rules, world, chunkX, chunkZ, spawn);
 
                 player.sendMessage(Message.translation("scaling.command.inspect.header"));
                 player.sendMessage(Message.translation("scaling.command.inspect.power")
@@ -290,14 +331,14 @@ public final class MobScalingCommand extends CommandBase {
                         .param("floor", scaling.effectiveFloor()));
                 player.sendMessage(Message.translation("scaling.command.inspect.region")
                         .param("power", scaling.regionPower())
-                        .param("mode", MobScalingPresenceSystem.mode(cfg).name())
+                        .param("mode", MobScalingPresenceSystem.mode(spawn).name())
                         .param("tracked", RegionPowerTracker.get().trackedPlayers()));
                 player.sendMessage(Message.translation("scaling.command.inspect.difficulty")
                         .param("difficulty", scaling.difficulty()));
                 // What a PLAIN (non-rarity, non-affix) hostile mob's HP / damage / tankiness curve
                 // resolves to at this difficulty, so an admin can confirm plain mobs now scale.
                 MobScaleResult plainCurve =
-                        MobScaleFold.plain(scaling.difficulty(), MobScaleResult.SCOPE_HOSTILE, cfg.statCurveModel());
+                        MobScaleFold.plain(scaling.difficulty(), MobScaleResult.SCOPE_HOSTILE, spawn.statCurveModel());
                 player.sendMessage(Message.translation("scaling.command.inspect.curve")
                         .param("hp", plainCurve.hpMult())
                         .param("out", plainCurve.outDmgMult())

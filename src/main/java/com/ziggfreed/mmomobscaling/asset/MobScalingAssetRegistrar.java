@@ -145,6 +145,10 @@ public final class MobScalingAssetRegistrar {
                     MobScalingConfig.getInstance().getDifficultyMinCap(),
                     MobScalingConfig.getInstance().getDifficultyMaxCap(),
                     powerLevelMin(), powerLevelMax()));
+            // 1.0.1: per-preset Intensity range + WorldOverrides shape (blank/dup Match, caps, ranges).
+            for (Map.Entry<String, MobScalingSettingsAsset> preset : presets.entrySet()) {
+                warnFindings(ScalingContentValidator.validateSettings(preset.getKey(), preset.getValue()));
+            }
         }
     }
 

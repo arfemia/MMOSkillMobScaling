@@ -16,6 +16,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.mmomobscaling.MobScalingGate;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
+import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 
 /**
  * Unit tests for {@link MobScalingConfig} and the {@link MobScalingGate} registration gate.
@@ -48,7 +49,8 @@ class MobScalingConfigTest {
         assertTrue(cfg.isEnabled(), "Enabled default");
         assertFalse(cfg.isCompositionEnabled(), "CompositionEnabled default");
         assertEquals("SIMPLE", cfg.getPresetMode(), "PresetMode default");
-        assertEquals("medium", cfg.getIntensity(), "Intensity default");
+        assertEquals(1.0, cfg.getIntensity(), 1e-9, "Intensity default (numeric, 1.0.1)");
+        assertTrue(cfg.isPlayerScalingEnabled(), "PlayerScalingEnabled default (global, 1.0.1)");
         assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "RaritySpawnChance default");
         assertTrue(cfg.isAllowDifficultyIncreaseOnPartyJoin(), "AllowDifficultyIncreaseOnPartyJoin default");
         assertEquals(5.0, cfg.getLateArrivalBumpFactor(), 1e-9, "LateArrivalBumpFactor default");
@@ -64,7 +66,7 @@ class MobScalingConfigTest {
         assertEquals(0.01, cfg.getEscalationRarityChancePerPoint(), 1e-9, "escalation chance-bonus default");
         // Difficulty.StatCurve: the shipped steep per-difficulty stat curve.
         assertEquals(0.08, cfg.getStatCurveHpPerPoint(), 1e-9, "StatCurve.HpPerPoint default");
-        assertEquals(0.06, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
+        assertEquals(0.04, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
         assertEquals(0.002, cfg.getStatCurveInDamageReductionPerPoint(), 1e-9,
                 "StatCurve.InDamageReductionPerPoint default");
         assertEquals(20.0, cfg.getStatCurveMaxHpMult(), 1e-9, "StatCurve.MaxHpMult default");
@@ -92,14 +94,14 @@ class MobScalingConfigTest {
     void ownerFileOverlaysOnlyItsKeys(@TempDir Path tmp) throws Exception {
         Path configFile = tmp.resolve("mob-scaling.json");
         // A PARTIAL owner file (PascalCase codec shape): flips Enabled, leaves everything else default.
-        Files.writeString(configFile, "{\n  \"Enabled\": false,\n  \"Intensity\": \"brutal\"\n}\n");
+        Files.writeString(configFile, "{\n  \"Enabled\": false,\n  \"Intensity\": 2.0\n}\n");
 
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         cfg.setConfigPath(configFile);
         cfg.load();
 
         assertFalse(cfg.isEnabled(), "owner Enabled override applied");
-        assertEquals("brutal", cfg.getIntensity(), "owner Intensity override applied");
+        assertEquals(2.0, cfg.getIntensity(), 1e-9, "owner Intensity override applied");
         // Unset owner keys fall back to the codec default, NOT a neutral zero.
         assertEquals("SIMPLE", cfg.getPresetMode(), "unset key falls back to codec default");
         assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "unset key falls back to codec default");
@@ -163,5 +165,140 @@ class MobScalingConfigTest {
         assertEquals("SIMPLE", cfg.getPresetMode(), "store-layer PresetMode");
         assertEquals(0.12, cfg.getRaritySpawnChance(), 1e-9, "store-layer RaritySpawnChance");
         assertEquals(3, cfg.getRegionSizeChunks(), "store-layer RegionSizeChunks");
+    }
+
+    // ---------------------------------------------------------------------
+    // 1.0.1: numeric Intensity + per-world overlay
+    // ---------------------------------------------------------------------
+
+    @Test
+    void intensityScalesTheStatCurveSlopes() {
+        MobScalingConfig cfg = freshDefaults(); // Intensity default 1.0
+        MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
+        assertEquals(0.08, curve.hpPerPoint(), 1e-9, "intensity 1.0 leaves the slope unchanged");
+        assertEquals(0.04, curve.outPerPoint(), 1e-9, "intensity 1.0 leaves the out slope unchanged");
+        // The caps are NOT scaled by intensity.
+        assertEquals(20.0, curve.maxHpMult(), 1e-9, "intensity does not scale caps");
+    }
+
+    @Test
+    void ownerIntensityMultipliesTheStatCurve(@TempDir Path tmp) throws Exception {
+        Path configFile = tmp.resolve("mob-scaling.json");
+        Files.writeString(configFile, "{\n  \"Intensity\": 2.0\n}\n");
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(configFile);
+        cfg.load();
+
+        assertEquals(2.0, cfg.getIntensity(), 1e-9, "owner Intensity applied");
+        MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
+        assertEquals(0.16, curve.hpPerPoint(), 1e-9, "2.0 intensity doubles the HP slope");
+        assertEquals(0.08, curve.outPerPoint(), 1e-9, "2.0 intensity doubles the out slope");
+    }
+
+    @Test
+    void setIntensityRuntimeRetunesTheCurveAndClearsTheView(@TempDir Path tmp) throws Exception {
+        // An owner world override that does NOT set its own Intensity inherits the runtime-tuned global.
+        Path configFile = tmp.resolve("mob-scaling.json");
+        Files.writeString(configFile, """
+                { "WorldOverrides": [ { "Match": "arena_*" } ] }
+                """);
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(configFile);
+        cfg.load();
+
+        assertEquals(0.08, cfg.spawnSettingsFor("arena_1").statCurveModel().hpPerPoint(), 1e-9,
+                "arena override inherits the global intensity 1.0");
+        cfg.setIntensityRuntime(3.0);
+        assertEquals(3.0, cfg.getIntensity(), 1e-9, "runtime intensity applied globally");
+        assertEquals(0.24, cfg.spawnSettingsFor("arena_1").statCurveModel().hpPerPoint(), 1e-9,
+                "the cached per-world view re-resolves the new global intensity (cache cleared)");
+    }
+
+    @Test
+    void shippedDungeonDefaultsDisablePlayerScalingForIandIIandEscalationForAll() {
+        MobScalingConfig cfg = freshDefaults(); // Default.json ships the 3 dungeon WorldOverrides
+
+        SpawnScalingSettings i = cfg.spawnSettingsFor("instance-dungeon_of_fear_i");
+        assertFalse(i.isPlayerScalingEnabled(), "Dungeon of Fear I has player scaling off");
+        assertFalse(i.isDistanceEscalationEnabled(), "Dungeon of Fear I has escalation off");
+
+        SpawnScalingSettings ii = cfg.spawnSettingsFor("instance-dungeon_of_fear_ii");
+        assertFalse(ii.isPlayerScalingEnabled(), "Dungeon of Fear II has player scaling off");
+        assertFalse(ii.isDistanceEscalationEnabled(), "Dungeon of Fear II has escalation off");
+
+        SpawnScalingSettings iii = cfg.spawnSettingsFor("instance-dungeon_of_fear_iii");
+        assertTrue(iii.isPlayerScalingEnabled(), "Dungeon of Fear III keeps player scaling on (global default)");
+        assertFalse(iii.isDistanceEscalationEnabled(), "Dungeon of Fear III has escalation off");
+
+        // A non-dungeon world matches nothing -> the global config itself (player scaling on, escalation on).
+        SpawnScalingSettings overworld = cfg.spawnSettingsFor("world");
+        assertTrue(overworld.isPlayerScalingEnabled(), "the overworld keeps global player scaling");
+        assertTrue(overworld.isDistanceEscalationEnabled(), "the overworld keeps global escalation");
+        assertTrue(overworld == cfg, "no-match returns the global config itself (zero-alloc)");
+    }
+
+    @Test
+    void longestPrefixDisambiguatesTheThreeDungeons() {
+        MobScalingConfig cfg = freshDefaults();
+        // A suffixed instance world of each tier resolves to its OWN entry, never a shorter-prefix sibling.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i_ab12").isPlayerScalingEnabled(),
+                "suffixed _i matches the _i* entry (player scaling off)");
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii_ab12").isPlayerScalingEnabled(),
+                "suffixed _ii matches the _ii* entry (player scaling off), not _i*");
+        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii_ab12").isPlayerScalingEnabled(),
+                "suffixed _iii matches the _iii* entry (player scaling ON), not _i*/_ii*");
+    }
+
+    @Test
+    void perWorldOverlayInheritsUnsetLeavesAndOverridesSetOnes(@TempDir Path tmp) throws Exception {
+        Path configFile = tmp.resolve("mob-scaling.json");
+        Files.writeString(configFile, """
+                { "WorldOverrides": [ {
+                    "Match": "raid_*",
+                    "Intensity": 2.0,
+                    "RaritySpawnChance": 0.5,
+                    "PlayerScalingEnabled": false,
+                    "Difficulty": { "MinCap": 40.0, "StatCurve": { "OutDamagePerPoint": 0.2 } }
+                } ] }
+                """);
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(configFile);
+        cfg.load();
+
+        SpawnScalingSettings raid = cfg.spawnSettingsFor("raid_alpha");
+        assertEquals(0.5, raid.getRaritySpawnChance(), 1e-9, "override RaritySpawnChance applied");
+        assertFalse(raid.isPlayerScalingEnabled(), "override PlayerScalingEnabled applied");
+        assertEquals(40.0, raid.getDifficultyMinCap(), 1e-9, "override Difficulty.MinCap applied");
+        assertEquals(200.0, raid.getDifficultyMaxCap(), 1e-9, "unset MaxCap inherits the global");
+        // StatCurve: OutDamagePerPoint overridden (0.2) then x intensity 2.0; HpPerPoint inherits global (0.08) x 2.0.
+        MobScaleFold.DifficultyStatCurve curve = raid.statCurveModel();
+        assertEquals(0.4, curve.outPerPoint(), 1e-9, "override slope x override intensity");
+        assertEquals(0.16, curve.hpPerPoint(), 1e-9, "inherited slope x override intensity");
+        // A non-matching world is untouched (global).
+        assertTrue(cfg.spawnSettingsFor("world") == cfg, "non-match returns the global config");
+    }
+
+    @Test
+    void worldOverridesConcatenateAcrossLayersOwnerWinsSameMatch(@TempDir Path tmp) throws Exception {
+        // The owner ADDS a new world AND overrides one shipped dungeon default by the same Match.
+        Path configFile = tmp.resolve("mob-scaling.json");
+        Files.writeString(configFile, """
+                { "WorldOverrides": [
+                    { "Match": "myworld_*", "PlayerScalingEnabled": false },
+                    { "Match": "instance-dungeon_of_fear_iii*", "PlayerScalingEnabled": false }
+                ] }
+                """);
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(configFile);
+        cfg.load();
+
+        // Owner's new world takes effect.
+        assertFalse(cfg.spawnSettingsFor("myworld_1").isPlayerScalingEnabled(), "owner's new override applies");
+        // The shipped dungeon defaults NOT touched by the owner still resolve (concat, not replace).
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isPlayerScalingEnabled(),
+                "shipped _i default survives an owner adding other overrides");
+        // Owner's same-Match entry WINS over the shipped _iii default (which had player scaling ON).
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii").isPlayerScalingEnabled(),
+                "owner same-Match override beats the shipped _iii default");
     }
 }

@@ -24,6 +24,7 @@ import com.ziggfreed.common.scaling.AggregationMode;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
@@ -93,8 +94,8 @@ public final class MobScalingPresenceSystem extends EntityTickingSystem<EntitySt
 
     /** The configured open-world fold; AVERAGE when unset/unrecognised (the shipped default). */
     @Nonnull
-    public static AggregationMode mode(@Nonnull MobScalingConfig cfg) {
-        return AggregationMode.fromName(cfg.getOpenWorldAggregationMode(), AggregationMode.AVERAGE);
+    public static AggregationMode mode(@Nonnull SpawnScalingSettings settings) {
+        return AggregationMode.fromName(settings.getOpenWorldAggregationMode(), AggregationMode.AVERAGE);
     }
 
     /** Drops a removed player entity's tracked presence (disconnect / world switch / unload). */

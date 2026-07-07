@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.worldgen.chunk.ChunkGenerator;
 import com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult;
 import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
-import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 
 /**
  * The layered difficulty-FLOOR resolver over NATIVE worldgen primitives - it never invents a zone
@@ -108,12 +108,16 @@ public final class ZoneDifficultyResolver {
     /**
      * Resolve the full floor breakdown for a chunk: mapping-layer base (zone &gt; biome &gt; world
      * baseline), plus the distance escalation, clamped to the configured caps. Floors are read LIVE
-     * from {@link DifficultyConfig}/{@link WorldRules}/{@link MobScalingConfig} (only the immutable
+     * from {@link DifficultyConfig}/{@link WorldRules}/{@link SpawnScalingSettings} (only the immutable
      * zone/biome names are memoized), so config reloads take effect without invalidation.
+     *
+     * <p>{@code settings} is the spawn-time settings surface (1.0.1): the GLOBAL config, or a per-world
+     * overlay view for a world matched by a {@code WorldOverride} - so a dungeon's authored caps /
+     * escalation toggle apply here without a special case.
      */
     @Nonnull
     public ResolvedFloor resolve(@Nonnull WorldRules rules, @Nonnull World world, int chunkX, int chunkZ,
-            @Nonnull MobScalingConfig cfg) {
+            @Nonnull SpawnScalingSettings settings) {
         ChunkInfo info = chunkInfo(world, chunkX, chunkZ);
         double base = baseFloor(info, rules);
         // Distance from world spawn is resolved UNCONDITIONALLY (even with escalation off): the start
@@ -122,15 +126,16 @@ public final class ZoneDifficultyResolver {
         double dx = centerBlock(chunkX) - memo.spawnX;
         double dz = centerBlock(chunkZ) - memo.spawnZ;
         double distance = Math.sqrt(dx * dx + dz * dz);
-        double startDistance = cfg.getEscalationStartDistanceBlocks();
+        double startDistance = settings.getEscalationStartDistanceBlocks();
         boolean insideStartRing = startDistance > 0.0 && distance <= startDistance;
         double bonus = 0.0;
-        if (cfg.isDistanceEscalationEnabled()) {
+        if (settings.isDistanceEscalationEnabled()) {
             bonus = escalationBonus(distance, startDistance,
-                    cfg.getEscalationBlocksPerPoint(), cfg.getEscalationMaxBonus());
+                    settings.getEscalationBlocksPerPoint(), settings.getEscalationMaxBonus());
         }
-        double effective = clamp(base + bonus, cfg.getDifficultyMinCap(), cfg.getDifficultyMaxCap());
-        double chance = clamp(cfg.getRaritySpawnChance() + bonus * cfg.getEscalationRarityChancePerPoint(), 0.0, 1.0);
+        double effective = clamp(base + bonus, settings.getDifficultyMinCap(), settings.getDifficultyMaxCap());
+        double chance = clamp(settings.getRaritySpawnChance()
+                + bonus * settings.getEscalationRarityChancePerPoint(), 0.0, 1.0);
         return new ResolvedFloor(info.zoneName(), base, bonus, effective, chance,
                 insideStartRing, distance, info.biomeName());
     }

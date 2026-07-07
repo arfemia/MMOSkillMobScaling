@@ -2,13 +2,44 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
-## 1.0.0 (unreleased, in-game-validation pending)
+## 1.0.1 (unreleased, in-game-validation pending)
+
+Per-world / per-instance tuning plus a live intensity dial. Requires MMO Skill Tree 1.5.0+ and
+Ziggfreed's CommonLib 1.2.0+.
+
+- New: PER-WORLD settings overlays. `Server/MmoMobScaling/Settings/*.json` gains a `WorldOverrides`
+  array; each entry is a world-name `Match` (the SAME fuzzy matching as the MMO's WorldRules: exact >
+  longest trailing-`*` prefix > bare `*`, case-insensitive) bound to a PARTIAL settings body that
+  overlays the global fold for matching worlds at spawn time. A matched world may set its own
+  `Intensity`, `RaritySpawnChance`, `PlayerScalingEnabled`, and the full `Difficulty` group (caps +
+  `DistanceEscalation` + `StatCurve`); every unset leaf inherits the global settings. Layers
+  CONCATENATE (deduped by `Match`, owner > preset > jar), so an owner file ADDS to / overrides shipped
+  defaults without re-authoring the whole list. Resolved through a new `world/WorldOverrideMatcher` + a
+  `config/SpawnScalingSettings` view the spawn hook, the HUD, and `/mobscaling inspect` all read, so a
+  dungeon reports its ACTUAL numbers.
+- New: `PlayerScalingEnabled` toggle (a global `OpenWorld` leaf + a per-world override). `false` skips
+  the player/group power delta entirely, pinning a world to its escalated floor, the switch a
+  fixed-difficulty authored dungeon uses.
+- New: numeric `Intensity` dial (replaces the old inert string label). A multiplier (default `1.0`,
+  clamped `>= 0`) on the difficulty-to-stat curve slopes (how tanky mobs are + how hard they hit),
+  bounded by the existing per-factor caps; it does not touch rarity/affix magnitudes. Runtime-tunable
+  with `/mobscaling intensity [multiplier]` (runtime only; the owner file's `Intensity` is the
+  persistent authority). A world with an authored per-world `Intensity` override is unaffected.
+- New: shipped defaults for three authored dungeons. `Default.json` ships `WorldOverrides` for
+  `instance-dungeon_of_fear_i/ii/iii`: player/group scaling OFF for I and II (fixed difficulty), and
+  distance-from-spawn escalation OFF for all three. The `_i*`/`_ii*`/`_iii*` prefixes self-disambiguate
+  via longest-prefix and also catch suffixed instance worlds.
+- Change: the four settings presets (Default/Casual/Hardcore/Playtest) no longer carry a string
+  `Intensity` (their difficulty lives in their `StatCurve`); `Intensity` folds to a neutral `1.0`
+  unless authored.
+
+## 1.0.0
 
 The first release of MMO Mob Scaling, a standalone open-world mob difficulty-scaling companion to the
 MMO Skill Tree mod: open-world mobs scale to the players around them (a high-power group meets tougher,
 rarer, affixed enemies; a lone newcomer is never overwhelmed). Everything is data-driven Hytale assets,
-so any of it can be retuned per file or extended from a content pack. Numbers are still being tuned
-in-game. Requires MMO Skill Tree 1.5.0+ and Ziggfreed's CommonLib 1.2.0+.
+so any of it can be retuned per file or extended from a content pack. Requires MMO Skill Tree 1.5.0+ and
+Ziggfreed's CommonLib 1.2.0+.
 
 - New: LAYERED open-world difficulty. Every hostile mob is scaled to a difficulty resolved from three
   layers: Hytale's own worldgen ZONE and BIOME floors (`world/ZoneDifficultyResolver`, memoized

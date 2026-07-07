@@ -143,8 +143,8 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         }
         int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
         int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
-        MobScalingSpawnHook.SpawnScaling scaling =
-                MobScalingSpawnHook.resolveSpawnScaling(rules, world, chunkX, chunkZ, cfg);
+        MobScalingSpawnHook.SpawnScaling scaling = MobScalingSpawnHook.resolveSpawnScaling(
+                rules, world, chunkX, chunkZ, cfg.spawnSettingsFor(world.getName()));
         double playerPower = MMOSkillTreeAPI.getPowerLevel(store, ref);
         // scaling.regionPower() is the tracked (zone, sub-grid) aggregate - already folded into
         // scaling.difficulty(); shown only when it says something a lone player's own power does
