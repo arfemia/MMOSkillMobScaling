@@ -328,7 +328,7 @@ public final class MobScalingSettingsAsset
 
     /**
      * A screen-anchored HUD overlay: enabled flag + named corner preset + pixel offsets. Positions
-     * are the {@code hud/HudPosition.parse} corner names (TOP_LEFT | TOP_CENTER | ... | BOTTOM_RIGHT).
+     * are the {@code ziggfreed-common ui/hud/HudPosition.parse} corner names (TOP_LEFT | TOP_CENTER | ... | BOTTOM_RIGHT).
      */
     public static class Hud {
         public static final BuilderCodec<Hud> CODEC = BuilderCodec.builder(Hud.class, Hud::new)

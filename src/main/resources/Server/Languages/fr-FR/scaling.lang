@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale, régler les superpositions HUD.
-command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions ; preset bascule vers le préréglage actif ; intensity règle le multiplicateur de difficulté.
-command.usage = Utilisation : /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions ; preset bascule vers le préréglage actif ; intensity règle le multiplicateur de difficulté ; ui ouvre la page de configuration d'administration.
+command.usage = Utilisation : /mobscaling <purge|inspect|hud|preset|intensity|ui>
 command.players_only = Cette commande doit être exécutée par un joueur.
 command.purge.start = Suppression des résidus de mise à l'échelle des créatures chargées dans ce monde...
 command.purge.done = Résidus de mise à l'échelle retirés de {count} créatures chargées.
@@ -43,6 +43,7 @@ command.hud.enabled = HUD activé pour tous les joueurs : {target}
 command.hud.disabled = HUD désactivé pour tous les joueurs : {target}
 command.hud.moved = {target} repositionné en {position} (décalage {x}, {y}).
 command.hud.persist_hint = Changement en direct uniquement : pour le conserver après un redémarrage, définissez les clés ZoneHud/InspectorHud dans mods/MmoMobScaling/mob-scaling.json.
+command.hud.saved = Enregistré : la modification HUD persiste maintenant après les redémarrages.
 command.hud.target.zone = HUD de difficulté de zone
 command.hud.target.inspector = HUD de l'inspecteur de créatures
 command.arg.hud_target = Quel HUD : zone ou inspector.
@@ -55,11 +56,13 @@ command.preset.active = Préréglage actif : {0}
 command.preset.available = Préréglages disponibles : {0}
 command.preset.swapped = Basculé vers le préréglage {0}.
 command.preset.unknown = Préréglage {0} inconnu. Disponibles : {1}
+command.preset.saved = Enregistré : le préréglage actif persiste maintenant après les redémarrages.
 
 command.intensity.current = Multiplicateur d'intensité actuel : {value}
 command.intensity.set = Multiplicateur d'intensité défini à {value}.
 command.intensity.usage = Utilisation : /mobscaling intensity [multiplicateur]. Un nombre >= 0 (1.0 = neutre, plus élevé = créatures plus coriaces).
 command.intensity.persist_hint = Changement en direct uniquement : pour le conserver après un redémarrage, définissez la clé Intensity dans mods/MmoMobScaling/mob-scaling.json.
+command.intensity.saved = Enregistré : le multiplicateur d'intensité persiste maintenant après les redémarrages.
 
 hud.zone.title = DIFFICULTÉ DE ZONE
 hud.zone.difficulty = Difficulté {value}
@@ -74,3 +77,79 @@ hud.zone.tier.deadly = Mortel
 hud.zone.location = {0} - {1}
 hud.inspect.difficulty = Difficulté {value}
 hud.inspect.hp = {current} / {max}
+
+# ============================================================================
+# Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
+# ============================================================================
+ui.title = Mise à l'échelle des créatures
+ui.tab.global = Global
+ui.tab.zone_hud = HUD de zone
+ui.tab.inspector = Inspecteur
+ui.tab.worlds = Mondes
+
+ui.toggle.on = ON
+ui.toggle.off = OFF
+
+ui.button.save = Enregistrer
+ui.button.save_caps = Enregistrer plafonds
+ui.button.save_esc = Enregistrer escalade
+ui.button.save_position = Enregistrer position
+ui.button.save_world = Enregistrer remplacement
+ui.button.clear = Effacer formulaire
+ui.button.edit = Modifier
+ui.button.remove = Supprimer
+
+# Global tab.
+ui.global.enabled = Mise à l'échelle activée
+ui.global.enabled_note = Prend effet au redémarrage (le mod enregistre ses systèmes au démarrage).
+ui.global.preset = Préréglage actif
+ui.global.intensity = Multiplicateur d'intensité
+ui.global.rarity = Probabilité d'apparition de rareté
+ui.global.player_scaling = Mise à l'échelle joueur/groupe
+ui.global.caps_header = Plafonds de difficulté
+ui.global.min_cap = Difficulté minimale
+ui.global.max_cap = Difficulté maximale
+ui.global.esc_header = Escalade de distance
+ui.global.esc_enabled = Escalade activée
+ui.global.esc_start = Distance de départ (blocs)
+ui.global.esc_blocks = Blocs par point
+ui.global.esc_max_bonus = Bonus maximum
+ui.global.esc_rarity = Rareté par point
+
+# Shared HUD tab rows.
+ui.hud.position = Position
+ui.hud.offset_x = Décalage X
+ui.hud.offset_y = Décalage Y
+
+# Zone HUD tab.
+ui.zone.enabled = HUD de zone activé
+ui.zone.show_location = Afficher le nom de l'emplacement
+
+# Inspector HUD tab.
+ui.inspector.enabled = HUD inspecteur activé
+ui.inspector.portrait = Afficher le portrait
+ui.inspector.range = Plage (blocs)
+
+# Worlds tab (per-world WorldOverrides CRUD).
+ui.world.empty = Aucun remplacement par monde. Ajoutez-en un ci-dessous.
+ui.world.badge_override = remplacement
+ui.world.badge_default = par défaut
+ui.world.editor_header = Ajouter/modifier remplacement
+ui.world.match = Correspondance du monde
+ui.world.intensity = Intensité
+ui.world.rarity = Probabilité de rareté
+ui.world.min_cap = Difficulté minimale
+ui.world.max_cap = Difficulté maximale
+ui.world.player_scaling = Mise à l'échelle du joueur
+ui.world.escalation = Escalade de distance
+ui.world.hint = Les champs vides héritent de la valeur globale. Le réglage de la courbe de statistiques reste dans le fichier de configuration.
+
+# Status line.
+ui.status.saved = Enregistré.
+ui.status.saved_restart = Enregistré. Prend effet au redémarrage.
+ui.status.removed = Remplacement supprimé.
+ui.status.invalid_number = Entrez un nombre valide (>= 0).
+ui.status.invalid_chance = Entrez une probabilité entre 0 et 1.
+ui.status.invalid_caps = Le maximum doit être au moins le minimum.
+ui.status.unknown_preset = Préréglage inconnu.
+ui.status.match_required = Entrez d'abord un modèle de correspondance de monde.

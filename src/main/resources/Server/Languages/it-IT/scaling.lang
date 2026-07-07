@@ -24,18 +24,22 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale, regolare le sovrimpressioni HUD.
-command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni; preset attiva il preset selezionato; intensity regola il moltiplicatore di difficoltà.
-command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni; preset attiva il preset selezionato; intensity regola il moltiplicatore di difficoltà; ui apre la pagina di configurazione amministratore.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|ui>
 command.players_only = Questo comando può essere eseguito solo da un giocatore.
 command.preset.usage = Uso: /mobscaling preset [nome]
 command.preset.active = Preset attivo: {0}
 command.preset.available = Preset disponibili: {0}
 command.preset.swapped = Passato al preset {0}.
 command.preset.unknown = Preset sconosciuto {0}. Disponibili: {1}
+command.preset.saved = Salvato: il preset attivo persiste ora tra i riavvii.
+
 command.intensity.current = Moltiplicatore di intensità attuale: {value}
 command.intensity.set = Moltiplicatore di intensità impostato a {value}.
 command.intensity.usage = Uso: /mobscaling intensity [moltiplicatore]. Un numero >= 0 (1.0 = neutrale, valori più alti = creature più difficili).
 command.intensity.persist_hint = Modifica valida solo in tempo reale: per mantenerla dopo un riavvio, imposta la chiave Intensity in mods/MmoMobScaling/mob-scaling.json.
+command.intensity.saved = Salvato: il moltiplicatore di intensità persiste ora tra i riavvii.
+
 command.purge.start = Rimozione dei residui di ridimensionamento dalle creature caricate in questo mondo...
 command.purge.done = Residui di ridimensionamento rimossi da {count} creature caricate.
 command.inspect.header = Ridimensionamento delle creature nella tua posizione:
@@ -52,6 +56,8 @@ command.hud.enabled = HUD attivato per tutti i giocatori: {target}
 command.hud.disabled = HUD disattivato per tutti i giocatori: {target}
 command.hud.moved = {target} riposizionato su {position} (scostamento {x}, {y}).
 command.hud.persist_hint = Modifica valida solo in tempo reale: per mantenerla dopo un riavvio, imposta le chiavi ZoneHud/InspectorHud in mods/MmoMobScaling/mob-scaling.json.
+command.hud.saved = Salvato: il cambio HUD persiste ora tra i riavvii.
+
 command.hud.target.zone = HUD difficoltà zona
 command.hud.target.inspector = HUD ispettore creature
 command.arg.hud_target = Quale HUD: zone oppure inspector.
@@ -73,3 +79,79 @@ hud.zone.tier.deadly = Letale
 
 hud.inspect.difficulty = Difficoltà {value}
 hud.inspect.hp = {current} / {max}
+
+# ============================================================================
+# Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
+# ============================================================================
+ui.title = Ridimensionamento Mob
+ui.tab.global = Globale
+ui.tab.zone_hud = HUD Zona
+ui.tab.inspector = Ispettore
+ui.tab.worlds = Mondi
+
+ui.toggle.on = ON
+ui.toggle.off = OFF
+
+ui.button.save = Salva
+ui.button.save_caps = Salva limiti
+ui.button.save_esc = Salva escalation
+ui.button.save_position = Salva posizione
+ui.button.save_world = Salva override
+ui.button.clear = Cancella modulo
+ui.button.edit = Modifica
+ui.button.remove = Rimuovi
+
+# Global tab.
+ui.global.enabled = Ridimensionamento attivato
+ui.global.enabled_note = Entra in vigore al riavvio (il mod registra i suoi sistemi all'avvio).
+ui.global.preset = Preset attivo
+ui.global.intensity = Moltiplicatore di intensità
+ui.global.rarity = Probabilità di rarità
+ui.global.player_scaling = Ridimensionamento giocatore/gruppo
+ui.global.caps_header = Limiti di difficoltà
+ui.global.min_cap = Difficoltà minima
+ui.global.max_cap = Difficoltà massima
+ui.global.esc_header = Escalation della distanza
+ui.global.esc_enabled = Escalation attivata
+ui.global.esc_start = Distanza iniziale (blocchi)
+ui.global.esc_blocks = Blocchi per punto
+ui.global.esc_max_bonus = Bonus massimo
+ui.global.esc_rarity = Rarità per punto
+
+# Shared HUD tab rows.
+ui.hud.position = Posizione
+ui.hud.offset_x = Offset X
+ui.hud.offset_y = Offset Y
+
+# Zone HUD tab.
+ui.zone.enabled = HUD zona attivato
+ui.zone.show_location = Mostra nome posizione
+
+# Inspector HUD tab.
+ui.inspector.enabled = HUD ispettore attivato
+ui.inspector.portrait = Mostra ritratto
+ui.inspector.range = Portata (blocchi)
+
+# Worlds tab (per-world WorldOverrides CRUD).
+ui.world.empty = Nessun override per mondo specifico. Aggiungine uno sotto.
+ui.world.badge_override = override
+ui.world.badge_default = default
+ui.world.editor_header = Aggiungi / modifica override
+ui.world.match = Corrispondenza mondo
+ui.world.intensity = Intensità
+ui.world.rarity = Probabilità rarità
+ui.world.min_cap = Difficoltà minima
+ui.world.max_cap = Difficoltà massima
+ui.world.player_scaling = Ridimensionamento giocatore
+ui.world.escalation = Escalation distanza
+ui.world.hint = I campi vuoti ereditano il valore globale. L'ottimizzazione della curva statistica rimane nel file di configurazione.
+
+# Status line.
+ui.status.saved = Salvato.
+ui.status.saved_restart = Salvato. Entra in vigore al riavvio.
+ui.status.removed = Override rimosso.
+ui.status.invalid_number = Inserisci un numero valido (>= 0).
+ui.status.invalid_chance = Inserisci una probabilità tra 0 e 1.
+ui.status.invalid_caps = Il massimo deve essere almeno il minimo.
+ui.status.unknown_preset = Preset sconosciuto.
+ui.status.match_required = Inserisci prima un modello di corrispondenza mondo.

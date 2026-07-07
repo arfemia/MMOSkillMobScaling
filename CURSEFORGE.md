@@ -70,9 +70,10 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
 | `preset <name>` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. |
 | `intensity [multiplier]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
 | `hud <zone\|inspector> <on\|off\|POSITION> [offsetX] [offsetY]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
+| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and a per-world overrides editor). Each edit is saved to the config file and applied live. |
 | `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |
 
-Live HUD, preset, and intensity changes are runtime-only; the config file is the persistent authority.
+Every change made in `/mobscaling ui` or via the `intensity` / `hud` / `preset` subcommands is now SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
 
 ## Configuration
 

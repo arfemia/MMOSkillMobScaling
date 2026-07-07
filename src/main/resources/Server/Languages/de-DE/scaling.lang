@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Admin-Werkzeuge für die Mob-Skalierung: Rückstände bereinigen, lokale Schwierigkeit prüfen, HUD-Anzeigen einstellen.
-command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect meldet die Schwierigkeitswerte hier; hud passt die Anzeigen an; preset wechselt die aktive Voreinstellung; intensity passt den Schwierigkeitsmultiplikator an.
-command.usage = Verwendung: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.sub = Unterbefehl: purge entfernt Skalierungsrückstände von geladenen Mobs; inspect meldet die Schwierigkeitswerte hier; hud passt die Anzeigen an; preset wechselt die aktive Voreinstellung; intensity passt den Schwierigkeitsmultiplikator an; ui öffnet die Admin-Konfigurationsseite.
+command.usage = Verwendung: /mobscaling <purge|inspect|hud|preset|intensity|ui>
 command.players_only = Dieser Befehl kann nur von einem Spieler ausgeführt werden.
 command.purge.start = Entferne Skalierungsrückstände von geladenen Mobs in dieser Welt...
 command.purge.done = Skalierungsrückstände von {count} geladenen Mobs entfernt.
@@ -43,18 +43,21 @@ command.preset.active = Aktives Preset: {0}
 command.preset.available = Verfügbare Presets: {0}
 command.preset.swapped = Zu Preset {0} gewechselt.
 command.preset.unknown = Unbekanntes Preset {0}. Verfügbar: {1}
+command.preset.saved = Gespeichert: Das aktive Preset wird nun über Neustarts hinweg gespeichert.
 
 # /mobscaling intensity - Schwierigkeitsmultiplikator live einstellen (nur zur Laufzeit; die Datei ist die persistent Autorität).
 command.intensity.current = Aktueller Schwierigkeitsmultiplikator: {value}
 command.intensity.set = Schwierigkeitsmultiplikator auf {value} gesetzt.
 command.intensity.usage = Verwendung: /mobscaling intensity [multiplier]. Eine Zahl >= 0 (1.0 = neutral, höher = schwierigere Mobs).
 command.intensity.persist_hint = Nur zur Laufzeit: um die Änderung über Neustarts zu behalten, setze den Intensity-Schlüssel in mods/MmoMobScaling/mob-scaling.json.
+command.intensity.saved = Gespeichert: Der Schwierigkeitsmultiplikator wird nun über Neustarts hinweg gespeichert.
 
 command.hud.usage = Verwendung: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positionen: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD für alle Spieler aktiviert: {target}
 command.hud.disabled = HUD für alle Spieler deaktiviert: {target}
 command.hud.moved = {target} nach {position} verschoben (Versatz {x}, {y}).
 command.hud.persist_hint = Nur zur Laufzeit: um die Änderung über Neustarts zu behalten, setze die ZoneHud/InspectorHud-Schlüssel in mods/MmoMobScaling/mob-scaling.json.
+command.hud.saved = Gespeichert: Die HUD-Änderung wird nun über Neustarts hinweg gespeichert.
 command.hud.target.zone = Zonen-Schwierigkeits-HUD
 command.hud.target.inspector = Mob-Inspektor-HUD
 command.arg.hud_target = Welches HUD: zone oder inspector.
@@ -76,3 +79,79 @@ hud.zone.tier.deadly = Tödlich
 
 hud.inspect.difficulty = Schwierigkeit {value}
 hud.inspect.hp = {current} / {max}
+
+# ============================================================================
+# Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
+# ============================================================================
+ui.title = Mob-Skalierung
+ui.tab.global = Global
+ui.tab.zone_hud = Zone-HUD
+ui.tab.inspector = Inspektor
+ui.tab.worlds = Welten
+
+ui.toggle.on = AN
+ui.toggle.off = AUS
+
+ui.button.save = Speichern
+ui.button.save_caps = Limits speichern
+ui.button.save_esc = Eskalation speichern
+ui.button.save_position = Position speichern
+ui.button.save_world = Übergriffen speichern
+ui.button.clear = Formular löschen
+ui.button.edit = Bearbeiten
+ui.button.remove = Entfernen
+
+# Global tab.
+ui.global.enabled = Skalierung aktiviert
+ui.global.enabled_note = Wirkt sich beim Neustart aus (das Mod registriert seine Systeme beim Start).
+ui.global.preset = Aktives Preset
+ui.global.intensity = Schwierigkeitsmultiplikator
+ui.global.rarity = Seltenheits-Spawnchance
+ui.global.player_scaling = Spieler-/Gruppen-Skalierung
+ui.global.caps_header = Schwierigkeitsgrenzen
+ui.global.min_cap = Minimale Schwierigkeit
+ui.global.max_cap = Maximale Schwierigkeit
+ui.global.esc_header = Distanzeskalation
+ui.global.esc_enabled = Eskalation aktiviert
+ui.global.esc_start = Startdistanz (Blöcke)
+ui.global.esc_blocks = Blöcke pro Punkt
+ui.global.esc_max_bonus = Maximaler Bonus
+ui.global.esc_rarity = Seltenheit pro Punkt
+
+# Shared HUD tab rows.
+ui.hud.position = Position
+ui.hud.offset_x = Versatz X
+ui.hud.offset_y = Versatz Y
+
+# Zone HUD tab.
+ui.zone.enabled = Zone-HUD aktiviert
+ui.zone.show_location = Ortsnamen anzeigen
+
+# Inspector HUD tab.
+ui.inspector.enabled = Inspektor-HUD aktiviert
+ui.inspector.portrait = Porträt anzeigen
+ui.inspector.range = Reichweite (Blöcke)
+
+# Worlds tab (per-world WorldOverrides CRUD).
+ui.world.empty = Keine Welt-Übergriffen. Einen unten hinzufügen.
+ui.world.badge_override = Übers.
+ui.world.badge_default = Standard
+ui.world.editor_header = Übergriffen hinzufügen / bearbeiten
+ui.world.match = Weltmatch
+ui.world.intensity = Schwierigkeit
+ui.world.rarity = Seltenheitschance
+ui.world.min_cap = Minimale Schwierigkeit
+ui.world.max_cap = Maximale Schwierigkeit
+ui.world.player_scaling = Spieler-Skalierung
+ui.world.escalation = Distanzeskalation
+ui.world.hint = Leere Felder erben den globalen Wert. Statskurven-Anpassung bleibt in der Konfigurationsdatei.
+
+# Status line.
+ui.status.saved = Gespeichert.
+ui.status.saved_restart = Gespeichert. Wirkt sich beim Neustart aus.
+ui.status.removed = Übergriffen entfernt.
+ui.status.invalid_number = Geben Sie eine gültige Nummer ein (>= 0).
+ui.status.invalid_chance = Geben Sie eine Chance zwischen 0 und 1 ein.
+ui.status.invalid_caps = Maximum muss mindestens dem Minimum entsprechen.
+ui.status.unknown_preset = Unbekanntes Preset.
+ui.status.match_required = Geben Sie zunächst ein Welt-Match-Muster ein.

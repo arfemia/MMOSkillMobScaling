@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local, ajustar las superposiciones del HUD.
-command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; intensity ajusta el multiplicador de dificultad.
-command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; intensity ajusta el multiplicador de dificultad; ui abre la página de configuración del administrador.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|ui>
 command.arg.intensity = El multiplicador de intensidad (>= 0; 1.0 neutral, más alto = criaturas más difíciles). Omite para ver el valor actual.
 command.players_only = Este comando solo puede ejecutarlo un jugador.
 command.purge.start = Eliminando residuos de escalado de las criaturas cargadas en este mundo...
@@ -44,17 +44,20 @@ command.preset.active = Preset activo: {0}
 command.preset.available = Presets disponibles: {0}
 command.preset.swapped = Se cambió al preset {0}.
 command.preset.unknown = Preset desconocido {0}. Disponibles: {1}
+command.preset.saved = Guardado: el preset activo ahora persiste entre reinicios.
 
 command.intensity.current = Multiplicador de intensidad actual: {value}
 command.intensity.set = Multiplicador de intensidad establecido en {value}.
 command.intensity.usage = Uso: /mobscaling intensity [multiplicador]. Un número >= 0 (1.0 = neutral, más alto = criaturas más difíciles).
 command.intensity.persist_hint = Solo cambio en vivo: para conservarlo entre reinicios, configura la clave Intensity en mods/MmoMobScaling/mob-scaling.json.
+command.intensity.saved = Guardado: el multiplicador de intensidad ahora persiste entre reinicios.
 
 command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Posiciones: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD activado para todos los jugadores: {target}
 command.hud.disabled = HUD desactivado para todos los jugadores: {target}
 command.hud.moved = Se reposicionó {target} a {position} (desplazamiento {x}, {y}).
 command.hud.persist_hint = Solo cambio en vivo: para conservarlo entre reinicios, configura las claves ZoneHud/InspectorHud en mods/MmoMobScaling/mob-scaling.json.
+command.hud.saved = Guardado: el cambio del HUD ahora persiste entre reinicios.
 command.hud.target.zone = HUD de dificultad de zona
 command.hud.target.inspector = HUD de inspector de criaturas
 command.arg.hud_target = Qué HUD: zone o inspector.
@@ -75,3 +78,79 @@ hud.zone.tier.deadly = Mortal
 
 hud.inspect.difficulty = Dificultad {value}
 hud.inspect.hp = {current} / {max}
+
+# ============================================================================
+# Página de configuración del administrador (/mobscaling ui). Todo el texto se resuelve en el cliente en .TextSpans.
+# ============================================================================
+ui.title = Escalado de Criaturas
+ui.tab.global = Global
+ui.tab.zone_hud = HUD de Zona
+ui.tab.inspector = Inspector
+ui.tab.worlds = Mundos
+
+ui.toggle.on = SÍ
+ui.toggle.off = NO
+
+ui.button.save = Guardar
+ui.button.save_caps = Guardar límites
+ui.button.save_esc = Guardar escalación
+ui.button.save_position = Guardar posición
+ui.button.save_world = Guardar anulación
+ui.button.clear = Limpiar formulario
+ui.button.edit = Editar
+ui.button.remove = Eliminar
+
+# Pestaña Global.
+ui.global.enabled = Escalado habilitado
+ui.global.enabled_note = Entra en efecto al reiniciar (el mod registra sus sistemas al iniciarse).
+ui.global.preset = Preset activo
+ui.global.intensity = Multiplicador de intensidad
+ui.global.rarity = Probabilidad de rareza al aparecer
+ui.global.player_scaling = Escalado de jugador/grupo
+ui.global.caps_header = Límites de dificultad
+ui.global.min_cap = Dificultad mínima
+ui.global.max_cap = Dificultad máxima
+ui.global.esc_header = Escalación de distancia
+ui.global.esc_enabled = Escalación habilitada
+ui.global.esc_start = Distancia de inicio (bloques)
+ui.global.esc_blocks = Bloques por punto
+ui.global.esc_max_bonus = Bonificación máxima
+ui.global.esc_rarity = Rareza por punto
+
+# Filas de pestaña HUD compartidas.
+ui.hud.position = Posición
+ui.hud.offset_x = Desplazamiento X
+ui.hud.offset_y = Desplazamiento Y
+
+# Pestaña de HUD de Zona.
+ui.zone.enabled = HUD de zona habilitado
+ui.zone.show_location = Mostrar nombre de ubicación
+
+# Pestaña de Inspector HUD.
+ui.inspector.enabled = Inspector HUD habilitado
+ui.inspector.portrait = Mostrar retrato
+ui.inspector.range = Rango (bloques)
+
+# Pestaña Mundos (CRUD de anulaciones por mundo).
+ui.world.empty = Sin anulaciones por mundo. Agregue una abajo.
+ui.world.badge_override = Anulación
+ui.world.badge_default = Defecto
+ui.world.editor_header = Agregar / editar anulación
+ui.world.match = Coincidencia de mundo
+ui.world.intensity = Intensidad
+ui.world.rarity = Probabilidad de rareza
+ui.world.min_cap = Dificultad mínima
+ui.world.max_cap = Dificultad máxima
+ui.world.player_scaling = Escalado de jugador
+ui.world.escalation = Escalación de distancia
+ui.world.hint = Los campos en blanco heredan el valor global. El ajuste de la curva de estadísticas permanece en el archivo de configuración.
+
+# Línea de estado.
+ui.status.saved = Guardado.
+ui.status.saved_restart = Guardado. Entra en efecto al reiniciar.
+ui.status.removed = Anulación eliminada.
+ui.status.invalid_number = Ingrese un número válido (>= 0).
+ui.status.invalid_chance = Ingrese una probabilidad entre 0 y 1.
+ui.status.invalid_caps = El máximo debe ser al menos el mínimo.
+ui.status.unknown_preset = Preset desconocido.
+ui.status.match_required = Ingrese primero un patrón de coincidencia de mundo.

@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele, HUD katmanlarını ayarla.
-command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar; preset etkin ön ayarı değiştirir; intensity zorluk çarpanını ayarlar.
-command.usage = Kullanım: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar; preset etkin ön ayarı değiştirir; intensity zorluk çarpanını ayarlar; ui yönetici yapılandırma sayfasını açar.
+command.usage = Kullanım: /mobscaling <purge|inspect|hud|preset|intensity|ui>
 command.players_only = Bu komutu yalnızca bir oyuncu çalıştırabilir.
 command.purge.start = Bu dünyadaki yüklü yaratıklardan ölçekleme kalıntıları temizleniyor...
 command.purge.done = {count} yüklü yaratıktan ölçekleme kalıntıları temizlendi.
@@ -43,17 +43,20 @@ command.preset.active = Etkin ön ayar: {0}
 command.preset.available = Mevcut ön ayarlar: {0}
 command.preset.swapped = {0} ön ayarına geçildi.
 command.preset.unknown = Bilinmeyen ön ayar {0}. Mevcut olanlar: {1}
+command.preset.saved = Kaydedildi: etkin ön ayar artık yeniden başlatmalar arasında kalıcı.
 
 command.intensity.usage = Kullanım: /mobscaling intensity [çarpan]. >= 0 olan bir sayı (1.0 = tarafsız, daha yüksek = daha zor yaratıklar).
 command.intensity.current = Geçerli zorluk çarpanı: {value}
 command.intensity.set = Zorluk çarpanı {value} olarak ayarlandı.
 command.intensity.persist_hint = Yalnızca anlık değişiklik: yeniden başlatmalar arasında korumak için mods/MmoMobScaling/mob-scaling.json dosyasındaki Intensity anahtarını ayarla.
+command.intensity.saved = Kaydedildi: zorluk çarpanı artık yeniden başlatmalar arasında kalıcı.
 
 command.hud.usage = Kullanım: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Konumlar: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = Tüm oyuncular için HUD etkinleştirildi: {target}
 command.hud.disabled = Tüm oyuncular için HUD devre dışı bırakıldı: {target}
 command.hud.moved = {target}, {position} konumuna taşındı (kayma {x}, {y}).
 command.hud.persist_hint = Yalnızca anlık değişiklik: yeniden başlatmalar arasında korumak için mods/MmoMobScaling/mob-scaling.json dosyasındaki ZoneHud/InspectorHud anahtarlarını ayarla.
+command.hud.saved = Kaydedildi: HUD değişikliği artık yeniden başlatmalar arasında kalıcı.
 command.hud.target.zone = bölge zorluğu HUD'u
 command.hud.target.inspector = yaratık inceleme HUD'u
 command.arg.hud_target = Hangi HUD: zone veya inspector.
@@ -75,3 +78,79 @@ hud.zone.tier.deadly = Ölümcül
 
 hud.inspect.difficulty = Zorluk {value}
 hud.inspect.hp = {current} / {max}
+
+# ============================================================================
+# Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
+# ============================================================================
+ui.title = Yaratık Ölçeklemesi
+ui.tab.global = Genel
+ui.tab.zone_hud = Bölge HUD
+ui.tab.inspector = İnceleme Aracı
+ui.tab.worlds = Dünyalar
+
+ui.toggle.on = AÇIK
+ui.toggle.off = KAPALI
+
+ui.button.save = Kaydet
+ui.button.save_caps = Sınırları kaydet
+ui.button.save_esc = Kademeli artışı kaydet
+ui.button.save_position = Konumu kaydet
+ui.button.save_world = Geçersil kılmayı kaydet
+ui.button.clear = Formu temizle
+ui.button.edit = Düzenle
+ui.button.remove = Kaldır
+
+# Global tab.
+ui.global.enabled = Ölçekleme etkinleştirildi
+ui.global.enabled_note = Yeniden başlatmada etkili olur (mod, sistemlerini başlangıçta kaydeder).
+ui.global.preset = Etkin ön ayar
+ui.global.intensity = Zorluk çarpanı
+ui.global.rarity = Nadirlik belirme şansı
+ui.global.player_scaling = Oyuncu/grup ölçeklemesi
+ui.global.caps_header = Zorluk sınırları
+ui.global.min_cap = Minimum zorluk
+ui.global.max_cap = Maksimum zorluk
+ui.global.esc_header = Mesafe kademeli artışı
+ui.global.esc_enabled = Kademeli artış etkinleştirildi
+ui.global.esc_start = Başlangıç mesafesi (blok)
+ui.global.esc_blocks = Blok başına nokta
+ui.global.esc_max_bonus = Maksimum bonus
+ui.global.esc_rarity = Nokta başına nadirlik
+
+# Shared HUD tab rows.
+ui.hud.position = Konum
+ui.hud.offset_x = X Kaymı
+ui.hud.offset_y = Y Kaymı
+
+# Zone HUD tab.
+ui.zone.enabled = Bölge HUD'u etkinleştirildi
+ui.zone.show_location = Konum adını göster
+
+# Inspector HUD tab.
+ui.inspector.enabled = İnceleme aracı HUD'u etkinleştirildi
+ui.inspector.portrait = Portre göster
+ui.inspector.range = Menzil (blok)
+
+# Worlds tab (per-world WorldOverrides CRUD).
+ui.world.empty = Dünya başına geçersil kılma yok. Aşağıya bir tane ekleyin.
+ui.world.badge_override = geçersil
+ui.world.badge_default = varsayılan
+ui.world.editor_header = Geçersil kılmayı ekle / düzenle
+ui.world.match = Dünya eşleştir
+ui.world.intensity = Zorluk çarpanı
+ui.world.rarity = Nadirlik şansı
+ui.world.min_cap = Minimum zorluk
+ui.world.max_cap = Maksimum zorluk
+ui.world.player_scaling = Oyuncu ölçeklemesi
+ui.world.escalation = Mesafe kademeli artışı
+ui.world.hint = Boş alanlar genel değeri devralır. İstatistik eğrisi ayarlama yapılandırma dosyasında kalır.
+
+# Status line.
+ui.status.saved = Kaydedildi.
+ui.status.saved_restart = Kaydedildi. Yeniden başlatmada etkili olur.
+ui.status.removed = Geçersil kılma kaldırıldı.
+ui.status.invalid_number = Geçerli bir sayı girin (>= 0).
+ui.status.invalid_chance = 0 ile 1 arasında bir şans girin.
+ui.status.invalid_caps = Maksimum en az minimum kadar olmalıdır.
+ui.status.unknown_preset = Bilinmeyen ön ayar.
+ui.status.match_required = Önce bir dünya eşleştir modeli girin.

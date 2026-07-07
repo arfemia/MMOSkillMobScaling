@@ -1,0 +1,286 @@
+$C = "../Common.ui";
+$F = "../Common/ZigFrames.ui";
+$Z = "../Common/ZigButtons.ui";
+
+// MMO Mob Scaling admin config page (com.ziggfreed.mmomobscaling.pages.MobScalingAdminPage).
+// Four tabs over the one shared ziggfreed-common decorated frame: Global knobs, Zone HUD, Mob
+// Inspector HUD, and a per-world WorldOverrides CRUD editor. Every #Mmoscaling* id is mod-prefixed
+// (the client UI namespace is flat + cross-mod). ALL display text is pushed from Java on .TextSpans
+// (never .Text) as client-resolved Messages. EVERY labelled button is a RICH ZigRichButton (a Button
+// + inner #Label, label set via ZigRichButton.text) - NEVER a TextButton.Text sink. Numbers are
+// $C.@TextField + a Save button (there is no native slider). Per-world rows are appended from the
+// shared Pages/ZigListRow.ui. Smoke-test in-game (.ui is not gradle-validated).
+
+// ---- local styles / templates ----
+@DropStyle = DropdownBoxStyle(
+  ...$C.@DefaultDropdownBoxStyle,
+  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
+);
+@HeaderStyle = (FontSize: 15, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+@RowLabelStyle = (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+@NoteStyle = (FontSize: 11, TextColor: #8696a8, VerticalAlignment: Center);
+
+// A label + control row.
+@Row = Group {
+  LayoutMode: Left;
+  Anchor: (Height: 32, Bottom: 5);
+};
+
+// The ONE rich button (Button backgrounds + click sounds + a centered inner #Label pushed via
+// .TextSpans). Used for tabs, toggles, and every save / clear button - ZigRichButton.text sets the
+// label, SettingsUiUtil.setToggle / setTabActive drive the state. @Style overridable per instance.
+@RichBtn = Button {
+  @Style = $Z.@ZigRichRowBtnStyle;
+  Style: @Style;
+  Anchor: (Height: 30);
+  Label #Label {
+    FlexWeight: 1;
+    Text: "";
+    Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+  }
+};
+
+// A section header line.
+@Header = Label {
+  Text: "";
+  Anchor: (Height: 24, Top: 6, Bottom: 4);
+  Style: @HeaderStyle;
+};
+
+$C.@PageOverlay {}
+
+$F.@ZigDecoratedFrame {
+  @CloseButton = true;
+  Anchor: (Width: 600, Height: 660);
+
+  #Content {
+    Label #MmoscalingTitle {
+      Text: "";
+      Anchor: (Height: 28, Bottom: 6);
+      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+    }
+
+    // Tab bar (rich buttons; active tab tinted from Java via SettingsUiUtil.setTabActive).
+    Group #MmoscalingTabBar {
+      LayoutMode: Left;
+      Anchor: (Height: 32, Bottom: 8);
+      @RichBtn #MmoscalingTabGlobal    { FlexWeight: 1; Anchor: (Height: 32); }
+      @RichBtn #MmoscalingTabZoneHud   { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
+      @RichBtn #MmoscalingTabInspector { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
+      @RichBtn #MmoscalingTabWorlds    { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
+    }
+
+    // The tab body: exactly one section is Visible at a time; each scrolls if it overflows.
+    Group #MmoscalingBody {
+      FlexWeight: 1;
+      LayoutMode: Top;
+
+      // ================= GLOBAL =================
+      Group #MmoscalingSectionGlobal {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+
+        @Row {
+          Label #MmoscalingEnabledLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingEnabledToggle { Anchor: (Width: 96, Height: 30); }
+        }
+        Label #MmoscalingEnabledNote { Text: ""; Anchor: (Height: 16, Bottom: 6); Style: @NoteStyle; }
+
+        @Row {
+          Label #MmoscalingPresetLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@DropdownBox #MmoscalingPresetDropdown { Anchor: (Width: 180, Height: 30); Style: @DropStyle; }
+        }
+
+        @Row {
+          Label #MmoscalingIntensityLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingIntensityField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+          @RichBtn #MmoscalingIntensitySave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Width: 66, Height: 30, Left: 6); }
+        }
+
+        @Row {
+          Label #MmoscalingRarityLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingRarityField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+          @RichBtn #MmoscalingRaritySave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Width: 66, Height: 30, Left: 6); }
+        }
+
+        @Row {
+          Label #MmoscalingPlayerScalingLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingPlayerScalingToggle { Anchor: (Width: 96, Height: 30); }
+        }
+
+        @Header #MmoscalingCapsHeader {}
+        @Row {
+          Label #MmoscalingMinCapLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingMinCapField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingMaxCapLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingMaxCapField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @RichBtn #MmoscalingCapsSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 30, Bottom: 6); }
+
+        @Header #MmoscalingEscHeader {}
+        @Row {
+          Label #MmoscalingEscEnabledLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingEscEnabledToggle { Anchor: (Width: 96, Height: 30); }
+        }
+        @Row {
+          Label #MmoscalingEscStartLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingEscStartField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingEscBlocksLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingEscBlocksField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingEscMaxBonusLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingEscMaxBonusField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingEscRarityLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingEscRarityField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @RichBtn #MmoscalingEscSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 30, Bottom: 6); }
+      }
+
+      // ================= ZONE HUD =================
+      Group #MmoscalingSectionZoneHud {
+        Visible: false;
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+
+        @Row {
+          Label #MmoscalingZoneEnabledLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingZoneEnabledToggle { Anchor: (Width: 96, Height: 30); }
+        }
+        @Row {
+          Label #MmoscalingZoneShowLocLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingZoneShowLocToggle { Anchor: (Width: 96, Height: 30); }
+        }
+        @Row {
+          Label #MmoscalingZonePosLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@DropdownBox #MmoscalingZonePosDropdown { Anchor: (Width: 180, Height: 30); Style: @DropStyle; }
+        }
+        @Row {
+          Label #MmoscalingZoneOffsetXLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingZoneOffsetXField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingZoneOffsetYLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingZoneOffsetYField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @RichBtn #MmoscalingZonePosSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 30, Bottom: 6); }
+      }
+
+      // ================= INSPECTOR HUD =================
+      Group #MmoscalingSectionInspector {
+        Visible: false;
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Right: 4);
+
+        @Row {
+          Label #MmoscalingInspectorEnabledLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingInspectorEnabledToggle { Anchor: (Width: 96, Height: 30); }
+        }
+        @Row {
+          Label #MmoscalingInspectorPortraitLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          @RichBtn #MmoscalingInspectorPortraitToggle { Anchor: (Width: 96, Height: 30); }
+        }
+        @Row {
+          Label #MmoscalingInspectorPosLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@DropdownBox #MmoscalingInspectorPosDropdown { Anchor: (Width: 180, Height: 30); Style: @DropStyle; }
+        }
+        @Row {
+          Label #MmoscalingInspectorOffsetXLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingInspectorOffsetXField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingInspectorOffsetYLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingInspectorOffsetYField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @RichBtn #MmoscalingInspectorPosSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 30, Bottom: 8); }
+        @Row {
+          Label #MmoscalingInspectorRangeLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingInspectorRangeField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+          @RichBtn #MmoscalingInspectorRangeSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Width: 66, Height: 30, Left: 6); }
+        }
+      }
+
+      // ================= WORLDS (per-world WorldOverrides CRUD) =================
+      Group #MmoscalingSectionWorlds {
+        Visible: false;
+        FlexWeight: 1;
+        LayoutMode: Top;
+
+        // Appended per-world rows (Pages/ZigListRow.ui): #Title = Match, #Sub = summary,
+        // #Badge = default/override, rich #EditBtn / #RemoveBtn.
+        Group #MmoscalingWorldList {
+          FlexWeight: 1;
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Right: 4);
+        }
+        Label #MmoscalingWorldEmpty {
+          Text: "";
+          Visible: false;
+          Anchor: (Height: 20, Top: 4, Bottom: 4);
+          Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center);
+        }
+
+        Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
+
+        // Add / edit editor. Blank numeric fields inherit the global fold; the dropdowns carry an
+        // Inherit option. StatCurve per-world stays file-authored (the hint says so).
+        @Header #MmoscalingWorldEditorHeader {}
+        @Row {
+          Label #MmoscalingWorldMatchLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldMatchField { Anchor: (Width: 220, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldIntensityLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldIntensityField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldRarityLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldRarityField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldMinCapLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldMinCapField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldMaxCapLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldMaxCapField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldPlayerScalingLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@DropdownBox #MmoscalingWorldPlayerScalingDropdown { Anchor: (Width: 140, Height: 30); Style: @DropStyle; }
+        }
+        @Row {
+          Label #MmoscalingWorldEscLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@DropdownBox #MmoscalingWorldEscDropdown { Anchor: (Width: 140, Height: 30); Style: @DropStyle; }
+        }
+        Label #MmoscalingWorldHint { Text: ""; Anchor: (Height: 16, Bottom: 6); Style: @NoteStyle; }
+        Group {
+          LayoutMode: Left;
+          Anchor: (Height: 32);
+          @RichBtn #MmoscalingWorldSave  { @Style = $Z.@ZigRichPrimaryBtnStyle; FlexWeight: 1; Anchor: (Height: 32); }
+          @RichBtn #MmoscalingWorldClear { FlexWeight: 1; Anchor: (Height: 32, Left: 6); }
+        }
+      }
+    }
+
+    Label #MmoscalingStatus {
+      Text: "";
+      Visible: false;
+      Anchor: (Height: 20, Top: 6);
+      Style: (FontSize: 12, TextColor: #4aff7f, HorizontalAlignment: Center);
+    }
+  }
+}

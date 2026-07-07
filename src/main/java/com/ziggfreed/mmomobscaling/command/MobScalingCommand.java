@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalAr
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProvider;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -27,13 +28,15 @@ import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
-import com.ziggfreed.mmomobscaling.hud.HudPosition;
+import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
+import com.ziggfreed.mmomobscaling.pages.MobScalingAdminPage;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
@@ -108,8 +111,37 @@ public final class MobScalingCommand extends CommandBase {
             case "hud" -> hud(ctx);
             case "preset" -> preset(ctx);
             case "intensity" -> intensity(ctx);
+            case "ui" -> openUi(ctx);
             default -> ctx.sendMessage(Message.translation("scaling.command.usage"));
         }
+    }
+
+    /** Open the in-game admin config page ({@code /mobscaling ui}); the whole page is admin-gated here. */
+    private void openUi(@Nonnull CommandContext ctx) {
+        if (!(ctx.sender() instanceof PlayerRef player)) {
+            ctx.sendMessage(Message.translation("scaling.command.players_only"));
+            return;
+        }
+        World world = Universe.get().getWorld(player.getWorldUuid());
+        if (world == null) {
+            return;
+        }
+        world.execute(() -> {
+            try {
+                Ref<EntityStore> ref = player.getReference();
+                if (ref == null || !ref.isValid()) {
+                    return;
+                }
+                Store<EntityStore> store = world.getEntityStore().getStore();
+                Player p = store.getComponent(ref, Player.getComponentType());
+                if (p == null) {
+                    return;
+                }
+                p.getPageManager().openCustomPage(ref, store, new MobScalingAdminPage(player));
+            } catch (Throwable t) {
+                safeWarn("ui open failed: " + t);
+            }
+        });
     }
 
     /** Report or live-swap the active preset (owner-file persistence needs a restart-free hint). */
@@ -142,8 +174,9 @@ public final class MobScalingCommand extends CommandBase {
         if (inspectorPos != null) {
             MobInspectorHud.refreshPositionForAllOnline(inspectorPos);
         }
+        MobScalingOwnerWriter.saveActivePreset(cfg.getActivePreset());
         ctx.sendMessage(Message.translation("scaling.command.preset.swapped").param("0", cfg.getActivePreset()));
-        ctx.sendMessage(Message.translation("scaling.command.hud.persist_hint"));
+        ctx.sendMessage(Message.translation("scaling.command.preset.saved"));
     }
 
     /**
@@ -171,9 +204,9 @@ public final class MobScalingCommand extends CommandBase {
             ctx.sendMessage(Message.translation("scaling.command.intensity.usage"));
             return;
         }
-        cfg.setIntensityRuntime(value);
+        MobScalingOwnerWriter.saveIntensity(value);
         ctx.sendMessage(Message.translation("scaling.command.intensity.set").param("value", cfg.getIntensity()));
-        ctx.sendMessage(Message.translation("scaling.command.intensity.persist_hint"));
+        ctx.sendMessage(Message.translation("scaling.command.intensity.saved"));
     }
 
     /** Live-tune one HUD overlay: on/off for everyone, or a named-corner reposition (runtime only). */
@@ -197,16 +230,16 @@ public final class MobScalingCommand extends CommandBase {
         if ("on".equals(value) || "off".equals(value)) {
             boolean enabled = "on".equals(value);
             if (zone) {
-                cfg.setZoneHudEnabledRuntime(enabled);
+                MobScalingOwnerWriter.saveZoneHudEnabled(enabled);
                 ZoneDifficultyHud.setEnabledForAllOnline(enabled);
             } else {
-                cfg.setInspectorHudEnabledRuntime(enabled);
+                MobScalingOwnerWriter.saveInspectorHudEnabled(enabled);
                 MobInspectorHud.setEnabledForAllOnline(enabled);
             }
             ctx.sendMessage(Message.translation(enabled
                     ? "scaling.command.hud.enabled"
                     : "scaling.command.hud.disabled").param("target", targetName));
-            ctx.sendMessage(Message.translation("scaling.command.hud.persist_hint"));
+            ctx.sendMessage(Message.translation("scaling.command.hud.saved"));
             return;
         }
 
@@ -231,10 +264,10 @@ public final class MobScalingCommand extends CommandBase {
             return;
         }
         if (zone) {
-            cfg.setZoneHudPositionRuntime(preset, offsetX, offsetY);
+            MobScalingOwnerWriter.saveZoneHudPosition(preset, offsetX, offsetY);
             ZoneDifficultyHud.refreshPositionForAllOnline(position);
         } else {
-            cfg.setInspectorHudPositionRuntime(preset, offsetX, offsetY);
+            MobScalingOwnerWriter.saveInspectorHudPosition(preset, offsetX, offsetY);
             MobInspectorHud.refreshPositionForAllOnline(position);
         }
         ctx.sendMessage(Message.translation("scaling.command.hud.moved")
@@ -242,7 +275,7 @@ public final class MobScalingCommand extends CommandBase {
                 .param("position", preset)
                 .param("x", offsetX)
                 .param("y", offsetY));
-        ctx.sendMessage(Message.translation("scaling.command.hud.persist_hint"));
+        ctx.sendMessage(Message.translation("scaling.command.hud.saved"));
     }
 
     /** Strip HP-modifier + infinite-effect residue off every loaded NPC in the caller's world. */

@@ -2,6 +2,28 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
+## 1.0.2 (unreleased, in-game-validation pending)
+
+An in-game admin config UI plus full persistence for every runtime tuning path. Requires MMO Skill Tree
+1.5.0+ and Ziggfreed's CommonLib 1.3.0+.
+
+- New: an in-game admin config page, `/mobscaling ui` (admin only). Four tabs - Global (Enabled, active
+  preset, Intensity, RaritySpawnChance, player/group scaling, difficulty caps, distance escalation), Zone
+  HUD and Mob Inspector HUD (enable, position preset + pixel offsets, sub-toggles, inspector range), and
+  Worlds (a full per-world `WorldOverrides` CRUD editor: add / edit / remove overlays, each row badged
+  shipped-default vs owner-override, blank fields inherit the global fold). Every edit writes the owner
+  file `mods/MmoMobScaling/mob-scaling.json` and refolds live; HUD + preset edits apply to all online
+  players with no reconnect. `Enabled` shows a "takes effect on restart" note (the zero-cost registration
+  gate registers systems at startup).
+- New: full persistence for the live commands. `/mobscaling intensity`, `/mobscaling hud`, and
+  `/mobscaling preset` now SAVE to the owner file (they were runtime-only in 1.0.1, lost on restart). The
+  UI and the commands share ONE write-back path (`config/MobScalingOwnerWriter` -> the owner file ->
+  `MobScalingConfig.refreshFromDisk`), so a change made either way sticks and applies live.
+- Change: requires Ziggfreed's CommonLib 1.3.0+ - the shared settings-UI toolkit the admin page consumes
+  (`util/JsonOverrideWriter` owner-file write-back, `ui/hud/HudPosition` layout value, `ui/SettingsUiUtil`
+  form binding, `Pages/ZigListRow.ui` row). The mod's private `hud/HudPosition` copy is retired in favour
+  of the lifted common one (identical behavior).
+
 ## 1.0.1 (unreleased, in-game-validation pending)
 
 Per-world / per-instance tuning plus a live intensity dial. Requires MMO Skill Tree 1.5.0+ and

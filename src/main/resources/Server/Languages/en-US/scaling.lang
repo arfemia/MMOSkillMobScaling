@@ -16,8 +16,8 @@ name.variant_decorated = {variant} {inner}
 
 # /mobscaling admin command (descriptions resolve as lang keys; hytale:Admin only).
 command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty, tune the HUD overlays.
-command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays; preset switches the active preset; intensity tunes the difficulty multiplier.
-command.usage = Usage: /mobscaling <purge|inspect|hud|preset|intensity>
+command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays; preset switches the active preset; intensity tunes the difficulty multiplier; ui opens the admin config page.
+command.usage = Usage: /mobscaling <purge|inspect|hud|preset|intensity|ui>
 command.arg.intensity = The intensity multiplier (>= 0; 1.0 neutral, higher = tougher mobs). Omit to show the current value.
 command.players_only = This command must be run by a player.
 command.purge.start = Sweeping scaling residue off loaded mobs in this world...
@@ -37,12 +37,14 @@ command.preset.active = Active preset: {0}
 command.preset.available = Available presets: {0}
 command.preset.swapped = Switched to preset {0}.
 command.preset.unknown = Unknown preset {0}. Available: {1}
+command.preset.saved = Saved: the active preset now persists across restarts.
 
 # /mobscaling intensity - live-tune the GLOBAL difficulty-to-stat multiplier (runtime only; the owner file is the persistent authority).
 command.intensity.current = Current intensity multiplier: {value}
 command.intensity.set = Intensity multiplier set to {value}.
 command.intensity.usage = Usage: /mobscaling intensity [multiplier]. A number >= 0 (1.0 = neutral, higher = tougher mobs).
 command.intensity.persist_hint = Live change only: to keep it across restarts, set the Intensity key in mods/MmoMobScaling/mob-scaling.json.
+command.intensity.saved = Saved: the intensity multiplier now persists across restarts.
 
 # /mobscaling hud - live overlay tuning (runtime only; the owner file is the persistent authority).
 command.hud.usage = Usage: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positions: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
@@ -50,6 +52,7 @@ command.hud.enabled = HUD enabled for all players: {target}
 command.hud.disabled = HUD disabled for all players: {target}
 command.hud.moved = Repositioned {target} to {position} (offset {x}, {y}).
 command.hud.persist_hint = Live change only: to keep it across restarts, set the ZoneHud/InspectorHud keys in mods/MmoMobScaling/mob-scaling.json.
+command.hud.saved = Saved: the HUD change now persists across restarts.
 command.hud.target.zone = zone difficulty HUD
 command.hud.target.inspector = mob inspector HUD
 command.arg.hud_target = Which HUD: zone or inspector.
@@ -87,3 +90,79 @@ affix.freezing.name = Freezing
 affix.freezing.desc = Its chilling touch numbs and slows the unwary.
 affix.venomous.name = Venomous
 affix.venomous.desc = Its bite courses with burning venom.
+
+# ============================================================================
+# Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
+# ============================================================================
+ui.title = Mob Scaling
+ui.tab.global = Global
+ui.tab.zone_hud = Zone HUD
+ui.tab.inspector = Inspector
+ui.tab.worlds = Worlds
+
+ui.toggle.on = ON
+ui.toggle.off = OFF
+
+ui.button.save = Save
+ui.button.save_caps = Save caps
+ui.button.save_esc = Save escalation
+ui.button.save_position = Save position
+ui.button.save_world = Save override
+ui.button.clear = Clear form
+ui.button.edit = Edit
+ui.button.remove = Remove
+
+# Global tab.
+ui.global.enabled = Scaling enabled
+ui.global.enabled_note = Takes effect on restart (the mod registers its systems at startup).
+ui.global.preset = Active preset
+ui.global.intensity = Intensity multiplier
+ui.global.rarity = Rarity spawn chance
+ui.global.player_scaling = Player/group scaling
+ui.global.caps_header = Difficulty caps
+ui.global.min_cap = Minimum difficulty
+ui.global.max_cap = Maximum difficulty
+ui.global.esc_header = Distance escalation
+ui.global.esc_enabled = Escalation enabled
+ui.global.esc_start = Start distance (blocks)
+ui.global.esc_blocks = Blocks per point
+ui.global.esc_max_bonus = Max bonus
+ui.global.esc_rarity = Rarity per point
+
+# Shared HUD tab rows.
+ui.hud.position = Position
+ui.hud.offset_x = Offset X
+ui.hud.offset_y = Offset Y
+
+# Zone HUD tab.
+ui.zone.enabled = Zone HUD enabled
+ui.zone.show_location = Show location name
+
+# Inspector HUD tab.
+ui.inspector.enabled = Inspector HUD enabled
+ui.inspector.portrait = Show portrait
+ui.inspector.range = Range (blocks)
+
+# Worlds tab (per-world WorldOverrides CRUD).
+ui.world.empty = No per-world overrides. Add one below.
+ui.world.badge_override = override
+ui.world.badge_default = default
+ui.world.editor_header = Add / edit override
+ui.world.match = World match
+ui.world.intensity = Intensity
+ui.world.rarity = Rarity chance
+ui.world.min_cap = Minimum difficulty
+ui.world.max_cap = Maximum difficulty
+ui.world.player_scaling = Player scaling
+ui.world.escalation = Distance escalation
+ui.world.hint = Blank fields inherit the global value. Stat curve tuning stays in the config file.
+
+# Status line.
+ui.status.saved = Saved.
+ui.status.saved_restart = Saved. Takes effect on restart.
+ui.status.removed = Override removed.
+ui.status.invalid_number = Enter a valid number (>= 0).
+ui.status.invalid_chance = Enter a chance between 0 and 1.
+ui.status.invalid_caps = Maximum must be at least the minimum.
+ui.status.unknown_preset = Unknown preset.
+ui.status.match_required = Enter a world match pattern first.

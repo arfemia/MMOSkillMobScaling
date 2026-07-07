@@ -13,7 +13,8 @@ lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKi
 provider), the native `ItemDropList` death loot (`MobScalingLootDropSystem` + per-rarity
 `Server/Drops/*` tables), the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
-`boss` tier), `/mobscaling purge|inspect|hud`, content validation, 9-locale `scaling.lang`, and TWO
+`boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|ui` (1.0.2 adds `ui`, the in-game admin
+config page, + full write-back persistence for every runtime edit), content validation, 9-locale `scaling.lang`, and TWO
 player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
 crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
 concerns pass ADDED: the NATIVE-ZONE floor resolver (`world/ZoneDifficultyResolver`: authored
@@ -47,9 +48,11 @@ Both dependencies are provided at runtime (loaded first) and referenced `compile
 NEVER bundled (bundling double-loads engine-touching classes under two classloaders and
 breaks class identity):
 
-- **ZiggfreedCommon >= 1.2.0** (`compileOnly files(ziggfreedCommonJar)`, pin
-  `ziggfreedCommonVersion`) - the shared primitive lib; its `scaling/` engine is the fold
-  this mod builds on.
+- **ZiggfreedCommon >= 1.3.0** (`compileOnly files(ziggfreedCommonJar)`, pin
+  `ziggfreedCommonVersion`) - the shared primitive lib; its `scaling/` engine is the fold this mod
+  builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
+  `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`) backs the admin page. The
+  mod's own `hud/HudPosition` copy was retired for the lifted common one.
 - **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
   `MMOSkillTree-1.5.0.jar` dev jar (pin `mmoSkillTreeVersion=1.5.0`), which carries the frozen 1.5.0 API
   the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /
@@ -105,6 +108,12 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
 - The **authoritative defaults** ship as the codec asset
   `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
   key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).
+- **WRITE-BACK (1.0.2): `config/MobScalingOwnerWriter` is the ONE path that persists a runtime edit** to
+  that owner file (partial-override write via the common `util/JsonOverrideWriter`, then
+  `MobScalingConfig.refreshFromDisk` refolds live). BOTH the admin UI ([`pages/MobScalingAdminPage`](src/main/java/com/ziggfreed/mmomobscaling/pages/CLAUDE.md), `/mobscaling ui`)
+  AND the `/mobscaling intensity|hud|preset` commands go through it, so a live change now STICKS across a
+  restart (1.0.1's runtime-only setters remain but are superseded). Never write the owner file or mutate
+  `MobScalingConfig` fields from a page/command directly - route through `MobScalingOwnerWriter`.
 - **[`config/MobScalingConfig`](src/main/java/com/ziggfreed/mmomobscaling/config/MobScalingConfig.java)**
   reads the settings through TWO codec-driven paths (the `WorldRulesConfig` dual mechanism), folding
   owner-over-default, then exposes typed getters:

@@ -189,6 +189,12 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         this.configPath = configPath;
     }
 
+    /** The owner override file path a write-back layer targets ({@code null} = defaults only / no path set). */
+    @Nullable
+    public Path getConfigPath() {
+        return configPath;
+    }
+
     /**
      * Load the effective settings: decode the jar Default.json (authoritative defaults) then overlay
      * the owner file (if present). Both via the codec. Fully guarded: a missing/unreadable bundled
@@ -295,6 +301,19 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         MobScalingSettingsAsset owner = decode(readOwnerFile(), ownerLabel());
         applyFold(jarDefaults, match, owner);
         return true;
+    }
+
+    /**
+     * Re-read the owner override file and re-fold the effective settings IN PLACE, PRESERVING the current
+     * in-memory {@link #activePreset} + loaded store (via {@link #refoldFromStore}). The single reconcile a
+     * write-back layer ({@code MobScalingOwnerWriter}) calls after persisting a change to
+     * {@code mods/MmoMobScaling/mob-scaling.json}, so the live config == the owner file with no restart.
+     * Rebuilds {@link #worldOverrideEntries} + clears the per-world view cache (both inside
+     * {@link #applyFold}). Safe before the async {@code LoadedAssetsEvent} (store null -> folds
+     * owner-over-jar, same as {@link #load()}).
+     */
+    public void refreshFromDisk() {
+        refoldFromStore(decode(readOwnerFile(), ownerLabel()));
     }
 
     /** The preset asset for {@code name} (exact key first, then case-insensitive); {@code null} if none. */
@@ -790,6 +809,45 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private SpawnScalingSettings resolveView(@Nonnull String worldName) {
         WorldOverride ov = WorldOverrideMatcher.resolve(this.worldOverrideEntries, worldName);
         return ov == null ? this : new ResolvedWorldSettings(this, ov);
+    }
+
+    /**
+     * The FOLDED per-world overrides (jar + preset + owner, concatenated + deduped by {@code Match}), in
+     * fold order - each an effective {@link WorldOverride} whose leaves the admin UI renders + pre-fills an
+     * edit from. Empty when no overrides are authored on any layer.
+     */
+    @Nonnull
+    public List<WorldOverride> worldOverrideView() {
+        List<WorldOverrideMatcher.Entry> entries = this.worldOverrideEntries;
+        if (entries.isEmpty()) {
+            return List.of();
+        }
+        List<WorldOverride> out = new ArrayList<>(entries.size());
+        for (WorldOverrideMatcher.Entry e : entries) {
+            out.add(e.override);
+        }
+        return out;
+    }
+
+    /**
+     * The FOLDED override whose authored {@code Match} equals {@code match} (case-insensitive), or
+     * {@code null} if none. Pre-fills the admin editor from the effective entry so editing a jar-shipped
+     * default carries its leaves forward (the fold replaces a {@code WorldOverride} by {@code Match} WHOLE,
+     * so an omitted leaf would otherwise be lost). Matches by the AUTHORED pattern, not by world resolution.
+     */
+    @Nullable
+    public WorldOverride effectiveWorldOverride(@Nullable String match) {
+        if (match == null || match.isBlank()) {
+            return null;
+        }
+        String want = match.trim().toLowerCase(Locale.ROOT);
+        for (WorldOverrideMatcher.Entry e : this.worldOverrideEntries) {
+            String m = e.override.getMatch();
+            if (m != null && m.trim().toLowerCase(Locale.ROOT).equals(want)) {
+                return e.override;
+            }
+        }
+        return null;
     }
 
     /**
