@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Strumenti di amministrazione del ridimensionamento delle creature: rimuovere i residui, ispezionare la difficoltà locale, regolare le sovrimpressioni HUD.
-command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni; preset attiva il preset selezionato; intensity regola il moltiplicatore di difficoltà; ui apre la pagina di configurazione amministratore.
-command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni; preset attiva il preset selezionato; intensity regola il moltiplicatore di difficoltà; worlds elenca i file di impostazioni per mondo; ui apre la pagina di configurazione amministratore.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.players_only = Questo comando può essere eseguito solo da un giocatore.
 command.preset.usage = Uso: /mobscaling preset [nome]
 command.preset.active = Preset attivo: {0}
@@ -33,6 +33,14 @@ command.preset.available = Preset disponibili: {0}
 command.preset.swapped = Passato al preset {0}.
 command.preset.unknown = Preset sconosciuto {0}. Disponibili: {1}
 command.preset.saved = Salvato: il preset attivo persiste ora tra i riavvii.
+
+# /mobscaling worlds - elenca i file di impostazioni per mondo uniti (Worlds/*.json tra jar, pacchetti e file del proprietario).
+command.worlds.empty = Nessun file di impostazioni per mondo caricato.
+command.worlds.header = Impostazioni per mondo ({count} file):
+command.worlds.entry = {id}: corrispondenza {match}, principale {parent}, {origin}, ridimensionamento attivo: {enabled}
+command.worlds.base = (solo base, mai corrispondente)
+command.worlds.origin_owner = file del proprietario
+command.worlds.origin_shipped = incluso
 
 command.intensity.current = Moltiplicatore di intensità attuale: {value}
 command.intensity.set = Moltiplicatore di intensità impostato a {value}.
@@ -133,23 +141,29 @@ ui.inspector.portrait = Mostra ritratto
 ui.inspector.range = Portata (blocchi)
 
 # Worlds tab (per-world WorldOverrides CRUD).
-ui.world.empty = Nessun override per mondo specifico. Aggiungine uno sotto.
+ui.world.empty = Nessun file di impostazioni per mondo. Aggiungine uno sotto.
 ui.world.badge_override = override
-ui.world.badge_default = default
-ui.world.editor_header = Aggiungi / modifica override
+ui.world.badge_default = incluso
+ui.world.editor_header = Aggiungi / modifica mondo
+ui.world.id = Nome file
 ui.world.match = Corrispondenza mondo
+ui.world.parent = File principale
+ui.world.enabled = Ridimensionamento in questo mondo
+ui.world.floor = Soglia di difficoltà di base
 ui.world.intensity = Intensità
 ui.world.rarity = Probabilità rarità
 ui.world.min_cap = Difficoltà minima
 ui.world.max_cap = Difficoltà massima
 ui.world.player_scaling = Ridimensionamento giocatore
 ui.world.escalation = Escalation distanza
-ui.world.hint = I campi vuoti ereditano il valore globale. L'ottimizzazione della curva statistica rimane nel file di configurazione.
+ui.world.hint = Ogni mondo ha un proprio file. I campi vuoti ereditano dal file principale, poi dal valore globale. Pool, curva delle statistiche e regolazione HUD restano nel file.
 
 # Status line.
 ui.status.saved = Salvato.
 ui.status.saved_restart = Salvato. Entra in vigore al riavvio.
-ui.status.removed = Override rimosso.
+ui.status.world_deleted = File del mondo rimosso. Un file incluso con lo stesso nome torna ad applicarsi.
+ui.status.invalid_parent = Inserisci un file diverso come principale (un file non può ereditare da se stesso).
+ui.status.save_failed = Impossibile scrivere il file del mondo.
 ui.status.invalid_number = Inserisci un numero valido (>= 0).
 ui.status.invalid_chance = Inserisci una probabilità tra 0 e 1.
 ui.status.invalid_caps = Il massimo deve essere almeno il minimo.

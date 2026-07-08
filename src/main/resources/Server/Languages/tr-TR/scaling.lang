@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Yaratık ölçekleme yönetici araçları: kalıntıları temizle, yerel zorluğu incele, HUD katmanlarını ayarla.
-command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect bulunduğun konumdaki zorluk değerlerini gösterir; hud katmanları ayarlar; preset etkin ön ayarı değiştirir; intensity zorluk çarpanını ayarlar; ui yönetici yapılandırma sayfasını açar.
-command.usage = Kullanım: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Alt komut: purge yüklü yaratıklardaki ölçekleme kalıntılarını temizler; inspect buradaki zorluk girdilerini bildirir; hud katmanları ayarlar; preset etkin ön ayarı değiştirir; intensity zorluk çarpanını ayarlar; worlds dünya başına ayar dosyalarını listeler; ui yönetici yapılandırma sayfasını açar.
+command.usage = Kullanım: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.players_only = Bu komutu yalnızca bir oyuncu çalıştırabilir.
 command.purge.start = Bu dünyadaki yüklü yaratıklardan ölçekleme kalıntıları temizleniyor...
 command.purge.done = {count} yüklü yaratıktan ölçekleme kalıntıları temizlendi.
@@ -44,6 +44,13 @@ command.preset.available = Mevcut ön ayarlar: {0}
 command.preset.swapped = {0} ön ayarına geçildi.
 command.preset.unknown = Bilinmeyen ön ayar {0}. Mevcut olanlar: {1}
 command.preset.saved = Kaydedildi: etkin ön ayar artık yeniden başlatmalar arasında kalıcı.
+
+command.worlds.empty = Yüklenmiş dünya başına ayar dosyası yok.
+command.worlds.header = Dünya başına ayarlar ({count} dosya):
+command.worlds.entry = {id}: eşleşme {match}, üst {parent}, {origin}, ölçekleme etkin: {enabled}
+command.worlds.base = (yalnızca temel, asla eşleşmez)
+command.worlds.origin_owner = sahip dosyası
+command.worlds.origin_shipped = yerleşik
 
 command.intensity.usage = Kullanım: /mobscaling intensity [çarpan]. >= 0 olan bir sayı (1.0 = tarafsız, daha yüksek = daha zor yaratıklar).
 command.intensity.current = Geçerli zorluk çarpanı: {value}
@@ -132,23 +139,29 @@ ui.inspector.portrait = Portre göster
 ui.inspector.range = Menzil (blok)
 
 # Worlds tab (per-world WorldOverrides CRUD).
-ui.world.empty = Dünya başına geçersil kılma yok. Aşağıya bir tane ekleyin.
+ui.world.empty = Dünya başına ayar dosyası yok. Aşağıya bir tane ekleyin.
 ui.world.badge_override = geçersil
-ui.world.badge_default = varsayılan
-ui.world.editor_header = Geçersil kılmayı ekle / düzenle
+ui.world.badge_default = yerleşik
+ui.world.editor_header = Dünya ekle / düzenle
+ui.world.id = Dosya adı
 ui.world.match = Dünya eşleştir
+ui.world.parent = Üst dosya
+ui.world.enabled = Bu dünyada ölçekleme
+ui.world.floor = Temel zorluk tabanı
 ui.world.intensity = Zorluk çarpanı
 ui.world.rarity = Nadirlik şansı
 ui.world.min_cap = Minimum zorluk
 ui.world.max_cap = Maksimum zorluk
 ui.world.player_scaling = Oyuncu ölçeklemesi
 ui.world.escalation = Mesafe kademeli artışı
-ui.world.hint = Boş alanlar genel değeri devralır. İstatistik eğrisi ayarlama yapılandırma dosyasında kalır.
+ui.world.hint = Her dünya kendi dosyasıdır. Boş alanlar önce üst dosyadan, sonra genel değerden devralınır. Havuz, istatistik eğrisi ve HUD ayarları dosyada kalır.
 
 # Status line.
 ui.status.saved = Kaydedildi.
 ui.status.saved_restart = Kaydedildi. Yeniden başlatmada etkili olur.
-ui.status.removed = Geçersil kılma kaldırıldı.
+ui.status.world_deleted = Dünya dosyası kaldırıldı. Aynı adı taşıyan yerleşik dosya yeniden geçerli olur.
+ui.status.invalid_parent = Üst dosya olarak farklı bir dosya girin (bir dosya kendisinden devralamaz).
+ui.status.save_failed = Dünya dosyası yazılamadı.
 ui.status.invalid_number = Geçerli bir sayı girin (>= 0).
 ui.status.invalid_chance = 0 ile 1 arasında bir şans girin.
 ui.status.invalid_caps = Maksimum en az minimum kadar olmalıdır.

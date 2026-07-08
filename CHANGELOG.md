@@ -4,17 +4,60 @@ All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
 ## 1.0.2 (unreleased, in-game-validation pending)
 
-An in-game admin config UI plus full persistence for every runtime tuning path. Requires MMO Skill Tree
-1.5.0+ and Ziggfreed's CommonLib 1.3.0+.
+Per-world config reworked onto its own files with inheritance, more per-world knobs, an in-game admin
+config UI, and full persistence for every runtime tuning path. Requires MMO Skill Tree 1.5.0+ (the build
+that removes the old WorldRules mob-scaling baseline - update BOTH together) and Ziggfreed's CommonLib
+1.3.0+.
 
+- Change (schema rework): per-world settings move OUT of the inline `WorldOverrides` array into their own
+  keyed asset files, `Server/MmoMobScaling/Worlds/*.json` (packs/jar) + a scanned owner dir
+  `mods/MmoMobScaling/worlds/*.json` (one file per world rule; filename = id; a bare body is canonical,
+  the pack-style `Payload` wrapper is accepted). A file carries the world `Match` selector (same exact >
+  longest-`*`-prefix > `*` precedence) and may carry a top-level `"Parent": "<other-file-id>"`: unset
+  leaves walk up the Parent chain (cross-layer, cycle-guarded, resolved by CommonLib's new
+  `JsonParentResolver`), and whatever is still unset falls through to the GLOBAL effective settings - so
+  a file is a partial overlay by default and a full custom definition when fully authored. A file with no
+  `Match` is a pool-only BASE others inherit from. Layering across jar/pack/owner is replace-by-id
+  (inheritance is Parent's job); everything decodes through ONE schema authority (`WorldSettings.CODEC`).
+  A legacy owner `WorldOverrides` array (shipped in 1.0.1) MIGRATES automatically on first boot: each
+  entry becomes its own `worlds/<match>.json` (the old top-level `PlayerScalingEnabled` moves under
+  `OpenWorld`) and the array is stripped from the owner file. The old inline array on presets no longer
+  decodes.
+- New: per-world kill-switch + baseline floor, absorbed from the MMO jar. A world file's `Enabled: false`
+  turns scaling off in matching worlds (residue is stripped on load); `Difficulty.Floor` is the
+  world-baseline difficulty floor under the zone/biome `Difficulty/*.json` mappings (global default 30.0
+  in `Settings/Default.json`). These replace the never-released `WorldRules.MobScaling` group on the MMO
+  jar - mob difficulty now has exactly ONE per-world authoring surface (this mod's files). BREAKING pair:
+  MMO Skill Tree 1.5.0 removes that group, so update both mods in the same deploy.
+- New: the WHOLE `OpenWorld` group is per-world (AggregationMode, GroupDeltaBandWidth,
+  OnlyRaiseDifficulty, AllowDifficultyIncreaseOnPartyJoin, LateArrivalBumpFactor, CompositionEnabled,
+  PlayerScalingEnabled). `RegionSizeChunks` alone stays global (the region-power grid must stay
+  consistent).
+- New: a per-world `Pool` group gating what rolls in a world: `Rarities`/`Variants`/`Affixes` each take
+  `Allow`/`Deny` id lists (deny wins; absent = allow-all), `Variants.ChanceMultiplier` scales every
+  eligible variant's absolute chance (0 = no variants in that world), and `Affixes.ExtraSlots` rolls
+  bonus affixes on top of the rarity/variant slots (a plain, variant-less mob has no host, so extras are
+  a no-op there). So an endgame dungeon can spawn only Elite+, roll double variants, and stack an extra
+  affix - per world, no Java.
+- New: per-world HUD visibility. A world file's `ZoneHud.Enabled: false` / `InspectorHud.Enabled: false`
+  hides that overlay in matching worlds as players cross world borders (a per-world `true` cannot
+  re-enable a globally-off HUD; the global toggle stays the cheap fast path).
+- New: `/mobscaling worlds` lists the folded per-world files (id, Match or base-only, Parent,
+  owner-vs-shipped origin, kill-switch state).
+- Change: the shipped dungeon defaults moved from `Settings/Default.json`'s inline array to jar world
+  files that exercise the new inheritance: `Worlds/DungeonOfFear_Base.json` (a pool-only base:
+  escalation off) inherited by `DungeonOfFear_I/II/III.json` (I + II also pin player scaling off), plus
+  `Worlds/KweebecNightmare.json` (`Enabled: false` - absorbed from the MMO jar's old default).
 - New: an in-game admin config page, `/mobscaling ui` (admin only). Four tabs - Global (Enabled, active
   preset, Intensity, RaritySpawnChance, player/group scaling, difficulty caps, distance escalation), Zone
   HUD and Mob Inspector HUD (enable, position preset + pixel offsets, sub-toggles, inspector range), and
-  Worlds (a full per-world `WorldOverrides` CRUD editor: add / edit / remove overlays, each row badged
-  shipped-default vs owner-override, blank fields inherit the global fold). Every edit writes the owner
-  file `mods/MmoMobScaling/mob-scaling.json` and refolds live; HUD + preset edits apply to all online
-  players with no reconnect. `Enabled` shows a "takes effect on restart" note (the zero-cost registration
-  gate registers systems at startup).
+  Worlds (a per-world FILE editor: add / edit / delete `worlds/*.json`, each row badged shipped vs
+  owner override, with file name / Match / Parent / kill-switch / baseline floor / intensity / rarity
+  chance / caps / player scaling / escalation; blank fields inherit; deleting an owner file re-exposes
+  the shipped file underneath; the Pool / OpenWorld-rest / HUD / StatCurve per-world groups stay
+  file-authored). Global + HUD edits write the owner file `mods/MmoMobScaling/mob-scaling.json` and
+  refold live; HUD + preset edits apply to all online players with no reconnect. `Enabled` shows a
+  "takes effect on restart" note (the zero-cost registration gate registers systems at startup).
 - New: full persistence for the live commands. `/mobscaling intensity`, `/mobscaling hud`, and
   `/mobscaling preset` now SAVE to the owner file (they were runtime-only in 1.0.1, lost on restart). The
   UI and the commands share ONE write-back path (`config/MobScalingOwnerWriter` -> the owner file ->
@@ -24,7 +67,7 @@ An in-game admin config UI plus full persistence for every runtime tuning path. 
   form binding, `Pages/ZigListRow.ui` row). The mod's private `hud/HudPosition` copy is retired in favour
   of the lifted common one (identical behavior).
 
-## 1.0.1 (unreleased, in-game-validation pending)
+## 1.0.1
 
 Per-world / per-instance tuning plus a live intensity dial. Requires MMO Skill Tree 1.5.0+ and
 Ziggfreed's CommonLib 1.2.0+.

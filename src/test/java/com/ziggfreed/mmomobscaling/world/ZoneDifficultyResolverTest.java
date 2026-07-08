@@ -4,27 +4,37 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
+import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver.ChunkInfo;
 
 /**
  * Exercises the PURE halves of the zone floor resolver: the mapping-layer precedence
  * (zone-exact &gt; zone-PREFIX &gt; biome-exact &gt; biome-PREFIX &gt; zone {@code *} &gt; biome
- * {@code *} &gt; world baseline, with segment-boundary prefix matching + longest-prefix-wins) and the
- * distance-escalation math (start radius, linear slope, cap, degenerate inputs). The engine-facing
- * memo (ChunkGenerator/spawn reads) is exercised in-game; these tests pin the resolution semantics.
+ * {@code *} &gt; the world-baseline {@code Difficulty.Floor}, with segment-boundary prefix matching +
+ * longest-prefix-wins) and the distance-escalation math (start radius, linear slope, cap, degenerate
+ * inputs). The engine-facing memo (ChunkGenerator/spawn reads) is exercised in-game; these tests pin
+ * the resolution semantics.
  */
 class ZoneDifficultyResolverTest {
 
-    /** A rules instance whose only relevant field is the mob-difficulty floor baseline (30). */
-    private static final WorldRules RULES =
-            new WorldRules(1.0, true, true, Set.of(), Set.of(), 30.0, true);
+    /**
+     * The settings surface whose only relevant read here is {@code getDifficultyFloor()}: the
+     * jar-default global fold ({@code Difficulty.Floor} = 30.0, the shipped world baseline).
+     */
+    private static final SpawnScalingSettings SETTINGS = loadJarDefaults();
+
+    private static SpawnScalingSettings loadJarDefaults() {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(null);
+        cfg.load();
+        return cfg;
+    }
 
     @AfterEach
     void reset() {
@@ -46,7 +56,7 @@ class ZoneDifficultyResolverTest {
                 "zone2", zone("zone2", "Zone2", 22.0),
                 "zoneany", zone("zoneany", "*", 10.0),
                 "ocean", biome("ocean", "Ocean1", 12.0)));
-        assertEquals(22.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone2", "Ocean1"), RULES), 1e-9,
+        assertEquals(22.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone2", "Ocean1"), SETTINGS), 1e-9,
                 "the exact zone mapping wins over wildcard and biome");
     }
 
@@ -55,7 +65,7 @@ class ZoneDifficultyResolverTest {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "zoneany", zone("zoneany", "*", 10.0),
                 "ocean", biome("ocean", "Ocean1", 12.0)));
-        assertEquals(12.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Ocean1"), RULES), 1e-9,
+        assertEquals(12.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Ocean1"), SETTINGS), 1e-9,
                 "a named biome floor beats the zone wildcard (biome-specific outranks zone-*)");
     }
 
@@ -64,7 +74,7 @@ class ZoneDifficultyResolverTest {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "zoneany", zone("zoneany", "*", 10.0),
                 "biomeany", biome("biomeany", "*", 5.0)));
-        assertEquals(10.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Plains9"), RULES), 1e-9,
+        assertEquals(10.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Plains9"), SETTINGS), 1e-9,
                 "with only wildcards, the zone wildcard outranks the biome wildcard");
     }
 
@@ -73,9 +83,9 @@ class ZoneDifficultyResolverTest {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "zone2", zone("zone2", "Zone2", 22.0),
                 "zone2tier1", zone("zone2tier1", "Zone2_Tier1", 18.0)));
-        assertEquals(22.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone2_Shore", ""), RULES), 1e-9,
+        assertEquals(22.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone2_Shore", ""), SETTINGS), 1e-9,
                 "Zone2 prefix-matches the compound Zone2_Shore sub-zone");
-        assertEquals(18.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone2_Tier1", ""), RULES), 1e-9,
+        assertEquals(18.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone2_Tier1", ""), SETTINGS), 1e-9,
                 "the longer exact override wins over the prefix family");
     }
 
@@ -84,9 +94,9 @@ class ZoneDifficultyResolverTest {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "zone1", zone("zone1", "Zone1", 8.0),
                 "zoneany", zone("zoneany", "*", 10.0)));
-        assertEquals(10.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone10_Spawn", ""), RULES), 1e-9,
+        assertEquals(10.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone10_Spawn", ""), SETTINGS), 1e-9,
                 "Zone1 must NOT prefix-match Zone10_Spawn (the trailing '_' guards the boundary)");
-        assertEquals(8.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone1_Spawn", ""), RULES), 1e-9,
+        assertEquals(8.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone1_Spawn", ""), SETTINGS), 1e-9,
                 "Zone1 does prefix-match its own Zone1_Spawn segment");
     }
 
@@ -95,7 +105,7 @@ class ZoneDifficultyResolverTest {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "zone3", zone("zone3", "Zone3", 38.0),
                 "zone3shore", zone("zone3shore", "Zone3_Shore", 30.0)));
-        assertEquals(30.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone3_Shore_Tier1", ""), RULES), 1e-9,
+        assertEquals(30.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone3_Shore_Tier1", ""), SETTINGS), 1e-9,
                 "the longer Zone3_Shore prefix wins over the shorter Zone3 prefix");
     }
 
@@ -103,10 +113,10 @@ class ZoneDifficultyResolverTest {
     void biomeLayerFiresWhenNoZoneMappingMatches() {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "ocean", biome("ocean", "Ocean1", 12.0)));
-        assertEquals(12.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Ocean1"), RULES), 1e-9,
+        assertEquals(12.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Ocean1"), SETTINGS), 1e-9,
                 "no zone mapping at all: the exact biome mapping fires");
-        assertEquals(30.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Plains1"), RULES), 1e-9,
-                "no biome match either: the WorldRules baseline stands");
+        assertEquals(30.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("Zone9", "Plains1"), SETTINGS), 1e-9,
+                "no biome match either: the world baseline stands");
     }
 
     @Test
@@ -115,7 +125,7 @@ class ZoneDifficultyResolverTest {
                 "zoneany", zone("zoneany", "*", 10.0)));
         assertEquals(30.0,
                 ZoneDifficultyResolver.baseFloor(new ChunkInfo(ZoneDifficultyResolver.NO_ZONE,
-                        ZoneDifficultyResolver.NO_ZONE), RULES), 1e-9,
+                        ZoneDifficultyResolver.NO_ZONE), SETTINGS), 1e-9,
                 "a no-zone-data chunk never matches the zone wildcard; the baseline stands");
     }
 
@@ -123,7 +133,7 @@ class ZoneDifficultyResolverTest {
     void matchingIsCaseInsensitive() {
         DifficultyConfig.getInstance().mergePackLayer(Map.of(
                 "zone2", zone("zone2", "ZONE2", 22.0)));
-        assertEquals(22.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("zone2", ""), RULES), 1e-9,
+        assertEquals(22.0, ZoneDifficultyResolver.baseFloor(new ChunkInfo("zone2", ""), SETTINGS), 1e-9,
                 "authored casing never splits a mapping from the native name");
     }
 

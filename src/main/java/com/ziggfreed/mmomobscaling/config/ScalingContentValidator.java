@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
-import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.WorldOverride;
+import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
@@ -215,9 +215,11 @@ public final class ScalingContentValidator {
     }
 
     /**
-     * Validate one folded settings asset's 1.0.1 additions: the top-level {@code Intensity} multiplier
-     * ({@code >= 0}) plus its per-world {@code WorldOverrides}. Empty = clean. Findings are prefixed with the
-     * preset name so an admin can locate the offending file.
+     * Validate one folded settings asset: the top-level {@code Intensity} multiplier ({@code >= 0})
+     * and a DEPRECATION warning when the preset still carries the removed 1.0.1 inline
+     * {@code WorldOverrides} array key is handled at decode (the codec no longer declares the key, so
+     * the engine's unused-key warning fires). Empty = clean. Findings are prefixed with the preset
+     * name so an admin can locate the offending file.
      */
     @Nonnull
     public static List<String> validateSettings(@Nonnull String presetName,
@@ -228,48 +230,88 @@ public final class ScalingContentValidator {
         if (intensity != null && intensity < 0) {
             findings.add(pfx + "Intensity must be >= 0 (got " + intensity + ")");
         }
-        findings.addAll(validateWorldOverrides(pfx, asset.getWorldOverrides()));
         return findings;
     }
 
     /**
-     * Validate a per-world overrides array (1.0.1): blank Match, DUPLICATE Match WITHIN this file (a later
-     * entry silently wins), out-of-range {@code RaritySpawnChance}, negative {@code Intensity}, and an
-     * inverted {@code Difficulty.MinCap > MaxCap}. A duplicate Match ACROSS layers is legal (the concat fold
-     * dedups by design, owner &gt; preset &gt; jar), so only within-file dups warn. {@code context} is a
-     * human prefix (e.g. {@code "preset 'Default' "}).
+     * Validate the FOLDED per-world settings (1.0.2, {@code Worlds/*.json} across jar + pack + owner
+     * dir, Parent-merged): a DUPLICATE {@code Match} across two ids (matcher precedence silently picks
+     * one - ambiguous authoring), an authored {@code Parent} that resolved to nothing, negative
+     * {@code Intensity}/{@code Floor}, an out-of-range {@code RaritySpawnChance}, an inverted
+     * {@code Difficulty.MinCap > MaxCap}, and a pool id present in both {@code Allow} and {@code Deny}
+     * (deny wins, the allow entry is dead). Pool id EXISTENCE stays at the roll sites (the rarity /
+     * variant / affix stores fold on their own events, so a static cross-check would race the load).
      */
     @Nonnull
-    public static List<String> validateWorldOverrides(@Nonnull String context, @Nullable WorldOverride[] overrides) {
+    public static List<String> validateWorldSettings(@Nonnull WorldSettingsConfig worlds) {
         List<String> findings = new ArrayList<>();
-        if (overrides == null) {
-            return findings;
-        }
-        Set<String> seen = new HashSet<>();
-        for (int i = 0; i < overrides.length; i++) {
-            WorldOverride ov = overrides[i];
-            if (ov == null) {
-                continue;
+        Set<String> seenMatch = new HashSet<>();
+        for (var e : worlds.foldedView().entrySet()) {
+            String id = e.getKey();
+            WorldSettings ws = e.getValue();
+            String at = "world '" + id + "'";
+            String parent = worlds.parentOf(id);
+            if (parent != null && !worlds.foldedView().containsKey(parent.trim().toLowerCase(Locale.ROOT))) {
+                findings.add(at + ": Parent '" + parent + "' not found (the file resolved standalone)");
             }
-            String match = ov.getMatch();
-            String at = context + "world override #" + (i + 1)
-                    + (match != null && !match.isBlank() ? " '" + match + "'" : "");
-            if (match == null || match.isBlank()) {
-                findings.add(at + ": Match must be a world name, a trailing-'*' prefix, or '*'");
-            } else if (!seen.add(match.trim().toLowerCase(Locale.ROOT))) {
-                findings.add(at + ": duplicate Match in this file (a later entry silently wins)");
+            String match = ws.getMatch();
+            if (match != null && !match.isBlank()
+                    && !seenMatch.add(match.trim().toLowerCase(Locale.ROOT))) {
+                findings.add(at + ": duplicate Match '" + match + "' across world files"
+                        + " (matcher precedence silently picks one)");
             }
-            Double intensity = ov.getIntensity();
+            Double intensity = ws.getIntensity();
             if (intensity != null && intensity < 0) {
                 findings.add(at + ": Intensity must be >= 0");
             }
-            Double chance = ov.getRaritySpawnChance();
+            Double chance = ws.getRaritySpawnChance();
             if (chance != null && (chance < 0 || chance > 1)) {
                 findings.add(at + ": RaritySpawnChance must be in [0,1]");
             }
-            Difficulty d = ov.getDifficulty();
-            if (d != null && d.getMinCap() != null && d.getMaxCap() != null && d.getMinCap() > d.getMaxCap()) {
-                findings.add(at + ": Difficulty.MinCap (" + d.getMinCap() + ") > MaxCap (" + d.getMaxCap() + ")");
+            Difficulty d = ws.getDifficulty();
+            if (d != null) {
+                if (d.getFloor() != null && d.getFloor() < 0) {
+                    findings.add(at + ": Difficulty.Floor must be >= 0");
+                }
+                if (d.getMinCap() != null && d.getMaxCap() != null && d.getMinCap() > d.getMaxCap()) {
+                    findings.add(at + ": Difficulty.MinCap (" + d.getMinCap() + ") > MaxCap ("
+                            + d.getMaxCap() + ")");
+                }
+            }
+            WorldSettings.Pool pool = ws.getPool();
+            if (pool != null) {
+                findings.addAll(gateFindings(at + " Pool.Rarities", pool.getRarities()));
+                findings.addAll(gateFindings(at + " Pool.Variants", pool.getVariants()));
+                findings.addAll(gateFindings(at + " Pool.Affixes", pool.getAffixes()));
+                WorldSettings.VariantGate vg = pool.getVariants();
+                if (vg != null && vg.getChanceMultiplier() != null && vg.getChanceMultiplier() < 0) {
+                    findings.add(at + ": Pool.Variants.ChanceMultiplier must be >= 0");
+                }
+                WorldSettings.AffixGate ag = pool.getAffixes();
+                if (ag != null && ag.getExtraSlots() != null && ag.getExtraSlots() < 0) {
+                    findings.add(at + ": Pool.Affixes.ExtraSlots must be >= 0");
+                }
+            }
+        }
+        return findings;
+    }
+
+    /** Dead-allow-entry findings for a pool gate: an id in both Allow and Deny can never roll (deny wins). */
+    @Nonnull
+    private static List<String> gateFindings(@Nonnull String at, @Nullable WorldSettings.IdGate gate) {
+        List<String> findings = new ArrayList<>();
+        if (gate == null || gate.getAllow() == null || gate.getDeny() == null) {
+            return findings;
+        }
+        Set<String> deny = new HashSet<>();
+        for (String s : gate.getDeny()) {
+            if (s != null && !s.isBlank()) {
+                deny.add(s.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        for (String s : gate.getAllow()) {
+            if (s != null && !s.isBlank() && deny.contains(s.trim().toLowerCase(Locale.ROOT))) {
+                findings.add(at + ": id '" + s + "' is in both Allow and Deny (deny wins, the allow entry is dead)");
             }
         }
         return findings;

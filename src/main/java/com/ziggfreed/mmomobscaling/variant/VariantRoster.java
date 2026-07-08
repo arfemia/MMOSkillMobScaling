@@ -47,30 +47,50 @@ public final class VariantRoster {
     }
 
     /**
+     * Roll at most one variant for a mob at {@code effDifficulty} whose base rarity is {@code baseRarityId},
+     * with a neutral (1.0) chance scale. Retained for callers/tests without a per-world scale; the spawn hook
+     * uses {@link #pick(double, String, double, SplitMix64, Predicate)}.
+     */
+    @Nullable
+    public Variant pick(double effDifficulty, @Nonnull String baseRarityId, @Nonnull SplitMix64 rng,
+            @Nonnull Predicate<Variant> familyEligible) {
+        return pick(effDifficulty, baseRarityId, 1.0, rng, familyEligible);
+    }
+
+    /**
      * Roll at most one variant for a mob at {@code effDifficulty} whose base rarity is {@code baseRarityId}.
      * Returns {@code null} for NO variant (the common case): no variant is eligible, or the single draw landed
      * in the leftover "no variant" slice.
      *
      * @param effDifficulty  the resolved effective difficulty (gates which variants are eligible)
      * @param baseRarityId   the rolled base rarity id ({@code ""} for a plain mob), for the requires-rarity gate
+     * @param chanceScale    per-world multiplier on every eligible variant's absolute chance (1.0.2
+     *                       {@code Pool.Variants.ChanceMultiplier}; clamped {@code >= 0}, applied inside the
+     *                       accumulation so the roll still draws exactly once; a scale {@code != 1.0} shifts
+     *                       the seed-&gt;variant mapping for that world, a documented config-time trade)
      * @param rng            a per-mob deterministic generator (draws EXACTLY once here, for determinism)
-     * @param familyEligible per-mob family gate: {@code true} = this variant may apply to this mob
+     * @param familyEligible per-mob eligibility gate (family filter, and the caller may AND a per-world
+     *                       allow/deny): {@code true} = this variant may apply to this mob
      */
     @Nullable
-    public Variant pick(double effDifficulty, @Nonnull String baseRarityId, @Nonnull SplitMix64 rng,
-            @Nonnull Predicate<Variant> familyEligible) {
+    public Variant pick(double effDifficulty, @Nonnull String baseRarityId, double chanceScale,
+            @Nonnull SplitMix64 rng, @Nonnull Predicate<Variant> familyEligible) {
         if (entries.length == 0) {
             return null;
         }
+        double scale = Math.max(0.0, chanceScale);
         // Draw ONCE up front (before any eligibility branching) so the draw count is a constant - the mob's
         // seed maps to the same variant across reloads regardless of content/eligibility changes elsewhere.
         double u = rng.nextDouble();
+        if (scale <= 0.0) {
+            return null; // world scaled variants out entirely (the draw is still consumed, above)
+        }
         double acc = 0.0;
         for (Variant v : entries) {
             if (v.minDifficulty() > effDifficulty || !v.allowsRarity(baseRarityId) || !familyEligible.test(v)) {
                 continue;
             }
-            acc += v.chance();
+            acc += v.chance() * scale;
             if (u < acc) {
                 return v;
             }

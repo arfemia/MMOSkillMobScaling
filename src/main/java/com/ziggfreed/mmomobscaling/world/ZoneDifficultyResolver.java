@@ -11,7 +11,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.hypixel.hytale.server.worldgen.chunk.ChunkGenerator;
 import com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult;
-import com.ziggfreed.mmoskilltree.world.WorldRules;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 
@@ -20,8 +19,9 @@ import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
  * registry. Per chunk it resolves, in precedence order: authored {@code DifficultyMapping} for the
  * native ZONE ({@code Zone.name()}, exact then segment PREFIX) &gt; for the native BIOME
  * ({@code Biome.getName()}, exact then segment PREFIX) &gt; the zone wildcard {@code *} &gt; the biome
- * wildcard {@code *} &gt; the {@code WorldRules.mobDifficultyFloor} world baseline (so a named biome
- * floor beats the zone wildcard). On top of that base an optional DISTANCE ESCALATION adds
+ * wildcard {@code *} &gt; the WORLD-BASELINE floor ({@code SpawnScalingSettings.getDifficultyFloor()},
+ * 1.0.2: the per-world {@code Difficulty.Floor} or the global default; so a named biome floor beats
+ * the zone wildcard). On top of that base an optional DISTANCE ESCALATION adds
  * {@code (distFromSpawn - start) / blocksPerPoint} difficulty (capped at {@code MaxBonus}) and raises
  * the rarity spawn chance by {@code RarityChancePerPoint} per point - so far enough from spawn EVERY
  * zone is deadly, configurable in {@code Difficulty.DistanceEscalation}.
@@ -108,18 +108,18 @@ public final class ZoneDifficultyResolver {
     /**
      * Resolve the full floor breakdown for a chunk: mapping-layer base (zone &gt; biome &gt; world
      * baseline), plus the distance escalation, clamped to the configured caps. Floors are read LIVE
-     * from {@link DifficultyConfig}/{@link WorldRules}/{@link SpawnScalingSettings} (only the immutable
-     * zone/biome names are memoized), so config reloads take effect without invalidation.
+     * from {@link DifficultyConfig}/{@link SpawnScalingSettings} (only the immutable zone/biome names
+     * are memoized), so config reloads take effect without invalidation.
      *
-     * <p>{@code settings} is the spawn-time settings surface (1.0.1): the GLOBAL config, or a per-world
-     * overlay view for a world matched by a {@code WorldOverride} - so a dungeon's authored caps /
-     * escalation toggle apply here without a special case.
+     * <p>{@code settings} is the spawn-time settings surface: the GLOBAL config, or a per-world
+     * overlay view for a world matched by a {@code Worlds/*.json} rule (1.0.2) - so a dungeon's
+     * authored floor / caps / escalation toggle apply here without a special case.
      */
     @Nonnull
-    public ResolvedFloor resolve(@Nonnull WorldRules rules, @Nonnull World world, int chunkX, int chunkZ,
+    public ResolvedFloor resolve(@Nonnull World world, int chunkX, int chunkZ,
             @Nonnull SpawnScalingSettings settings) {
         ChunkInfo info = chunkInfo(world, chunkX, chunkZ);
-        double base = baseFloor(info, rules);
+        double base = baseFloor(info, settings);
         // Distance from world spawn is resolved UNCONDITIONALLY (even with escalation off): the start
         // ring is the "power scaling off near spawn" gate, independent of the additive escalation bonus.
         WorldMemo memo = memoFor(world);
@@ -142,12 +142,13 @@ public final class ZoneDifficultyResolver {
 
     /**
      * The mapping-layer base floor, precedence: zone-EXACT &gt; zone-PREFIX &gt; biome-EXACT &gt;
-     * biome-PREFIX &gt; zone-WILDCARD({@code *}) &gt; biome-WILDCARD({@code *}) &gt; world baseline. A
-     * named biome floor (e.g. {@code OceanBiome}) therefore beats the {@code ZoneAny} wildcard, which
-     * previously shadowed it. The two wildcards apply only where the chunk actually has that layer's
-     * data (a zoneless chunk never matches the zone wildcard).
+     * biome-PREFIX &gt; zone-WILDCARD({@code *}) &gt; biome-WILDCARD({@code *}) &gt; the world-baseline
+     * {@code SpawnScalingSettings.getDifficultyFloor()} (per-world or global, 1.0.2). A named biome
+     * floor (e.g. {@code OceanBiome}) therefore beats the {@code ZoneAny} wildcard, which previously
+     * shadowed it. The two wildcards apply only where the chunk actually has that layer's data (a
+     * zoneless chunk never matches the zone wildcard).
      */
-    static double baseFloor(@Nonnull ChunkInfo info, @Nonnull WorldRules rules) {
+    static double baseFloor(@Nonnull ChunkInfo info, @Nonnull SpawnScalingSettings settings) {
         DifficultyConfig mappings = DifficultyConfig.getInstance();
         boolean hasZone = !info.zoneName().isEmpty();
         boolean hasBiome = !info.biomeName().isEmpty();
@@ -175,7 +176,7 @@ public final class ZoneDifficultyResolver {
                 return biomeWildcard;
             }
         }
-        return rules.mobDifficultyFloor();
+        return settings.getDifficultyFloor();
     }
 
     /** The additive distance-escalation bonus (pure; unit-tested): 0 inside the start radius, then linear, capped. */

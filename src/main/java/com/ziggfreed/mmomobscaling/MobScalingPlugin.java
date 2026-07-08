@@ -14,6 +14,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.command.MobScalingCommand;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
@@ -73,6 +74,13 @@ public class MobScalingPlugin extends JavaPlugin {
             MobScalingConfig cfg = MobScalingConfig.getInstance();
             cfg.setConfigPath(Paths.get("mods", "MmoMobScaling", "mob-scaling.json"));
             cfg.load();
+            // Per-world settings (1.0.2): the scanned owner dir + the one-time migration off the
+            // shipped 1.0.1 inline WorldOverrides array, then an owner-only fold (the jar/pack Worlds
+            // store folds in later on LoadedAssetsEvent).
+            WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+            worlds.setOwnerDir(Paths.get("mods", "MmoMobScaling", "worlds"));
+            worlds.migrateLegacyOwnerOverrides(cfg.getConfigPath());
+            worlds.refold();
         } catch (Throwable t) {
             safeWarn("Failed to load mob-scaling config, using defaults: " + t.getMessage());
         }

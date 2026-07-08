@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Инструменты администратора масштабирования существ: очистка остатков, проверка локальной сложности, настройка HUD-оверлеев.
-command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции; hud настраивает оверлеи; preset переключает активный пресет; intensity настраивает множитель сложности; ui открывает страницу конфигурации администратора.
-command.usage = Использование: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Подкоманда: purge убирает остатки масштабирования с загруженных существ; inspect показывает параметры сложности в вашей позиции; hud настраивает оверлеи; preset переключает активный пресет; intensity настраивает множитель сложности; worlds выводит список файлов настроек по мирам; ui открывает страницу конфигурации администратора.
+command.usage = Использование: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.players_only = Эту команду может выполнить только игрок.
 command.purge.start = Удаление остатков масштабирования с загруженных существ в этом мире...
 command.purge.done = Остатки масштабирования удалены с {count} загруженных существ.
@@ -43,6 +43,14 @@ command.preset.active = Активный пресет: {0}
 command.preset.available = Доступные пресеты: {0}
 command.preset.swapped = Переключено на пресет {0}.
 command.preset.unknown = Неизвестный пресет {0}. Доступны: {1}
+
+# /mobscaling worlds - list the folded per-world settings files (Worlds/*.json across jar + packs + the owner dir).
+command.worlds.empty = Файлы настроек по мирам не загружены.
+command.worlds.header = Настройки по мирам ({count} файлов):
+command.worlds.entry = {id}: совпадение {match}, родитель {parent}, {origin}, масштабирование включено: {enabled}
+command.worlds.base = (только база, никогда не сопоставляется)
+command.worlds.origin_owner = файл владельца
+command.worlds.origin_shipped = встроенный файл
 
 command.intensity.current = Текущий множитель интенсивности: {value}
 command.intensity.set = Множитель интенсивности установлен на {value}.
@@ -132,23 +140,29 @@ ui.inspector.portrait = Показать портрет
 ui.inspector.range = Диапазон (блоки)
 
 # Worlds tab (per-world WorldOverrides CRUD).
-ui.world.empty = Нет переопределений для конкретных миров. Добавьте ниже.
+ui.world.empty = Файлы настроек по мирам отсутствуют. Добавьте новый ниже.
 ui.world.badge_override = переопр.
-ui.world.badge_default = по умолч.
-ui.world.editor_header = Добавить / изменить переопределение
+ui.world.badge_default = встроенный
+ui.world.editor_header = Добавить / изменить мир
+ui.world.id = Имя файла
 ui.world.match = Совпадение мира
+ui.world.parent = Родительский файл
+ui.world.enabled = Масштабирование в этом мире
+ui.world.floor = Базовый порог сложности
 ui.world.intensity = Интенсивность
 ui.world.rarity = Шанс редкости
 ui.world.min_cap = Минимальная сложность
 ui.world.max_cap = Максимальная сложность
 ui.world.player_scaling = Масштабирование игрока
 ui.world.escalation = Эскалация расстояния
-ui.world.hint = Пустые поля наследуют глобальное значение. Настройка кривой характеристик остаётся в файле конфигурации.
+ui.world.hint = Каждый мир - это отдельный файл. Пустые поля наследуются из родительского файла, а затем из глобального значения. Настройки пула, кривой характеристик и HUD остаются в файле.
 
 # Status line.
 ui.status.saved = Сохранено.
 ui.status.saved_restart = Сохранено. Вступает в силу при перезапуске.
-ui.status.removed = Переопределение удалено.
+ui.status.world_deleted = Файл мира удалён. Снова применяется встроенный файл с тем же именем.
+ui.status.invalid_parent = Укажите другой файл в качестве родителя (файл не может наследоваться от самого себя).
+ui.status.save_failed = Не удалось записать файл мира.
 ui.status.invalid_number = Введите верное число (>= 0).
 ui.status.invalid_chance = Введите шанс от 0 до 1.
 ui.status.invalid_caps = Максимум должен быть не меньше минимума.

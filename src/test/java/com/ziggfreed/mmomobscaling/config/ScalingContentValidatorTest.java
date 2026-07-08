@@ -3,9 +3,15 @@ package com.ziggfreed.mmomobscaling.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
@@ -115,28 +121,64 @@ class ScalingContentValidatorTest {
     }
 
     @Test
-    void worldOverrideAndIntensityIssuesAreFlagged() throws Exception {
-        // Negative global Intensity + a blank Match + rarity chance > 1 + a negative override Intensity +
-        // inverted caps + a duplicate Match within this file = 6 findings (a cross-layer dup is legal).
-        MobScalingSettingsAsset a = decodeSettings("""
-                { "Intensity": -1.0, "WorldOverrides": [
-                    { "Match": "", "RaritySpawnChance": 2.0 },
-                    { "Match": "dup_*", "Intensity": -0.5, "Difficulty": { "MinCap": 100.0, "MaxCap": 50.0 } },
-                    { "Match": "dup_*" }
-                ] }
-                """);
-        List<String> findings = ScalingContentValidator.validateSettings("Test", a);
-        assertEquals(6, findings.size(), "all 1.0.1 issues flagged: " + findings);
+    void negativeIntensityIsFlagged() throws Exception {
+        MobScalingSettingsAsset bad = decodeSettings("{ \"Intensity\": -1.0 }");
+        assertEquals(1, ScalingContentValidator.validateSettings("Test", bad).size());
+        MobScalingSettingsAsset clean = decodeSettings("{ \"Intensity\": 2.0 }");
+        assertTrue(ScalingContentValidator.validateSettings("Test", clean).isEmpty());
+    }
+
+    @AfterEach
+    void resetWorlds() {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(null);
+        worlds.applyPackLayer(Map.of());
+    }
+
+    private static WorldSettingsConfig foldedWorlds(Path tmp, Map<String, String> files) throws Exception {
+        Path dir = tmp.resolve("worlds");
+        Files.createDirectories(dir);
+        for (Map.Entry<String, String> e : files.entrySet()) {
+            Files.writeString(dir.resolve(e.getKey() + ".json"), e.getValue(), StandardCharsets.UTF_8);
+        }
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(dir);
+        worlds.refold();
+        return worlds;
     }
 
     @Test
-    void cleanWorldOverridesPass() throws Exception {
-        MobScalingSettingsAsset a = decodeSettings("""
-                { "Intensity": 2.0, "WorldOverrides": [
-                    { "Match": "instance-dungeon_of_fear_i*", "PlayerScalingEnabled": false,
-                      "Difficulty": { "MinCap": 40.0, "MaxCap": 120.0, "DistanceEscalation": { "Enabled": false } } } ] }
-                """);
-        assertTrue(ScalingContentValidator.validateSettings("Test", a).isEmpty(), "a clean overlay passes");
+    void worldSettingsIssuesAreFlagged(@TempDir Path tmp) throws Exception {
+        // Duplicate Match across two ids + unknown Parent + negative Intensity + negative Floor +
+        // chance > 1 + inverted caps + a pool id in both Allow and Deny + a negative ChanceMultiplier
+        // + negative ExtraSlots = 9 findings.
+        WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
+                "a", """
+                        { "Match": "dup_*", "Intensity": -0.5, "RaritySpawnChance": 2.0,
+                          "Difficulty": { "Floor": -1.0, "MinCap": 100.0, "MaxCap": 50.0 } }
+                        """,
+                "b", """
+                        { "Match": "dup_*", "Parent": "nope",
+                          "Pool": { "Rarities": { "Allow": ["epic"], "Deny": ["epic"] },
+                                    "Variants": { "ChanceMultiplier": -1.0 },
+                                    "Affixes": { "ExtraSlots": -2 } } }
+                        """));
+        List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
+        assertEquals(9, findings.size(), "all per-world issues flagged: " + findings);
+    }
+
+    @Test
+    void cleanWorldSettingsPass(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
+                "base", "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }",
+                "dungeon", """
+                        { "Match": "instance-dungeon_*", "Parent": "base", "Enabled": true,
+                          "Difficulty": { "Floor": 45.0, "MinCap": 40.0, "MaxCap": 120.0 },
+                          "OpenWorld": { "PlayerScalingEnabled": false },
+                          "Pool": { "Rarities": { "Deny": ["legendary"] } } }
+                        """));
+        assertTrue(ScalingContentValidator.validateWorldSettings(worlds).isEmpty(),
+                "a clean per-world set (incl. a pool-only base + a Parent chain) passes");
     }
 
     private static MobScalingSettingsAsset decodeSettings(String json) throws Exception {

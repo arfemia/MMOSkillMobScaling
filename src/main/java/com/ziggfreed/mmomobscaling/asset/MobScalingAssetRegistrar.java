@@ -52,6 +52,8 @@ public final class MobScalingAssetRegistrar {
     private static final String VARIANTS_PATH = "MmoMobScaling/Variants";
     /** Keyed difficulty-floor mapping store ({@code Server/MmoMobScaling/Difficulty/*.json}). */
     private static final String DIFFICULTY_PATH = "MmoMobScaling/Difficulty";
+    /** Keyed per-world settings store ({@code Server/MmoMobScaling/Worlds/*.json}, raw Parent-able bodies). */
+    private static final String WORLDS_PATH = "MmoMobScaling/Worlds";
 
     private MobScalingAssetRegistrar() {
     }
@@ -113,6 +115,43 @@ public final class MobScalingAssetRegistrar {
                 null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, DifficultyMappingAsset.class,
                 MobScalingAssetRegistrar::onDifficultyLoaded);
+
+        // Per-world settings (keyed raw-Payload store, 1.0.2; Parent chains + the owner-dir layer are
+        // resolved mod-side in WorldSettingsConfig, so the store just delivers raw bodies).
+        AssetStoreRegistrar.registerStore(
+                WorldSettingsAsset.class,
+                new DefaultAssetMap<String, WorldSettingsAsset>(),
+                WORLDS_PATH,
+                WorldSettingsAsset::getId,
+                WorldSettingsAsset.CODEC,
+                null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, WorldSettingsAsset.class,
+                MobScalingAssetRegistrar::onWorldsLoaded);
+    }
+
+    /**
+     * Capture the engine-merged jar+pack per-world RAW bodies into {@link WorldSettingsConfig}'s pack
+     * layer (which re-scans the owner dir, resolves every {@code Parent} chain, decodes through
+     * {@code WorldSettings.CODEC}, and invalidates the per-world view cache). Same all-entries fold as
+     * the other stores - the bundled dungeon/Kweebec files ARE our defaults.
+     */
+    static void onWorldsLoaded(
+            LoadedAssetsEvent<String, WorldSettingsAsset, DefaultAssetMap<String, WorldSettingsAsset>> event) {
+        Map<String, com.google.gson.JsonObject> bodies = new LinkedHashMap<>();
+        for (Map.Entry<String, WorldSettingsAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
+            WorldSettingsAsset asset = entry.getValue();
+            if (asset == null) {
+                continue;
+            }
+            com.google.gson.JsonObject body = asset.getPayloadAsJsonObject();
+            if (body != null) {
+                bodies.put(entry.getKey(), body);
+            }
+        }
+        com.ziggfreed.mmomobscaling.config.WorldSettingsConfig.getInstance().applyPackLayer(bodies);
+        logApplied("world settings", bodies.size());
+        warnFindings(ScalingContentValidator.validateWorldSettings(
+                com.ziggfreed.mmomobscaling.config.WorldSettingsConfig.getInstance()));
     }
 
     /**
@@ -145,7 +184,7 @@ public final class MobScalingAssetRegistrar {
                     MobScalingConfig.getInstance().getDifficultyMinCap(),
                     MobScalingConfig.getInstance().getDifficultyMaxCap(),
                     powerLevelMin(), powerLevelMax()));
-            // 1.0.1: per-preset Intensity range + WorldOverrides shape (blank/dup Match, caps, ranges).
+            // Per-preset value sanity (Intensity range); per-world checks run on the Worlds fold.
             for (Map.Entry<String, MobScalingSettingsAsset> preset : presets.entrySet()) {
                 warnFindings(ScalingContentValidator.validateSettings(preset.getKey(), preset.getValue()));
             }

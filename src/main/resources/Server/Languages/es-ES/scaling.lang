@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local, ajustar las superposiciones del HUD.
-command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; intensity ajusta el multiplicador de dificultad; ui abre la página de configuración del administrador.
-command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; intensity ajusta el multiplicador de dificultad; worlds lista los archivos de configuración por mundo; ui abre la página de configuración del administrador.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.arg.intensity = El multiplicador de intensidad (>= 0; 1.0 neutral, más alto = criaturas más difíciles). Omite para ver el valor actual.
 command.players_only = Este comando solo puede ejecutarlo un jugador.
 command.purge.start = Eliminando residuos de escalado de las criaturas cargadas en este mundo...
@@ -45,6 +45,14 @@ command.preset.available = Presets disponibles: {0}
 command.preset.swapped = Se cambió al preset {0}.
 command.preset.unknown = Preset desconocido {0}. Disponibles: {1}
 command.preset.saved = Guardado: el preset activo ahora persiste entre reinicios.
+
+# /mobscaling worlds - lista los archivos de configuración por mundo combinados (Worlds/*.json entre el jar, los packs y el directorio del propietario).
+command.worlds.empty = No hay archivos de configuración por mundo cargados.
+command.worlds.header = Configuración por mundo ({count} archivos):
+command.worlds.entry = {id}: coincidencia {match}, padre {parent}, {origin}, escalado habilitado: {enabled}
+command.worlds.base = (solo base, nunca coincide)
+command.worlds.origin_owner = archivo del propietario
+command.worlds.origin_shipped = incluido
 
 command.intensity.current = Multiplicador de intensidad actual: {value}
 command.intensity.set = Multiplicador de intensidad establecido en {value}.
@@ -132,23 +140,29 @@ ui.inspector.portrait = Mostrar retrato
 ui.inspector.range = Rango (bloques)
 
 # Pestaña Mundos (CRUD de anulaciones por mundo).
-ui.world.empty = Sin anulaciones por mundo. Agregue una abajo.
+ui.world.empty = Sin archivos de configuración por mundo. Agregue uno abajo.
 ui.world.badge_override = Anulación
-ui.world.badge_default = Defecto
-ui.world.editor_header = Agregar / editar anulación
+ui.world.badge_default = Incluido
+ui.world.editor_header = Agregar / editar mundo
+ui.world.id = Nombre de archivo
 ui.world.match = Coincidencia de mundo
+ui.world.parent = Archivo padre
+ui.world.enabled = Escalado en este mundo
+ui.world.floor = Dificultad mínima base
 ui.world.intensity = Intensidad
 ui.world.rarity = Probabilidad de rareza
 ui.world.min_cap = Dificultad mínima
 ui.world.max_cap = Dificultad máxima
 ui.world.player_scaling = Escalado de jugador
 ui.world.escalation = Escalación de distancia
-ui.world.hint = Los campos en blanco heredan el valor global. El ajuste de la curva de estadísticas permanece en el archivo de configuración.
+ui.world.hint = Cada mundo es su propio archivo. Los campos en blanco heredan el archivo padre y después el valor global. La agrupación, la curva de estadísticas y el ajuste del HUD permanecen en el archivo.
 
 # Línea de estado.
 ui.status.saved = Guardado.
 ui.status.saved_restart = Guardado. Entra en efecto al reiniciar.
-ui.status.removed = Anulación eliminada.
+ui.status.world_deleted = Archivo de mundo eliminado. Un archivo incluido con el mismo nombre se aplicará de nuevo.
+ui.status.invalid_parent = Ingrese un archivo diferente como padre (un archivo no puede heredar de sí mismo).
+ui.status.save_failed = No se pudo escribir el archivo de mundo.
 ui.status.invalid_number = Ingrese un número válido (>= 0).
 ui.status.invalid_chance = Ingrese una probabilidad entre 0 y 1.
 ui.status.invalid_caps = El máximo debe ser al menos el mínimo.

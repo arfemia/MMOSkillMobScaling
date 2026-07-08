@@ -28,14 +28,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
-import com.ziggfreed.mmoskilltree.world.WorldRules;
-import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.config.VariantConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
@@ -135,8 +134,12 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         if (world == null || transform == null) {
             return;
         }
-        WorldRules rules = WorldScope.rulesFor(world);
-        boolean visible = playerWantsVisible && cfg.isEnabled() && rules.mobScalingEnabled();
+        // Per-world view (1.0.2): the kill-switch AND the per-world zone-HUD toggle both read off it. A
+        // per-world ZoneHud.Enabled=false HIDES the HUD where the global is on (a per-world true cannot
+        // re-enable a globally-off HUD - the global early-out in tick() is the cheap fast path).
+        SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+        boolean visible = playerWantsVisible && cfg.isEnabled()
+                && spawn.isWorldScalingEnabled() && spawn.isZoneHudEnabled();
         if (!visible) {
             hud.pushUpdate(0, 0, 0, false, "", "", false);
             return;
@@ -144,7 +147,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
         int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
         MobScalingSpawnHook.SpawnScaling scaling = MobScalingSpawnHook.resolveSpawnScaling(
-                rules, world, chunkX, chunkZ, cfg.spawnSettingsFor(world.getName()));
+                world, chunkX, chunkZ, spawn);
         double playerPower = MMOSkillTreeAPI.getPowerLevel(store, ref);
         // scaling.regionPower() is the tracked (zone, sub-grid) aggregate - already folded into
         // scaling.difficulty(); shown only when it says something a lone player's own power does
@@ -180,6 +183,16 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         if (!playerWantsVisible) {
             hud.pushTarget(null); // installed HUD -> Visible=false; also skips the crosshair raycast
             return;
+        }
+        // Per-world view (1.0.2): a world with scaling killed or InspectorHud.Enabled=false hides the
+        // card there (a per-world true cannot re-enable a globally-off HUD - the tick() early-out stands).
+        World world = store.getExternalData().getWorld();
+        if (world != null) {
+            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+            if (!spawn.isWorldScalingEnabled() || !spawn.isInspectorHudEnabled()) {
+                hud.pushTarget(null);
+                return;
+            }
         }
         hud.pushTarget(resolveTarget(store, ref, cfg));
     }

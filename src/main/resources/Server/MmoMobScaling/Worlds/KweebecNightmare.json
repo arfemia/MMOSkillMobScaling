@@ -1,0 +1,8 @@
+{
+  "Name": "Kweebec Nightmare",
+  "Payload": {
+    "$Comment": "The Kweebec Nightmare minigame runs its own difficulty; open-world mob scaling is OFF in its instance worlds (absorbs the per-world kill-switch that used to live on the MMO's WorldRules).",
+    "Match": "KweebecNightmare_*",
+    "Enabled": false
+  }
+}

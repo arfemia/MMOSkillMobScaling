@@ -8,10 +8,16 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.mmomobscaling.MobScalingGate;
@@ -42,6 +48,45 @@ class MobScalingConfigTest {
         return cfg;
     }
 
+    @AfterEach
+    void resetWorlds() {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(null);
+        worlds.applyPackLayer(Map.of());
+    }
+
+    /**
+     * Feed the jar-bundled {@code Server/MmoMobScaling/Worlds/*.json} payloads into
+     * {@link WorldSettingsConfig}'s pack layer (in production the engine store delivers them on
+     * {@code LoadedAssetsEvent}; a unit JVM loads them straight off the test classpath). This
+     * exercises the REAL shipped files incl. the {@code Parent} chains.
+     */
+    private static void loadJarWorlds() {
+        Map<String, JsonObject> bodies = new LinkedHashMap<>();
+        for (String name : List.of("DungeonOfFear_Base", "DungeonOfFear_I", "DungeonOfFear_II",
+                "DungeonOfFear_III", "KweebecNightmare")) {
+            try (InputStream in = MobScalingConfigTest.class.getResourceAsStream(
+                    "/Server/MmoMobScaling/Worlds/" + name + ".json")) {
+                JsonObject root = JsonParser.parseString(
+                        new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+                bodies.put(name, root.getAsJsonObject("Payload"));
+            } catch (Exception e) {
+                throw new IllegalStateException("jar world file missing on the test classpath: " + name, e);
+            }
+        }
+        WorldSettingsConfig.getInstance().applyPackLayer(bodies);
+    }
+
+    /** Write one OWNER world file (bare body) into {@code <tmp>/worlds/} and refold. */
+    private static void ownerWorld(Path tmp, String id, String body) throws Exception {
+        Path dir = tmp.resolve("worlds");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve(id + ".json"), body, StandardCharsets.UTF_8);
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(dir);
+        worlds.refold();
+    }
+
     @Test
     void defaultsDecodeFromTheCodecAsset() {
         MobScalingConfig cfg = freshDefaults();
@@ -57,6 +102,8 @@ class MobScalingConfigTest {
         assertEquals("AVERAGE", cfg.getOpenWorldAggregationMode(), "OpenWorld.AggregationMode default");
         assertEquals(3, cfg.getRegionSizeChunks(), "OpenWorld.RegionSizeChunks default");
         assertEquals(25.0, cfg.getGroupDeltaBandWidth(), 1e-9, "OpenWorld.GroupDeltaBandWidth default");
+        assertEquals(30.0, cfg.getDifficultyFloor(), 1e-9,
+                "Difficulty.Floor default (1.0.2; the world baseline absorbed from hyMMO WorldRules)");
         assertEquals(1.0, cfg.getDifficultyMinCap(), 1e-9, "Difficulty.MinCap default");
         assertEquals(200.0, cfg.getDifficultyMaxCap(), 1e-9, "Difficulty.MaxCap default");
         assertTrue(cfg.isDistanceEscalationEnabled(), "Difficulty.DistanceEscalation.Enabled default");
@@ -168,7 +215,7 @@ class MobScalingConfigTest {
     }
 
     // ---------------------------------------------------------------------
-    // 1.0.1: numeric Intensity + per-world overlay
+    // Numeric Intensity + the per-world overlay (1.0.2: Worlds/*.json files)
     // ---------------------------------------------------------------------
 
     @Test
@@ -197,17 +244,12 @@ class MobScalingConfigTest {
 
     @Test
     void setIntensityRuntimeRetunesTheCurveAndClearsTheView(@TempDir Path tmp) throws Exception {
-        // An owner world override that does NOT set its own Intensity inherits the runtime-tuned global.
-        Path configFile = tmp.resolve("mob-scaling.json");
-        Files.writeString(configFile, """
-                { "WorldOverrides": [ { "Match": "arena_*" } ] }
-                """);
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
-        cfg.setConfigPath(configFile);
-        cfg.load();
+        // An owner world FILE that does NOT set its own Intensity inherits the runtime-tuned global.
+        MobScalingConfig cfg = freshDefaults();
+        ownerWorld(tmp, "arena", "{ \"Match\": \"arena_*\" }");
 
         assertEquals(0.08, cfg.spawnSettingsFor("arena_1").statCurveModel().hpPerPoint(), 1e-9,
-                "arena override inherits the global intensity 1.0");
+                "arena world file inherits the global intensity 1.0");
         cfg.setIntensityRuntime(3.0);
         assertEquals(3.0, cfg.getIntensity(), 1e-9, "runtime intensity applied globally");
         assertEquals(0.24, cfg.spawnSettingsFor("arena_1").statCurveModel().hpPerPoint(), 1e-9,
@@ -215,20 +257,31 @@ class MobScalingConfigTest {
     }
 
     @Test
-    void shippedDungeonDefaultsDisablePlayerScalingForIandIIandEscalationForAll() {
-        MobScalingConfig cfg = freshDefaults(); // Default.json ships the 3 dungeon WorldOverrides
+    void shippedDungeonWorldsInheritTheBasePolicyThroughParent() {
+        MobScalingConfig cfg = freshDefaults();
+        loadJarWorlds(); // the jar Worlds/*.json files, incl. the DungeonOfFear_Base Parent chain
 
         SpawnScalingSettings i = cfg.spawnSettingsFor("instance-dungeon_of_fear_i");
         assertFalse(i.isPlayerScalingEnabled(), "Dungeon of Fear I has player scaling off");
-        assertFalse(i.isDistanceEscalationEnabled(), "Dungeon of Fear I has escalation off");
+        assertFalse(i.isDistanceEscalationEnabled(), "Dungeon of Fear I inherits escalation-off from the base");
 
         SpawnScalingSettings ii = cfg.spawnSettingsFor("instance-dungeon_of_fear_ii");
         assertFalse(ii.isPlayerScalingEnabled(), "Dungeon of Fear II has player scaling off");
-        assertFalse(ii.isDistanceEscalationEnabled(), "Dungeon of Fear II has escalation off");
+        assertFalse(ii.isDistanceEscalationEnabled(), "Dungeon of Fear II inherits escalation-off from the base");
 
         SpawnScalingSettings iii = cfg.spawnSettingsFor("instance-dungeon_of_fear_iii");
         assertTrue(iii.isPlayerScalingEnabled(), "Dungeon of Fear III keeps player scaling on (global default)");
-        assertFalse(iii.isDistanceEscalationEnabled(), "Dungeon of Fear III has escalation off");
+        assertFalse(iii.isDistanceEscalationEnabled(), "Dungeon of Fear III inherits ONLY escalation-off");
+
+        // The Kweebec Nightmare world file is the per-world kill-switch (absorbed from hyMMO WorldRules).
+        assertFalse(cfg.spawnSettingsFor("KweebecNightmare_run7").isWorldScalingEnabled(),
+                "the Kweebec world file turns scaling off there");
+
+        // The pool-only base (no Match) never matches a world; it exists only as a Parent target.
+        assertTrue(WorldSettingsConfig.getInstance().foldedView().containsKey("dungeonoffear_base"),
+                "the base is in the folded view (Parent target)");
+        assertTrue(cfg.spawnSettingsFor("dungeonoffear_base") == cfg,
+                "a base with no Match is never matched as a world");
 
         // A non-dungeon world matches nothing -> the global config itself (player scaling on, escalation on).
         SpawnScalingSettings overworld = cfg.spawnSettingsFor("world");
@@ -240,6 +293,7 @@ class MobScalingConfigTest {
     @Test
     void longestPrefixDisambiguatesTheThreeDungeons() {
         MobScalingConfig cfg = freshDefaults();
+        loadJarWorlds();
         // A suffixed instance world of each tier resolves to its OWN entry, never a shorter-prefix sibling.
         assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i_ab12").isPlayerScalingEnabled(),
                 "suffixed _i matches the _i* entry (player scaling off)");
@@ -250,55 +304,101 @@ class MobScalingConfigTest {
     }
 
     @Test
-    void perWorldOverlayInheritsUnsetLeavesAndOverridesSetOnes(@TempDir Path tmp) throws Exception {
-        Path configFile = tmp.resolve("mob-scaling.json");
-        Files.writeString(configFile, """
-                { "WorldOverrides": [ {
+    void perWorldFileInheritsUnsetLeavesAndOverridesSetOnes(@TempDir Path tmp) throws Exception {
+        MobScalingConfig cfg = freshDefaults();
+        ownerWorld(tmp, "raid", """
+                {
                     "Match": "raid_*",
+                    "Enabled": true,
                     "Intensity": 2.0,
                     "RaritySpawnChance": 0.5,
-                    "PlayerScalingEnabled": false,
-                    "Difficulty": { "MinCap": 40.0, "StatCurve": { "OutDamagePerPoint": 0.2 } }
-                } ] }
+                    "OpenWorld": { "PlayerScalingEnabled": false },
+                    "Difficulty": { "Floor": 55.0, "MinCap": 40.0, "StatCurve": { "OutDamagePerPoint": 0.2 } },
+                    "Pool": { "Rarities": { "Deny": ["legendary"] },
+                              "Variants": { "ChanceMultiplier": 2.0 },
+                              "Affixes": { "ExtraSlots": 1 } }
+                }
                 """);
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
-        cfg.setConfigPath(configFile);
-        cfg.load();
 
         SpawnScalingSettings raid = cfg.spawnSettingsFor("raid_alpha");
-        assertEquals(0.5, raid.getRaritySpawnChance(), 1e-9, "override RaritySpawnChance applied");
-        assertFalse(raid.isPlayerScalingEnabled(), "override PlayerScalingEnabled applied");
-        assertEquals(40.0, raid.getDifficultyMinCap(), 1e-9, "override Difficulty.MinCap applied");
+        assertEquals(0.5, raid.getRaritySpawnChance(), 1e-9, "world RaritySpawnChance applied");
+        assertFalse(raid.isPlayerScalingEnabled(), "world OpenWorld.PlayerScalingEnabled applied");
+        assertEquals(55.0, raid.getDifficultyFloor(), 1e-9, "world Difficulty.Floor applied");
+        assertEquals(40.0, raid.getDifficultyMinCap(), 1e-9, "world Difficulty.MinCap applied");
         assertEquals(200.0, raid.getDifficultyMaxCap(), 1e-9, "unset MaxCap inherits the global");
+        assertTrue(raid.isWorldScalingEnabled(), "world Enabled=true keeps scaling on");
+        // The per-world Pool gates + dials (1.0.2).
+        assertFalse(raid.isRarityAllowed("Legendary"), "denied rarity is gated out (case-insensitive)");
+        assertTrue(raid.isRarityAllowed("rare"), "an unlisted rarity still rolls (deny-list only)");
+        assertEquals(2.0, raid.getVariantChanceMultiplier(), 1e-9, "world variant chance multiplier");
+        assertEquals(1, raid.getExtraAffixSlots(), "world extra affix slots");
         // StatCurve: OutDamagePerPoint overridden (0.2) then x intensity 2.0; HpPerPoint inherits global (0.08) x 2.0.
         MobScaleFold.DifficultyStatCurve curve = raid.statCurveModel();
         assertEquals(0.4, curve.outPerPoint(), 1e-9, "override slope x override intensity");
         assertEquals(0.16, curve.hpPerPoint(), 1e-9, "inherited slope x override intensity");
-        // A non-matching world is untouched (global).
+        // A non-matching world is untouched (global: allow-all pool, neutral dials).
         assertTrue(cfg.spawnSettingsFor("world") == cfg, "non-match returns the global config");
+        assertTrue(cfg.isRarityAllowed("legendary"), "the global view has no pool gate");
     }
 
     @Test
-    void worldOverridesConcatenateAcrossLayersOwnerWinsSameMatch(@TempDir Path tmp) throws Exception {
-        // The owner ADDS a new world AND overrides one shipped dungeon default by the same Match.
+    void ownerWorldFileReplacesTheShippedFileByIdAndAddsNewOnes(@TempDir Path tmp) throws Exception {
+        MobScalingConfig cfg = freshDefaults();
+        loadJarWorlds();
+        // The owner ADDS a new world file AND replaces one shipped dungeon file BY ID (the owner file
+        // stem matches the jar file stem case-insensitively; layering is id-replace, not per-leaf merge).
+        Path dir = tmp.resolve("worlds");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("myworld.json"),
+                "{ \"Match\": \"myworld_*\", \"OpenWorld\": { \"PlayerScalingEnabled\": false } }");
+        Files.writeString(dir.resolve("dungeonoffear_iii.json"),
+                "{ \"Match\": \"instance-dungeon_of_fear_iii*\", \"OpenWorld\": { \"PlayerScalingEnabled\": false } }");
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(dir);
+        worlds.refold();
+
+        // Owner's new world takes effect.
+        assertFalse(cfg.spawnSettingsFor("myworld_1").isPlayerScalingEnabled(), "owner's new world file applies");
+        // The shipped dungeon files NOT touched by the owner still resolve.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isPlayerScalingEnabled(),
+                "shipped _i file survives an owner adding other files");
+        // Owner's same-id file REPLACES the shipped _iii wholesale: player scaling now off there, and the
+        // shipped Parent (escalation-off) is GONE because the owner body carries no Parent of its own.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii").isPlayerScalingEnabled(),
+                "owner same-id file beats the shipped _iii file");
+        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii").isDistanceEscalationEnabled(),
+                "the replace is WHOLESALE: the shipped Parent policy does not leak into the owner body");
+    }
+
+    @Test
+    void legacyInlineWorldOverridesMigrateToOwnerWorldFiles(@TempDir Path tmp) throws Exception {
+        // A SHIPPED-1.0.1 owner file: inline WorldOverrides (top-level PlayerScalingEnabled included).
         Path configFile = tmp.resolve("mob-scaling.json");
         Files.writeString(configFile, """
-                { "WorldOverrides": [
-                    { "Match": "myworld_*", "PlayerScalingEnabled": false },
-                    { "Match": "instance-dungeon_of_fear_iii*", "PlayerScalingEnabled": false }
+                { "Intensity": 2.0, "WorldOverrides": [
+                    { "Match": "arena_*", "Intensity": 3.0, "PlayerScalingEnabled": false }
                 ] }
                 """);
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         cfg.setConfigPath(configFile);
         cfg.load();
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(tmp.resolve("worlds"));
+        assertTrue(worlds.migrateLegacyOwnerOverrides(configFile), "a legacy array triggers the migration");
+        worlds.refold();
+        cfg.refreshFromDisk();
 
-        // Owner's new world takes effect.
-        assertFalse(cfg.spawnSettingsFor("myworld_1").isPlayerScalingEnabled(), "owner's new override applies");
-        // The shipped dungeon defaults NOT touched by the owner still resolve (concat, not replace).
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isPlayerScalingEnabled(),
-                "shipped _i default survives an owner adding other overrides");
-        // Owner's same-Match entry WINS over the shipped _iii default (which had player scaling ON).
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii").isPlayerScalingEnabled(),
-                "owner same-Match override beats the shipped _iii default");
+        // The entry became its own file with the 1.0.2 schema (PlayerScalingEnabled under OpenWorld).
+        assertTrue(Files.exists(tmp.resolve("worlds").resolve("arena.json")),
+                "the sanitized match (wildcard + trailing separators dropped) becomes the file stem");
+        SpawnScalingSettings arena = cfg.spawnSettingsFor("arena_1");
+        assertFalse(arena.isPlayerScalingEnabled(), "migrated toggle moved under OpenWorld");
+        assertEquals(0.24, arena.statCurveModel().hpPerPoint(), 1e-9,
+                "migrated per-world Intensity 3.0 applies (0.08 x 3.0)");
+        // The owner file keeps its other keys but the array is stripped; a second boot is a no-op.
+        String body = Files.readString(configFile, StandardCharsets.UTF_8);
+        assertTrue(body.contains("\"Intensity\": 2.0"), "sibling owner keys survive the strip: " + body);
+        assertFalse(body.contains("WorldOverrides"), "the legacy array is stripped: " + body);
+        assertFalse(worlds.migrateLegacyOwnerOverrides(configFile), "idempotent: nothing left to migrate");
     }
 }

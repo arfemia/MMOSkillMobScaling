@@ -34,8 +34,6 @@ import com.hypixel.hytale.server.npc.systems.RoleBuilderSystem;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.scaling.ScalingContext;
 import com.ziggfreed.common.scaling.ScalingEngine;
-import com.ziggfreed.mmoskilltree.world.WorldRules;
-import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
@@ -64,7 +62,7 @@ import com.ziggfreed.common.util.SplitMix64;
  * (a companion {@code RefSystem}); this pre-add step only stamps data + scales HP (ref-less, maximized).
  *
  * <p><b>Difficulty scope:</b> {@code effDifficulty} = the LAYERED floor (native zone &gt; biome &gt;
- * {@code WorldRules.mobDifficultyFloor} baseline, via {@link ZoneDifficultyResolver}) plus the
+ * the per-world/global {@code Difficulty.Floor} baseline, via {@link ZoneDifficultyResolver}) plus the
  * distance-from-spawn escalation, plus the band-clamped open-world GROUP DELTA off the cached
  * per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker} + ziggfreed-common's
  * {@code ScalingEngine}; see {@link #resolveSpawnScaling}). The escalation also boosts the rarity
@@ -112,9 +110,10 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             if (world == null) {
                 return;
             }
-            // ONE snapshot of the per-world rules (volatile cache): used for the kill-switch AND the floor.
-            WorldRules rules = WorldScope.rulesFor(world);
-            if (!rules.mobScalingEnabled()) {
+            // ONE per-world settings resolve (cached view; the GLOBAL config when no Worlds/*.json rule
+            // matches): the kill-switch, the floor, the caps, the pool gates - everything reads off it.
+            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+            if (!spawn.isWorldScalingEnabled()) {
                 cleanupResidue(holder); // per-world kill-switch flipped off: strip stale scaling
                 return;
             }
@@ -129,20 +128,20 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 return;
             }
 
-            // 1.0.1: resolve the per-world settings overlay ONCE (the GLOBAL config when no WorldOverride
-            // matches this world), then drive the whole spawn resolve + stat curve off it.
-            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
-            SpawnScaling scaling = resolveSpawnScaling(rules, world, holder, spawn);
+            SpawnScaling scaling = resolveSpawnScaling(world, holder, spawn);
             double effDifficulty = scaling.difficulty();
 
             SplitMix64 rng = new SplitMix64(seedFor(npc, world, holder));
 
             // The per-mob family gate: narrows which rarity tiers / variant overlays may apply to THIS mob (an
             // authored Families allow/deny block resolved against the mob's role name + native NPCGroup
-            // membership). Pure function of the mob's stable identity, so it consumes no RNG and keeps the roll
-            // deterministic. Unrestricted tiers short-circuit cheaply (the common case).
-            Predicate<Rarity> rarityFamilyEligible = r -> MobFamilyMatcher.get().eligible(r.familyFilter(), npc);
-            Predicate<Variant> variantFamilyEligible = v -> MobFamilyMatcher.get().eligible(v.familyFilter(), npc);
+            // membership), ANDed with the per-world Pool allow/deny gate (1.0.2). Both are pure functions of
+            // stable identity/config, so they consume no RNG and keep the roll deterministic. Unrestricted
+            // tiers short-circuit cheaply (the common case).
+            Predicate<Rarity> rarityFamilyEligible = r -> spawn.isRarityAllowed(r.id())
+                    && MobFamilyMatcher.get().eligible(r.familyFilter(), npc);
+            Predicate<Variant> variantFamilyEligible = v -> spawn.isVariantAllowed(v.id())
+                    && MobFamilyMatcher.get().eligible(v.familyFilter(), npc);
 
             Rarity rarity;
             if (scope == MobScaleResult.SCOPE_BOSS) {
@@ -159,11 +158,14 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             // rarity. Draws exactly once (VariantRoster) so the seed->result mapping stays stable. The base
             // rarity id (or "" for a plain mob) feeds the variant's requires-rarity gate.
             String baseRarityId = rarity != null ? rarity.id() : "";
-            Variant variant = Rosters.variant().pick(effDifficulty, baseRarityId, rng, variantFamilyEligible);
+            Variant variant = Rosters.variant().pick(effDifficulty, baseRarityId,
+                    spawn.getVariantChanceMultiplier(), rng, variantFamilyEligible);
 
-            // Affixes come from BOTH hosts (rarity slots + variant slots), one combined distinct roll that
-            // shares the used-set + single-resistance cap; a plain-but-variant mob still gets the variant's.
-            List<Affix> affixes = Rosters.affix().pick(effDifficulty, rarity, variant, rng);
+            // Affixes come from BOTH hosts (rarity slots + variant slots) plus the per-world extra slots,
+            // one combined distinct roll that shares the used-set + single-resistance cap; the per-world
+            // Pool.Affixes allow/deny gates every draw (1.0.2).
+            List<Affix> affixes = Rosters.affix().pick(effDifficulty, rarity, variant,
+                    spawn.getExtraAffixSlots(), a -> spawn.isAffixAllowed(a.id()), rng);
 
             // The base difficulty->stat curve scales plain + rare mobs alike; rarity/affix mults stack on top,
             // then the variant multiplier stacks multiplicatively over that.
@@ -260,15 +262,15 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * degrades to the world baseline floor + the un-boosted chance (no position = no zone, no
      * escalation, no group delta).
      */
-    private static SpawnScaling resolveSpawnScaling(@Nonnull WorldRules rules, @Nonnull World world,
+    private static SpawnScaling resolveSpawnScaling(@Nonnull World world,
             @Nonnull Holder<EntityStore> holder, @Nonnull SpawnScalingSettings settings) {
         TransformComponent transform = holder.getComponent(TransformComponent.getComponentType());
         if (transform == null) {
-            double floor = rules.mobDifficultyFloor();
+            double floor = settings.getDifficultyFloor();
             return new SpawnScaling(floor, settings.getRaritySpawnChance(), ZoneDifficultyResolver.NO_ZONE,
                     floor, 0.0, floor, 0.0, ZoneDifficultyResolver.NO_ZONE);
         }
-        return resolveSpawnScaling(rules, world,
+        return resolveSpawnScaling(world,
                 ChunkUtil.chunkCoordinate(transform.getPosition().x),
                 ChunkUtil.chunkCoordinate(transform.getPosition().z), settings);
     }
@@ -288,10 +290,10 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * above the floor a live lever (a strong group pushes {@code effDifficulty} past the floor, so
      * Legendary / Freezing bands become reachable).
      */
-    public static SpawnScaling resolveSpawnScaling(@Nonnull WorldRules rules, @Nonnull World world,
+    public static SpawnScaling resolveSpawnScaling(@Nonnull World world,
             int chunkX, int chunkZ, @Nonnull SpawnScalingSettings settings) {
         ZoneDifficultyResolver.ResolvedFloor floor =
-                ZoneDifficultyResolver.get().resolve(rules, world, chunkX, chunkZ, settings);
+                ZoneDifficultyResolver.get().resolve(world, chunkX, chunkZ, settings);
         RegionPowerTracker.RegionKey regionKey = new RegionPowerTracker.RegionKey(floor.zoneName(),
                 RegionPowerTracker.gridKey(chunkX, chunkZ, settings.getRegionSizeChunks()));
         double regionPower = RegionPowerTracker.get().scalarFor(world.getName(), regionKey);

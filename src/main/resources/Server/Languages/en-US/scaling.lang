@@ -16,8 +16,8 @@ name.variant_decorated = {variant} {inner}
 
 # /mobscaling admin command (descriptions resolve as lang keys; hytale:Admin only).
 command.desc = Mob-scaling admin tools: purge residue, inspect local difficulty, tune the HUD overlays.
-command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays; preset switches the active preset; intensity tunes the difficulty multiplier; ui opens the admin config page.
-command.usage = Usage: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Subcommand: purge strips scaling residue off loaded mobs; inspect reports the difficulty inputs here; hud tunes the overlays; preset switches the active preset; intensity tunes the difficulty multiplier; worlds lists the per-world settings files; ui opens the admin config page.
+command.usage = Usage: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.arg.intensity = The intensity multiplier (>= 0; 1.0 neutral, higher = tougher mobs). Omit to show the current value.
 command.players_only = This command must be run by a player.
 command.purge.start = Sweeping scaling residue off loaded mobs in this world...
@@ -38,6 +38,14 @@ command.preset.available = Available presets: {0}
 command.preset.swapped = Switched to preset {0}.
 command.preset.unknown = Unknown preset {0}. Available: {1}
 command.preset.saved = Saved: the active preset now persists across restarts.
+
+# /mobscaling worlds - list the folded per-world settings files (Worlds/*.json across jar + packs + the owner dir).
+command.worlds.empty = No per-world settings files are loaded.
+command.worlds.header = Per-world settings ({count} files):
+command.worlds.entry = {id}: match {match}, parent {parent}, {origin}, scaling enabled: {enabled}
+command.worlds.base = (base only, never matched)
+command.worlds.origin_owner = owner file
+command.worlds.origin_shipped = shipped
 
 # /mobscaling intensity - live-tune the GLOBAL difficulty-to-stat multiplier (runtime only; the owner file is the persistent authority).
 command.intensity.current = Current intensity multiplier: {value}
@@ -144,23 +152,29 @@ ui.inspector.portrait = Show portrait
 ui.inspector.range = Range (blocks)
 
 # Worlds tab (per-world WorldOverrides CRUD).
-ui.world.empty = No per-world overrides. Add one below.
+ui.world.empty = No per-world settings files. Add one below.
 ui.world.badge_override = override
-ui.world.badge_default = default
-ui.world.editor_header = Add / edit override
+ui.world.badge_default = shipped
+ui.world.editor_header = Add / edit world
+ui.world.id = File name
 ui.world.match = World match
+ui.world.parent = Parent file
+ui.world.enabled = Scaling in this world
+ui.world.floor = Baseline difficulty floor
 ui.world.intensity = Intensity
 ui.world.rarity = Rarity chance
 ui.world.min_cap = Minimum difficulty
 ui.world.max_cap = Maximum difficulty
 ui.world.player_scaling = Player scaling
 ui.world.escalation = Distance escalation
-ui.world.hint = Blank fields inherit the global value. Stat curve tuning stays in the config file.
+ui.world.hint = Each world is its own file. Blank fields inherit the parent file, then the global value. Pool, stat curve and HUD tuning stay in the file.
 
 # Status line.
 ui.status.saved = Saved.
 ui.status.saved_restart = Saved. Takes effect on restart.
-ui.status.removed = Override removed.
+ui.status.world_deleted = World file removed. A shipped file with the same name applies again.
+ui.status.invalid_parent = Enter a different file as the parent (a file cannot inherit from itself).
+ui.status.save_failed = Could not write the world file.
 ui.status.invalid_number = Enter a valid number (>= 0).
 ui.status.invalid_chance = Enter a chance between 0 and 1.
 ui.status.invalid_caps = Maximum must be at least the minimum.

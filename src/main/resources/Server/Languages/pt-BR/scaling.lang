@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Ferramentas de administração do escalonamento de criaturas: limpar resíduos, inspecionar a dificuldade local, ajustar as sobreposições de HUD.
-command.arg.sub = Subcomando: purge remove os resíduos de escalonamento das criaturas carregadas; inspect mostra os valores de dificuldade na sua posição; hud ajusta as sobreposições; preset alterna a predefinição ativa; intensity ajusta o multiplicador de dificuldade; ui abre a página de configuração do administrador.
-command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Subcomando: purge remove os resíduos de escalonamento das criaturas carregadas; inspect mostra os valores de dificuldade na sua posição; hud ajusta as sobreposições; preset alterna a predefinição ativa; intensity ajusta o multiplicador de dificuldade; worlds lista os arquivos de configuração por mundo; ui abre a página de configuração do administrador.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.players_only = Este comando só pode ser executado por um jogador.
 command.purge.start = Removendo resíduos de escalonamento das criaturas carregadas neste mundo...
 command.purge.done = Resíduos de escalonamento removidos de {count} criaturas carregadas.
@@ -44,6 +44,13 @@ command.preset.available = Predefinições disponíveis: {0}
 command.preset.swapped = Alterado para a predefinição {0}.
 command.preset.unknown = Predefinição desconhecida {0}. Disponíveis: {1}
 command.preset.saved = Salvo: a predefinição ativa agora persiste entre reinicializações.
+
+command.worlds.empty = Nenhum arquivo de configuração por mundo está carregado.
+command.worlds.header = Configurações por mundo ({count} arquivos):
+command.worlds.entry = {id}: correspondência {match}, pai {parent}, {origin}, escalonamento ativado: {enabled}
+command.worlds.base = (somente base, nunca correspondido)
+command.worlds.origin_owner = arquivo do proprietário
+command.worlds.origin_shipped = padrão
 
 command.intensity.current = Multiplicador de intensidade atual: {value}
 command.intensity.set = Multiplicador de intensidade definido como {value}.
@@ -132,23 +139,29 @@ ui.inspector.portrait = Mostrar retrato
 ui.inspector.range = Alcance (blocos)
 
 # Worlds tab (per-world WorldOverrides CRUD).
-ui.world.empty = Nenhuma substituição por mundo. Adicione uma abaixo.
+ui.world.empty = Nenhum arquivo de configuração por mundo. Adicione um abaixo.
 ui.world.badge_override = substituição
 ui.world.badge_default = padrão
-ui.world.editor_header = Adicionar / editar substituição
+ui.world.editor_header = Adicionar / editar mundo
+ui.world.id = Nome do arquivo
 ui.world.match = Correspondência de mundo
+ui.world.parent = Arquivo pai
+ui.world.enabled = Escalonamento neste mundo
+ui.world.floor = Piso de dificuldade base
 ui.world.intensity = Intensidade
 ui.world.rarity = Chance de raridade
 ui.world.min_cap = Dificuldade mínima
 ui.world.max_cap = Dificuldade máxima
 ui.world.player_scaling = Escalonamento de jogador
 ui.world.escalation = Escalação de distância
-ui.world.hint = Campos em branco herdam o valor global. O ajuste de curva de atributos fica no arquivo de configuração.
+ui.world.hint = Cada mundo é seu próprio arquivo. Campos em branco herdam do arquivo pai e, na ausência dele, do valor global. O ajuste de conjunto de surgimento, curva de atributos e HUD permanece no arquivo.
 
 # Status line.
 ui.status.saved = Salvo.
 ui.status.saved_restart = Salvo. Entra em vigor na reinicialização.
-ui.status.removed = Substituição removida.
+ui.status.world_deleted = Arquivo do mundo removido. Um arquivo padrão com o mesmo nome volta a ser aplicado.
+ui.status.invalid_parent = Informe um arquivo diferente como pai (um arquivo não pode herdar de si mesmo).
+ui.status.save_failed = Não foi possível gravar o arquivo do mundo.
 ui.status.invalid_number = Digite um número válido (>= 0).
 ui.status.invalid_chance = Digite uma chance entre 0 e 1.
 ui.status.invalid_caps = O máximo deve ser pelo menos o mínimo.

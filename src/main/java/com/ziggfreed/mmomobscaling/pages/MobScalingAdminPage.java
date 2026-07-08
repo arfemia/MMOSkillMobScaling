@@ -24,20 +24,25 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.ui.SettingsUiUtil;
 import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.hud.HudPosition;
-import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.WorldOverride;
+import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
+import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
 
 /**
  * The in-game admin config page for MMO Mob Scaling ({@code /mobscaling ui}). Four tabs - Global knobs,
- * Zone HUD, Mob Inspector HUD, and a per-world {@code WorldOverrides} CRUD editor - over the shared
- * ziggfreed-common decorated frame. Every edit persists through the ONE write-back path
- * ({@link MobScalingOwnerWriter} -> the owner file -> {@code refreshFromDisk}) so it survives a restart,
- * and HUD / preset edits live-apply to all online players. All labelled buttons are RICH
+ * Zone HUD, Mob Inspector HUD, and a per-world {@code Worlds/*.json} CRUD editor (1.0.2: one owner FILE
+ * per world rule under {@code mods/MmoMobScaling/worlds/}, with {@code Parent} inheritance) - over the
+ * shared ziggfreed-common decorated frame. Global/HUD edits persist through the ONE write-back path
+ * ({@link MobScalingOwnerWriter} -> the owner file -> {@code refreshFromDisk}); world edits write their
+ * own file ({@link MobScalingOwnerWriter#saveWorldFile}/{@code deleteWorldFile} -> the worlds refold).
+ * HUD / preset edits live-apply to all online players. All labelled buttons are RICH
  * ({@link ZigRichButton} / {@link SettingsUiUtil#setToggle}); all display text is a client-resolved
- * {@link Message} on {@code .TextSpans}.
+ * {@link Message} on {@code .TextSpans}. The UI exposes the first-class per-world knobs (Match, Parent,
+ * Enabled, Floor, Intensity, RaritySpawnChance, player scaling, caps, escalation toggle); the Pool /
+ * OpenWorld-rest / HUD / StatCurve per-world groups stay file/pack-authored.
  *
  * <p><b>Access:</b> gated by the {@code /mobscaling ui} command's {@code hytale:Admin} permission group
  * (the only way to open this page); the page reopens itself, so a client cannot open it unprompted.
@@ -76,12 +81,16 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private String inspectorOffsetYInput;
     private String inspectorRangeInput;
 
-    // Per-world editor state.
+    // Per-world editor state (1.0.2: keyed by owner FILE id; blank leaf = inherit).
+    private String worldIdInput = "";
     private String worldMatchInput = "";
+    private String worldParentInput = "";
+    private String worldFloorInput = "";
     private String worldIntensityInput = "";
     private String worldRarityInput = "";
     private String worldMinCapInput = "";
     private String worldMaxCapInput = "";
+    private String worldEnabledInput = "inherit";
     private String worldPlayerScalingInput = "inherit";
     private String worldEscInput = "inherit";
 
@@ -248,36 +257,50 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private void buildWorlds(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
             @Nonnull MobScalingConfig cfg) {
         cmd.clear(WORLD_LIST);
-        List<WorldOverride> overrides = cfg.worldOverrideView();
-        java.util.Set<String> owned = MobScalingOwnerWriter.ownerAuthoredMatches();
-        cmd.set("#MmoscalingWorldEmpty.Visible", overrides.isEmpty());
-        if (overrides.isEmpty()) {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        Map<String, WorldSettings> view = worlds.foldedView();
+        java.util.Set<String> owned = worlds.ownerAuthoredIds();
+        cmd.set("#MmoscalingWorldEmpty.Visible", view.isEmpty());
+        if (view.isEmpty()) {
             cmd.set("#MmoscalingWorldEmpty.TextSpans", tr("scaling.ui.world.empty"));
         }
-        for (int i = 0; i < overrides.size(); i++) {
-            WorldOverride ov = overrides.get(i);
-            String match = ov.getMatch() == null ? "" : ov.getMatch();
-            String rowSel = WORLD_LIST + "[" + i + "]";
+        int i = 0;
+        for (Map.Entry<String, WorldSettings> e : view.entrySet()) {
+            String id = e.getKey();
+            WorldSettings ws = e.getValue();
+            String rowSel = WORLD_LIST + "[" + i++ + "]";
             cmd.append(WORLD_LIST, ROW);
-            cmd.set(rowSel + " #Title.Text", match);
-            cmd.set(rowSel + " #Sub.Text", worldSummary(ov));
-            boolean isOwner = owned.contains(match.trim().toLowerCase(Locale.ROOT));
+            cmd.set(rowSel + " #Title.Text", id);
+            cmd.set(rowSel + " #Sub.Text", worldSummary(worlds, id, ws));
+            boolean isOwner = owned.contains(id);
             cmd.set(rowSel + " #Badge.Visible", true);
             cmd.set(rowSel + " #Badge.TextSpans", tr(isOwner ? "scaling.ui.world.badge_override"
                     : "scaling.ui.world.badge_default"));
             ZigRichButton.text(cmd, rowSel + " #EditBtn", tr("scaling.ui.button.edit"));
-            SettingsUiUtil.bindButton(events, rowSel + " #EditBtn", "editWorld", "Match", match);
-            // Only an owner-authored override is removable (a jar/pack default re-folds if removed).
+            SettingsUiUtil.bindButton(events, rowSel + " #EditBtn", "editWorld", "WorldId", id);
+            // Only an owner-dir FILE is removable (deleting it re-exposes a same-id jar/pack file).
             cmd.set(rowSel + " #RemoveBtn.Visible", isOwner);
             if (isOwner) {
                 ZigRichButton.text(cmd, rowSel + " #RemoveBtn", tr("scaling.ui.button.remove"));
-                SettingsUiUtil.bindButton(events, rowSel + " #RemoveBtn", "removeWorld", "Match", match);
+                SettingsUiUtil.bindButton(events, rowSel + " #RemoveBtn", "removeWorld", "WorldId", id);
             }
         }
 
         cmd.set("#MmoscalingWorldEditorHeader.TextSpans", tr("scaling.ui.world.editor_header"));
+        field(cmd, events, "#MmoscalingWorldIdLabel", "scaling.ui.world.id",
+                "#MmoscalingWorldIdField", worldIdInput, "@WorldIdInput");
         field(cmd, events, "#MmoscalingWorldMatchLabel", "scaling.ui.world.match",
                 "#MmoscalingWorldMatchField", worldMatchInput, "@WorldMatchInput");
+        field(cmd, events, "#MmoscalingWorldParentLabel", "scaling.ui.world.parent",
+                "#MmoscalingWorldParentField", worldParentInput, "@WorldParentInput");
+
+        rowLabel(cmd, "#MmoscalingWorldEnabledLabel", "scaling.ui.world.enabled");
+        SettingsUiUtil.populate(cmd, "#MmoscalingWorldEnabledDropdown",
+                triLabels(), TRISTATE_VALUES, worldEnabledInput);
+        SettingsUiUtil.bindDropdown(events, "#MmoscalingWorldEnabledDropdown", "worldEnabledChanged");
+
+        field(cmd, events, "#MmoscalingWorldFloorLabel", "scaling.ui.world.floor",
+                "#MmoscalingWorldFloorField", worldFloorInput, "@WorldFloorInput");
         field(cmd, events, "#MmoscalingWorldIntensityLabel", "scaling.ui.world.intensity",
                 "#MmoscalingWorldIntensityField", worldIntensityInput, "@WorldIntensityInput");
         field(cmd, events, "#MmoscalingWorldRarityLabel", "scaling.ui.world.rarity",
@@ -364,11 +387,16 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             }
 
             // Worlds.
+            case "worldEnabledChanged" -> { if (data.dropdownValue != null) worldEnabledInput = data.dropdownValue; return; }
             case "worldPlayerScalingChanged" -> { if (data.dropdownValue != null) worldPlayerScalingInput = data.dropdownValue; return; }
             case "worldEscChanged" -> { if (data.dropdownValue != null) worldEscInput = data.dropdownValue; return; }
-            case "editWorld" -> editWorld(data.match);
+            case "editWorld" -> editWorld(data.worldId);
             case "removeWorld" -> {
-                if (data.match != null) { MobScalingOwnerWriter.removeWorldOverride(data.match); ok("scaling.ui.status.removed"); }
+                if (data.worldId != null) {
+                    MobScalingOwnerWriter.deleteWorldFile(data.worldId);
+                    clearWorld(); // never leave the editor pointing at a deleted file
+                    ok("scaling.ui.status.world_deleted");
+                }
             }
             case "saveWorld" -> saveWorld();
             case "clearWorld" -> clearWorld();
@@ -462,68 +490,120 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         ok("scaling.ui.status.saved");
     }
 
-    private void editWorld(@Nullable String match) {
-        if (match == null) {
+    /**
+     * Seed the editor from the folded-EFFECTIVE (Parent-merged) settings for a file id, plus the
+     * AUTHORED Parent reference. Editing a jar/pack-shipped world then saves a NEW owner file
+     * carrying the edited leaf set (an owner file replaces the shipped body wholesale by id);
+     * editing an owner file is a partial leaf merge into it.
+     */
+    private void editWorld(@Nullable String id) {
+        if (id == null || id.isBlank()) {
             return;
         }
-        WorldOverride ov = MobScalingConfig.getInstance().effectiveWorldOverride(match);
-        this.worldMatchInput = match;
-        this.worldIntensityInput = ov != null && ov.getIntensity() != null ? num(ov.getIntensity()) : "";
-        this.worldRarityInput = ov != null && ov.getRaritySpawnChance() != null ? num(ov.getRaritySpawnChance()) : "";
-        this.worldPlayerScalingInput = ov != null && ov.getPlayerScalingEnabled() != null
-                ? (ov.getPlayerScalingEnabled() ? "on" : "off") : "inherit";
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        WorldSettings ws = worlds.effectiveById(id);
+        String parent = worlds.parentOf(id);
+        this.worldIdInput = id;
+        this.worldParentInput = parent == null ? "" : parent;
+        this.worldMatchInput = ws != null && ws.getMatch() != null ? ws.getMatch() : "";
+        this.worldEnabledInput = ws != null && ws.getEnabled() != null
+                ? (ws.getEnabled() ? "on" : "off") : "inherit";
+        this.worldIntensityInput = ws != null && ws.getIntensity() != null ? num(ws.getIntensity()) : "";
+        this.worldRarityInput = ws != null && ws.getRaritySpawnChance() != null ? num(ws.getRaritySpawnChance()) : "";
+        this.worldPlayerScalingInput = "inherit";
+        if (ws != null && ws.getOpenWorld() != null && ws.getOpenWorld().getPlayerScalingEnabled() != null) {
+            this.worldPlayerScalingInput = ws.getOpenWorld().getPlayerScalingEnabled() ? "on" : "off";
+        }
+        String floor = "";
         String minCap = "";
         String maxCap = "";
         String esc = "inherit";
-        if (ov != null && ov.getDifficulty() != null) {
-            if (ov.getDifficulty().getMinCap() != null) minCap = num(ov.getDifficulty().getMinCap());
-            if (ov.getDifficulty().getMaxCap() != null) maxCap = num(ov.getDifficulty().getMaxCap());
-            if (ov.getDifficulty().getDistanceEscalation() != null
-                    && ov.getDifficulty().getDistanceEscalation().getEnabled() != null) {
-                esc = ov.getDifficulty().getDistanceEscalation().getEnabled() ? "on" : "off";
+        if (ws != null && ws.getDifficulty() != null) {
+            if (ws.getDifficulty().getFloor() != null) floor = num(ws.getDifficulty().getFloor());
+            if (ws.getDifficulty().getMinCap() != null) minCap = num(ws.getDifficulty().getMinCap());
+            if (ws.getDifficulty().getMaxCap() != null) maxCap = num(ws.getDifficulty().getMaxCap());
+            if (ws.getDifficulty().getDistanceEscalation() != null
+                    && ws.getDifficulty().getDistanceEscalation().getEnabled() != null) {
+                esc = ws.getDifficulty().getDistanceEscalation().getEnabled() ? "on" : "off";
             }
         }
+        this.worldFloorInput = floor;
         this.worldMinCapInput = minCap;
         this.worldMaxCapInput = maxCap;
         this.worldEscInput = esc;
     }
 
+    /**
+     * Write the editor's leaf set into the owner world file {@code worlds/<id>.json}: a non-blank
+     * field writes its leaf, a blank field / Inherit tri-state REMOVES the leaf (so the file ends up
+     * carrying exactly the editor's authored leaves for the exposed knobs; unexposed groups like
+     * {@code Pool} are untouched). Id derives from Match when left blank; a self-{@code Parent} is
+     * rejected (a deeper cycle warns at fold and resolves standalone).
+     */
     private void saveWorld() {
         String match = worldMatchInput == null ? "" : worldMatchInput.trim();
         if (match.isBlank()) {
             err("scaling.ui.status.match_required");
             return;
         }
+        String id = worldIdInput == null || worldIdInput.isBlank()
+                ? WorldSettingsConfig.sanitizeFileId(match)
+                : WorldSettingsConfig.sanitizeFileId(worldIdInput);
+        String parent = worldParentInput == null ? "" : worldParentInput.trim();
+        if (!parent.isEmpty() && parent.equalsIgnoreCase(id)) {
+            err("scaling.ui.status.invalid_parent");
+            return;
+        }
         Map<String, Object> leaves = new LinkedHashMap<>();
+        leaves.put(MobScalingOwnerWriter.MATCH, match);
+        leaves.put("Parent", parent.isEmpty() ? null : parent);
+        leaves.put("Enabled", triBool(worldEnabledInput));
+        Double floor = parseNonNegativeOrBlank(worldFloorInput);
+        if (bad(worldFloorInput, floor)) { err("scaling.ui.status.invalid_number"); return; }
+        leaves.put("Difficulty.Floor", floor);
         Double intensity = parseNonNegativeOrBlank(worldIntensityInput);
         if (bad(worldIntensityInput, intensity)) { err("scaling.ui.status.invalid_number"); return; }
-        if (intensity != null) leaves.put("Intensity", intensity);
+        leaves.put("Intensity", intensity);
         Double rarity = parseChanceOrBlank(worldRarityInput);
         if (bad(worldRarityInput, rarity)) { err("scaling.ui.status.invalid_chance"); return; }
-        if (rarity != null) leaves.put("RaritySpawnChance", rarity);
+        leaves.put("RaritySpawnChance", rarity);
         Double minCap = parseNonNegativeOrBlank(worldMinCapInput);
         if (bad(worldMinCapInput, minCap)) { err("scaling.ui.status.invalid_number"); return; }
-        if (minCap != null) leaves.put("Difficulty.MinCap", minCap);
+        leaves.put("Difficulty.MinCap", minCap);
         Double maxCap = parseNonNegativeOrBlank(worldMaxCapInput);
         if (bad(worldMaxCapInput, maxCap)) { err("scaling.ui.status.invalid_number"); return; }
-        if (maxCap != null) leaves.put("Difficulty.MaxCap", maxCap);
-        if ("on".equals(worldPlayerScalingInput)) leaves.put("PlayerScalingEnabled", Boolean.TRUE);
-        else if ("off".equals(worldPlayerScalingInput)) leaves.put("PlayerScalingEnabled", Boolean.FALSE);
-        if ("on".equals(worldEscInput)) leaves.put("Difficulty.DistanceEscalation.Enabled", Boolean.TRUE);
-        else if ("off".equals(worldEscInput)) leaves.put("Difficulty.DistanceEscalation.Enabled", Boolean.FALSE);
+        leaves.put("Difficulty.MaxCap", maxCap);
+        leaves.put("OpenWorld.PlayerScalingEnabled", triBool(worldPlayerScalingInput));
+        leaves.put("Difficulty.DistanceEscalation.Enabled", triBool(worldEscInput));
 
-        MobScalingOwnerWriter.upsertWorldOverride(match, leaves);
-        ok("scaling.ui.status.saved");
+        if (MobScalingOwnerWriter.saveWorldFile(id, leaves)) {
+            this.worldIdInput = id;
+            ok("scaling.ui.status.saved");
+        } else {
+            err("scaling.ui.status.save_failed");
+        }
     }
 
     private void clearWorld() {
+        this.worldIdInput = "";
         this.worldMatchInput = "";
+        this.worldParentInput = "";
+        this.worldFloorInput = "";
         this.worldIntensityInput = "";
         this.worldRarityInput = "";
         this.worldMinCapInput = "";
         this.worldMaxCapInput = "";
+        this.worldEnabledInput = "inherit";
         this.worldPlayerScalingInput = "inherit";
         this.worldEscInput = "inherit";
+    }
+
+    /** Tri-state dropdown value -> a nullable Boolean leaf ({@code null} = inherit = remove the leaf). */
+    @Nullable
+    private static Boolean triBool(@Nullable String v) {
+        if ("on".equals(v)) return Boolean.TRUE;
+        if ("off".equals(v)) return Boolean.FALSE;
+        return null;
     }
 
     // ---------------------------------------------------------------------
@@ -544,7 +624,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         if (d.inspectorOffsetXInput != null) inspectorOffsetXInput = d.inspectorOffsetXInput;
         if (d.inspectorOffsetYInput != null) inspectorOffsetYInput = d.inspectorOffsetYInput;
         if (d.inspectorRangeInput != null) inspectorRangeInput = d.inspectorRangeInput;
+        if (d.worldIdInput != null) worldIdInput = d.worldIdInput;
         if (d.worldMatchInput != null) worldMatchInput = d.worldMatchInput;
+        if (d.worldParentInput != null) worldParentInput = d.worldParentInput;
+        if (d.worldFloorInput != null) worldFloorInput = d.worldFloorInput;
         if (d.worldIntensityInput != null) worldIntensityInput = d.worldIntensityInput;
         if (d.worldRarityInput != null) worldRarityInput = d.worldRarityInput;
         if (d.worldMinCapInput != null) worldMinCapInput = d.worldMinCapInput;
@@ -624,23 +707,33 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         return new String[]{"Inherit", "On", "Off"};
     }
 
+    /** DATA summary line for a world row (Match/Parent/knobs are literal values, not display text). */
     @Nonnull
-    private String worldSummary(@Nonnull WorldOverride ov) {
+    private String worldSummary(@Nonnull WorldSettingsConfig worlds, @Nonnull String id,
+            @Nonnull WorldSettings ws) {
         StringBuilder sb = new StringBuilder();
-        if (ov.getIntensity() != null) append(sb, "int " + num(ov.getIntensity()));
-        if (ov.getRaritySpawnChance() != null) append(sb, "rarity " + num(ov.getRaritySpawnChance()));
-        if (ov.getPlayerScalingEnabled() != null) {
-            append(sb, "scaling " + (ov.getPlayerScalingEnabled() ? "on" : "off"));
+        append(sb, ws.isMatchable() ? ws.getMatch() : "(base)");
+        String parent = worlds.parentOf(id);
+        if (parent != null) append(sb, "parent " + parent);
+        if (ws.getEnabled() != null && !ws.getEnabled()) append(sb, "OFF");
+        if (ws.getIntensity() != null) append(sb, "int " + num(ws.getIntensity()));
+        if (ws.getRaritySpawnChance() != null) append(sb, "rarity " + num(ws.getRaritySpawnChance()));
+        if (ws.getOpenWorld() != null && ws.getOpenWorld().getPlayerScalingEnabled() != null) {
+            append(sb, "scaling " + (ws.getOpenWorld().getPlayerScalingEnabled() ? "on" : "off"));
         }
-        if (ov.getDifficulty() != null) {
-            if (ov.getDifficulty().getMinCap() != null || ov.getDifficulty().getMaxCap() != null) {
-                append(sb, "caps " + num(nz(ov.getDifficulty().getMinCap())) + "-" + num(nz(ov.getDifficulty().getMaxCap())));
+        if (ws.getDifficulty() != null) {
+            if (ws.getDifficulty().getFloor() != null) {
+                append(sb, "floor " + num(ws.getDifficulty().getFloor()));
             }
-            if (ov.getDifficulty().getDistanceEscalation() != null
-                    && ov.getDifficulty().getDistanceEscalation().getEnabled() != null) {
-                append(sb, "esc " + (ov.getDifficulty().getDistanceEscalation().getEnabled() ? "on" : "off"));
+            if (ws.getDifficulty().getMinCap() != null || ws.getDifficulty().getMaxCap() != null) {
+                append(sb, "caps " + num(nz(ws.getDifficulty().getMinCap())) + "-" + num(nz(ws.getDifficulty().getMaxCap())));
+            }
+            if (ws.getDifficulty().getDistanceEscalation() != null
+                    && ws.getDifficulty().getDistanceEscalation().getEnabled() != null) {
+                append(sb, "esc " + (ws.getDifficulty().getDistanceEscalation().getEnabled() ? "on" : "off"));
             }
         }
+        if (ws.getPool() != null) append(sb, "pool");
         return sb.length() == 0 ? "-" : sb.toString();
     }
 
@@ -736,7 +829,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     public static final class EventData {
         public String action;
         public String tab;
-        public String match;
+        public String worldId;
         public String dropdownValue;
         public String intensityInput;
         public String rarityInput;
@@ -751,7 +844,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         public String inspectorOffsetXInput;
         public String inspectorOffsetYInput;
         public String inspectorRangeInput;
+        public String worldIdInput;
         public String worldMatchInput;
+        public String worldParentInput;
+        public String worldFloorInput;
         public String worldIntensityInput;
         public String worldRarityInput;
         public String worldMinCapInput;
@@ -760,7 +856,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         public static final BuilderCodec<EventData> CODEC = BuilderCodec.builder(EventData.class, EventData::new)
                 .append(new KeyedCodec<>("Action", Codec.STRING), (d, v, i) -> d.action = v, (d, i) -> d.action).add()
                 .append(new KeyedCodec<>("Tab", Codec.STRING), (d, v, i) -> d.tab = v, (d, i) -> d.tab).add()
-                .append(new KeyedCodec<>("Match", Codec.STRING), (d, v, i) -> d.match = v, (d, i) -> d.match).add()
+                .append(new KeyedCodec<>("WorldId", Codec.STRING), (d, v, i) -> d.worldId = v, (d, i) -> d.worldId).add()
                 .append(new KeyedCodec<>("@DropdownValue", Codec.STRING), (d, v, i) -> d.dropdownValue = v, (d, i) -> d.dropdownValue).add()
                 .append(new KeyedCodec<>("@IntensityInput", Codec.STRING), (d, v, i) -> d.intensityInput = v, (d, i) -> d.intensityInput).add()
                 .append(new KeyedCodec<>("@RarityInput", Codec.STRING), (d, v, i) -> d.rarityInput = v, (d, i) -> d.rarityInput).add()
@@ -775,7 +871,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 .append(new KeyedCodec<>("@InspectorOffsetXInput", Codec.STRING), (d, v, i) -> d.inspectorOffsetXInput = v, (d, i) -> d.inspectorOffsetXInput).add()
                 .append(new KeyedCodec<>("@InspectorOffsetYInput", Codec.STRING), (d, v, i) -> d.inspectorOffsetYInput = v, (d, i) -> d.inspectorOffsetYInput).add()
                 .append(new KeyedCodec<>("@InspectorRangeInput", Codec.STRING), (d, v, i) -> d.inspectorRangeInput = v, (d, i) -> d.inspectorRangeInput).add()
+                .append(new KeyedCodec<>("@WorldIdInput", Codec.STRING), (d, v, i) -> d.worldIdInput = v, (d, i) -> d.worldIdInput).add()
                 .append(new KeyedCodec<>("@WorldMatchInput", Codec.STRING), (d, v, i) -> d.worldMatchInput = v, (d, i) -> d.worldMatchInput).add()
+                .append(new KeyedCodec<>("@WorldParentInput", Codec.STRING), (d, v, i) -> d.worldParentInput = v, (d, i) -> d.worldParentInput).add()
+                .append(new KeyedCodec<>("@WorldFloorInput", Codec.STRING), (d, v, i) -> d.worldFloorInput = v, (d, i) -> d.worldFloorInput).add()
                 .append(new KeyedCodec<>("@WorldIntensityInput", Codec.STRING), (d, v, i) -> d.worldIntensityInput = v, (d, i) -> d.worldIntensityInput).add()
                 .append(new KeyedCodec<>("@WorldRarityInput", Codec.STRING), (d, v, i) -> d.worldRarityInput = v, (d, i) -> d.worldRarityInput).add()
                 .append(new KeyedCodec<>("@WorldMinCapInput", Codec.STRING), (d, v, i) -> d.worldMinCapInput = v, (d, i) -> d.worldMinCapInput).add()

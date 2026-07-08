@@ -24,12 +24,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
-import com.ziggfreed.mmoskilltree.world.WorldRules;
-import com.ziggfreed.mmoskilltree.world.WorldScope;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
+import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
+import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
@@ -77,6 +77,9 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *       hits scale with the multiplier). RUNTIME ONLY: lost on restart; the persistent authority is the
  *       {@code Intensity} key in {@code mods/MmoMobScaling/mob-scaling.json}. A world with an authored
  *       per-world {@code Intensity} override is unaffected.</li>
+ *   <li>{@code worlds} - list the folded per-world settings rules ({@code Worlds/*.json} across jar +
+ *       pack + owner dir, 1.0.2): id, Match (or a pool-only base), Parent, owner-vs-shipped origin, and
+ *       the per-world kill-switch. Read-only; authoring happens in the files or {@code /mobscaling ui}.</li>
  * </ul>
  */
 public final class MobScalingCommand extends CommandBase {
@@ -111,6 +114,7 @@ public final class MobScalingCommand extends CommandBase {
             case "hud" -> hud(ctx);
             case "preset" -> preset(ctx);
             case "intensity" -> intensity(ctx);
+            case "worlds" -> worlds(ctx);
             case "ui" -> openUi(ctx);
             default -> ctx.sendMessage(Message.translation("scaling.command.usage"));
         }
@@ -278,6 +282,38 @@ public final class MobScalingCommand extends CommandBase {
         ctx.sendMessage(Message.translation("scaling.command.hud.saved"));
     }
 
+    /**
+     * List the folded per-world settings rules ({@code Worlds/*.json} across jar + pack + owner dir,
+     * 1.0.2): id, Match (or "base" for a pool-only Parent target), Parent, owner-vs-shipped origin,
+     * and the per-world kill-switch. Read-only; authoring happens in the files or the admin UI.
+     */
+    private void worlds(@Nonnull CommandContext ctx) {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        var view = worlds.foldedView();
+        if (view.isEmpty()) {
+            ctx.sendMessage(Message.translation("scaling.command.worlds.empty"));
+            return;
+        }
+        ctx.sendMessage(Message.translation("scaling.command.worlds.header").param("count", view.size()));
+        for (var e : view.entrySet()) {
+            String id = e.getKey();
+            WorldSettings ws = e.getValue();
+            String parent = worlds.parentOf(id);
+            Message match = ws.isMatchable()
+                    ? Message.raw(ws.getMatch())
+                    : Message.translation("scaling.command.worlds.base");
+            Message origin = Message.translation(worlds.ownerAuthoredIds().contains(id)
+                    ? "scaling.command.worlds.origin_owner"
+                    : "scaling.command.worlds.origin_shipped");
+            ctx.sendMessage(Message.translation("scaling.command.worlds.entry")
+                    .param("id", id)
+                    .param("match", match)
+                    .param("parent", parent != null ? parent : "-")
+                    .param("origin", origin)
+                    .param("enabled", ws.getEnabled() == null || ws.getEnabled()));
+        }
+    }
+
     /** Strip HP-modifier + infinite-effect residue off every loaded NPC in the caller's world. */
     private void purge(@Nonnull CommandContext ctx) {
         if (!(ctx.sender() instanceof PlayerRef player)) {
@@ -341,20 +377,20 @@ public final class MobScalingCommand extends CommandBase {
                     return;
                 }
                 MobScalingConfig cfg = MobScalingConfig.getInstance();
-                // 1.0.1: resolve against the per-world overlay so inspect reports the world's ACTUAL numbers.
+                // Resolve against the per-world view so inspect reports the world's ACTUAL numbers
+                // (1.0.2: the kill-switch + baseline floor live on the view, not on hyMMO WorldRules).
                 SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
-                WorldRules rules = WorldScope.rulesFor(world);
                 int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
                 int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
                 MobScalingSpawnHook.SpawnScaling scaling =
-                        MobScalingSpawnHook.resolveSpawnScaling(rules, world, chunkX, chunkZ, spawn);
+                        MobScalingSpawnHook.resolveSpawnScaling(world, chunkX, chunkZ, spawn);
 
                 player.sendMessage(Message.translation("scaling.command.inspect.header"));
                 player.sendMessage(Message.translation("scaling.command.inspect.power")
                         .param("power", MMOSkillTreeAPI.getPowerLevel(store, ref)));
                 player.sendMessage(Message.translation("scaling.command.inspect.world")
-                        .param("floor", rules.mobDifficultyFloor())
-                        .param("enabled", cfg.isEnabled() && rules.mobScalingEnabled()));
+                        .param("floor", spawn.getDifficultyFloor())
+                        .param("enabled", cfg.isEnabled() && spawn.isWorldScalingEnabled()));
                 // The layered floor breakdown: native zone (or the no-zone grid fallback), the
                 // mapping-layer base, and the distance-from-spawn escalation riding on it.
                 player.sendMessage(Message.translation("scaling.command.inspect.zone")

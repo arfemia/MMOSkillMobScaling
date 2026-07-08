@@ -66,29 +66,53 @@ public final class AffixRoster {
     }
 
     /**
-     * The COMBINED roll: the {@code rarity}'s affixes THEN the {@code variant}'s affixes (either nullable), into
-     * one distinct list that shares the used-affix set + the single-resistance cap across BOTH hosts (so a mob
-     * never draws the same affix twice, nor two resistance-bearing affixes, whichever axis granted them). Each
-     * host contributes its own {@code affixSlots()} and its own gate ({@code allowsAffix} + the affix's
-     * reciprocal {@code allowsRarity}/{@code allowsVariant}). The rarity axis draws first, so the rng sequence
-     * is fixed for determinism. Returns an immutable list (possibly empty).
+     * The COMBINED roll with no per-world gate (world gate = allow-all, no extra slots). Retained for
+     * callers/tests; the spawn hook uses
+     * {@link #pick(double, Rarity, Variant, int, Predicate, SplitMix64)}.
      */
     @Nonnull
     public List<Affix> pick(double effDifficulty, @Nullable Rarity rarity, @Nullable Variant variant,
             @Nonnull SplitMix64 rng) {
+        return pick(effDifficulty, rarity, variant, 0, a -> true, rng);
+    }
+
+    /**
+     * The COMBINED roll: the {@code rarity}'s affixes THEN the {@code variant}'s affixes (either nullable),
+     * THEN {@code extraSlots} per-world bonus slots (1.0.2 {@code Pool.Affixes.ExtraSlots}), into one
+     * distinct list that shares the used-affix set + the single-resistance cap across ALL hosts (so a mob
+     * never draws the same affix twice, nor two resistance-bearing affixes, whichever axis granted them).
+     * Each host contributes its own {@code affixSlots()} and its own gate ({@code allowsAffix} + the
+     * affix's reciprocal {@code allowsRarity}/{@code allowsVariant}); the extra slots use the UNION of the
+     * two host gates (a plain, variant-less mob has no host to legitimize an affix, so extra slots are a
+     * no-op there - documented). The {@code worldGate} (per-world {@code Pool.Affixes} allow/deny) ANDs
+     * into every draw. The rarity axis draws first, then variant, then extras, so the rng sequence is
+     * fixed for determinism. Returns an immutable list (possibly empty).
+     */
+    @Nonnull
+    public List<Affix> pick(double effDifficulty, @Nullable Rarity rarity, @Nullable Variant variant,
+            int extraSlots, @Nonnull Predicate<Affix> worldGate, @Nonnull SplitMix64 rng) {
         if (entries.length == 0) {
             return List.of();
         }
         boolean[] used = new boolean[entries.length];
         boolean[] resistanceTaken = {false};
         List<Affix> out = new ArrayList<>();
+        Predicate<Affix> rarityGate = rarity == null ? null
+                : a -> rarity.allowsAffix(a.id()) && a.allowsRarity(rarity.id());
+        Predicate<Affix> variantGate = variant == null ? null
+                : a -> variant.allowsAffix(a.id()) && a.allowsVariant(variant.id());
         if (rarity != null && rarity.affixSlots() > 0) {
             rollInto(effDifficulty, rarity.affixSlots(), rng, out, used, resistanceTaken,
-                    a -> rarity.allowsAffix(a.id()) && a.allowsRarity(rarity.id()));
+                    a -> rarityGate.test(a) && worldGate.test(a));
         }
         if (variant != null && variant.affixSlots() > 0) {
             rollInto(effDifficulty, variant.affixSlots(), rng, out, used, resistanceTaken,
-                    a -> variant.allowsAffix(a.id()) && a.allowsVariant(variant.id()));
+                    a -> variantGate.test(a) && worldGate.test(a));
+        }
+        if (extraSlots > 0 && (rarityGate != null || variantGate != null)) {
+            rollInto(effDifficulty, extraSlots, rng, out, used, resistanceTaken,
+                    a -> ((rarityGate != null && rarityGate.test(a))
+                            || (variantGate != null && variantGate.test(a))) && worldGate.test(a));
         }
         return List.copyOf(out);
     }

@@ -70,7 +70,8 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
 | `preset <name>` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. |
 | `intensity [multiplier]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
 | `hud <zone\|inspector> <on\|off\|POSITION> [offsetX] [offsetY]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
-| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and a per-world overrides editor). Each edit is saved to the config file and applied live. |
+| `worlds` | List every loaded per-world settings file: its match pattern, parent, shipped-vs-owner origin, and on/off state. |
+| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and an editor over the per-world files). Each edit is saved and applied live. |
 | `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |
 
 Every change made in `/mobscaling ui` or via the `intensity` / `hud` / `preset` subcommands is now SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
@@ -91,17 +92,20 @@ and the mod's asset stores. You never edit Java.
   (`TargetType` Zone or Biome, the native name or a `*` wildcard, and a `Floor`).
 - **Rarities and affixes** are one file each (roll weight, difficulty band, multipliers, affix slots,
   the native effect, bonus drop table, display color, and the inspector icon).
-- **Per-world control.** A `WorldOverrides` list in any `Settings/*.json` (or `mob-scaling.json`) tunes
-  one world or instance on its own: match a world by name (exact, a `Prefix_*`, or `*`, the same matching
-  MMO Skill Tree's world rules use, so it also catches suffixed instance worlds) and set its intensity,
-  rarity spawn chance, a player-scaling on/off switch, and the full difficulty group (caps, escalation,
-  stat curve). Unset keys inherit the global settings; your overrides stack on top of (or replace, by
-  world name) the shipped defaults. Three Dungeon of Fear instances ship pre-tuned (player-based scaling
-  off for I and II; distance escalation off for all three). MMO Skill Tree's per-world rules still set the
-  world difficulty FLOOR and can disable scaling entirely for a world.
+- **Per-world control: one file per world.** Drop a file in `mods/MmoMobScaling/worlds/` (or ship
+  `Server/MmoMobScaling/Worlds/*.json` in a pack): a `Match` pattern (exact, a `Prefix_*`, or `*`, so
+  suffixed instance worlds are caught) plus just the settings that world changes. A world can switch
+  scaling off entirely (`Enabled: false`), set its own baseline difficulty floor, intensity, rarity
+  chance, caps, escalation, stat curve, the whole group-scaling behavior, hide the HUD overlays, and
+  gate its spawn `Pool` (allow/deny rarities, variants, and affixes, scale variant chance, extra affix
+  slots). A file may name a `"Parent"` file and inherit everything it does not set; anything still
+  unset falls back to the global settings. A file in `worlds/` with the same name as a shipped one
+  replaces it; deleting yours brings the shipped one back. Three Dungeon of Fear instances plus the
+  Kweebec Nightmare worlds ship pre-tuned via a shared parent base. (A pre-1.0.2 inline
+  `WorldOverrides` list migrates to files automatically on first start.)
 
-Content packs can add or replace rarities, affixes, zone floors, and drop tables; the fold order is
-`mod defaults < content pack < server owner`.
+Content packs can add or replace rarities, affixes, zone floors, per-world files, and drop tables; the
+fold order is `mod defaults < content pack < server owner`.
 
 ## Uninstall note
 

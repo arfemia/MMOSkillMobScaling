@@ -10,19 +10,20 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.WorldOverride;
+import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 
 /**
  * Integration of the write-back path both the admin UI and {@code /mobscaling} use: a
  * {@link MobScalingOwnerWriter} save writes the owner file (partial, preserving {@code $Comment}) with
  * the right number TYPE, then {@code MobScalingConfig.refreshFromDisk} folds it so the live config
- * reflects the change with no restart. Asserts on the file TEXT (the mod has no gson) + the config state.
+ * reflects the change with no restart; a per-WORLD save writes its own {@code worlds/<id>.json}
+ * (1.0.2) and refolds {@link WorldSettingsConfig}. Asserts on the file TEXT + the config state.
  */
 class MobScalingOwnerWriterTest {
 
@@ -31,6 +32,13 @@ class MobScalingOwnerWriterTest {
         cfg.setConfigPath(file);
         cfg.load(); // seeds jar defaults + scaffolds an empty owner file with a $Comment
         return cfg;
+    }
+
+    @AfterEach
+    void resetWorlds() {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(null);
+        worlds.applyPackLayer(Map.of());
     }
 
     @Test
@@ -62,46 +70,73 @@ class MobScalingOwnerWriterTest {
     }
 
     @Test
-    void upsertAndRemoveWorldOverrideFoldsLive(@TempDir Path tmp) throws Exception {
+    void saveWorldFileWritesFoldsAndDeletes(@TempDir Path tmp) throws Exception {
         Path file = tmp.resolve("mob-scaling.json");
         MobScalingConfig cfg = loaded(file);
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(tmp.resolve("worlds"));
+        worlds.refold();
 
         Map<String, Object> leaves = new LinkedHashMap<>();
+        leaves.put("Match", "arena_*");
         leaves.put("Intensity", 3.0);
-        leaves.put("PlayerScalingEnabled", Boolean.FALSE);
+        leaves.put("OpenWorld.PlayerScalingEnabled", Boolean.FALSE);
         leaves.put("Difficulty.MinCap", 60.0);
-        assertTrue(MobScalingOwnerWriter.upsertWorldOverride("arena_*", leaves));
+        assertTrue(MobScalingOwnerWriter.saveWorldFile("arena", leaves));
+        assertTrue(Files.exists(tmp.resolve("worlds").resolve("arena.json")), "one file per world rule");
 
-        // The folded view + effective lookup reflect the new owner override.
-        List<WorldOverride> view = cfg.worldOverrideView();
-        assertTrue(view.stream().anyMatch(o -> "arena_*".equals(o.getMatch())), "override folds into the view");
-        WorldOverride ov = cfg.effectiveWorldOverride("arena_*");
-        assertNotNull(ov);
-        assertEquals(3.0, ov.getIntensity(), 1e-9);
-        assertEquals(Boolean.FALSE, ov.getPlayerScalingEnabled());
-        assertNotNull(ov.getDifficulty());
-        assertEquals(60.0, ov.getDifficulty().getMinCap(), 1e-9);
-        assertTrue(MobScalingOwnerWriter.ownerAuthoredMatches().contains("arena_*"), "badged as owner-authored");
+        // The folded view + the per-world spawn settings reflect the new owner file.
+        WorldSettings ws = worlds.effectiveById("arena");
+        assertNotNull(ws);
+        assertEquals("arena_*", ws.getMatch());
+        assertEquals(3.0, ws.getIntensity(), 1e-9);
+        SpawnScalingSettings view = cfg.spawnSettingsFor("arena_pvp7");
+        assertFalse(view.isPlayerScalingEnabled(), "OpenWorld.PlayerScalingEnabled applies per world");
+        assertEquals(60.0, view.getDifficultyMinCap(), 1e-9);
+        assertTrue(MobScalingOwnerWriter.ownerAuthoredIds().contains("arena"), "badged as owner-authored");
 
-        // Removing it folds it back out.
-        assertTrue(MobScalingOwnerWriter.removeWorldOverride("arena_*"));
-        assertNull(cfg.effectiveWorldOverride("arena_*"));
-        assertFalse(MobScalingOwnerWriter.ownerAuthoredMatches().contains("arena_*"));
+        // Deleting the file folds it back out (and the cached view drops).
+        assertTrue(MobScalingOwnerWriter.deleteWorldFile("arena"));
+        assertNull(worlds.effectiveById("arena"));
+        assertFalse(MobScalingOwnerWriter.ownerAuthoredIds().contains("arena"));
+        assertTrue(cfg.spawnSettingsFor("arena_pvp7") == cfg, "no rule left: the global config stands");
     }
 
     @Test
-    void upsertLeavesOtherOwnerOverridesIntact(@TempDir Path tmp) throws Exception {
+    void saveWorldFileMergesPartiallyAndLeavesOtherFilesIntact(@TempDir Path tmp) throws Exception {
         Path file = tmp.resolve("mob-scaling.json");
-        MobScalingConfig cfg = loaded(file);
+        loaded(file);
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(tmp.resolve("worlds"));
+        worlds.refold();
 
-        MobScalingOwnerWriter.upsertWorldOverride("world_a", Map.of("Intensity", 1.5));
-        MobScalingOwnerWriter.upsertWorldOverride("world_b", Map.of("Intensity", 2.5));
-        // Re-upsert world_a; world_b must survive (whole-element replace by Match).
-        MobScalingOwnerWriter.upsertWorldOverride("world_a", Map.of("Intensity", 4.0));
+        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of("Match", "world_a*", "Intensity", 1.5));
+        MobScalingOwnerWriter.saveWorldFile("world_b", Map.of("Match", "world_b*", "Intensity", 2.5));
+        // Re-save world_a with a new Intensity: a PARTIAL merge into its own file; world_b untouched.
+        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of("Intensity", 4.0));
 
-        assertEquals(4.0, cfg.effectiveWorldOverride("world_a").getIntensity(), 1e-9);
-        WorldOverride b = cfg.effectiveWorldOverride("world_b");
-        assertNotNull(b, "the other owner override is preserved");
+        assertEquals(4.0, worlds.effectiveById("world_a").getIntensity(), 1e-9);
+        assertEquals("world_a*", worlds.effectiveById("world_a").getMatch(), "unwritten leaf survives the merge");
+        WorldSettings b = worlds.effectiveById("world_b");
+        assertNotNull(b, "the other owner world file is preserved");
         assertEquals(2.5, b.getIntensity(), 1e-9);
+    }
+
+    @Test
+    void saveWorldFileNullLeafRemovesIt(@TempDir Path tmp) throws Exception {
+        Path file = tmp.resolve("mob-scaling.json");
+        loaded(file);
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(tmp.resolve("worlds"));
+        worlds.refold();
+
+        MobScalingOwnerWriter.saveWorldFile("arena", Map.of("Match", "arena_*", "Intensity", 3.0));
+        Map<String, Object> clear = new LinkedHashMap<>();
+        clear.put("Intensity", null); // blank editor field / Inherit -> remove the leaf
+        MobScalingOwnerWriter.saveWorldFile("arena", clear);
+
+        assertNull(worlds.effectiveById("arena").getIntensity(), "removed leaf inherits again");
+        String body = Files.readString(tmp.resolve("worlds").resolve("arena.json"), StandardCharsets.UTF_8);
+        assertFalse(body.contains("Intensity"), body);
     }
 }

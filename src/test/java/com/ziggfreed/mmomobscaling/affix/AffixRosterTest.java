@@ -119,4 +119,34 @@ class AffixRosterTest {
             assertTrue(p.pick(20, leg, 1, new SplitMix64(s)).isEmpty(), "minDiff-40 affix blocked at difficulty 20");
         }
     }
+
+    @Test
+    void worldGateDeniesAnAffixAcrossEveryHost() {
+        // The per-world Pool.Affixes deny gate (1.0.2) ANDs into every draw: a denied affix never rolls
+        // even with free slots, while the rest of the pool still fills them.
+        AffixRoster p = pool();
+        Rarity leg = legendary();
+        for (long s = 0; s < 256; s++) {
+            List<String> ids = p.pick(60, leg, null, 0, a -> !"armored".equals(a.id()), new SplitMix64(s))
+                    .stream().map(Affix::id).toList();
+            assertTrue(!ids.contains("armored"), "the world-denied affix never rolls");
+        }
+    }
+
+    @Test
+    void extraWorldSlotsAddAffixesButNeedAHost() {
+        AffixRoster p = pool();
+        Rarity oneSlot = new Rarity("epic", "", 25, 5, 1, 1, 1, 1, 1, 1, null, null, List.of("*"));
+        // +2 extra world slots on a 1-slot rarity: rolls can now exceed one affix.
+        boolean sawMoreThanOne = false;
+        for (long s = 0; s < 256 && !sawMoreThanOne; s++) {
+            sawMoreThanOne = p.pick(60, oneSlot, null, 2, a -> true, new SplitMix64(s)).size() > 1;
+        }
+        assertTrue(sawMoreThanOne, "extra world slots stack on the rarity slots");
+        // A plain, variant-less mob has NO host to legitimize an affix: extra slots are a no-op.
+        for (long s = 0; s < 64; s++) {
+            assertTrue(p.pick(60, null, null, 3, a -> true, new SplitMix64(s)).isEmpty(),
+                    "extra slots without a rarity/variant host roll nothing");
+        }
+    }
 }

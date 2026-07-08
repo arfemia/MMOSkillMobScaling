@@ -24,8 +24,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Outils d'administration de la mise à l'échelle des créatures : purger les résidus, inspecter la difficulté locale, régler les superpositions HUD.
-command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions ; preset bascule vers le préréglage actif ; intensity règle le multiplicateur de difficulté ; ui ouvre la page de configuration d'administration.
-command.usage = Utilisation : /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Sous-commande : purge retire les résidus de mise à l'échelle des créatures chargées ; inspect affiche les valeurs de difficulté à votre position ; hud règle les superpositions ; preset bascule vers le préréglage actif ; intensity règle le multiplicateur de difficulté ; worlds liste les fichiers de paramètres par monde ; ui ouvre la page de configuration d'administration.
+command.usage = Utilisation : /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.players_only = Cette commande doit être exécutée par un joueur.
 command.purge.start = Suppression des résidus de mise à l'échelle des créatures chargées dans ce monde...
 command.purge.done = Résidus de mise à l'échelle retirés de {count} créatures chargées.
@@ -57,6 +57,14 @@ command.preset.available = Préréglages disponibles : {0}
 command.preset.swapped = Basculé vers le préréglage {0}.
 command.preset.unknown = Préréglage {0} inconnu. Disponibles : {1}
 command.preset.saved = Enregistré : le préréglage actif persiste maintenant après les redémarrages.
+
+# /mobscaling worlds - liste les fichiers de paramètres par monde fusionnés (Worlds/*.json à travers le jar, les packs et le dossier propriétaire).
+command.worlds.empty = Aucun fichier de paramètres par monde n'est chargé.
+command.worlds.header = Paramètres par monde ({count} fichiers) :
+command.worlds.entry = {id} : correspondance {match}, parent {parent}, {origin}, mise à l'échelle activée : {enabled}
+command.worlds.base = (base uniquement, jamais utilisé pour une correspondance)
+command.worlds.origin_owner = fichier propriétaire
+command.worlds.origin_shipped = fourni
 
 command.intensity.current = Multiplicateur d'intensité actuel : {value}
 command.intensity.set = Multiplicateur d'intensité défini à {value}.
@@ -131,23 +139,29 @@ ui.inspector.portrait = Afficher le portrait
 ui.inspector.range = Plage (blocs)
 
 # Worlds tab (per-world WorldOverrides CRUD).
-ui.world.empty = Aucun remplacement par monde. Ajoutez-en un ci-dessous.
+ui.world.empty = Aucun fichier de paramètres par monde. Ajoutez-en un ci-dessous.
 ui.world.badge_override = remplacement
-ui.world.badge_default = par défaut
-ui.world.editor_header = Ajouter/modifier remplacement
+ui.world.badge_default = fourni
+ui.world.editor_header = Ajouter / modifier un monde
+ui.world.id = Nom de fichier
 ui.world.match = Correspondance du monde
+ui.world.parent = Fichier parent
+ui.world.enabled = Mise à l'échelle dans ce monde
+ui.world.floor = Plancher de difficulté de base
 ui.world.intensity = Intensité
 ui.world.rarity = Probabilité de rareté
 ui.world.min_cap = Difficulté minimale
 ui.world.max_cap = Difficulté maximale
 ui.world.player_scaling = Mise à l'échelle du joueur
 ui.world.escalation = Escalade de distance
-ui.world.hint = Les champs vides héritent de la valeur globale. Le réglage de la courbe de statistiques reste dans le fichier de configuration.
+ui.world.hint = Chaque monde possède son propre fichier. Les champs vides héritent du fichier parent, puis de la valeur globale. Le pool, la courbe de statistiques et le réglage du HUD restent dans le fichier.
 
 # Status line.
 ui.status.saved = Enregistré.
 ui.status.saved_restart = Enregistré. Prend effet au redémarrage.
-ui.status.removed = Remplacement supprimé.
+ui.status.world_deleted = Fichier de monde supprimé. Un fichier fourni portant le même nom s'applique de nouveau.
+ui.status.invalid_parent = Choisissez un autre fichier comme parent (un fichier ne peut pas hériter de lui-même).
+ui.status.save_failed = Impossible d'écrire le fichier de monde.
 ui.status.invalid_number = Entrez un nombre valide (>= 0).
 ui.status.invalid_chance = Entrez une probabilité entre 0 et 1.
 ui.status.invalid_caps = Le maximum doit être au moins le minimum.

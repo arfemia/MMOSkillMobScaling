@@ -235,12 +235,29 @@ $F.@ZigDecoratedFrame {
 
         Group { Anchor: (Height: 1, Bottom: 8); Background: #1e2a36; }
 
-        // Add / edit editor. Blank numeric fields inherit the global fold; the dropdowns carry an
-        // Inherit option. StatCurve per-world stays file-authored (the hint says so).
+        // Add / edit editor (1.0.2: one owner FILE per world under mods/MmoMobScaling/worlds/). Blank
+        // fields / the Inherit dropdown option inherit the Parent chain then the global fold. The
+        // Pool / OpenWorld-rest / HUD / StatCurve per-world groups stay file-authored (the hint says so).
         @Header #MmoscalingWorldEditorHeader {}
+        @Row {
+          Label #MmoscalingWorldIdLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldIdField { Anchor: (Width: 220, Height: 30); Padding: (Horizontal: 8); }
+        }
         @Row {
           Label #MmoscalingWorldMatchLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
           $C.@TextField #MmoscalingWorldMatchField { Anchor: (Width: 220, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldParentLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldParentField { Anchor: (Width: 220, Height: 30); Padding: (Horizontal: 8); }
+        }
+        @Row {
+          Label #MmoscalingWorldEnabledLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@DropdownBox #MmoscalingWorldEnabledDropdown { Anchor: (Width: 140, Height: 30); Style: @DropStyle; }
+        }
+        @Row {
+          Label #MmoscalingWorldFloorLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+          $C.@TextField #MmoscalingWorldFloorField { Anchor: (Width: 88, Height: 30); Padding: (Horizontal: 8); }
         }
         @Row {
           Label #MmoscalingWorldIntensityLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }

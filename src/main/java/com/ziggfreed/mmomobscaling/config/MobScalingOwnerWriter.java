@@ -1,10 +1,8 @@
 package com.ziggfreed.mmomobscaling.config;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -17,10 +15,12 @@ import com.ziggfreed.common.util.JsonOverrideWriter;
  * The mob-scaling WRITE-BACK policy layer: the ONE path both the admin UI and the {@code /mobscaling}
  * command persist a knob through. Maps each setting to its PascalCase codec path in the owner file
  * ({@code mods/MmoMobScaling/mob-scaling.json}), delegates the actual write to the generic
- * {@link JsonOverrideWriter} (a partial-override write preserving other keys + {@code $Comment}; an
- * array-by-{@code Match} upsert for {@code WorldOverrides}), then reconciles the in-memory config via
- * {@link MobScalingConfig#refreshFromDisk()} so the change applies LIVE without a restart. Every method
- * is a no-op returning {@code false} when no owner path is set (defaults-only / unit contexts).
+ * {@link JsonOverrideWriter} (a partial-override write preserving other keys + {@code $Comment}),
+ * then reconciles the in-memory config via {@link MobScalingConfig#refreshFromDisk()} so the change
+ * applies LIVE without a restart. Per-WORLD settings (1.0.2) write to their OWN files under
+ * {@code mods/MmoMobScaling/worlds/<id>.json} (bare {@code WorldSettings} bodies; delete re-exposes
+ * the jar/pack file underneath), reconciled via {@link WorldSettingsConfig#refold()}. Every method is
+ * a no-op returning {@code false} when no owner path is set (defaults-only / unit contexts).
  *
  * <p><b>Type fidelity is enforced HERE</b> (an {@code int} offset autoboxes to {@link Integer} for the
  * {@code Codec.INTEGER} leaves, a {@code double} to {@link Double} for {@code Codec.DOUBLE}), so a
@@ -56,8 +56,7 @@ public final class MobScalingOwnerWriter {
     private static final String INSPECTOR_OFFSET_Y = "InspectorHud.OffsetY";
     private static final String INSPECTOR_RANGE = "InspectorHud.RangeBlocks";
     private static final String INSPECTOR_PORTRAIT = "InspectorHud.PortraitEnabled";
-    // WorldOverrides array + its match field (also used by the page to assemble an entry).
-    public static final String WORLD_OVERRIDES = "WorldOverrides";
+    // The per-world body's selector field (the page assembles world-file leaves with it).
     public static final String MATCH = "Match";
 
     private MobScalingOwnerWriter() {
@@ -147,50 +146,48 @@ public final class MobScalingOwnerWriter {
     }
 
     // ---------------------------------------------------------------------
-    // Per-world WorldOverrides (whole-element upsert / remove by Match)
+    // Per-world Worlds files (1.0.2: one owner file per world rule)
     // ---------------------------------------------------------------------
 
     /**
-     * Upsert one WHOLE world override by {@code Match} (the fold replaces a {@code WorldOverride} by Match
-     * wholesale, so the caller passes the FULL entry it wants to keep), then refold. {@code entryLeaves}
-     * are dotted-PascalCase leaves of the entry (e.g. {@code "Intensity"}, {@code "Difficulty.MinCap"}).
+     * Write dotted-PascalCase leaves into the OWNER world file {@code worlds/<id>.json} (a bare
+     * {@code WorldSettings} body; created when missing, siblings preserved, a null value removes a
+     * leaf), then refold the worlds pool so the change applies live. Editing an existing owner file
+     * is a partial leaf merge; overriding a jar/pack-shipped world creates a NEW owner file, so the
+     * caller seeds the full leaf set it wants (an owner file REPLACES the shipped body wholesale by
+     * id - layering is id-replace, inheritance is {@code Parent}'s job).
      */
-    public static boolean upsertWorldOverride(@Nonnull String match, @Nonnull Map<String, Object> entryLeaves) {
-        Path p = path();
-        if (p == null || !JsonOverrideWriter.upsertArrayEntry(p, WORLD_OVERRIDES, MATCH, match, entryLeaves)) {
+    public static boolean saveWorldFile(@Nonnull String id, @Nonnull Map<String, Object> leaves) {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        Path file = worlds.ownerFileFor(id);
+        if (file == null || !JsonOverrideWriter.setLeaves(file, leaves)) {
             return false;
         }
-        refold();
+        worlds.refold();
         return true;
     }
 
-    /** Remove the owner world override with this {@code Match} (a jar/preset entry then re-folds as default). */
-    public static boolean removeWorldOverride(@Nonnull String match) {
-        Path p = path();
-        if (p == null || !JsonOverrideWriter.removeArrayEntry(p, WORLD_OVERRIDES, MATCH, match)) {
+    /** Delete the OWNER world file for {@code id} (a jar/pack file with the same id re-folds as shipped). */
+    public static boolean deleteWorldFile(@Nonnull String id) {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        Path file = worlds.ownerFileFor(id);
+        if (file == null) {
             return false;
         }
-        refold();
-        return true;
-    }
-
-    /**
-     * The lower-cased set of {@code Match} patterns the OWNER file itself authors, so the admin page can
-     * badge a folded override row as an owner OVERRIDE (removable) vs a jar/pack DEFAULT (read-only).
-     */
-    @Nonnull
-    public static Set<String> ownerAuthoredMatches() {
-        Path p = path();
-        if (p == null) {
-            return Set.of();
-        }
-        List<String> raw = JsonOverrideWriter.readArrayKeyValues(p, WORLD_OVERRIDES, MATCH);
-        Set<String> out = new HashSet<>(raw.size());
-        for (String m : raw) {
-            if (m != null && !m.isBlank()) {
-                out.add(m.trim().toLowerCase(Locale.ROOT));
+        try {
+            boolean removed = Files.deleteIfExists(file);
+            if (removed) {
+                worlds.refold();
             }
+            return removed;
+        } catch (Exception e) {
+            return false;
         }
-        return out;
+    }
+
+    /** The lower-cased world ids the OWNER dir authors (the admin page's override-vs-shipped badge). */
+    @Nonnull
+    public static Set<String> ownerAuthoredIds() {
+        return WorldSettingsConfig.getInstance().ownerAuthoredIds();
     }
 }

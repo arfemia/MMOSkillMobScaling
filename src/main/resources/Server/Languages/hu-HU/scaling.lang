@@ -24,8 +24,8 @@ name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
 
 command.desc = A szörnyskálázás admin eszközei: maradványok eltávolítása, helyi nehézség vizsgálata, a HUD kijelzők finomhangolása.
-command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél; a hud finomhangolja a kijelzőket; a preset váltja az aktív előbeállítást; az intensity beállítja a nehézségi szorzót; az ui megnyitja az admin konfigurációs oldalt.
-command.usage = Használat: /mobscaling <purge|inspect|hud|preset|intensity|ui>
+command.arg.sub = Alparancs: a purge eltávolítja a skálázási maradványokat a betöltött szörnyekről; az inspect megmutatja a nehézségi értékeket a helyzetednél; a hud finomhangolja a kijelzőket; a preset váltja az aktív előbeállítást; az intensity beállítja a nehézségi szorzót; a worlds felsorolja a világonkénti beállítási fájlokat; az ui megnyitja az admin konfigurációs oldalt.
+command.usage = Használat: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
 command.players_only = Ezt a parancsot csak játékos futtathatja.
 command.arg.intensity = Az intenzitás szorzó (>= 0; 1,0 semleges, magasabb = keményebb szörnyek). Hagyj ki a jelenlegi érték megjelenítéséhez.
 command.preset.usage = Használat: /mobscaling preset [név]
@@ -34,6 +34,14 @@ command.preset.available = Elérhető előbeállítások: {0}
 command.preset.swapped = Váltva erre az előbeállításra: {0}.
 command.preset.unknown = Ismeretlen előbeállítás: {0}. Elérhető: {1}
 command.preset.saved = Elmentve: az aktív előbeállítás mostantól megmarad az újraindítások között.
+
+command.worlds.empty = Nincsenek betöltve világonkénti beállítási fájlok.
+command.worlds.header = Világonkénti beállítások ({count} fájl):
+command.worlds.entry = {id}: egyeztetés {match}, szülő {parent}, {origin}, skálázás engedélyezve: {enabled}
+command.worlds.base = (csak alap, sosem egyezik)
+command.worlds.origin_owner = tulajdonosi fájl
+command.worlds.origin_shipped = gyári
+
 command.intensity.current = Jelenlegi intenzitás szorzó: {value}
 command.intensity.set = Az intenzitás szorzó beállítva: {value}.
 command.intensity.usage = Használat: /mobscaling intensity [szorzó]. Egy szám >= 0 (1,0 = semleges, magasabb = keményebb szörnyek).
@@ -130,23 +138,29 @@ ui.inspector.portrait = Portrét megjelenítése
 ui.inspector.range = Hatótávolság (blokk)
 
 # Világok lap (világonkénti WorldOverrides CRUD).
-ui.world.empty = Nincs világonkénti felülbírálat. Adjon hozzá egyet alább.
+ui.world.empty = Nincsenek világonkénti beállítási fájlok. Adjon hozzá egyet alább.
 ui.world.badge_override = felülbírálat
-ui.world.badge_default = alapértelmezett
-ui.world.editor_header = Felülbírálat hozzáadása/szerkesztése
+ui.world.badge_default = gyári
+ui.world.editor_header = Világ hozzáadása / szerkesztése
+ui.world.id = Fájlnév
 ui.world.match = Világ egyeztetése
+ui.world.parent = Szülő fájl
+ui.world.enabled = Skálázás ebben a világban
+ui.world.floor = Alap nehézségi küszöb
 ui.world.intensity = Intenzitás
 ui.world.rarity = Ritkasági esély
 ui.world.min_cap = Minimális nehézség
 ui.world.max_cap = Maximális nehézség
 ui.world.player_scaling = Játékos skálázása
 ui.world.escalation = Távolsági eszkalációs
-ui.world.hint = Az üres mezők az globális értéket öröklik. Az érték görbe finomhangolása a konfigurációs fájlban marad.
+ui.world.hint = Minden világ saját fájl. Az üres mezők a szülő fájltól öröklődnek, majd a globális értéktől. A pool, az értékgörbe és a HUD finomhangolása a fájlban marad.
 
 # Állapotsort.
 ui.status.saved = Elmentve.
 ui.status.saved_restart = Elmentve. Az újraindítást követően lép érvénybe.
-ui.status.removed = Felülbírálat eltávolítva.
+ui.status.world_deleted = A világfájl eltávolítva. Az azonos nevű gyári fájl ismét érvénybe lép.
+ui.status.invalid_parent = Adjon meg egy másik fájlt szülőként (egy fájl nem örökölhet önmagától).
+ui.status.save_failed = Nem sikerült írni a világfájlt.
 ui.status.invalid_number = Adjon meg egy érvényes számot (>= 0).
 ui.status.invalid_chance = Adjon meg egy esélyt 0 és 1 között.
 ui.status.invalid_caps = A maximális legalább akkora, mint a minimális.

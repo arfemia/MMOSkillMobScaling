@@ -77,7 +77,7 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   with its own `BuilderCodec`, referenced via `new KeyedCodec<>("Group", Group.CODEC, false)` (the
   in-repo exemplars: `MobScalingSettingsAsset.OpenWorld`/`Difficulty`/`DistanceEscalation`/`ZoneHud`,
   `RarityAsset.Roll`/`Multipliers`/`Affixes`/`Families`, `AffixAsset.Roll`/`FoldDeltas`, the MMO jar's
-  `WorldRulesAsset.MobScaling` + `PowerLevelAsset.Clamp`/`Pillars`/`Modes`). A flat suffix/prefix soup
+  `WorldSettings.Pool` + the MMO jar's `PowerLevelAsset.Clamp`/`Pillars`/`Modes`). A flat suffix/prefix soup
   (`ZoneHudOffsetX`, `HpMult`/`OutDamageMult`/...) is a schema smell: it is not future-proof (a new
   knob lands INSIDE its group) and it does not read as a schema. Nesting composes with the partial
   overlay: every nesting level uses NULLABLE wrapper fields and the fold walks per LEAF.
@@ -94,17 +94,37 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   **1.0.1**: `Intensity` is a NUMERIC multiplier (default 1.0, was a dead string) applied to the
   `StatCurve` slopes in `config/MobScalingConfig.statCurveModel()` (runtime-tunable via `/mobscaling
   intensity`, `setIntensityRuntime`); `OpenWorld` gained `PlayerScalingEnabled` (default true; false
-  skips the group delta); and a top-level `WorldOverrides` ARRAY (`new ArrayCodec<>(WorldOverride.CODEC,
-  WorldOverride[]::new)`, backing field `WorldOverride[]`) holds per-world overlays. Each `WorldOverride`
-  is a `Match` pattern (resolved by `world/WorldOverrideMatcher`, mirroring the MMO `WorldRulesMatcher`
-  precedence exact > longest `*`-prefix > `*`) + partial `Intensity`/`RaritySpawnChance`/
-  `PlayerScalingEnabled`/`Difficulty` (reuses `Difficulty.CODEC`). **The spawn hook + HUD + inspect read
-  the per-world view via `config/SpawnScalingSettings` (interface; `MobScalingConfig implements` it) +
-  `MobScalingConfig.spawnSettingsFor(worldName)` (cached, returns `this` on no-match), NEVER the global
-  getters directly.** `WorldOverrides` fold CONCATENATES across layers (deduped by `Match`, owner >
-  preset > jar), so an owner file augments rather than replaces the jar-shipped dungeon defaults
-  (`Default.json` ships `instance-dungeon_of_fear_i/ii/iii`). `RegionSizeChunks` stays GLOBAL (grid
-  consistency) - not per-world overridable.
+  skips the group delta). **1.0.2**: `Difficulty` gained `Floor` (the world-baseline difficulty floor
+  under the zone/biome `Difficulty/*.json` mappings; global default 30.0 in `Settings/Default.json` -
+  absorbed from the MMO jar's removed `WorldRules.MobScaling` group), and the 1.0.1 inline
+  `WorldOverrides` array was REMOVED in favour of the per-world files below.
+- **PER-WORLD settings are their OWN files (1.0.2)**: keyed raw-`Payload` assets
+  [`asset/WorldSettingsAsset`](src/main/java/com/ziggfreed/mmomobscaling/asset/WorldSettingsAsset.java)
+  under `Server/MmoMobScaling/Worlds/*.json` (jar/packs) PLUS a scanned owner dir
+  `mods/MmoMobScaling/worlds/*.json` (one file per world rule, filename = id; bare body canonical, a
+  pack-style `Payload` wrapper is peeled). The body's ONE schema authority is
+  [`asset/WorldSettings`](src/main/java/com/ziggfreed/mmomobscaling/asset/WorldSettings.java)
+  (`BuilderCodec`, nullable leaves): `Match` (blank = a pool-only BASE, never matched), per-world
+  `Enabled` kill-switch, `Intensity`, `RaritySpawnChance`, the FULL `Difficulty` + `OpenWorld` groups
+  (reused codecs; `RegionSizeChunks` decodes but stays GLOBAL for grid consistency), `ZoneHud`/
+  `InspectorHud` (per-world `Enabled` consumed; hide-only vs a globally-on HUD), and the `Pool` group
+  (`Rarities`/`Variants`/`Affixes` `Allow`/`Deny` lists, deny wins; `Variants.ChanceMultiplier`;
+  `Affixes.ExtraSlots`). A body may carry a top-level `"Parent": "<file-id>"` resolved CROSS-LAYER by
+  common's `codec/JsonParentResolver` (raw pre-merge, memoized, cycle-guarded; child overrides per leaf,
+  arrays replace wholesale) - unset leaves fall through the chain THEN to the global effective settings.
+  [`config/WorldSettingsConfig`](src/main/java/com/ziggfreed/mmomobscaling/config/WorldSettingsConfig.java)
+  owns the pool + fold (pack layer cached from `LoadedAssetsEvent`, owner dir re-scanned per refold,
+  replace-by-id across layers - layering is id-replace, inheritance is Parent's job) and the ONE-TIME
+  migration off the shipped-1.0.1 inline owner array (`migrateLegacyOwnerOverrides`: each entry ->
+  `worlds/<match>.json`, `PlayerScalingEnabled` moved under `OpenWorld`, array stripped). Matching is
+  common's `world/WorldNameMatcher` (exact > longest `*`-prefix > `*`; the old `WorldOverrideMatcher`
+  is deleted). **The spawn hook + HUD + inspect read the per-world view via
+  `config/SpawnScalingSettings` (interface; `MobScalingConfig implements` it) +
+  `MobScalingConfig.spawnSettingsFor(worldName)` (cached `ResolvedWorldSettings` overlay with
+  precompiled pool sets; returns `this` on no-match), NEVER the global getters directly.** Jar defaults:
+  `Worlds/DungeonOfFear_Base.json` (pool-only base: escalation off) inherited by `DungeonOfFear_I/II/III`
+  (I + II pin player scaling off) + `Worlds/KweebecNightmare.json` (`Enabled:false`). The MMO jar's
+  WorldRules carries NO mob-scaling knobs anymore - this mod's files are the ONE per-world surface.
 - The **authoritative defaults** ship as the codec asset
   `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
   key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).

@@ -1,0 +1,8 @@
+{
+  "Name": "Dungeon of Fear III",
+  "Payload": {
+    "$Comment": "III keeps player/group scaling ON (unlike I and II); only the escalation-off policy is inherited from the base.",
+    "Match": "instance-dungeon_of_fear_iii*",
+    "Parent": "DungeonOfFear_Base"
+  }
+}

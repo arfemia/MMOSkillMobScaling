@@ -38,6 +38,26 @@ class MobScalingAssetCodecTest {
         assertNotNull(MobScalingSettingsAsset.CODEC, "MobScalingSettingsAsset.CODEC static-init");
         assertNotNull(DifficultyMappingAsset.CODEC, "DifficultyMappingAsset.CODEC static-init");
         assertNotNull(IconSpec.CODEC, "IconSpec.CODEC static-init (PascalCase key guard)");
+        assertNotNull(WorldSettingsAsset.CODEC, "WorldSettingsAsset.CODEC static-init (raw Name+Payload)");
+        // WorldSettings.CODEC is a plain BuilderCodec (the lowercase-key guard only fires for an
+        // AssetBuilderCodec), so touch its class-init explicitly to keep the PascalCase guarantee.
+        assertNotNull(WorldSettings.CODEC, "WorldSettings.CODEC static-init (the per-world body schema)");
+        assertNotNull(WorldSettings.Pool.CODEC, "WorldSettings.Pool.CODEC static-init");
+    }
+
+    @Test
+    void decodesShippedDungeonWorldFile() throws Exception {
+        WorldSettingsAsset asset = decode("/Server/MmoMobScaling/Worlds/DungeonOfFear_I.json",
+                WorldSettingsAsset.CODEC);
+        com.google.gson.JsonObject body = asset.getPayloadAsJsonObject();
+        assertNotNull(body, "raw Payload survives for the Parent pre-merge");
+        assertEquals("DungeonOfFear_Base", body.get("Parent").getAsString(), "authored Parent");
+        // The body decodes through the ONE schema authority (Parent stripped as the resolver would).
+        body.remove("Parent");
+        WorldSettings ws = WorldSettings.CODEC.decodeJson(
+                RawJsonReader.fromJsonString(body.toString()), new ExtraInfo());
+        assertEquals("instance-dungeon_of_fear_i*", ws.getMatch(), "Match");
+        assertEquals(Boolean.FALSE, ws.getOpenWorld().getPlayerScalingEnabled(), "OpenWorld.PlayerScalingEnabled");
     }
 
     @Test
