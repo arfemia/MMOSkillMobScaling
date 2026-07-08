@@ -136,6 +136,7 @@ ui.global.stat_curve_header = Кривая характеристик сложн
 ui.global.preview_title = Превью: Скелет
 ui.global.preview_note = Простой моб, пропущенный только через кривую статистики сложности выше. Множители редкости и варианта суммируются с этими числами при появлении.
 ui.global.preview_row = С{diff}   ХП {hp}   Урон {out}   Получен {in}
+ui.global.preview_custom = Проверить сложность
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP за точку

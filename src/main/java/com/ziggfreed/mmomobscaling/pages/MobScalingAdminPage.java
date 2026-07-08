@@ -97,10 +97,20 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String PREVIEW_LIST = "#MmoscalingPreviewList";
     private static final String PREVIEW_TITLE_SEL = "#MmoscalingPreviewTitle";
     private static final String PREVIEW_NOTE_SEL = "#MmoscalingPreviewNote";
+    // The manual difficulty-probe row (round-3): a label + TextField below the five fixed samples, plus
+    // the one extra preview line it drives. Wired OUTSIDE globalForm/SettingsForm (its own "previewD"
+    // event, see buildPreviewPanel/handlePreviewDifficulty) since it has no leaf path to persist.
+    private static final String PREVIEW_CUSTOM_LABEL_SEL = "#MmoscalingPreviewCustomLabel";
+    private static final String PREVIEW_CUSTOM_FIELD_SEL = "#MmoscalingPreviewCustomField";
+    private static final String PREVIEW_CUSTOM_LINE_SEL = "#MmoscalingCustomPreviewLine";
     // Five evenly-spaced sample difficulties between the current MinCap and MaxCap (the Global-tab preview).
     private static final int PREVIEW_SAMPLES = 5;
     // The preview's fixed sample role (matches scaling.ui.global.preview_title, "Preview: Skeleton").
     private static final String PREVIEW_ROLE_NAME = "Skeleton";
+    // The per-maintainer style for the per-world hint's "Inherits: X" segment (round-3): white + bold,
+    // label and substituted value alike (Message#color/#bold mutate + return the SAME instance, so both
+    // the wrapping frame message and the nested value param need the call - see inheritsSegment).
+    private static final String INHERITS_COLOR = "#ffffff";
 
     // World-form field ids referenced outside the spec table (id derivation, self-Parent check).
     private static final String F_WORLD_ID = "worldId";
@@ -145,6 +155,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
 
     private String activeTab = "global";
 
+    // The manual difficulty-probe field's cached raw text (round-3); lives OUTSIDE every SettingsForm
+    // (it has no leaf path, nothing to persist) but follows the same "cache on field, refresh on demand"
+    // shape. Starts blank (a fresh page open never shows the probe line until the admin types into it).
+    @Nonnull private String customPreviewInput = "";
+
     @Nullable private Message statusMessage;
     private boolean statusIsError;
 
@@ -184,7 +199,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         buildPresetRow(cmd, events, cfg);
         globalForm.buildRows(cmd, events, GLOBAL_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingGlobalSave", "scaling.ui.button.save_tab", "saveGlobal");
-        buildPreviewPanel(cmd);
+        buildPreviewPanel(cmd, events);
 
         zoneForm.buildRows(cmd, events, ZONE_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingZoneSave", "scaling.ui.button.save_tab", "saveZone");
@@ -279,27 +294,42 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     // Skeleton preview panel (Global tab, right column)
     // ---------------------------------------------------------------------
 
-    /** Build-time only: paint the title/note + append the (fixed-count) sample rows, then fill them. */
-    private void buildPreviewPanel(@Nonnull UICommandBuilder cmd) {
+    /**
+     * Build-time only: paint the title/note, append the (fixed-count) sample rows, paint + bind the
+     * manual difficulty-probe row (round-3 - a label + TextField OUTSIDE globalForm, its own
+     * {@code "previewD"} event since it has no leaf path to persist), then fill everything.
+     */
+    private void buildPreviewPanel(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
         cmd.set(PREVIEW_TITLE_SEL + ".TextSpans", tr("scaling.ui.global.preview_title"));
         cmd.set(PREVIEW_NOTE_SEL + ".TextSpans", tr("scaling.ui.global.preview_note"));
         for (int i = 0; i < PREVIEW_SAMPLES; i++) {
             cmd.append(PREVIEW_LIST, PREVIEW_ROW);
         }
+        rowLabel(cmd, PREVIEW_CUSTOM_LABEL_SEL, "scaling.ui.global.preview_custom");
+        cmd.set(PREVIEW_CUSTOM_FIELD_SEL + ".Value", customPreviewInput);
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, PREVIEW_CUSTOM_FIELD_SEL,
+                com.hypixel.hytale.server.core.ui.builder.EventData.of("Action", "previewD")
+                        .append("@Value", PREVIEW_CUSTOM_FIELD_SEL + ".Value"),
+                false);
         refreshPreview(cmd);
     }
 
     /**
-     * Recompute + push the five sample rows from the CURRENT Global-form values (falling back to the
-     * live config for a blank/invalid field - never the form's Save validation, this is a read-only
-     * preview). Mirrors {@code MobScalingConfig.buildCurve} (package-private there, so the
-     * {@link MobScaleFold.DifficultyStatCurve} is constructed directly here): the three slopes scale by
-     * {@code max(0, intensity)}, the caps do not. Each row shows a plain mob (no rarity/variant) run
-     * through that curve alone - rarity/variant multipliers stack on top at spawn, they are not part of
-     * this read. The HP cell additionally shows the ABSOLUTE health when
-     * {@link RoleBaseHealthResolver#baseMaxHealth} resolves the sample role's declared base (memoized,
-     * so this is cheap on every keystroke); damage stays factor-only (base attack damage lives in
-     * weapon/attack assets, out of scope here).
+     * Recompute + push the five sample rows AND the manual probe line (round-3) from the CURRENT
+     * Global-form values (falling back to the live config for a blank/invalid field - never the form's
+     * Save validation, this is a read-only preview). Mirrors {@code MobScalingConfig.buildCurve}
+     * (package-private there, so the {@link MobScaleFold.DifficultyStatCurve} is built directly here via
+     * {@link #buildPreviewCurve}): the three slopes scale by {@code max(0, intensity)}, the caps do not.
+     * Each row shows a plain mob (no rarity/variant) run through that curve alone - rarity/variant
+     * multipliers stack on top at spawn, they are not part of this read. The HP cell additionally shows
+     * the ABSOLUTE health when {@link RoleBaseHealthResolver#baseMaxHealth} resolves the sample role's
+     * declared base (memoized/observed, so this is cheap on every keystroke); damage stays factor-only
+     * (base attack damage lives in weapon/attack assets, out of scope here). Called from every
+     * Global-tab path that can change the curve or the caps (field/press/saveGlobal/selectPreset), which
+     * is exactly why folding the probe-line refresh in here (rather than duplicating a call at each site)
+     * keeps it in sync for free; the probe's OWN {@code "previewD"} event refreshes just that one line
+     * via {@link #refreshCustomPreviewLine} directly (the five fixed rows do not depend on the typed
+     * probe value, no need to repaint them on every keystroke there).
      */
     private void refreshPreview(@Nonnull UICommandBuilder cmd) {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
@@ -308,6 +338,25 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         if (max < min) {
             max = min; // an inverted cap pair is a footgun, same guard as MobScalingConfig.applyFold
         }
+        MobScaleFold.DifficultyStatCurve curve = buildPreviewCurve();
+        OptionalInt baseHealth = RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME);
+
+        for (int i = 1; i <= PREVIEW_SAMPLES; i++) {
+            double d = min + (max - min) * i / (double) PREVIEW_SAMPLES;
+            cmd.set(PREVIEW_LIST + "[" + (i - 1) + "] #Line.TextSpans", previewRow(curve, baseHealth, d));
+        }
+        refreshCustomPreviewLine(cmd, curve, baseHealth);
+    }
+
+    /**
+     * The CURRENT Global-form difficulty stat curve alone (no cap/min/max clamp to a sample range) -
+     * shared by the five fixed sample rows and the manual probe line, so both read the exact same
+     * curve. See {@link #refreshPreview}'s javadoc for the clamps mirrored from
+     * {@code MobScalingConfig.applyFold}.
+     */
+    @Nonnull
+    private MobScaleFold.DifficultyStatCurve buildPreviewCurve() {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
         double k = Math.max(0.0, previewValue("intensity", cfg.getIntensity()));
         double hpPerPoint = previewValue("hpPerPoint", cfg.getStatCurveHpPerPoint());
         double outPerPoint = previewValue("outPerPoint", cfg.getStatCurveOutDamagePerPoint());
@@ -318,18 +367,50 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         double maxHpMult = Math.max(1.0, previewValue("maxHp", cfg.getStatCurveMaxHpMult()));
         double maxOutMult = Math.max(1.0, previewValue("maxOut", cfg.getStatCurveMaxOutDamageMult()));
         double minInMult = Math.max(0.01, Math.min(1.0, previewValue("minIn", cfg.getStatCurveMinInDamageMult())));
-        MobScaleFold.DifficultyStatCurve curve = new MobScaleFold.DifficultyStatCurve(
+        return new MobScaleFold.DifficultyStatCurve(
                 hpPerPoint * k, outPerPoint * k, inReductionPerPoint * k, maxHpMult, maxOutMult, minInMult);
-        OptionalInt baseHealth = RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME);
+    }
 
-        for (int i = 1; i <= PREVIEW_SAMPLES; i++) {
-            double d = min + (max - min) * i / (double) PREVIEW_SAMPLES;
-            Message line = tr("scaling.ui.global.preview_row")
-                    .param("diff", String.valueOf(Math.round(d)))
-                    .param("hp", formatHp(curve.hpFactor(d), baseHealth))
-                    .param("out", formatMult(curve.outFactor(d)))
-                    .param("in", formatReduction((1.0 - curve.inFactor(d)) * 100.0));
-            cmd.set(PREVIEW_LIST + "[" + (i - 1) + "] #Line.TextSpans", line);
+    /** One {@code scaling.ui.global.preview_row} line at difficulty {@code d} (shared: fixed rows + the probe). */
+    @Nonnull
+    private static Message previewRow(@Nonnull MobScaleFold.DifficultyStatCurve curve,
+            @Nonnull OptionalInt baseHealth, double d) {
+        return tr("scaling.ui.global.preview_row")
+                .param("diff", String.valueOf(Math.round(d)))
+                .param("hp", formatHp(curve.hpFactor(d), baseHealth))
+                .param("out", formatMult(curve.outFactor(d)))
+                .param("in", formatReduction((1.0 - curve.inFactor(d)) * 100.0));
+    }
+
+    /**
+     * The manual difficulty probe (round-3): ONE extra preview line below the five fixed samples, at
+     * whatever difficulty {@link #customPreviewInput} parses to - UNCLAMPED to the live Min/Max cap band
+     * (it is a deliberate probe of an arbitrary difficulty, not a sample of the live operating range; the
+     * curve's own multiplier caps still bound the resulting HP/damage factors same as any other
+     * difficulty). Hidden whenever the field is blank or not a parseable number &gt;= 1 (never a
+     * negative or zero difficulty).
+     */
+    private void refreshCustomPreviewLine(@Nonnull UICommandBuilder cmd,
+            @Nonnull MobScaleFold.DifficultyStatCurve curve, @Nonnull OptionalInt baseHealth) {
+        Double d = parseProbeDifficulty(customPreviewInput);
+        cmd.set(PREVIEW_CUSTOM_LINE_SEL + ".Visible", d != null);
+        if (d != null) {
+            cmd.set(PREVIEW_CUSTOM_LINE_SEL + ".TextSpans", previewRow(curve, baseHealth, d));
+        }
+    }
+
+    /** A parseable, finite difficulty &gt;= 1, or {@code null} for blank/invalid/out-of-range input. */
+    @Nullable
+    private static Double parseProbeDifficulty(@Nonnull String raw) {
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            double v = Double.parseDouble(trimmed);
+            return (!Double.isNaN(v) && !Double.isInfinite(v) && v >= 1.0) ? v : null;
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 
@@ -394,6 +475,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             case "tab" -> handleTab(data.tab);
             case "field" -> handleField(data.field, data.value);
             case "press" -> handlePress(data.field);
+            case "previewD" -> handlePreviewDifficulty(data.value);
             case "selectPreset" -> handleSelectPreset(data.value);
             case "saveGlobal" -> handleSaveGlobal();
             case "saveZone" -> handleSaveZone();
@@ -425,6 +507,19 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             refreshPreview(cmd);
             sendUpdate(cmd, null, false);
         }
+    }
+
+    /**
+     * The manual difficulty-probe field's OWN {@code ValueChanged} event (round-3) - cache the typed
+     * text then repaint ONLY {@link #PREVIEW_CUSTOM_LINE_SEL} (the five fixed sample rows never depend
+     * on it, so there is nothing else to refresh here). Lives outside {@code globalForm} entirely: no
+     * leaf path, nothing to persist, never a save-blocking validation error - just show or hide a line.
+     */
+    private void handlePreviewDifficulty(@Nullable String value) {
+        this.customPreviewInput = value == null ? "" : value;
+        UICommandBuilder cmd = new UICommandBuilder();
+        refreshCustomPreviewLine(cmd, buildPreviewCurve(), RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME));
+        sendUpdate(cmd, null, false);
     }
 
     private void handleTab(@Nullable String tab) {
@@ -772,11 +867,30 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             Message inheritsValue = inherited.get(fieldId);
             Message hint = tr(hintKey);
             if (blank && inheritsValue != null) {
-                hint = Message.join(hint, Message.raw("\n"),
-                        tr("scaling.ui.world.inherits").param("value", inheritsValue));
+                hint = Message.join(hint, Message.raw("\n"), inheritsSegment(inheritsValue));
             }
             worldForm.applyHint(cmd, WORLD_FORM_SEL, fieldId, hint);
         }
+    }
+
+    /**
+     * The "Inherits: {value}" line styled WHITE + BOLD end to end - both the localized label and the
+     * substituted value (round-3, per maintainer request). {@link Message#color}/{@link Message#bold}
+     * mutate their receiver IN PLACE and return it, so both the wrapping frame message ({@code
+     * scaling.ui.world.inherits}) AND the nested {@code value} param need the call: a span with no
+     * explicit style of its own falls back to the Hint label's own muted default (see
+     * {@code ZigFormFieldRow.ui}'s {@code #Hint} style), not its parent message node's color, so styling
+     * only the outer frame would leave the substituted value unstyled. Safe to mutate {@code
+     * inheritsValue} directly - {@link Message#translation}/{@link Message#raw} (and every
+     * {@code effectiveWorldDisplayValues} helper that builds one) return a FRESH instance per call, never
+     * shared/cached, so this can never leak style onto some other render of the same key. The static
+     * hint segment above this stays default-styled (its own color is being lightened in
+     * ziggfreed-common's shared row templates by a parallel change - not touched here).
+     */
+    @Nonnull
+    private static Message inheritsSegment(@Nonnull Message inheritsValue) {
+        Message value = inheritsValue.color(INHERITS_COLOR).bold(true);
+        return tr("scaling.ui.world.inherits").param("value", value).color(INHERITS_COLOR).bold(true);
     }
 
     /**

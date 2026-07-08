@@ -136,6 +136,7 @@ ui.global.stat_curve_header = Curva de estadísticas de dificultad
 ui.global.preview_title = Vista previa: Esqueleto
 ui.global.preview_note = Una criatura común ejecutada solo a través de la curva de estadísticas de dificultad anterior. Los multiplicadores de rareza y variante se apilan sobre estos números al aparecer.
 ui.global.preview_row = D{diff}   HP {hp}   Daño {out}   Recibido {in}
+ui.global.preview_custom = Prueba una dificultad
 
 # Valores de curva de estadísticas de dificultad (compartidos por la pestaña Global y el editor por mundo).
 ui.curve.hp_per_point = HP por punto

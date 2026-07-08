@@ -134,6 +134,7 @@ ui.global.stat_curve_header = Nehézségi érték görbe
 ui.global.preview_title = Előnézet: Csontváz
 ui.global.preview_note = Egyszerű szörny, amely csak a fenti nehézségi érték görbén fut végig. A ritkasági és variáció szorzók a megjelenéskor ezeken a számokon halmozódnak fel.
 ui.global.preview_row = N{diff}   HP {hp}   Seb {out}   Kapott {in}
+ui.global.preview_custom = Próbálj ki egy nehézséget
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP pontonként

@@ -137,6 +137,7 @@ ui.global.stat_curve_header = Curva di difficoltà
 ui.global.preview_title = Anteprima: Scheletro
 ui.global.preview_note = Una creatura comune elaborata solo mediante la curva di difficoltà sopra. I moltiplicatori di rarità e variante si sommano a questi numeri al momento della comparsa.
 ui.global.preview_row = D{diff}   PV {hp}   Dmg {out}   Assorbito {in}
+ui.global.preview_custom = Prova una difficoltà
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = PV per punto

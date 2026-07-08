@@ -148,6 +148,9 @@ ui.global.stat_curve_header = Difficulty stat curve
 ui.global.preview_title = Preview: Skeleton
 ui.global.preview_note = A plain mob run through the difficulty stat curve above only. Rarity and variant multipliers stack on top of these numbers at spawn.
 ui.global.preview_row = D{diff}   HP {hp}   Dmg {out}   Taken {in}
+# Manual difficulty probe (round-3): a label beside the small TextField that previews one MORE row at
+# whatever difficulty is typed in, unclamped to the Min/Max cap band above.
+ui.global.preview_custom = Try a difficulty
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP per point

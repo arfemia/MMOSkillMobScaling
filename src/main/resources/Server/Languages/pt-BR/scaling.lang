@@ -135,6 +135,7 @@ ui.global.stat_curve_header = Curva de atributo de dificuldade
 ui.global.preview_title = Pré-visualização: Esqueleto
 ui.global.preview_note = Uma criatura comum processada apenas pela curva de atributos de dificuldade acima. Multiplicadores de raridade e variante se acumulam sobre esses números ao surgir.
 ui.global.preview_row = D{diff}   HP {hp}   Dano {out}   Recebido {in}
+ui.global.preview_custom = Teste uma dificuldade
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP por ponto

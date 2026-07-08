@@ -144,6 +144,33 @@ that removes the old WorldRules mob-scaling baseline - update BOTH together) and
   page's 300px list panel: `#Title` wraps to two lines (no fixed title height) instead of cutting off a
   long world id / match pattern, `#Badge`/`#EditBtn`/`#RemoveBtn` narrow to leave room. `buildWorldList`
   is unchanged beyond the template-path constant.
+- Fix (round-3 admin-UX hardening, in-game validation): the absolute-HP resolver silently fell back to
+  multipliers-only for the LIVE skeleton, because the vanilla `Skeleton` role is a `Variant`
+  (`"Type": "Variant", "Reference": "Template_Intelligent", "Modify": {"MaxHealth": 92, ...}`), not a
+  plain `BuilderRole` - `RoleBaseHealthResolver`'s old `instanceof BuilderRole` gate rejected it outright.
+  The resolver now mirrors the engine's own `BuilderManager.validateAllSpawnableNPCs` for a
+  `BuilderRoleVariant`: seed an `ExecutionContext` from the variant's OWN builder parameters, fold the
+  WHOLE `Modify` chain via the variant's public `createModifierScope(ExecutionContext)`, walk the SAME
+  reference chain (`getReferenceIndex()`/`getBuilderManager()`/`tryGetCachedValidRole()` - all public, no
+  second reflective field needed) to the TERMINAL template `BuilderRole`, then evaluate ITS `MaxHealth`
+  holder against the folded scope (`Template_Intelligent.json`'s `"MaxHealth": {"Compute": "MaxHealth"}`
+  is a `Compute` expression, so the old `isStatic()`/`rawGet(null)` shortcut would NPE on it - both role
+  shapes now always evaluate via `rawGet(ctx)`). The preview now shows `x4.2 (386)` for the skeleton
+  instead of `x4.2` alone.
+- New: observed-spawn ground truth backs the resolver too. `RoleBaseHealthResolver.recordObserved` lets
+  `event.MobScalingSpawnHook` feed it a role's ACTUAL pre-scale base max health, read off the balanced
+  `EntityStatMap` right before this mod's own `mmoscaling_hp` modifier applies - live truth that already
+  includes native balancing plus whatever any earlier-ordered mod stacked on top. `baseMaxHealth` checks
+  this cache before the reflective template read, so once any mob of a role has spawned this session, the
+  preview's absolute HP for that role reflects the table's actual live numbers, not just the authored
+  template value.
+- Change: the per-world editor's "Inherits: X" hint line now renders WHITE + BOLD end to end (the label
+  and the substituted value alike), instead of the same muted grey as the static hint text above it.
+- New: a manual difficulty probe in the Global-tab preview. A "Try a difficulty" field below the five
+  fixed samples previews ONE more row at whatever difficulty (`>= 1`) you type, UNCLAMPED to the live
+  Min/Max cap band - a way to sanity-check one specific number without retuning the caps first. Wired
+  outside `globalForm` entirely (its own `"previewD"` event; nothing to persist), refreshed alongside the
+  five fixed rows on every Global-tab change and on its own keystroke; hidden while blank or unparseable.
 
 ## 1.0.1
 

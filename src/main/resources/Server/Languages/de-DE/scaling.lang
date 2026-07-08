@@ -137,6 +137,7 @@ ui.global.stat_curve_header = Schwierigkeits-Statuskurve
 ui.global.preview_title = Vorschau: Skelett
 ui.global.preview_note = Ein einfaches Mob, das nur durch die obige Schwierigkeits-Statuskurve verarbeitet wird. Seltenheits- und Varianten-Multiplikatoren stapeln sich oben auf diese Zahlen beim Spawn.
 ui.global.preview_row = S{diff}   HP {hp}   Schaden {out}   Erlitten {in}
+ui.global.preview_custom = Eine Schwierigkeit testen
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP pro Punkt

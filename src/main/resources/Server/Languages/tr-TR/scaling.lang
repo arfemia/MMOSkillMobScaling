@@ -135,6 +135,7 @@ ui.global.stat_curve_header = Zorluk istatistik eğrisi
 ui.global.preview_title = Ön İzleme: İskelet
 ui.global.preview_note = Sadece yukarıdaki zorluk istatistik eğrisinden geçen sıradan bir yaratık. Nadirlik ve varyant çarpanları bu sayıların üzerine belirmede yığılır.
 ui.global.preview_row = Z{diff}   HP {hp}   Hasar {out}   Alınan {in}
+ui.global.preview_custom = Bir zorluk dene
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = Nokta başına HP

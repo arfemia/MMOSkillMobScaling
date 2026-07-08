@@ -127,6 +127,23 @@ $F.@ZigDecoratedFrame {
           Group #MmoscalingPreviewList {
             LayoutMode: Top;
           }
+
+          // Manual difficulty probe (round-3): type any difficulty >= 1 to preview it directly,
+          // UNCLAMPED to the live Min/Max cap band (the curve's own multiplier caps still bound the
+          // resulting factors) - wired OUTSIDE the spec-driven form, own "previewD" ValueChanged event
+          // (MobScalingAdminPage.buildPreviewPanel/handlePreviewDifficulty). Hidden until the field
+          // holds a parseable difficulty.
+          @Row {
+            Anchor: (Height: 30, Top: 6, Bottom: 0);
+            Label #MmoscalingPreviewCustomLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+            $C.@TextField #MmoscalingPreviewCustomField { Anchor: (Width: 80, Height: 28); Padding: (Horizontal: 8); }
+          }
+          Label #MmoscalingCustomPreviewLine {
+            Text: "";
+            Visible: false;
+            Anchor: (Top: 4);
+            Style: (FontSize: 12, TextColor: #cdd8e6);
+          }
         }
       }
 

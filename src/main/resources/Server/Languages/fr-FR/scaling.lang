@@ -143,6 +143,7 @@ ui.curve.min_in = Multiplicateur de dégâts subis min
 ui.global.preview_title = Aperçu : Squelette
 ui.global.preview_note = Une créature ordinaire passée par la courbe de statistiques de difficulté ci-dessus uniquement. Les multiplicateurs de rareté et de variante s'empilent sur ces chiffres à la génération.
 ui.global.preview_row = D{diff}   PV {hp}   Dégâts {out}   Subis {in}
+ui.global.preview_custom = Essayer une difficulté
 
 # Shared HUD tab rows.
 ui.hud.position = Position

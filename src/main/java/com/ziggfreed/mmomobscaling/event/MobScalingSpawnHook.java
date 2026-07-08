@@ -26,7 +26,9 @@ import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameCompon
 import com.hypixel.hytale.server.core.modules.entity.component.PersistentDisplayName;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
+import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
+import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
@@ -42,6 +44,7 @@ import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.family.MobFamilyMatcher;
 import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
+import com.ziggfreed.mmomobscaling.pages.RoleBaseHealthResolver;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
@@ -177,6 +180,13 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 decorateDisplayName(holder, rarity, variant);
             }
 
+            // Observed-spawn ground truth for the admin-page preview (round-3 hardening): the CURRENT
+            // Health-stat max, read BEFORE we touch it below - the balanced base PLUS whatever any
+            // earlier-ordered mod's modifier already stacked on, never our OWN mmoscaling_hp modifier
+            // (this system is what applies that one, and only after this read). Best-effort; never
+            // allowed to disturb the actual HP scaling that follows.
+            recordObservedBaseHealth(npc, holder);
+
             // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap, ref-less on
             // the pre-add holder. RECONCILE (not add-only): converge the mmoscaling_hp modifier to the fresh
             // hpMult, so a retune / floor / rarity change on chunk reload never strands a stale inflated max
@@ -207,6 +217,42 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             holder.addComponent(ScaledMobComponent.getComponentType(),
                     new ScaledMobComponent(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE,
                             MobScaleFold.DifficultyStatCurve.NONE)));
+        }
+    }
+
+    /**
+     * Feed {@link RoleBaseHealthResolver} a ground-truth base-health reading for this role (round-3
+     * hardening): the {@code Health} stat's CURRENT max, read via the cached {@link #statType} component
+     * type right before {@link HealthUtil#reconcileMaxHealth} applies the {@code mmoscaling_hp}
+     * modifier - so it is the native-balanced base PLUS whatever any earlier-ordered mod's own modifier
+     * already stacked on, never this system's own key (applied only after this read). The admin page's
+     * skeleton preview prefers this live reading over {@link RoleBaseHealthResolver}'s reflective
+     * template read. Allocation-free, O(1); fully try-guarded so a failure here can never skip the actual
+     * HP scaling below (a display-only diagnostic must never gate gameplay).
+     */
+    private void recordObservedBaseHealth(@Nonnull NPCEntity npc, @Nonnull Holder<EntityStore> holder) {
+        try {
+            String roleName = npc.getRoleName();
+            if (roleName == null) {
+                return;
+            }
+            EntityStatMap stats = holder.getComponent(statType);
+            if (stats == null) {
+                return;
+            }
+            EntityStatValue health = stats.get(DefaultEntityStatTypes.getHealth());
+            if (health == null) {
+                return;
+            }
+            // A RELOADED already-scaled mob still carries the persisted mmoscaling_hp modifier at this
+            // point (reconcile below is what converges it) - its max is post-scale, NOT base. Skip it;
+            // fresh spawns supply the true base reading.
+            if (health.getModifier(HP_KEY) != null) {
+                return;
+            }
+            RoleBaseHealthResolver.recordObserved(roleName, Math.round(health.getMax()));
+        } catch (Throwable ignored) {
+            // best-effort: the preview simply falls back to RoleBaseHealthResolver's template read
         }
     }
 
