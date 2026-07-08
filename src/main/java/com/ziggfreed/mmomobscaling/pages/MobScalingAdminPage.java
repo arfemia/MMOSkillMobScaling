@@ -3,6 +3,7 @@ package com.ziggfreed.mmomobscaling.pages;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
@@ -42,6 +43,7 @@ import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
+import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 
 /**
  * The in-game admin config page for MMO Mob Scaling ({@code /mobscaling ui}). SPEC-DRIVEN: four
@@ -78,7 +80,10 @@ import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
 public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalingAdminPage.EventData> {
 
     private static final String UI = "Pages/MmoscalingAdminPage.ui";
-    private static final String ROW = "Pages/ZigListRow.ui";
+    // The world-list row template: a MOD-LOCAL row (not common's Pages/ZigListRow.ui) so a long world
+    // id/match pattern wraps to two lines instead of truncating in this page's 300px list panel.
+    private static final String ROW = "Pages/MmoscalingWorldRow.ui";
+    private static final String PREVIEW_ROW = "Pages/MmoscalingPreviewRow.ui";
 
     private static final String STATUS_SEL = "#MmoscalingStatus";
     private static final String PRESET_DROPDOWN_SEL = "#MmoscalingPresetDropdown";
@@ -88,6 +93,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String WORLD_FORM_SEL = "#MmoscalingWorldForm";
     private static final String WORLD_LIST = "#MmoscalingWorldList";
     private static final String WORLD_EMPTY_SEL = "#MmoscalingWorldEmpty";
+    private static final String PREVIEW_LIST = "#MmoscalingPreviewList";
+    private static final String PREVIEW_TITLE_SEL = "#MmoscalingPreviewTitle";
+    private static final String PREVIEW_NOTE_SEL = "#MmoscalingPreviewNote";
+    // Five evenly-spaced sample difficulties between the current MinCap and MaxCap (the Global-tab preview).
+    private static final int PREVIEW_SAMPLES = 5;
 
     // World-form field ids referenced outside the spec table (id derivation, self-Parent check).
     private static final String F_WORLD_ID = "worldId";
@@ -111,7 +121,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             "CENTER_LEFT", "CENTER", "CENTER_RIGHT",
             "BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT"
     };
-    private static final String[] PRESET_MODES = {"SIMPLE", "TUNED", "ADVANCED"};
     private static final String[] AGGREGATION_MODES = {"SOLO", "AVERAGE", "PEAK", "WEIGHTED", "DISABLED"};
     private static final String[] AGGREGATION_MODES_INHERIT =
             {"inherit", "SOLO", "AVERAGE", "PEAK", "WEIGHTED", "DISABLED"};
@@ -172,6 +181,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         buildPresetRow(cmd, events, cfg);
         globalForm.buildRows(cmd, events, GLOBAL_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingGlobalSave", "scaling.ui.button.save_tab", "saveGlobal");
+        buildPreviewPanel(cmd);
 
         zoneForm.buildRows(cmd, events, ZONE_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingZoneSave", "scaling.ui.button.save_tab", "saveZone");
@@ -263,6 +273,96 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     }
 
     // ---------------------------------------------------------------------
+    // Skeleton preview panel (Global tab, right column)
+    // ---------------------------------------------------------------------
+
+    /** Build-time only: paint the title/note + append the (fixed-count) sample rows, then fill them. */
+    private void buildPreviewPanel(@Nonnull UICommandBuilder cmd) {
+        cmd.set(PREVIEW_TITLE_SEL + ".TextSpans", tr("scaling.ui.global.preview_title"));
+        cmd.set(PREVIEW_NOTE_SEL + ".TextSpans", tr("scaling.ui.global.preview_note"));
+        for (int i = 0; i < PREVIEW_SAMPLES; i++) {
+            cmd.append(PREVIEW_LIST, PREVIEW_ROW);
+        }
+        refreshPreview(cmd);
+    }
+
+    /**
+     * Recompute + push the five sample rows from the CURRENT Global-form values (falling back to the
+     * live config for a blank/invalid field - never the form's Save validation, this is a read-only
+     * preview). Mirrors {@code MobScalingConfig.buildCurve} (package-private there, so the
+     * {@link MobScaleFold.DifficultyStatCurve} is constructed directly here): the three slopes scale by
+     * {@code max(0, intensity)}, the caps do not. Each row shows a plain mob (no rarity/variant) run
+     * through that curve alone - rarity/variant multipliers stack on top at spawn, they are not part of
+     * this read.
+     */
+    private void refreshPreview(@Nonnull UICommandBuilder cmd) {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        double min = previewValue("minCap", cfg.getDifficultyMinCap());
+        double max = previewValue("maxCap", cfg.getDifficultyMaxCap());
+        if (max < min) {
+            max = min; // an inverted cap pair is a footgun, same guard as MobScalingConfig.applyFold
+        }
+        double k = Math.max(0.0, previewValue("intensity", cfg.getIntensity()));
+        double hpPerPoint = previewValue("hpPerPoint", cfg.getStatCurveHpPerPoint());
+        double outPerPoint = previewValue("outPerPoint", cfg.getStatCurveOutDamagePerPoint());
+        double inReductionPerPoint = previewValue("inReduction", cfg.getStatCurveInDamageReductionPerPoint());
+        // Mirror MobScalingConfig.applyFold's sanity clamps so an out-of-range typed cap previews
+        // exactly how Save will fold it (a maxHp/maxOut below 1, or a minIn outside (0,1], is otherwise
+        // an impossible curve - e.g. it could make the incoming-reduction cell exceed 100%).
+        double maxHpMult = Math.max(1.0, previewValue("maxHp", cfg.getStatCurveMaxHpMult()));
+        double maxOutMult = Math.max(1.0, previewValue("maxOut", cfg.getStatCurveMaxOutDamageMult()));
+        double minInMult = Math.max(0.01, Math.min(1.0, previewValue("minIn", cfg.getStatCurveMinInDamageMult())));
+        MobScaleFold.DifficultyStatCurve curve = new MobScaleFold.DifficultyStatCurve(
+                hpPerPoint * k, outPerPoint * k, inReductionPerPoint * k, maxHpMult, maxOutMult, minInMult);
+
+        for (int i = 1; i <= PREVIEW_SAMPLES; i++) {
+            double d = min + (max - min) * i / (double) PREVIEW_SAMPLES;
+            Message line = tr("scaling.ui.global.preview_row")
+                    .param("diff", String.valueOf(Math.round(d)))
+                    .param("hp", formatMult(curve.hpFactor(d)))
+                    .param("out", formatMult(curve.outFactor(d)))
+                    .param("in", formatReduction((1.0 - curve.inFactor(d)) * 100.0));
+            cmd.set(PREVIEW_LIST + "[" + (i - 1) + "] #Line.TextSpans", line);
+        }
+    }
+
+    /**
+     * The Global form's CURRENT cached value for {@code fieldId}, parsed as a non-negative finite
+     * double; {@code fallback} (the live config value) on blank, unparseable, or negative - the same
+     * "blank/invalid falls back" rule {@code SettingsForm.collectLeaves} enforces for a NUMBER field, but
+     * degrading to a fallback instead of blocking a save (this is a read-only preview, not a persist).
+     */
+    private double previewValue(@Nonnull String fieldId, double fallback) {
+        String raw = globalForm.value(fieldId).trim();
+        if (raw.isEmpty()) {
+            return fallback;
+        }
+        try {
+            double v = Double.parseDouble(raw);
+            return (Double.isNaN(v) || Double.isInfinite(v) || v < 0) ? fallback : v;
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    /** A multiplier cell, one decimal place: {@code x2.6}. */
+    @Nonnull
+    private static String formatMult(double v) {
+        return "x" + String.format(Locale.ROOT, "%.1f", v);
+    }
+
+    /**
+     * An incoming-damage-reduction cell, whole percent: {@code -22%}. Guarded against {@code -0%} (a
+     * rounds-to-zero reduction shows plain {@code 0%}) and a double-minus (a negative input, which the
+     * clamped curve construction in {@link #refreshPreview} should never produce, still renders sanely).
+     */
+    @Nonnull
+    private static String formatReduction(double reductionPct) {
+        long r = Math.round(reductionPct);
+        return r <= 0 ? "0%" : "-" + r + "%";
+    }
+
+    // ---------------------------------------------------------------------
     // Events (never reopens; every branch answers with a partial sendUpdate)
     // ---------------------------------------------------------------------
 
@@ -287,14 +387,24 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         }
     }
 
-    /** A value-changed event: cache-only, no packet (the control already reflects the typed value). */
+    /**
+     * A value-changed event: cache-only for zone/inspector/world (no packet - the control already
+     * reflects the typed value). A GLOBAL-form field additionally sends a small PREVIEW-ONLY update (the
+     * skeleton preview reads live global values every keystroke); form values themselves are never
+     * re-pushed here, that would fight the user's typing.
+     */
     private void handleField(@Nullable String fieldId, @Nullable String value) {
         if (fieldId == null || value == null) {
             return;
         }
-        if (!globalForm.cache(fieldId, value) && !zoneForm.cache(fieldId, value)
-                && !inspectorForm.cache(fieldId, value)) {
+        boolean isGlobal = globalForm.cache(fieldId, value);
+        if (!isGlobal && !zoneForm.cache(fieldId, value) && !inspectorForm.cache(fieldId, value)) {
             worldForm.cache(fieldId, value);
+        }
+        if (isGlobal) {
+            UICommandBuilder cmd = new UICommandBuilder();
+            refreshPreview(cmd);
+            sendUpdate(cmd, null, false);
         }
     }
 
@@ -329,6 +439,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         def.form().seedValue(fieldId, next ? "on" : "off");
         UICommandBuilder cmd = new UICommandBuilder();
         def.form().applyValue(cmd, def.containerSel(), fieldId);
+        if (def.form() == globalForm) {
+            refreshPreview(cmd);
+        }
         ok(def.statusKey());
         finish(cmd);
     }
@@ -351,6 +464,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         globalForm.applyValues(cmd, GLOBAL_FORM_SEL);
         zoneForm.applyValues(cmd, ZONE_FORM_SEL);
         inspectorForm.applyValues(cmd, INSPECTOR_FORM_SEL);
+        refreshPreview(cmd);
         refreshHuds(cfg);
         ok("scaling.ui.status.saved");
         finish(cmd);
@@ -375,6 +489,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         reseedGlobalFromConfig(cfg); // reflect fold-clamped values (e.g. MaxCap >= MinCap) back
         globalForm.applyValues(cmd, GLOBAL_FORM_SEL);
+        refreshPreview(cmd);
         ok("scaling.ui.status.saved");
         finish(cmd);
     }
@@ -429,6 +544,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seedWorldForm(id, worlds.authoredById(id), worlds.parentOf(id));
         UICommandBuilder cmd = new UICommandBuilder();
         worldForm.applyValues(cmd, WORLD_FORM_SEL);
+        refreshWorldHints(cmd, id);
         sendUpdate(cmd, null, false);
     }
 
@@ -483,6 +599,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         if (MobScalingOwnerWriter.saveWorldFile(id, leaves)) {
             worldForm.seedValue(F_WORLD_ID, id);
             worldForm.applyValue(cmd, WORLD_FORM_SEL, F_WORLD_ID);
+            refreshWorldHints(cmd, id);
             UIEventBuilder events = new UIEventBuilder();
             buildWorldList(cmd, events);
             ok("scaling.ui.status.saved");
@@ -497,6 +614,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seedWorldForm("", null, null);
         UICommandBuilder cmd = new UICommandBuilder();
         worldForm.applyValues(cmd, WORLD_FORM_SEL);
+        refreshWorldHints(cmd, ""); // blank id: every hint resets to static-only
         clearStatus();
         finish(cmd);
     }
@@ -508,9 +626,22 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private void reseedGlobalFromConfig(@Nonnull MobScalingConfig cfg) {
         Map<String, String> seed = new LinkedHashMap<>();
         seed.put("enabled", onOff(cfg.isEnabled()));
-        seed.put("presetMode", blankToFirst(cfg.getPresetMode(), PRESET_MODES));
+        seed.put("floor", num(cfg.getDifficultyFloor()));
+        seed.put("minCap", num(cfg.getDifficultyMinCap()));
+        seed.put("maxCap", num(cfg.getDifficultyMaxCap()));
         seed.put("intensity", num(cfg.getIntensity()));
+        seed.put("hpPerPoint", num(cfg.getStatCurveHpPerPoint()));
+        seed.put("outPerPoint", num(cfg.getStatCurveOutDamagePerPoint()));
+        seed.put("inReduction", num(cfg.getStatCurveInDamageReductionPerPoint()));
+        seed.put("maxHp", num(cfg.getStatCurveMaxHpMult()));
+        seed.put("maxOut", num(cfg.getStatCurveMaxOutDamageMult()));
+        seed.put("minIn", num(cfg.getStatCurveMinInDamageMult()));
         seed.put("rarity", num(cfg.getRaritySpawnChance()));
+        seed.put("escEnabled", onOff(cfg.isDistanceEscalationEnabled()));
+        seed.put("escStart", num(cfg.getEscalationStartDistanceBlocks()));
+        seed.put("escBlocks", num(cfg.getEscalationBlocksPerPoint()));
+        seed.put("escMaxBonus", num(cfg.getEscalationMaxBonus()));
+        seed.put("escRarity", num(cfg.getEscalationRarityChancePerPoint()));
         seed.put("playerScaling", onOff(cfg.isPlayerScalingEnabled()));
         seed.put("aggregation", blankToFirst(cfg.getOpenWorldAggregationMode(), AGGREGATION_MODES));
         seed.put("regionSize", String.valueOf(cfg.getRegionSizeChunks()));
@@ -519,20 +650,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("partyJoin", onOff(cfg.isAllowDifficultyIncreaseOnPartyJoin()));
         seed.put("lateArrival", num(cfg.getLateArrivalBumpFactor()));
         seed.put("composition", onOff(cfg.isCompositionEnabled()));
-        seed.put("floor", num(cfg.getDifficultyFloor()));
-        seed.put("minCap", num(cfg.getDifficultyMinCap()));
-        seed.put("maxCap", num(cfg.getDifficultyMaxCap()));
-        seed.put("escEnabled", onOff(cfg.isDistanceEscalationEnabled()));
-        seed.put("escStart", num(cfg.getEscalationStartDistanceBlocks()));
-        seed.put("escBlocks", num(cfg.getEscalationBlocksPerPoint()));
-        seed.put("escMaxBonus", num(cfg.getEscalationMaxBonus()));
-        seed.put("escRarity", num(cfg.getEscalationRarityChancePerPoint()));
-        seed.put("hpPerPoint", num(cfg.getStatCurveHpPerPoint()));
-        seed.put("outPerPoint", num(cfg.getStatCurveOutDamagePerPoint()));
-        seed.put("inReduction", num(cfg.getStatCurveInDamageReductionPerPoint()));
-        seed.put("maxHp", num(cfg.getStatCurveMaxHpMult()));
-        seed.put("maxOut", num(cfg.getStatCurveMaxOutDamageMult()));
-        seed.put("minIn", num(cfg.getStatCurveMinInDamageMult()));
         globalForm.seed(seed);
     }
 
@@ -616,6 +733,126 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         worldForm.seed(seed);
     }
 
+    /**
+     * Recompute + push every world-form {@code #Hint}: the spec's static help text alone for a field the
+     * admin has authored, or that static text PLUS a computed "Inherits: X" line for a field still
+     * blank/Inherit. {@code id} blank (a brand-new/cleared editor) always shows static-only - there is
+     * nothing yet to resolve an effective value against. Safe to call after {@link #seedWorldForm} (edit,
+     * or a successful save re-pointing at the just-written id) or with a blank id ({@link #handleClearWorld}).
+     */
+    private void refreshWorldHints(@Nonnull UICommandBuilder cmd, @Nonnull String id) {
+        Map<String, Message> inherited = id.isBlank() ? Map.of() : effectiveWorldDisplayValues(id);
+        for (FieldSpec spec : WORLD_SPECS) {
+            String hintKey = spec.hintKey();
+            if (hintKey == null) {
+                continue; // a HEADER/NOTE, or a spec authored with no hint
+            }
+            String fieldId = spec.id();
+            String current = worldForm.value(fieldId).trim();
+            boolean blank = current.isEmpty() || "inherit".equals(current);
+            Message inheritsValue = inherited.get(fieldId);
+            Message hint = tr(hintKey);
+            if (blank && inheritsValue != null) {
+                hint = Message.join(hint, Message.raw("\n"),
+                        tr("scaling.ui.world.inherits").param("value", inheritsValue));
+            }
+            worldForm.applyHint(cmd, WORLD_FORM_SEL, fieldId, hint);
+        }
+    }
+
+    /**
+     * The EFFECTIVE (display-formatted) value of every world-editor leaf for {@code id}, as a nested
+     * {@link Message} (never a raw literal) so on/off and allow-all/deny-none resolve through the
+     * EXISTING localized labels (never hardcoded English): the {@code Parent}-merged
+     * {@link WorldSettingsConfig#effectiveById} leaf where authored, else the GLOBAL live
+     * {@link MobScalingConfig} value (a Pool gate's global is allow-all / an empty deny list / neutral
+     * scale / zero extra slots; a per-world HUD tri-state's global is the zone/inspector enabled flag). A
+     * numeric/technical value (a number, a dropdown mode, a comma-joined id list) is NOT translatable
+     * prose, so it wraps as a literal {@link Message#raw}. Carries no entry for the world-identity fields
+     * ({@code worldId}/{@code worldMatch}/{@code worldParent}) - they have no global fallback to inherit.
+     */
+    @Nonnull
+    private static Map<String, Message> effectiveWorldDisplayValues(@Nonnull String id) {
+        WorldSettings eff = WorldSettingsConfig.getInstance().effectiveById(id);
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        Difficulty diff = eff == null ? null : eff.getDifficulty();
+        DistanceEscalation esc = diff == null ? null : diff.getDistanceEscalation();
+        StatCurve curve = diff == null ? null : diff.getStatCurve();
+        OpenWorld ow = eff == null ? null : eff.getOpenWorld();
+        Hud zoneHud = eff == null ? null : eff.getZoneHud();
+        InspectorHud inspHud = eff == null ? null : eff.getInspectorHud();
+        WorldSettings.Pool pool = eff == null ? null : eff.getPool();
+        WorldSettings.IdGate rarities = pool == null ? null : pool.getRarities();
+        WorldSettings.VariantGate variants = pool == null ? null : pool.getVariants();
+        WorldSettings.AffixGate affixes = pool == null ? null : pool.getAffixes();
+
+        Map<String, Message> m = new LinkedHashMap<>();
+        m.put("wEnabled", onOffDisplay(
+                eff != null && eff.getEnabled() != null ? eff.getEnabled() : cfg.isWorldScalingEnabled()));
+        m.put("wIntensity", Message.raw(
+                num(eff != null && eff.getIntensity() != null ? eff.getIntensity() : cfg.getIntensity())));
+        m.put("wRarity", Message.raw(num(eff != null && eff.getRaritySpawnChance() != null
+                ? eff.getRaritySpawnChance() : cfg.getRaritySpawnChance())));
+        m.put("wFloor", Message.raw(
+                num(diff != null && diff.getFloor() != null ? diff.getFloor() : cfg.getDifficultyFloor())));
+        m.put("wMinCap", Message.raw(
+                num(diff != null && diff.getMinCap() != null ? diff.getMinCap() : cfg.getDifficultyMinCap())));
+        m.put("wMaxCap", Message.raw(
+                num(diff != null && diff.getMaxCap() != null ? diff.getMaxCap() : cfg.getDifficultyMaxCap())));
+        m.put("wEscEnabled", onOffDisplay(
+                esc != null && esc.getEnabled() != null ? esc.getEnabled() : cfg.isDistanceEscalationEnabled()));
+        m.put("wEscStart", Message.raw(num(esc != null && esc.getStartDistanceBlocks() != null
+                ? esc.getStartDistanceBlocks() : cfg.getEscalationStartDistanceBlocks())));
+        m.put("wEscBlocks", Message.raw(num(esc != null && esc.getBlocksPerPoint() != null
+                ? esc.getBlocksPerPoint() : cfg.getEscalationBlocksPerPoint())));
+        m.put("wEscMaxBonus", Message.raw(num(esc != null && esc.getMaxBonus() != null
+                ? esc.getMaxBonus() : cfg.getEscalationMaxBonus())));
+        m.put("wEscRarity", Message.raw(num(esc != null && esc.getRarityChancePerPoint() != null
+                ? esc.getRarityChancePerPoint() : cfg.getEscalationRarityChancePerPoint())));
+        m.put("wPlayerScaling", onOffDisplay(ow != null && ow.getPlayerScalingEnabled() != null
+                ? ow.getPlayerScalingEnabled() : cfg.isPlayerScalingEnabled()));
+        m.put("wAggregation", Message.raw(
+                ow != null && ow.getAggregationMode() != null && !ow.getAggregationMode().isBlank()
+                        ? ow.getAggregationMode() : cfg.getOpenWorldAggregationMode()));
+        m.put("wBandWidth", Message.raw(num(ow != null && ow.getGroupDeltaBandWidth() != null
+                ? ow.getGroupDeltaBandWidth() : cfg.getGroupDeltaBandWidth())));
+        m.put("wOnlyRaise", onOffDisplay(ow != null && ow.getOnlyRaiseDifficulty() != null
+                ? ow.getOnlyRaiseDifficulty() : cfg.isOnlyRaiseDifficulty()));
+        m.put("wPartyJoin", onOffDisplay(ow != null && ow.getAllowDifficultyIncreaseOnPartyJoin() != null
+                ? ow.getAllowDifficultyIncreaseOnPartyJoin() : cfg.isAllowDifficultyIncreaseOnPartyJoin()));
+        m.put("wLateArrival", Message.raw(num(ow != null && ow.getLateArrivalBumpFactor() != null
+                ? ow.getLateArrivalBumpFactor() : cfg.getLateArrivalBumpFactor())));
+        m.put("wComposition", onOffDisplay(ow != null && ow.getCompositionEnabled() != null
+                ? ow.getCompositionEnabled() : cfg.isCompositionEnabled()));
+        m.put("wHpPerPoint", Message.raw(num(curve != null && curve.getHpPerPoint() != null
+                ? curve.getHpPerPoint() : cfg.getStatCurveHpPerPoint())));
+        m.put("wOutPerPoint", Message.raw(num(curve != null && curve.getOutDamagePerPoint() != null
+                ? curve.getOutDamagePerPoint() : cfg.getStatCurveOutDamagePerPoint())));
+        m.put("wInReduction", Message.raw(num(curve != null && curve.getInDamageReductionPerPoint() != null
+                ? curve.getInDamageReductionPerPoint() : cfg.getStatCurveInDamageReductionPerPoint())));
+        m.put("wMaxHp", Message.raw(num(curve != null && curve.getMaxHpMult() != null
+                ? curve.getMaxHpMult() : cfg.getStatCurveMaxHpMult())));
+        m.put("wMaxOut", Message.raw(num(curve != null && curve.getMaxOutDamageMult() != null
+                ? curve.getMaxOutDamageMult() : cfg.getStatCurveMaxOutDamageMult())));
+        m.put("wMinIn", Message.raw(num(curve != null && curve.getMinInDamageMult() != null
+                ? curve.getMinInDamageMult() : cfg.getStatCurveMinInDamageMult())));
+        m.put("wRarAllow", csvOrFallback(rarities == null ? null : rarities.getAllow(), "scaling.ui.world.inherits_all"));
+        m.put("wRarDeny", csvOrFallback(rarities == null ? null : rarities.getDeny(), "scaling.ui.world.inherits_none"));
+        m.put("wVarAllow", csvOrFallback(variants == null ? null : variants.getAllow(), "scaling.ui.world.inherits_all"));
+        m.put("wVarDeny", csvOrFallback(variants == null ? null : variants.getDeny(), "scaling.ui.world.inherits_none"));
+        m.put("wVarChance", Message.raw(num(variants != null && variants.getChanceMultiplier() != null
+                ? variants.getChanceMultiplier() : cfg.getVariantChanceMultiplier())));
+        m.put("wAffAllow", csvOrFallback(affixes == null ? null : affixes.getAllow(), "scaling.ui.world.inherits_all"));
+        m.put("wAffDeny", csvOrFallback(affixes == null ? null : affixes.getDeny(), "scaling.ui.world.inherits_none"));
+        m.put("wAffSlots", Message.raw(String.valueOf(
+                affixes != null && affixes.getExtraSlots() != null ? affixes.getExtraSlots() : cfg.getExtraAffixSlots())));
+        m.put("wZoneHud", onOffDisplay(
+                zoneHud != null && zoneHud.getEnabled() != null ? zoneHud.getEnabled() : cfg.isZoneHudEnabled()));
+        m.put("wInspHud", onOffDisplay(
+                inspHud != null && inspHud.getEnabled() != null ? inspHud.getEnabled() : cfg.isInspectorHudEnabled()));
+        return m;
+    }
+
     private void refreshHuds(@Nonnull MobScalingConfig cfg) {
         HudPosition zone = HudPosition.parse(cfg.getZoneHudPosition(), cfg.getZoneHudOffsetX(), cfg.getZoneHudOffsetY());
         if (zone != null) {
@@ -670,132 +907,200 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     // Spec tables (the schema for the four SettingsForm instances)
     // ---------------------------------------------------------------------
 
+    /**
+     * Difficulty-first order (round-2 admin-UX hardening): {@code enabled} note, then Difficulty
+     * (floor/caps), then the stat Curve (intensity leads it - intensity is the curve's global slope
+     * multiplier), then rarity + distance escalation (rarity leads it - a rarity roll is exactly what
+     * escalation raises the chance of), then Open World last. The dead {@code PresetMode} dropdown
+     * (nothing reads {@link MobScalingConfig#getPresetMode()} outside the schema/config fold/this class's
+     * own now-removed seeding) is DELIBERATELY not exposed here; the codec field + config fold stay for an
+     * owner who still sets it by hand.
+     */
     @Nonnull
     private static List<FieldSpec> buildGlobalSpecs() {
         List<FieldSpec> s = new ArrayList<>();
-        s.add(FieldSpec.toggle("enabled", "scaling.ui.global.enabled"));
+        s.add(FieldSpec.toggle("enabled", "scaling.ui.global.enabled").withHint("scaling.ui.hint.enabled"));
         s.add(FieldSpec.note("enabledNote", "scaling.ui.global.enabled_note"));
-        s.add(FieldSpec.dropdown("presetMode", "PresetMode", "scaling.ui.global.preset_mode", PRESET_MODES));
-        s.add(FieldSpec.number("intensity", "Intensity", "scaling.ui.global.intensity"));
-        s.add(FieldSpec.chance("rarity", "RaritySpawnChance", "scaling.ui.global.rarity"));
-        s.add(FieldSpec.header("hdrOpenWorld", "scaling.ui.global.open_world_header"));
-        s.add(FieldSpec.toggle("playerScaling", "scaling.ui.global.player_scaling"));
-        s.add(FieldSpec.dropdown("aggregation", "OpenWorld.AggregationMode", "scaling.ui.global.aggregation",
-                AGGREGATION_MODES));
-        s.add(FieldSpec.integer("regionSize", "OpenWorld.RegionSizeChunks", "scaling.ui.global.region_size"));
-        s.add(FieldSpec.number("bandWidth", "OpenWorld.GroupDeltaBandWidth", "scaling.ui.global.band_width"));
-        s.add(FieldSpec.toggle("onlyRaise", "scaling.ui.global.only_raise"));
-        s.add(FieldSpec.toggle("partyJoin", "scaling.ui.global.party_join"));
-        s.add(FieldSpec.number("lateArrival", "OpenWorld.LateArrivalBumpFactor", "scaling.ui.global.late_arrival"));
-        s.add(FieldSpec.toggle("composition", "scaling.ui.global.composition"));
         s.add(FieldSpec.header("hdrDifficulty", "scaling.ui.global.difficulty_header"));
-        s.add(FieldSpec.number("floor", "Difficulty.Floor", "scaling.ui.global.floor"));
-        s.add(FieldSpec.number("minCap", LEAF_MIN_CAP, "scaling.ui.global.min_cap"));
-        s.add(FieldSpec.number("maxCap", LEAF_MAX_CAP, "scaling.ui.global.max_cap"));
-        s.add(FieldSpec.header("hdrEsc", "scaling.ui.global.esc_header"));
-        s.add(FieldSpec.toggle("escEnabled", "scaling.ui.global.esc_enabled"));
-        s.add(FieldSpec.number("escStart", "Difficulty.DistanceEscalation.StartDistanceBlocks",
-                "scaling.ui.global.esc_start"));
-        s.add(FieldSpec.number("escBlocks", "Difficulty.DistanceEscalation.BlocksPerPoint",
-                "scaling.ui.global.esc_blocks"));
-        s.add(FieldSpec.number("escMaxBonus", "Difficulty.DistanceEscalation.MaxBonus",
-                "scaling.ui.global.esc_max_bonus"));
-        s.add(FieldSpec.number("escRarity", "Difficulty.DistanceEscalation.RarityChancePerPoint",
-                "scaling.ui.global.esc_rarity"));
+        s.add(FieldSpec.number("floor", "Difficulty.Floor", "scaling.ui.global.floor")
+                .withHint("scaling.ui.hint.floor"));
+        s.add(FieldSpec.number("minCap", LEAF_MIN_CAP, "scaling.ui.global.min_cap")
+                .withHint("scaling.ui.hint.min_cap"));
+        s.add(FieldSpec.number("maxCap", LEAF_MAX_CAP, "scaling.ui.global.max_cap")
+                .withHint("scaling.ui.hint.max_cap"));
         s.add(FieldSpec.header("hdrCurve", "scaling.ui.global.stat_curve_header"));
-        s.add(FieldSpec.number("hpPerPoint", "Difficulty.StatCurve.HpPerPoint", "scaling.ui.curve.hp_per_point"));
+        s.add(FieldSpec.number("intensity", "Intensity", "scaling.ui.global.intensity")
+                .withHint("scaling.ui.hint.intensity"));
+        s.add(FieldSpec.number("hpPerPoint", "Difficulty.StatCurve.HpPerPoint", "scaling.ui.curve.hp_per_point")
+                .withHint("scaling.ui.hint.hp_per_point"));
         s.add(FieldSpec.number("outPerPoint", "Difficulty.StatCurve.OutDamagePerPoint",
-                "scaling.ui.curve.out_per_point"));
+                "scaling.ui.curve.out_per_point").withHint("scaling.ui.hint.out_per_point"));
         s.add(FieldSpec.number("inReduction", "Difficulty.StatCurve.InDamageReductionPerPoint",
-                "scaling.ui.curve.in_reduction"));
-        s.add(FieldSpec.number("maxHp", "Difficulty.StatCurve.MaxHpMult", "scaling.ui.curve.max_hp"));
-        s.add(FieldSpec.number("maxOut", "Difficulty.StatCurve.MaxOutDamageMult", "scaling.ui.curve.max_out"));
-        s.add(FieldSpec.number("minIn", "Difficulty.StatCurve.MinInDamageMult", "scaling.ui.curve.min_in"));
+                "scaling.ui.curve.in_reduction").withHint("scaling.ui.hint.in_reduction"));
+        s.add(FieldSpec.number("maxHp", "Difficulty.StatCurve.MaxHpMult", "scaling.ui.curve.max_hp")
+                .withHint("scaling.ui.hint.max_hp"));
+        s.add(FieldSpec.number("maxOut", "Difficulty.StatCurve.MaxOutDamageMult", "scaling.ui.curve.max_out")
+                .withHint("scaling.ui.hint.max_out"));
+        s.add(FieldSpec.number("minIn", "Difficulty.StatCurve.MinInDamageMult", "scaling.ui.curve.min_in")
+                .withHint("scaling.ui.hint.min_in"));
+        s.add(FieldSpec.header("hdrEsc", "scaling.ui.global.esc_header"));
+        s.add(FieldSpec.chance("rarity", "RaritySpawnChance", "scaling.ui.global.rarity")
+                .withHint("scaling.ui.hint.rarity"));
+        s.add(FieldSpec.toggle("escEnabled", "scaling.ui.global.esc_enabled").withHint("scaling.ui.hint.esc_enabled"));
+        s.add(FieldSpec.number("escStart", "Difficulty.DistanceEscalation.StartDistanceBlocks",
+                "scaling.ui.global.esc_start").withHint("scaling.ui.hint.esc_start"));
+        s.add(FieldSpec.number("escBlocks", "Difficulty.DistanceEscalation.BlocksPerPoint",
+                "scaling.ui.global.esc_blocks").withHint("scaling.ui.hint.esc_blocks"));
+        s.add(FieldSpec.number("escMaxBonus", "Difficulty.DistanceEscalation.MaxBonus",
+                "scaling.ui.global.esc_max_bonus").withHint("scaling.ui.hint.esc_max_bonus"));
+        s.add(FieldSpec.number("escRarity", "Difficulty.DistanceEscalation.RarityChancePerPoint",
+                "scaling.ui.global.esc_rarity").withHint("scaling.ui.hint.esc_rarity"));
+        s.add(FieldSpec.header("hdrOpenWorld", "scaling.ui.global.open_world_header"));
+        s.add(FieldSpec.toggle("playerScaling", "scaling.ui.global.player_scaling")
+                .withHint("scaling.ui.hint.player_scaling"));
+        s.add(FieldSpec.dropdown("aggregation", "OpenWorld.AggregationMode", "scaling.ui.global.aggregation",
+                AGGREGATION_MODES).withHint("scaling.ui.hint.aggregation"));
+        s.add(FieldSpec.integer("regionSize", "OpenWorld.RegionSizeChunks", "scaling.ui.global.region_size")
+                .withHint("scaling.ui.hint.region_size"));
+        s.add(FieldSpec.number("bandWidth", "OpenWorld.GroupDeltaBandWidth", "scaling.ui.global.band_width")
+                .withHint("scaling.ui.hint.band_width"));
+        s.add(FieldSpec.toggle("onlyRaise", "scaling.ui.global.only_raise").withHint("scaling.ui.hint.only_raise"));
+        s.add(FieldSpec.toggle("partyJoin", "scaling.ui.global.party_join").withHint("scaling.ui.hint.party_join"));
+        s.add(FieldSpec.number("lateArrival", "OpenWorld.LateArrivalBumpFactor", "scaling.ui.global.late_arrival")
+                .withHint("scaling.ui.hint.late_arrival"));
+        s.add(FieldSpec.toggle("composition", "scaling.ui.global.composition")
+                .withHint("scaling.ui.hint.composition"));
         return List.copyOf(s);
     }
 
     @Nonnull
     private static List<FieldSpec> buildZoneSpecs() {
         List<FieldSpec> s = new ArrayList<>();
-        s.add(FieldSpec.toggle("zoneEnabled", "scaling.ui.zone.enabled"));
-        s.add(FieldSpec.toggle("zoneShowLoc", "scaling.ui.zone.show_location"));
-        s.add(FieldSpec.dropdown("zonePos", "ZoneHud.Position", "scaling.ui.hud.position", POSITIONS));
-        s.add(FieldSpec.integer("zoneOffX", "ZoneHud.OffsetX", "scaling.ui.hud.offset_x"));
-        s.add(FieldSpec.integer("zoneOffY", "ZoneHud.OffsetY", "scaling.ui.hud.offset_y"));
-        s.add(FieldSpec.text("zonePrefix", "ZoneHud.ZoneNameKeyPrefix", "scaling.ui.zone.zone_name_prefix"));
-        s.add(FieldSpec.text("biomePrefix", "ZoneHud.BiomeNameKeyPrefix", "scaling.ui.zone.biome_name_prefix"));
+        s.add(FieldSpec.toggle("zoneEnabled", "scaling.ui.zone.enabled").withHint("scaling.ui.hint.zone_enabled"));
+        s.add(FieldSpec.toggle("zoneShowLoc", "scaling.ui.zone.show_location")
+                .withHint("scaling.ui.hint.zone_show_location"));
+        s.add(FieldSpec.dropdown("zonePos", "ZoneHud.Position", "scaling.ui.hud.position", POSITIONS)
+                .withHint("scaling.ui.hint.hud_position"));
+        s.add(FieldSpec.integer("zoneOffX", "ZoneHud.OffsetX", "scaling.ui.hud.offset_x")
+                .withHint("scaling.ui.hint.hud_offset_x"));
+        s.add(FieldSpec.integer("zoneOffY", "ZoneHud.OffsetY", "scaling.ui.hud.offset_y")
+                .withHint("scaling.ui.hint.hud_offset_y"));
+        s.add(FieldSpec.text("zonePrefix", "ZoneHud.ZoneNameKeyPrefix", "scaling.ui.zone.zone_name_prefix")
+                .withHint("scaling.ui.hint.zone_name_prefix"));
+        s.add(FieldSpec.text("biomePrefix", "ZoneHud.BiomeNameKeyPrefix", "scaling.ui.zone.biome_name_prefix")
+                .withHint("scaling.ui.hint.biome_name_prefix"));
         return List.copyOf(s);
     }
 
     @Nonnull
     private static List<FieldSpec> buildInspectorSpecs() {
         List<FieldSpec> s = new ArrayList<>();
-        s.add(FieldSpec.toggle("inspEnabled", "scaling.ui.inspector.enabled"));
-        s.add(FieldSpec.toggle("inspPortrait", "scaling.ui.inspector.portrait"));
-        s.add(FieldSpec.dropdown("inspPos", "InspectorHud.Position", "scaling.ui.hud.position", POSITIONS));
-        s.add(FieldSpec.integer("inspOffX", "InspectorHud.OffsetX", "scaling.ui.hud.offset_x"));
-        s.add(FieldSpec.integer("inspOffY", "InspectorHud.OffsetY", "scaling.ui.hud.offset_y"));
-        s.add(FieldSpec.number("inspRange", "InspectorHud.RangeBlocks", "scaling.ui.inspector.range"));
+        s.add(FieldSpec.toggle("inspEnabled", "scaling.ui.inspector.enabled")
+                .withHint("scaling.ui.hint.insp_enabled"));
+        s.add(FieldSpec.toggle("inspPortrait", "scaling.ui.inspector.portrait")
+                .withHint("scaling.ui.hint.insp_portrait"));
+        s.add(FieldSpec.dropdown("inspPos", "InspectorHud.Position", "scaling.ui.hud.position", POSITIONS)
+                .withHint("scaling.ui.hint.hud_position"));
+        s.add(FieldSpec.integer("inspOffX", "InspectorHud.OffsetX", "scaling.ui.hud.offset_x")
+                .withHint("scaling.ui.hint.hud_offset_x"));
+        s.add(FieldSpec.integer("inspOffY", "InspectorHud.OffsetY", "scaling.ui.hud.offset_y")
+                .withHint("scaling.ui.hint.hud_offset_y"));
+        s.add(FieldSpec.number("inspRange", "InspectorHud.RangeBlocks", "scaling.ui.inspector.range")
+                .withHint("scaling.ui.hint.insp_range"));
         return List.copyOf(s);
     }
 
+    /**
+     * Hint-reuse convention (round-2 hardening): a world field that reuses a GLOBAL label key (identical
+     * meaning, just a per-world override) also reuses that GLOBAL hint key. A TRISTATE, a pool gate, or a
+     * world-identity field (id/match/parent) has no true global equivalent (Inherit is a distinct
+     * affordance from a plain toggle, and a pool gate/identity leaf has nothing to reuse from) and gets
+     * its OWN {@code w_*}/{@code pool_*}/{@code world_*} key instead.
+     */
     @Nonnull
     private static List<FieldSpec> buildWorldSpecs() {
         List<FieldSpec> s = new ArrayList<>();
-        s.add(FieldSpec.text(F_WORLD_ID, WORLD_ID_LEAF, "scaling.ui.world.id"));
-        s.add(FieldSpec.text(F_WORLD_MATCH, "Match", "scaling.ui.world.match"));
-        s.add(FieldSpec.text(F_WORLD_PARENT, "Parent", "scaling.ui.world.parent"));
-        s.add(FieldSpec.tristate("wEnabled", "Enabled", "scaling.ui.world.enabled"));
+        s.add(FieldSpec.text(F_WORLD_ID, WORLD_ID_LEAF, "scaling.ui.world.id").withHint("scaling.ui.hint.world_id"));
+        s.add(FieldSpec.text(F_WORLD_MATCH, "Match", "scaling.ui.world.match")
+                .withHint("scaling.ui.hint.world_match"));
+        s.add(FieldSpec.text(F_WORLD_PARENT, "Parent", "scaling.ui.world.parent")
+                .withHint("scaling.ui.hint.world_parent"));
+        s.add(FieldSpec.tristate("wEnabled", "Enabled", "scaling.ui.world.enabled")
+                .withHint("scaling.ui.hint.w_enabled"));
         s.add(FieldSpec.header("wHdrTuning", "scaling.ui.world.tuning_header"));
-        s.add(FieldSpec.number("wIntensity", "Intensity", "scaling.ui.world.intensity"));
-        s.add(FieldSpec.chance("wRarity", "RaritySpawnChance", "scaling.ui.world.rarity"));
+        s.add(FieldSpec.number("wIntensity", "Intensity", "scaling.ui.world.intensity")
+                .withHint("scaling.ui.hint.intensity"));
+        s.add(FieldSpec.chance("wRarity", "RaritySpawnChance", "scaling.ui.world.rarity")
+                .withHint("scaling.ui.hint.rarity"));
         s.add(FieldSpec.header("wHdrDifficulty", "scaling.ui.global.difficulty_header"));
-        s.add(FieldSpec.number("wFloor", "Difficulty.Floor", "scaling.ui.world.floor"));
-        s.add(FieldSpec.number("wMinCap", LEAF_MIN_CAP, "scaling.ui.global.min_cap"));
-        s.add(FieldSpec.number("wMaxCap", LEAF_MAX_CAP, "scaling.ui.global.max_cap"));
+        s.add(FieldSpec.number("wFloor", "Difficulty.Floor", "scaling.ui.world.floor")
+                .withHint("scaling.ui.hint.floor"));
+        s.add(FieldSpec.number("wMinCap", LEAF_MIN_CAP, "scaling.ui.global.min_cap")
+                .withHint("scaling.ui.hint.min_cap"));
+        s.add(FieldSpec.number("wMaxCap", LEAF_MAX_CAP, "scaling.ui.global.max_cap")
+                .withHint("scaling.ui.hint.max_cap"));
         s.add(FieldSpec.header("wHdrEsc", "scaling.ui.global.esc_header"));
         s.add(FieldSpec.tristate("wEscEnabled", "Difficulty.DistanceEscalation.Enabled",
-                "scaling.ui.global.esc_enabled"));
+                "scaling.ui.global.esc_enabled").withHint("scaling.ui.hint.w_esc_enabled"));
         s.add(FieldSpec.number("wEscStart", "Difficulty.DistanceEscalation.StartDistanceBlocks",
-                "scaling.ui.global.esc_start"));
+                "scaling.ui.global.esc_start").withHint("scaling.ui.hint.esc_start"));
         s.add(FieldSpec.number("wEscBlocks", "Difficulty.DistanceEscalation.BlocksPerPoint",
-                "scaling.ui.global.esc_blocks"));
+                "scaling.ui.global.esc_blocks").withHint("scaling.ui.hint.esc_blocks"));
         s.add(FieldSpec.number("wEscMaxBonus", "Difficulty.DistanceEscalation.MaxBonus",
-                "scaling.ui.global.esc_max_bonus"));
+                "scaling.ui.global.esc_max_bonus").withHint("scaling.ui.hint.esc_max_bonus"));
         s.add(FieldSpec.number("wEscRarity", "Difficulty.DistanceEscalation.RarityChancePerPoint",
-                "scaling.ui.global.esc_rarity"));
+                "scaling.ui.global.esc_rarity").withHint("scaling.ui.hint.esc_rarity"));
         s.add(FieldSpec.header("wHdrOpenWorld", "scaling.ui.global.open_world_header"));
         s.add(FieldSpec.tristate("wPlayerScaling", "OpenWorld.PlayerScalingEnabled",
-                "scaling.ui.world.player_scaling"));
+                "scaling.ui.world.player_scaling").withHint("scaling.ui.hint.w_player_scaling"));
         s.add(FieldSpec.dropdown("wAggregation", "OpenWorld.AggregationMode", "scaling.ui.global.aggregation",
-                AGGREGATION_MODES_INHERIT));
-        s.add(FieldSpec.number("wBandWidth", "OpenWorld.GroupDeltaBandWidth", "scaling.ui.global.band_width"));
-        s.add(FieldSpec.tristate("wOnlyRaise", LEAF_ONLY_RAISE, "scaling.ui.global.only_raise"));
-        s.add(FieldSpec.tristate("wPartyJoin", LEAF_PARTY_JOIN, "scaling.ui.global.party_join"));
-        s.add(FieldSpec.number("wLateArrival", "OpenWorld.LateArrivalBumpFactor", "scaling.ui.global.late_arrival"));
-        s.add(FieldSpec.tristate("wComposition", LEAF_COMPOSITION, "scaling.ui.global.composition"));
+                AGGREGATION_MODES_INHERIT).withHint("scaling.ui.hint.aggregation"));
+        s.add(FieldSpec.number("wBandWidth", "OpenWorld.GroupDeltaBandWidth", "scaling.ui.global.band_width")
+                .withHint("scaling.ui.hint.band_width"));
+        s.add(FieldSpec.tristate("wOnlyRaise", LEAF_ONLY_RAISE, "scaling.ui.global.only_raise")
+                .withHint("scaling.ui.hint.w_only_raise"));
+        s.add(FieldSpec.tristate("wPartyJoin", LEAF_PARTY_JOIN, "scaling.ui.global.party_join")
+                .withHint("scaling.ui.hint.w_party_join"));
+        s.add(FieldSpec.number("wLateArrival", "OpenWorld.LateArrivalBumpFactor", "scaling.ui.global.late_arrival")
+                .withHint("scaling.ui.hint.late_arrival"));
+        s.add(FieldSpec.tristate("wComposition", LEAF_COMPOSITION, "scaling.ui.global.composition")
+                .withHint("scaling.ui.hint.w_composition"));
         // NO RegionSizeChunks per-world: it decodes on WorldSettings but the region grid stays global.
         s.add(FieldSpec.header("wHdrCurve", "scaling.ui.global.stat_curve_header"));
-        s.add(FieldSpec.number("wHpPerPoint", "Difficulty.StatCurve.HpPerPoint", "scaling.ui.curve.hp_per_point"));
+        s.add(FieldSpec.number("wHpPerPoint", "Difficulty.StatCurve.HpPerPoint", "scaling.ui.curve.hp_per_point")
+                .withHint("scaling.ui.hint.hp_per_point"));
         s.add(FieldSpec.number("wOutPerPoint", "Difficulty.StatCurve.OutDamagePerPoint",
-                "scaling.ui.curve.out_per_point"));
+                "scaling.ui.curve.out_per_point").withHint("scaling.ui.hint.out_per_point"));
         s.add(FieldSpec.number("wInReduction", "Difficulty.StatCurve.InDamageReductionPerPoint",
-                "scaling.ui.curve.in_reduction"));
-        s.add(FieldSpec.number("wMaxHp", "Difficulty.StatCurve.MaxHpMult", "scaling.ui.curve.max_hp"));
-        s.add(FieldSpec.number("wMaxOut", "Difficulty.StatCurve.MaxOutDamageMult", "scaling.ui.curve.max_out"));
-        s.add(FieldSpec.number("wMinIn", "Difficulty.StatCurve.MinInDamageMult", "scaling.ui.curve.min_in"));
+                "scaling.ui.curve.in_reduction").withHint("scaling.ui.hint.in_reduction"));
+        s.add(FieldSpec.number("wMaxHp", "Difficulty.StatCurve.MaxHpMult", "scaling.ui.curve.max_hp")
+                .withHint("scaling.ui.hint.max_hp"));
+        s.add(FieldSpec.number("wMaxOut", "Difficulty.StatCurve.MaxOutDamageMult", "scaling.ui.curve.max_out")
+                .withHint("scaling.ui.hint.max_out"));
+        s.add(FieldSpec.number("wMinIn", "Difficulty.StatCurve.MinInDamageMult", "scaling.ui.curve.min_in")
+                .withHint("scaling.ui.hint.min_in"));
         s.add(FieldSpec.header("wHdrPool", "scaling.ui.world.pool_header"));
-        s.add(FieldSpec.csv("wRarAllow", "Pool.Rarities.Allow", "scaling.ui.world.pool_rarities_allow"));
-        s.add(FieldSpec.csv("wRarDeny", "Pool.Rarities.Deny", "scaling.ui.world.pool_rarities_deny"));
-        s.add(FieldSpec.csv("wVarAllow", "Pool.Variants.Allow", "scaling.ui.world.pool_variants_allow"));
-        s.add(FieldSpec.csv("wVarDeny", "Pool.Variants.Deny", "scaling.ui.world.pool_variants_deny"));
-        s.add(FieldSpec.number("wVarChance", "Pool.Variants.ChanceMultiplier", "scaling.ui.world.pool_variant_chance"));
-        s.add(FieldSpec.csv("wAffAllow", "Pool.Affixes.Allow", "scaling.ui.world.pool_affixes_allow"));
-        s.add(FieldSpec.csv("wAffDeny", "Pool.Affixes.Deny", "scaling.ui.world.pool_affixes_deny"));
-        s.add(FieldSpec.integer("wAffSlots", "Pool.Affixes.ExtraSlots", "scaling.ui.world.pool_extra_slots"));
+        s.add(FieldSpec.csv("wRarAllow", "Pool.Rarities.Allow", "scaling.ui.world.pool_rarities_allow")
+                .withHint("scaling.ui.hint.pool_rarities_allow"));
+        s.add(FieldSpec.csv("wRarDeny", "Pool.Rarities.Deny", "scaling.ui.world.pool_rarities_deny")
+                .withHint("scaling.ui.hint.pool_rarities_deny"));
+        s.add(FieldSpec.csv("wVarAllow", "Pool.Variants.Allow", "scaling.ui.world.pool_variants_allow")
+                .withHint("scaling.ui.hint.pool_variants_allow"));
+        s.add(FieldSpec.csv("wVarDeny", "Pool.Variants.Deny", "scaling.ui.world.pool_variants_deny")
+                .withHint("scaling.ui.hint.pool_variants_deny"));
+        s.add(FieldSpec.number("wVarChance", "Pool.Variants.ChanceMultiplier", "scaling.ui.world.pool_variant_chance")
+                .withHint("scaling.ui.hint.pool_variant_chance"));
+        s.add(FieldSpec.csv("wAffAllow", "Pool.Affixes.Allow", "scaling.ui.world.pool_affixes_allow")
+                .withHint("scaling.ui.hint.pool_affixes_allow"));
+        s.add(FieldSpec.csv("wAffDeny", "Pool.Affixes.Deny", "scaling.ui.world.pool_affixes_deny")
+                .withHint("scaling.ui.hint.pool_affixes_deny"));
+        s.add(FieldSpec.integer("wAffSlots", "Pool.Affixes.ExtraSlots", "scaling.ui.world.pool_extra_slots")
+                .withHint("scaling.ui.hint.pool_extra_slots"));
         s.add(FieldSpec.header("wHdrHud", "scaling.ui.world.hud_header"));
-        s.add(FieldSpec.tristate("wZoneHud", "ZoneHud.Enabled", "scaling.ui.world.zone_hud"));
-        s.add(FieldSpec.tristate("wInspHud", "InspectorHud.Enabled", "scaling.ui.world.inspector_hud"));
+        s.add(FieldSpec.tristate("wZoneHud", "ZoneHud.Enabled", "scaling.ui.world.zone_hud")
+                .withHint("scaling.ui.hint.w_zone_hud"));
+        s.add(FieldSpec.tristate("wInspHud", "InspectorHud.Enabled", "scaling.ui.world.inspector_hud")
+                .withHint("scaling.ui.hint.w_inspector_hud"));
         s.add(FieldSpec.note("wHint", "scaling.ui.world.hint"));
         return List.copyOf(s);
     }
@@ -912,6 +1217,16 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         return v ? "on" : "off";
     }
 
+    /**
+     * The EXISTING localized toggle label for a HINT's "Inherits: X" line (nested {@link Message}, never
+     * a hardcoded English literal) - reuses the SAME {@code scaling.ui.toggle.on}/{@code .off} keys the
+     * toggle rows themselves render, unlike {@link #onOff}'s raw lowercase cache value.
+     */
+    @Nonnull
+    private static Message onOffDisplay(boolean v) {
+        return tr(v ? "scaling.ui.toggle.on" : "scaling.ui.toggle.off");
+    }
+
     @Nonnull
     private static String textOrBlank(@Nullable String v) {
         return v == null ? "" : v;
@@ -943,8 +1258,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
      * dropdown's own {@code .Value} unset (see {@code SettingsUiUtil.populate}), so the client shows
      * its first entry while the cache still holds {@code ""} - a later Save would then read the blank
      * cache and REMOVE the leaf instead of persisting the value the admin sees selected. Only for the
-     * three fixed-entry dropdowns with no "inherit" pseudo-value (presetMode/aggregation/zonePos/
-     * inspPos); the per-world {@code wAggregation} dropdown already seeds an explicit "inherit" via
+     * fixed-entry dropdowns with no "inherit" pseudo-value (aggregation/zonePos/inspPos); the per-world
+     * {@code wAggregation} dropdown already seeds an explicit "inherit" via
      * {@link #dropdownOrInherit} and does not need this.
      */
     @Nonnull
@@ -958,6 +1273,16 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     @Nonnull
     private static String csvOrBlank(@Nullable String[] v) {
         return v == null || v.length == 0 ? "" : String.join(", ", v);
+    }
+
+    /**
+     * Like {@link #csvOrBlank} but for a HINT's "Inherits: X" line: an actual id list is a literal
+     * {@link Message#raw} (technical ids, not translatable prose), an empty/absent list resolves
+     * {@code fallbackKey} (the localized {@code scaling.ui.world.inherits_all}/{@code _none}).
+     */
+    @Nonnull
+    private static Message csvOrFallback(@Nullable String[] v, @Nonnull String fallbackKey) {
+        return v == null || v.length == 0 ? tr(fallbackKey) : Message.raw(String.join(", ", v));
     }
 
     @Nonnull

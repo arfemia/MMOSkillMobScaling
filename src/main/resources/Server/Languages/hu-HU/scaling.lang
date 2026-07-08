@@ -107,7 +107,6 @@ ui.button.remove = Eltávolítás
 ui.global.enabled = Szörnyscálázás engedélyezve
 ui.global.enabled_note = Az újraindítást követően lép érvénybe (a mod az indítás során regisztrálja a rendszereit).
 ui.global.preset = Aktív előbeállítás
-ui.global.preset_mode = Előbeállítás mód
 ui.global.intensity = Intenzitás szorzó
 ui.global.rarity = Ritkasági megjelenési esély
 ui.global.open_world_header = Nyílt világ skálázása
@@ -123,13 +122,18 @@ ui.global.difficulty_header = Nehézség
 ui.global.floor = Alap nehézségi küszöb
 ui.global.min_cap = Minimális nehézség
 ui.global.max_cap = Maximális nehézség
-ui.global.esc_header = Távolsági eszkalációs
+ui.global.esc_header = Ritkaság és távolsági eszkaláció
 ui.global.esc_enabled = Eszkalációs engedélyezve
 ui.global.esc_start = Kezdő távolság (blokk)
 ui.global.esc_blocks = Blokk pontok száma
 ui.global.esc_max_bonus = Maximális bónusz
 ui.global.esc_rarity = Ritkasági pont
 ui.global.stat_curve_header = Nehézségi érték görbe
+
+# Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
+ui.global.preview_title = Előnézet: Csontváz
+ui.global.preview_note = Egyszerű szörny, amely csak a fenti nehézségi érték görbén fut végig. A ritkasági és variáció szorzók a megjelenéskor ezeken a számokon halmozódnak fel.
+ui.global.preview_row = N{diff}   HP {hp}   Seb {out}   Kapott {in}
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP pontonként
@@ -183,6 +187,80 @@ ui.world.hud_header = HUD láthatóság
 ui.world.zone_hud = Zóna HUD
 ui.world.inspector_hud = Vizsgáló HUD
 ui.world.hint = Minden beállítás szerkeszthető: finomhangolás, távolsági eszkalációs, nyílt világ skálázása, a nehézségi érték görbe, a megjelenési készlet és a HUD láthatóság. Az üres mező vagy az Örökölj a szülő fájltól, majd a globális értéktől kerülnek. Engedélyez/Tilt listák pontosvesszővel elválasztott azonosítók; a Tilt nyer.
+# Appended to a blank/Inherit field's hint (a computed line, {value} is DATA); shows what it currently
+# resolves to (the parent file, then the global setting) so a blank field is never a mystery.
+ui.world.inherits = Öröklések: {value}
+ui.world.inherits_all = (mind)
+ui.world.inherits_none = (egyik sem)
+
+# ============================================================================
+# Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
+# live in the values themselves / would drift if restated here). A world-form field that mirrors an
+# IDENTICAL global concept reuses the matching hint key below (see MobScalingAdminPage.buildWorldSpecs);
+# a tri-state, a pool gate, or a world-identity field has no true global equivalent and gets its own key.
+# ============================================================================
+
+# Global tab.
+ui.hint.enabled = A szörnyscálázási rendszerek főkapcsolója; kikapcsolása az újraindítást követően minden skálázási hatást eltávolít.
+ui.hint.floor = A legalacsonyabb nehézség, amelyre egy világ eshet, mielőtt a zóna, biom vagy távolsági bónuszok alkalmazva lennének.
+ui.hint.min_cap = A legalacsonyabb érvényes nehézség, amelyre egy szörny feldolgozható, miután minden bónusz hozzáadva lett.
+ui.hint.max_cap = A legmagasabb érvényes nehézség, amelyre egy szörny feldolgozható, miután minden bónusz hozzáadva lett.
+ui.hint.intensity = Méretezi, milyen meredeken nő a nehézségi görbe; magasabb érték keményebb és erősebb szörnyöket eredményez.
+ui.hint.hp_per_point = Mennyire erősödik meg a szörny egészsége az alaptól minden nehézségi pont fölött.
+ui.hint.out_per_point = Mennyire erősödik meg a szörny sérülése az alaptól minden nehézségi pont fölött.
+ui.hint.in_reduction = Mennyit csökkent a szörny a bejövő sérülésből az alaptól minden nehézségi pont fölött.
+ui.hint.max_hp = A legkeményebb felső korlát, amelyre a nehézségi görbe egy szörny egészség-szorzóját tolhatja.
+ui.hint.max_out = A legkeményebb felső korlát, amelyre a nehézségi görbe egy szörny sérülés-szorzóját tolhatja.
+ui.hint.min_in = A maximális bejövő sérülés csökkentés, amelyet a nehézségi görbe egy szörnynek adhat.
+ui.hint.rarity = Az esély arra, hogy egy ellenséges szörny ritka vagy magasabb szinttel jelenik meg, ahelyett, hogy egyszerű volna.
+ui.hint.esc_enabled = A nehézség emelkedik-e, minél távolabb vándorol a játékos a világ megjelenési pontjától.
+ui.hint.esc_start = A megjelenési ponttól való távolság, amely után a távolsági eszkalációs nehézséget kezd hozzáadni.
+ui.hint.esc_blocks = Hány blokk a kezdő távolságon túl ad hozzá egy nehézségi pontot.
+ui.hint.esc_max_bonus = A maximális extra nehézség, amelyet a távolsági eszkalációs adhat.
+ui.hint.esc_rarity = Mennyivel nő a ritkasági megjelenési esély eszkalációs pontonként a távolsági eszkalációban.
+ui.hint.player_scaling = Hogy a közeli játékosok és erőjük növelik-e egyáltalán egy régió nehézségét.
+ui.hint.aggregation = Hogyan egyesül a közeli játékosok ereje egy régió nehézség leolvasásába.
+ui.hint.region_size = A közelség rácsa mérete, amelyet a játékosok közös régió leolvasásba csoportosít.
+ui.hint.band_width = Maximálisan mennyire nőhet egy régió nehézsége az alapvetőjétől az közeli játékos ereje miatt.
+ui.hint.only_raise = Ha bekapcsolt, a közeli játékos ereje csak nőheti a régió nehézségét, soha nem csökkenti az alaptól.
+ui.hint.party_join = Az erősebb játékos vagy csapat csatlakozása egy régióhoz azonnal megnöveli-e annak nehézségét.
+ui.hint.late_arrival = Az egyszeri nehézség emelés mérete, amely akkor alkalmazódik, amikor erősebb játékos csatlakozik egy régióhoz.
+ui.hint.composition = Az közeli játékosok összetétele, nem csak az erőjük, befolyásolja-e a skálázást.
+
+# Zone HUD tab (hud_position/hud_offset_x/hud_offset_y are shared with the Inspector HUD tab below).
+ui.hint.zone_enabled = Az zóna nehézségi kijelző megjelenik-e egyáltalán a képernyőn.
+ui.hint.zone_show_location = Az kijelző megnevezi-e az aktuális zónát és biomot is.
+ui.hint.hud_position = A képernyő mely sarka rögzíti a kijelzőt.
+ui.hint.hud_offset_x = Finom pixel-beállítás a rögzített vízszintes élétől.
+ui.hint.hud_offset_y = Finom pixel-beállítás a rögzített függőleges élétől.
+ui.hint.zone_name_prefix = A lang kulcs előtag, amellyel az aktuális zóna barátságos nevét kereszik fel.
+ui.hint.biome_name_prefix = A lang kulcs előtag, amellyel az aktuális biom barátságos nevét kereszik fel.
+
+# Inspector HUD tab.
+ui.hint.insp_enabled = A célzó szörnyvizsgáló kijelző megjelenik-e egyáltalán a képernyőn.
+ui.hint.insp_portrait = Az vizsgáló kártya megmutatja-e a cél generált portrékképét.
+ui.hint.insp_range = Milyen messzire ér a célzó egy szörny felderítéséhez, hogy vizsgálja azt.
+
+# Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
+ui.hint.world_id = Az fájlnév, amely alatt a világ beállításai mentésre kerülnek; hagyja üresen, hogy az egyeztetési mintából származtatódjon.
+ui.hint.world_match = Mely világ erre a fájlra vonatkozik: pontos név, helyettesítő előtag, vagy helyettesítő minden világra.
+ui.hint.world_parent = Egy másik világfájl, amely beállítások mellett ezt a fájlt felülírva kerül alkalmazásra.
+ui.hint.w_enabled = Az szörnyscálázás egyáltalán működik-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.w_esc_enabled = Az távolsági eszkalációs alkalmazva van-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.w_player_scaling = Az közeli játékosok növelik-e a nehézséget ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.w_only_raise = Az közeli játékos ereje csak nőheti-e, soha nem csökkenti a nehézséget itt; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.w_party_join = Az erősebb érkezés azonnal növeli-e a nehézséget itt; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.w_composition = Az játékos összetétel befolyásolja-e a skálázást itt; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.pool_rarities_allow = Ritkasági szintek, amelyek itt dobhatók; hagyja üresen, hogy minden szintet engedélyezzen.
+ui.hint.pool_rarities_deny = Ritkasági szintek, amelyek tiltottak ebben a világban; a tiltás mindig nyert az engedélyezés felett.
+ui.hint.pool_variants_allow = Variáció rétegek, amelyek itt dobhatók; hagyja üresen, hogy minden variációt engedélyezzen.
+ui.hint.pool_variants_deny = Variáció rétegek, amelyek tiltottak ebben a világban; a tiltás mindig nyert az engedélyezés felett.
+ui.hint.pool_variant_chance = Méretezi, milyen gyakran dobódik egy jogosult variáció ebben a világban.
+ui.hint.pool_affixes_allow = Módosítók, amelyek itt dobhatók; hagyja üresen, hogy minden módosítót engedélyezzen.
+ui.hint.pool_affixes_deny = Módosítók, amelyek tiltottak ebben a világban; a tiltás mindig nyert az engedélyezés felett.
+ui.hint.pool_extra_slots = Extra módosító helyek a ritkasági és variáció által már megengedetteken felül.
+ui.hint.w_zone_hud = Az zóna nehézségi kijelző megengedett-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.w_inspector_hud = Az szörnyvizsgáló kijelző megengedett-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
 
 # Status line.
 ui.status.saved = Elmentve.

@@ -1,0 +1,62 @@
+$Z = "../Common/ZigButtons.ui";
+
+// ── mmo-mob-scaling WORLD LIST ROW (wraps long ids/match patterns) ────────────
+// Appended into #MmoscalingWorldList: cmd.append("#MmoscalingWorldList", "Pages/MmoscalingWorldRow.ui");
+// then addressed per row via the INDEXED PARENT (e.g. "#MmoscalingWorldList[0] #Title"), so the bare
+// descendant ids below are safe across many rows AND across mods (the ZigListRow rule this is modeled
+// on). MOD-LOCAL (not ziggfreed-common's Pages/ZigListRow.ui): that shared row is single-line-title and
+// truncates a long world id / match pattern in this page's 300px list panel. Here #Title WRAPS to two
+// lines instead (no fixed title height; the row itself carries the fixed height), #Sub stays single-line
+// small, and #Badge/#EditBtn/#RemoveBtn are narrower to leave room for the wider title column. Same
+// child ids as ZigListRow, so MobScalingAdminPage.buildWorldList (Java) is unchanged beyond the template
+// path: #Title/#Sub text, #Badge/#RemoveBtn Visible, the rich button labels (ZigRichButton.text on
+// #EditBtn/#RemoveBtn, which keep $Z.@ZigRichRowBtnStyle for click sounds), and the click bindings.
+
+Group #MmoscalingWorldRow {
+  LayoutMode: Left;
+  Anchor: (Height: 64, Bottom: 4);
+  Padding: (Horizontal: 6, Vertical: 3);
+  Background: (TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2a3442);
+
+  Group #TextCol {
+    FlexWeight: 1;
+    LayoutMode: Top;
+    Padding: (Left: 8);
+    Label #Title {
+      Text: "";
+      Style: (FontSize: 14, TextColor: #e6eef7, Wrap: true);
+    }
+    Label #Sub {
+      Text: "";
+      Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+    }
+  }
+
+  Label #Badge {
+    Visible: false;
+    Anchor: (Width: 54, Height: 58);
+    Text: "";
+    Style: (FontSize: 11, TextColor: #8fd0a6, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+  }
+
+  Button #EditBtn {
+    Style: $Z.@ZigRichRowBtnStyle;
+    Anchor: (Width: 56, Height: 30, Left: 6);
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 11, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+
+  Button #RemoveBtn {
+    Visible: false;
+    Style: $Z.@ZigRichRowBtnStyle;
+    Anchor: (Width: 56, Height: 30, Left: 6);
+    Label #Label {
+      FlexWeight: 1;
+      Text: "";
+      Style: (FontSize: 11, TextColor: #ff9a9a, HorizontalAlignment: Center, VerticalAlignment: Center);
+    }
+  }
+}

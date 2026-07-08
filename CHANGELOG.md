@@ -61,7 +61,7 @@ that removes the old WorldRules mob-scaling baseline - update BOTH together) and
   engine (`FieldSpec` + `SettingsForm`, five `Pages/ZigForm*Row.ui` templates) instead of ~24
   hand-written per-knob `.ui` rows + a matching per-field `EventData` codec key - adding a knob later is
   one `FieldSpec` line plus one lang key. `EventData` collapses to five keys (`Action`/`Tab`/`WorldId`/
-  `Field`/`@Value`). FULL knob coverage across all four tabs: Global gains `PresetMode`, the whole
+  `Field`/`@Value`). FULL knob coverage across all four tabs: Global gains the whole
   `OpenWorld` group (aggregation, region size, band width, only-raise, party-join, late-arrival,
   composition), and the six `StatCurve` leaves; the per-world editor gains the same `OpenWorld` group,
   the six `StatCurve` leaves, the `Pool` group (rarity/variant/affix allow-deny + variant chance + extra
@@ -94,6 +94,48 @@ that removes the old WorldRules mob-scaling baseline - update BOTH together) and
   (`util/JsonOverrideWriter` owner-file write-back, `ui/hud/HudPosition` layout value, `ui/SettingsUiUtil`
   form binding, `Pages/ZigListRow.ui` row). The mod's private `hud/HudPosition` copy is retired in favour
   of the lifted common one (identical behavior).
+- Change (round-2 admin-UX hardening, in-game feedback): removed the `PresetMode` dropdown from the
+  Global tab. Verified nothing consumes `MobScalingConfig.getPresetMode()` outside the schema
+  (`MobScalingSettingsAsset`) and the config fold; the codec field + fold stay for an owner who still
+  sets it by hand, only the dead UI row + its lang key (`ui.global.preset_mode`) are gone.
+- Change: the Global tab is reordered difficulty-first: `Enabled` note, Difficulty (floor + caps), the
+  stat Curve (`Intensity` now leads it, as the curve's global slope multiplier), rarity + distance
+  escalation (`RaritySpawnChance` leads it), Open World group last. `ui.global.esc_header` reworded to
+  "Rarity & distance escalation" to match.
+- New: a live skeleton-preview panel beside the Global settings. The Global tab is now two-panel
+  (`LayoutMode: Left`): the existing form on the left, a new "Preview: Skeleton" column on the right
+  showing a PLAIN mob (no rarity/variant) run through the CURRENT (unsaved) Global-form difficulty stat
+  curve at five evenly-spaced sample difficulties between the live `MinCap`/`MaxCap`
+  (`MobScalingAdminPage.refreshPreview`, mirroring `MobScalingConfig.buildCurve` - package-private there,
+  so the `MobScaleFold.DifficultyStatCurve` is constructed directly in the page). Shows HP / outgoing-
+  damage multipliers and incoming-damage-reduction percent per sample, formatted compactly
+  (`x2.6`/`x1.8`/`-22%`); refreshes on every Global-form `field`/`press`/`saveGlobal`/`selectPreset` event
+  via a small preview-only partial update (never re-pushing the form's own values). MULTIPLIERS-ONLY: an
+  absolute Skeleton HP number was investigated (the vanilla role's base `MaxHealth` is 92 in
+  `hytale-shared-source`) but rejected - reading a Role's declared stat requires the full
+  `NPCPlugin`/`BuilderManager`/`BuilderSupport` build pipeline, which needs a LIVE spawned `NPCEntity` +
+  `Holder`; there is no lighter registry a plugin can query standalone, and faking one would be exactly
+  the fragile hand-rolled hack the mod's native-asset-first paradigm warns against for a UI preview.
+- New: inline help text on every setting. Every leaf-bearing field/toggle spec across all FOUR forms
+  (Global, Zone HUD, Inspector HUD, Worlds; ~80 fields) now carries a `.withHint(...)` - one qualitative
+  sentence, no digits - rendered under the row via the ziggfreed-common `ui/form` engine's `#Hint`
+  sub-label (`FieldSpec.withHint`/`SettingsForm.applyHint`). A world-form field that mirrors an IDENTICAL
+  global concept reuses the matching global hint key; a tri-state, a pool gate, or a world-identity field
+  gets its own key (54 new `scaling.ui.hint.*` keys total).
+- New: the per-world editor shows what a blank/Inherit field currently inherits. On edit (and after a
+  save re-seeds), every blank/Inherit field's hint gains a computed "Inherits: {value}" line (a NEW
+  `scaling.ui.world.inherits` key) on top of its static help text, resolved from
+  `WorldSettingsConfig.effectiveById` (the `Parent`-merged view) falling back to the GLOBAL live
+  `MobScalingConfig` value per leaf (a Pool gate's global reads as allow-all / an empty deny list /
+  neutral scale / zero extra slots; a per-world HUD tri-state's global is the zone/inspector enabled
+  flag). Composed via `Message.join(staticHint, Message.raw("\n"), inheritsMsg)` (no new wrapper lang key
+  needed). An authored field shows the static hint alone; clearing the editor resets every hint to
+  static-only.
+- Change: world-list rows wrap instead of truncating. A new MOD-LOCAL `Pages/MmoscalingWorldRow.ui`
+  (modeled on ziggfreed-common's `Pages/ZigListRow.ui`, same child ids) replaces the shared row for this
+  page's 300px list panel: `#Title` wraps to two lines (no fixed title height) instead of cutting off a
+  long world id / match pattern, `#Badge`/`#EditBtn`/`#RemoveBtn` narrow to leave room. `buildWorldList`
+  is unchanged beyond the template-path constant.
 
 ## 1.0.1
 

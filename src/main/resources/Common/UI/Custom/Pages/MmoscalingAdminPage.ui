@@ -78,25 +78,56 @@ $F.@ZigDecoratedFrame {
       FlexWeight: 1;
       LayoutMode: Top;
 
-      // ================= GLOBAL =================
-      // Static preset row, then the scrolling spec-driven form, then a static Save button.
+      // ================= GLOBAL (two-panel: settings left, live skeleton preview right) =================
       Group #MmoscalingSectionGlobal {
         FlexWeight: 1;
-        LayoutMode: Top;
+        LayoutMode: Left;
 
-        @Row {
-          Label #MmoscalingPresetLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
-          $C.@DropdownBox #MmoscalingPresetDropdown { Anchor: (Width: 200, Height: 30); Style: @DropStyle; }
-        }
-
-        Group #MmoscalingGlobalForm {
+        // ---- LEFT: static preset row, the scrolling spec-driven form, a static Save button ----
+        Group {
           FlexWeight: 1;
-          LayoutMode: TopScrolling;
-          ScrollbarStyle: $C.@DefaultScrollbarStyle;
-          Padding: (Right: 4);
+          LayoutMode: Top;
+
+          @Row {
+            Label #MmoscalingPresetLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+            $C.@DropdownBox #MmoscalingPresetDropdown { Anchor: (Width: 200, Height: 30); Style: @DropStyle; }
+          }
+
+          Group #MmoscalingGlobalForm {
+            FlexWeight: 1;
+            LayoutMode: TopScrolling;
+            ScrollbarStyle: $C.@DefaultScrollbarStyle;
+            Padding: (Right: 4);
+          }
+
+          @RichBtn #MmoscalingGlobalSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 32, Top: 6); }
         }
 
-        @RichBtn #MmoscalingGlobalSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 32, Top: 6); }
+        // Thin vertical separator (matches the Worlds tab's list/editor divider).
+        Group { Anchor: (Width: 1, Left: 8, Right: 8); Background: #1e2a36; }
+
+        // ---- RIGHT: live skeleton preview - a plain mob through the difficulty stat curve only ----
+        // (rarity/variant multipliers stack on top at spawn; not part of this read). Refreshed from
+        // Java on every Global-tab field/press/save/preset event (MobScalingAdminPage.refreshPreview).
+        Group {
+          Anchor: (Width: 300);
+          LayoutMode: Top;
+          Padding: (Left: 10);
+
+          Label #MmoscalingPreviewTitle {
+            Text: "";
+            Anchor: (Height: 22, Bottom: 4);
+            Style: (FontSize: 15, TextColor: #ffaa4a, RenderBold: true);
+          }
+          Label #MmoscalingPreviewNote {
+            Text: "";
+            Anchor: (Bottom: 8);
+            Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+          }
+          Group #MmoscalingPreviewList {
+            LayoutMode: Top;
+          }
+        }
       }
 
       // ================= ZONE HUD =================
@@ -142,8 +173,9 @@ $F.@ZigDecoratedFrame {
           Anchor: (Width: 300);
           LayoutMode: Top;
 
-          // Appended per-world rows (Pages/ZigListRow.ui): #Title = id, #Sub = summary,
-          // #Badge = shipped/override, rich #EditBtn / #RemoveBtn.
+          // Appended per-world rows (Pages/MmoscalingWorldRow.ui, a mod-local wrapping row - not the
+          // common ZigListRow): #Title = id (wraps to two lines), #Sub = summary, #Badge =
+          // shipped/override, rich #EditBtn / #RemoveBtn.
           Group #MmoscalingWorldList {
             FlexWeight: 1;
             LayoutMode: TopScrolling;

@@ -1,0 +1,16 @@
+// ── mmo-mob-scaling skeleton PREVIEW row (Global tab, right column) ───────────
+// Appended into #MmoscalingPreviewList: cmd.append("#MmoscalingPreviewList", "Pages/MmoscalingPreviewRow.ui");
+// then addressed per row via the INDEXED PARENT (e.g. "#MmoscalingPreviewList[0] #Line"), so the bare
+// #Line id below is safe across many rows AND across mods (the ZigListRow rule). One line per sample
+// difficulty; MobScalingAdminPage.refreshPreview pushes the whole parameterized row text
+// (scaling.ui.global.preview_row: difficulty + HP/outgoing-damage/incoming-reduction) on .TextSpans
+// every time a Global-tab value changes (field/press/save/preset), never re-appended.
+
+Group #MmoscalingPreviewRow {
+  Anchor: (Height: 18, Bottom: 5);
+
+  Label #Line {
+    Text: "";
+    Style: (FontSize: 12, TextColor: #cdd8e6);
+  }
+}

@@ -121,7 +121,6 @@ ui.button.remove = Remove
 ui.global.enabled = Scaling enabled
 ui.global.enabled_note = Takes effect on restart (the mod registers its systems at startup).
 ui.global.preset = Active preset
-ui.global.preset_mode = Preset mode
 ui.global.intensity = Intensity multiplier
 ui.global.rarity = Rarity spawn chance
 ui.global.open_world_header = Open world scaling
@@ -137,13 +136,18 @@ ui.global.difficulty_header = Difficulty
 ui.global.floor = Baseline difficulty floor
 ui.global.min_cap = Minimum difficulty
 ui.global.max_cap = Maximum difficulty
-ui.global.esc_header = Distance escalation
+ui.global.esc_header = Rarity & distance escalation
 ui.global.esc_enabled = Escalation enabled
 ui.global.esc_start = Start distance (blocks)
 ui.global.esc_blocks = Blocks per point
 ui.global.esc_max_bonus = Max bonus
 ui.global.esc_rarity = Rarity per point
 ui.global.stat_curve_header = Difficulty stat curve
+
+# Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
+ui.global.preview_title = Preview: Skeleton
+ui.global.preview_note = A plain mob run through the difficulty stat curve above only. Rarity and variant multipliers stack on top of these numbers at spawn.
+ui.global.preview_row = D{diff}   HP {hp}   Dmg {out}   Taken {in}
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP per point
@@ -197,6 +201,82 @@ ui.world.hud_header = HUD visibility
 ui.world.zone_hud = Zone HUD
 ui.world.inspector_hud = Inspector HUD
 ui.world.hint = Every setting here is editable: tuning, distance escalation, open world scaling, the difficulty stat curve, the spawn pool, and HUD visibility. A blank field or Inherit falls back to the parent file, then the global value. Allow/deny lists are comma-separated ids; deny wins.
+# Appended to a blank/Inherit field's hint (a computed line, {value} is a NESTED Message - the localized
+# on/off toggle label, one of the two keys below, or a literal number/id list); shows what it currently
+# resolves to (the parent file, then the global setting) so a blank field is never a mystery.
+ui.world.inherits = Inherits: {value}
+# The {value} fallback for an empty Pool allow/deny list (nested Messages, not literals - see csvOrFallback).
+ui.world.inherits_all = (all)
+ui.world.inherits_none = (none)
+
+# ============================================================================
+# Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
+# live in the values themselves / would drift if restated here). A world-form field that mirrors an
+# IDENTICAL global concept reuses the matching hint key below (see MobScalingAdminPage.buildWorldSpecs);
+# a tri-state, a pool gate, or a world-identity field has no true global equivalent and gets its own key.
+# ============================================================================
+
+# Global tab.
+ui.hint.enabled = Master switch for the mob-scaling systems. Turning it off removes every scaling effect on restart.
+ui.hint.floor = The lowest difficulty a world ever falls to before zone, biome, or distance bonuses apply.
+ui.hint.min_cap = The lowest effective difficulty a mob can ever resolve to, after every bonus is added.
+ui.hint.max_cap = The highest effective difficulty a mob can ever resolve to, after every bonus is added.
+ui.hint.intensity = Scales how steeply the difficulty curve grows; higher makes scaled mobs tougher and harder-hitting overall.
+ui.hint.hp_per_point = How much tougher a mob's health grows for each point of difficulty above the baseline.
+ui.hint.out_per_point = How much harder a mob hits for each point of difficulty above the baseline.
+ui.hint.in_reduction = How much incoming damage a mob shrugs off for each point of difficulty above the baseline.
+ui.hint.max_hp = The hardest ceiling the difficulty curve can ever push a mob's health multiplier to.
+ui.hint.max_out = The hardest ceiling the difficulty curve can ever push a mob's outgoing damage multiplier to.
+ui.hint.min_in = The most incoming damage reduction the difficulty curve can ever grant a mob.
+ui.hint.rarity = The chance a hostile mob spawns with a rare or higher tier instead of plain.
+ui.hint.esc_enabled = Whether difficulty climbs the farther a player wanders from the world spawn point.
+ui.hint.esc_start = The distance from spawn a player can travel before distance escalation begins adding difficulty.
+ui.hint.esc_blocks = How many blocks past the start distance add one more point of difficulty.
+ui.hint.esc_max_bonus = The most extra difficulty distance escalation can ever add.
+ui.hint.esc_rarity = How much extra rarity spawn chance distance escalation adds per escalation point.
+ui.hint.player_scaling = Whether nearby players and their power raise a region's difficulty at all.
+ui.hint.aggregation = How the power of multiple nearby players folds into one region difficulty reading.
+ui.hint.region_size = The size of the proximity grid used to bucket players into a shared region reading.
+ui.hint.band_width = The most a region's difficulty can swing above its baseline from nearby player power.
+ui.hint.only_raise = When on, nearby player power can only raise a region's difficulty, never soften it below the baseline.
+ui.hint.party_join = Whether a stronger player or party joining a region bumps its difficulty right away.
+ui.hint.late_arrival = The size of the one-time difficulty bump applied when a stronger arrival joins a region.
+ui.hint.composition = Whether the makeup of nearby players, not just their raw power, factors into scaling.
+
+# Zone HUD tab (hud_position/hud_offset_x/hud_offset_y are shared with the Inspector HUD tab below).
+ui.hint.zone_enabled = Whether the zone difficulty overlay shows on screen at all.
+ui.hint.zone_show_location = Whether the overlay also names the current zone and biome.
+ui.hint.hud_position = Which screen corner the overlay anchors to.
+ui.hint.hud_offset_x = Fine pixel adjustment from the anchored horizontal edge.
+ui.hint.hud_offset_y = Fine pixel adjustment from the anchored vertical edge.
+ui.hint.zone_name_prefix = The lang key prefix used to look up a friendly name for the current zone.
+ui.hint.biome_name_prefix = The lang key prefix used to look up a friendly name for the current biome.
+
+# Inspector HUD tab.
+ui.hint.insp_enabled = Whether the crosshair mob inspector overlay shows on screen at all.
+ui.hint.insp_portrait = Whether the inspector card shows the target's generated portrait image.
+ui.hint.insp_range = How far the crosshair reaches to detect a mob to inspect.
+
+# Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
+ui.hint.world_id = The file name this world's settings are saved under; leave blank to derive it from the match pattern.
+ui.hint.world_match = Which world this file applies to: an exact name, a wildcard prefix, or a bare wildcard for every world.
+ui.hint.world_parent = Another world file to inherit settings from before this file's own overrides apply.
+ui.hint.w_enabled = Whether mob scaling runs in this world at all. Inherit follows the parent file, then the global setting.
+ui.hint.w_esc_enabled = Whether distance escalation applies in this world. Inherit follows the parent file, then the global setting.
+ui.hint.w_player_scaling = Whether nearby players raise difficulty in this world. Inherit follows the parent file, then the global setting.
+ui.hint.w_only_raise = Whether nearby player power can only raise, never soften, difficulty here. Inherit follows the parent file, then the global setting.
+ui.hint.w_party_join = Whether a stronger arrival bumps difficulty here right away. Inherit follows the parent file, then the global setting.
+ui.hint.w_composition = Whether player composition factors into scaling here. Inherit follows the parent file, then the global setting.
+ui.hint.pool_rarities_allow = Rarity tiers permitted to roll here; leave blank to allow every tier.
+ui.hint.pool_rarities_deny = Rarity tiers forbidden from rolling here; denial always wins over allow.
+ui.hint.pool_variants_allow = Variant overlays permitted to roll here; leave blank to allow every variant.
+ui.hint.pool_variants_deny = Variant overlays forbidden from rolling here; denial always wins over allow.
+ui.hint.pool_variant_chance = Scales how often an eligible variant overlay rolls in this world.
+ui.hint.pool_affixes_allow = Affixes permitted to roll here; leave blank to allow every affix.
+ui.hint.pool_affixes_deny = Affixes forbidden from rolling here; denial always wins over allow.
+ui.hint.pool_extra_slots = Extra affix slots granted on top of whatever the rarity and variant already allow.
+ui.hint.w_zone_hud = Whether the zone difficulty overlay is allowed to show in this world. Inherit follows the parent file, then the global setting.
+ui.hint.w_inspector_hud = Whether the mob inspector overlay is allowed to show in this world. Inherit follows the parent file, then the global setting.
 
 # Status line.
 ui.status.saved = Saved.

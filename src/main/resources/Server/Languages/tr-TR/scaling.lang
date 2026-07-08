@@ -108,7 +108,6 @@ ui.button.remove = Kaldır
 ui.global.enabled = Ölçekleme etkinleştirildi
 ui.global.enabled_note = Yeniden başlatmada etkili olur (mod, sistemlerini başlangıçta kaydeder).
 ui.global.preset = Etkin ön ayar
-ui.global.preset_mode = Ön ayar modu
 ui.global.intensity = Zorluk çarpanı
 ui.global.rarity = Nadirlik belirme şansı
 ui.global.open_world_header = Açık dünya ölçeklemesi
@@ -124,13 +123,18 @@ ui.global.difficulty_header = Zorluk
 ui.global.floor = Temel zorluk tabanı
 ui.global.min_cap = Minimum zorluk
 ui.global.max_cap = Maksimum zorluk
-ui.global.esc_header = Mesafe kademeli artışı
+ui.global.esc_header = Nadirlik & Mesafe Kademeli Artışı
 ui.global.esc_enabled = Kademeli artış etkinleştirildi
 ui.global.esc_start = Başlangıç mesafesi (blok)
 ui.global.esc_blocks = Blok başına nokta
 ui.global.esc_max_bonus = Maksimum bonus
 ui.global.esc_rarity = Nokta başına nadirlik
 ui.global.stat_curve_header = Zorluk istatistik eğrisi
+
+# Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
+ui.global.preview_title = Ön İzleme: İskelet
+ui.global.preview_note = Sadece yukarıdaki zorluk istatistik eğrisinden geçen sıradan bir yaratık. Nadirlik ve varyant çarpanları bu sayıların üzerine belirmede yığılır.
+ui.global.preview_row = Z{diff}   HP {hp}   Hasar {out}   Alınan {in}
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = Nokta başına HP
@@ -184,6 +188,11 @@ ui.world.hud_header = HUD görünürlüğü
 ui.world.zone_hud = Bölge HUD'u
 ui.world.inspector_hud = İnceleme HUD'u
 ui.world.hint = Buradaki her ayar düzenlenebilir: iyileştirme, mesafe kademeli artışı, açık dünya ölçeklemesi, zorluk istatistik eğrisi, belirme havuzu ve HUD görünürlüğü. Boş bir alan veya Devral, önce üst dosyadan, sonra genel değerden devralınır. İzin ver/Reddet listeleri virgüllerle ayrılmış kimliklerdir; Reddet kazanır.
+# Appended to a blank/Inherit field's hint (a computed line, {value} is DATA); shows what it currently
+# resolves to (the parent file, then the global setting) so a blank field is never a mystery.
+ui.world.inherits = Devralıyor: {value}
+ui.world.inherits_all = (tümü)
+ui.world.inherits_none = (hiçbiri)
 
 # Status line.
 ui.status.saved = Kaydedildi.
@@ -195,3 +204,72 @@ ui.status.invalid_field = {field} için geçerli bir değer girin. Sayılar 0 ve
 ui.status.invalid_caps = Maksimum en az minimum kadar olmalıdır.
 ui.status.unknown_preset = Bilinmeyen ön ayar.
 ui.status.id_or_match_required = Önce bir dosya adı veya dünya eşleştir modeli girin.
+
+# ============================================================================
+# Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
+# live in the values themselves / would drift if restated here). A world-form field that mirrors an
+# IDENTICAL global concept reuses the matching hint key below; a tri-state, a pool gate, or a
+# world-identity field has no true global equivalent and gets its own key.
+# ============================================================================
+
+# Global tab.
+ui.hint.enabled = Yaratık-ölçekleme sistemleri için ana şalter. Bunu kapatmak yeniden başlatmada tüm ölçekleme etkilerini kaldırır.
+ui.hint.floor = Bir dünyanın bölge, biome veya mesafe bonuları uygulanmadan önce düştüğü en düşük zorluk.
+ui.hint.min_cap = Bir yaratığın tüm bonuslar eklendikten sonra ulaşabileceği en düşük etkin zorluk.
+ui.hint.max_cap = Bir yaratığın tüm bonuslar eklendikten sonra ulaşabileceği en yüksek etkin zorluk.
+ui.hint.intensity = Zorluk eğrisinin ne kadar dik yükseldiğini ölçekler; daha yüksek değerler ölçeklenen yaratıkları daha sert ve daha güçlü hale getirir.
+ui.hint.hp_per_point = Bir yaratığın sağlığının taban seviyesinin üzerindeki her zorluk noktası için ne kadar arttığı.
+ui.hint.out_per_point = Bir yaratığın taban seviyesinin üzerindeki her zorluk noktası için ne kadar daha güçlü vurduğu.
+ui.hint.in_reduction = Bir yaratığın taban seviyesinin üzerindeki her zorluk noktası için ne kadar gelen hasarı azalttığı.
+ui.hint.max_hp = Zorluk eğrisinin bir yaratığın sağlık çarpanını itebileceği en yüksek sınır.
+ui.hint.max_out = Zorluk eğrisinin bir yaratığın giden hasar çarpanını itebileceği en yüksek sınır.
+ui.hint.min_in = Zorluk eğrisinin bir yaratığa verebileceği en yüksek gelen hasar azaltması.
+ui.hint.rarity = Düşmanca bir yaratığın sıradan yerine nadir veya daha yüksek seviye ile belirme şansı.
+ui.hint.esc_enabled = Zorluk seviyesinin oyuncunun dünya doğum noktasından ne kadar uzaklaştığına bağlı olarak yükselip yükselmediği.
+ui.hint.esc_start = Oyuncunun mesafe kademeli artışı zorluğu eklemeye başlamadan önce spawn noktasından gidebileceği mesafe.
+ui.hint.esc_blocks = Başlangıç mesafesinin kaç blok ötesine geçmenin bir zorluk noktası eklediği.
+ui.hint.esc_max_bonus = Mesafe kademeli artışının ekleyebileceği en yüksek ek zorluk.
+ui.hint.esc_rarity = Mesafe kademeli artışının her bir kademeli artış noktası başına ne kadar ek nadirlik belirme şansı eklediği.
+ui.hint.player_scaling = Yakındaki oyuncuların ve güçlerinin bir bölgenin zorluğunu hiç yükseltip yükseltmediği.
+ui.hint.aggregation = Yakındaki birden fazla oyuncunun gücünün bir bölge zorluk değerine nasıl birleştirildiği.
+ui.hint.region_size = Oyuncuları paylaşılan bir bölge okumasına göre gruplaştırmak için kullanılan yakınlık ızgarasının boyutu.
+ui.hint.band_width = Bir bölgenin zorluğunun yakındaki oyuncu gücü nedeniyle taban seviyesinin üzerine ne kadar sallanabildığinin en yüksek miktarı.
+ui.hint.only_raise = Açık olduğunda, yakındaki oyuncu gücü bir bölgenin zorluğunu yalnızca yükseltebilir, hiçbir zaman taban seviyesinin altına düşüremez.
+ui.hint.party_join = Daha güçlü bir oyuncunun veya partinin bir bölgeye katılmasının hemen zorluğu yükseltip yükseltmediği.
+ui.hint.late_arrival = Daha güçlü bir katılımcı bir bölgeye katıldığında uygulanan bir kerelik zorluk yükselişinin boyutu.
+ui.hint.composition = Yakındaki oyuncuların sadece ham gücü değil, bileşiminin ölçeklemede rol oynadığı.
+
+# Zone HUD tab (hud_position/hud_offset_x/hud_offset_y are shared with the Inspector HUD tab below).
+ui.hint.zone_enabled = Bölge zorluğu katmanının ekranda hiç görüntülenip görüntülenmediği.
+ui.hint.zone_show_location = Katmanın ayrıca mevcut bölge ve biome adını görüntüleyip görüntülemediği.
+ui.hint.hud_position = Katmanın hangi ekran köşesine sabitleneceği.
+ui.hint.hud_offset_x = Sabitlenmiş yatay kenardan ince piksel ayarlaması.
+ui.hint.hud_offset_y = Sabitlenmiş dikey kenardan ince piksel ayarlaması.
+ui.hint.zone_name_prefix = Mevcut bölge için kullanıcı dostu bir ad aramak için kullanılan dil anahtarı öneki.
+ui.hint.biome_name_prefix = Mevcut biome için kullanıcı dostu bir ad aramak için kullanılan dil anahtarı öneki.
+
+# Inspector HUD tab.
+ui.hint.insp_enabled = İmleç yaratık inceleme katmanının ekranda hiç görüntülenip görüntülenmediği.
+ui.hint.insp_portrait = İnceleme kartının hedefin oluşturulan portre görüntüsünü gösterip göstermediği.
+ui.hint.insp_range = İmleçin bir yaratığı tespit etmek için ne kadar uzağa ulaştığı.
+
+# Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
+ui.hint.world_id = Bu dünyanın ayarlarının kaydedildiği dosya adı; eşleştirme modelinden türetmek için boş bırakın.
+ui.hint.world_match = Bu dosyanın hangi dünyaya uygulanacağı: tam bir ad, joker ön eki veya her dünya için adi joker.
+ui.hint.world_parent = Bu dosyanın kendi geçersil kılmalarından önce ayarları devralacağı başka bir dünya dosyası.
+ui.hint.w_enabled = Yaratık ölçeklemenin bu dünyada hiç çalışıp çalışmadığı. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.w_esc_enabled = Mesafe kademeli artışının bu dünyada uygulanıp uygulanmadığı. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.w_player_scaling = Yakındaki oyuncuların bu dünyada zorluğu yükseltip yükseltmediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.w_only_raise = Yakındaki oyuncu gücünün burada zorluğu yalnızca yükseltip yumuşatamayıp yumuşatamayacağı. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.w_party_join = Daha güçlü bir katılımcının burada hemen zorluğu yükseltip yükseltmediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.w_composition = Oyuncu bileşiminin burada ölçeklemede rol oynadığı. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.pool_rarities_allow = Burada çıkmasına izin verilen nadirlik seviyeleri; her seviyeye izin vermek için boş bırakın.
+ui.hint.pool_rarities_deny = Burada çıkması yasak nadirlik seviyeleri; reddetme her zaman izine karşı kazanır.
+ui.hint.pool_variants_allow = Burada çıkmasına izin verilen varyant katmanları; her varyanta izin vermek için boş bırakın.
+ui.hint.pool_variants_deny = Burada çıkması yasak varyant katmanları; reddetme her zaman izine karşı kazanır.
+ui.hint.pool_variant_chance = Uygun bir varyant katmanının bu dünyada ne kadar sık çıktığını ölçekler.
+ui.hint.pool_affixes_allow = Burada çıkmasına izin verilen affixler; her affixa izin vermek için boş bırakın.
+ui.hint.pool_affixes_deny = Burada çıkması yasak affixler; reddetme her zaman izine karşı kazanır.
+ui.hint.pool_extra_slots = Nadirlik ve varyantın zaten izin verdiği şeyin üzerine verilen ek affix yuvaları.
+ui.hint.w_zone_hud = Bölge zorluğu katmanının bu dünyada gösterilmesine izin verilip verilmediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.w_inspector_hud = Yaratık inceleme katmanının bu dünyada gösterilmesine izin verilip verilmediği. Devral, önce üst dosyayı, sonra genel ayarı izler.

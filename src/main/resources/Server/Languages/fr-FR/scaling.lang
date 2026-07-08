@@ -108,7 +108,6 @@ ui.button.remove = Supprimer
 ui.global.enabled = Mise à l'échelle activée
 ui.global.enabled_note = Prend effet au redémarrage (le mod enregistre ses systèmes au démarrage).
 ui.global.preset = Préréglage actif
-ui.global.preset_mode = Mode de préréglage
 ui.global.intensity = Multiplicateur d'intensité
 ui.global.rarity = Probabilité d'apparition de rareté
 ui.global.open_world_header = Mise à l'échelle du monde ouvert
@@ -124,7 +123,7 @@ ui.global.difficulty_header = Difficulté
 ui.global.floor = Plancher de difficulté de base
 ui.global.min_cap = Difficulté minimale
 ui.global.max_cap = Difficulté maximale
-ui.global.esc_header = Escalade de distance
+ui.global.esc_header = Escalade de rareté et distance
 ui.global.esc_enabled = Escalade activée
 ui.global.esc_start = Distance de départ (blocs)
 ui.global.esc_blocks = Blocs par point
@@ -139,6 +138,11 @@ ui.curve.in_reduction = Réduction des dégâts subis par point
 ui.curve.max_hp = Multiplicateur de PV max
 ui.curve.max_out = Multiplicateur de dégâts infligés max
 ui.curve.min_in = Multiplicateur de dégâts subis min
+
+# Skeleton preview panel (Global tab, right column).
+ui.global.preview_title = Aperçu : Squelette
+ui.global.preview_note = Une créature ordinaire passée par la courbe de statistiques de difficulté ci-dessus uniquement. Les multiplicateurs de rareté et de variante s'empilent sur ces chiffres à la génération.
+ui.global.preview_row = D{diff}   PV {hp}   Dégâts {out}   Subis {in}
 
 # Shared HUD tab rows.
 ui.hud.position = Position
@@ -184,6 +188,75 @@ ui.world.hud_header = Visibilité du HUD
 ui.world.zone_hud = HUD de zone
 ui.world.inspector_hud = HUD inspecteur
 ui.world.hint = Tous les paramètres ici sont modifiables : réglage, escalade de distance, mise à l'échelle du monde ouvert, courbe de statistiques de difficulté, pool d'apparition, et visibilité du HUD. Un champ vide ou Héritage revient au fichier parent, puis à la valeur globale. Les listes autoriser/interdire sont des id séparées par des virgules; interdire l'emporte.
+ui.world.inherits = Hérité de : {value}
+ui.world.inherits_all = (tous)
+ui.world.inherits_none = (aucun)
+
+# ============================================================================
+# Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits.
+# ============================================================================
+
+# Global tab.
+ui.hint.enabled = Interrupteur maître des systèmes de mise à l'échelle. Le désactiver supprime tous les effets de mise à l'échelle au redémarrage.
+ui.hint.floor = La difficulté minimale à laquelle un monde peut tomber avant l'application des bonus de zone, biome ou distance.
+ui.hint.min_cap = La difficulté effective minimale qu'une créature peut jamais atteindre, après tous les bonus appliqués.
+ui.hint.max_cap = La difficulté effective maximale qu'une créature peut jamais atteindre, après tous les bonus appliqués.
+ui.hint.intensity = Contrôle la pente de croissance de la courbe de difficulté; plus élevé rend les créatures mises à l'échelle plus coriaces et frappant plus fort.
+ui.hint.hp_per_point = Augmentation de la santé d'une créature pour chaque point de difficulté au-dessus de la base.
+ui.hint.out_per_point = Augmentation des dégâts infligés par une créature pour chaque point de difficulté au-dessus de la base.
+ui.hint.in_reduction = Réduction des dégâts entrants pour chaque point de difficulté au-dessus de la base.
+ui.hint.max_hp = Le plafond maximum auquel la courbe de difficulté peut pousser le multiplicateur de santé d'une créature.
+ui.hint.max_out = Le plafond maximum auquel la courbe de difficulté peut pousser le multiplicateur de dégâts infligés d'une créature.
+ui.hint.min_in = La réduction de dégâts entrants maximale que la courbe de difficulté peut jamais accorder à une créature.
+ui.hint.rarity = Probabilité qu'une créature hostile soit générée en rareté ou supérieure au lieu de normal.
+ui.hint.esc_enabled = Si la difficulté augmente à mesure qu'un joueur s'éloigne du point de génération du monde.
+ui.hint.esc_start = Distance du point de génération qu'un joueur peut parcourir avant que l'escalade de distance n'ajoute de la difficulté.
+ui.hint.esc_blocks = Nombre de blocs au-delà de la distance de départ qui ajoutent un point de difficulté.
+ui.hint.esc_max_bonus = Bonus de difficulté maximum que l'escalade de distance peut jamais ajouter.
+ui.hint.esc_rarity = Augmentation supplémentaire de la probabilité d'apparition rare pour chaque point d'escalade de distance.
+ui.hint.player_scaling = Si les joueurs à proximité et leur puissance augmentent du tout la difficulté d'une région.
+ui.hint.aggregation = Comment la puissance de plusieurs joueurs à proximité s'accumule en une seule lecture de difficulté régionale.
+ui.hint.region_size = Taille de la grille de proximité utilisée pour grouper les joueurs dans une lecture régionale partagée.
+ui.hint.band_width = Amplitude maximale d'oscillation de la difficulté régionale au-dessus de sa base par la puissance des joueurs.
+ui.hint.only_raise = Lorsqu'activée, la puissance des joueurs à proximité ne peut qu'augmenter la difficulté régionale, jamais la réduire.
+ui.hint.party_join = Si un joueur ou groupe plus puissant rejoignant une région augmente immédiatement sa difficulté.
+ui.hint.late_arrival = Ampleur du bonus de difficulté unique appliqué lorsqu'une arrivée plus puissante rejoint une région.
+ui.hint.composition = Si la composition des joueurs à proximité, pas seulement leur puissance brute, affecte la mise à l'échelle.
+
+# Zone HUD tab.
+ui.hint.zone_enabled = Si la superposition de difficulté de zone s'affiche à l'écran.
+ui.hint.zone_show_location = Si la superposition affiche également le nom de la zone et du biome actuels.
+ui.hint.hud_position = Coin de l'écran auquel la superposition s'ancre.
+ui.hint.hud_offset_x = Ajustement fin en pixels depuis le bord horizontal ancré.
+ui.hint.hud_offset_y = Ajustement fin en pixels depuis le bord vertical ancré.
+ui.hint.zone_name_prefix = Préfixe de clé de langue utilisé pour rechercher un nom convivial pour la zone actuelle.
+ui.hint.biome_name_prefix = Préfixe de clé de langue utilisé pour rechercher un nom convivial pour le biome actuel.
+
+# Inspector HUD tab.
+ui.hint.insp_enabled = Si la superposition d'inspecteur de créature du réticule s'affiche à l'écran.
+ui.hint.insp_portrait = Si la carte d'inspection affiche l'image du portrait généré de la cible.
+ui.hint.insp_range = Distance à laquelle le réticule peut détecter une créature à inspecter.
+
+# Worlds tab: world-identity fields, tri-states, and pool gates.
+ui.hint.world_id = Nom du fichier sous lequel les paramètres de ce monde sont enregistrés; laissez vide pour le dériver du modèle de correspondance.
+ui.hint.world_match = Monde auquel ce fichier s'applique : un nom exact, un préfixe joker, ou un joker seul pour tous les mondes.
+ui.hint.world_parent = Autre fichier de monde dont hériter les paramètres avant l'application des remplacements de ce fichier.
+ui.hint.w_enabled = Si la mise à l'échelle des créatures s'exécute du tout dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.w_esc_enabled = Si l'escalade de distance s'applique dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.w_player_scaling = Si les joueurs à proximité augmentent la difficulté dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.w_only_raise = Si la puissance des joueurs à proximité ne peut qu'augmenter, jamais réduire, la difficulté ici. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.w_party_join = Si une arrivée plus puissante augmente immédiatement la difficulté ici. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.w_composition = Si la composition des joueurs affecte la mise à l'échelle ici. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.pool_rarities_allow = Niveaux de rareté autorisés à être générés ici; laissez vide pour autoriser tous les niveaux.
+ui.hint.pool_rarities_deny = Niveaux de rareté interdits à la génération ici; l'interdiction l'emporte toujours.
+ui.hint.pool_variants_allow = Variantes autorisées à être générées ici; laissez vide pour autoriser toutes les variantes.
+ui.hint.pool_variants_deny = Variantes interdites à la génération ici; l'interdiction l'emporte toujours.
+ui.hint.pool_variant_chance = Contrôle la fréquence à laquelle une variante admissible est générée dans ce monde.
+ui.hint.pool_affixes_allow = Affixes autorisés à être générés ici; laissez vide pour autoriser tous les affixes.
+ui.hint.pool_affixes_deny = Affixes interdits à la génération ici; l'interdiction l'emporte toujours.
+ui.hint.pool_extra_slots = Emplacements d'affix supplémentaires accordés en plus de ce que la rareté et la variante autorisent déjà.
+ui.hint.w_zone_hud = Si la superposition de difficulté de zone est autorisée à s'afficher dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.w_inspector_hud = Si la superposition d'inspecteur de créature est autorisée à s'afficher dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
 
 # Status line.
 ui.status.saved = Enregistré.

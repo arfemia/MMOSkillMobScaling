@@ -87,7 +87,9 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   overlay: every nesting level uses NULLABLE wrapper fields and the fold walks per LEAF.
 - **[`asset/MobScalingSettingsAsset`](src/main/java/com/ziggfreed/mmomobscaling/asset/MobScalingSettingsAsset.java)**
   is the ONE schema authority: an `AssetBuilderCodec` with PascalCase keys, top-level `Enabled` /
-  `PresetMode` / `Intensity` / `RaritySpawnChance` plus the NESTED groups `OpenWorld`
+  `PresetMode` (verified UNCONSUMED - nothing reads `getPresetMode()` outside the schema/config fold;
+  deliberately NOT exposed on the admin-page UI, round-2 hardening) / `Intensity` / `RaritySpawnChance`
+  plus the NESTED groups `OpenWorld`
   (`AggregationMode`/`RegionSizeChunks`/`GroupDeltaBandWidth`/`AllowDifficultyIncreaseOnPartyJoin`/
   `LateArrivalBumpFactor`/`CompositionEnabled`), `Difficulty` (`MinCap`/`MaxCap` + nested
   `DistanceEscalation` `Enabled`/`StartDistanceBlocks`/`BlocksPerPoint`/`MaxBonus`/

@@ -110,7 +110,6 @@ ui.button.remove = Entfernen
 ui.global.enabled = Skalierung aktiviert
 ui.global.enabled_note = Wirkt sich beim Neustart aus (das Mod registriert seine Systeme beim Start).
 ui.global.preset = Aktives Preset
-ui.global.preset_mode = Preset-Modus
 ui.global.intensity = Schwierigkeitsmultiplikator
 ui.global.rarity = Seltenheits-Spawnchance
 ui.global.open_world_header = Offene-Welt-Skalierung
@@ -126,13 +125,18 @@ ui.global.difficulty_header = Schwierigkeit
 ui.global.floor = Basis-Schwierigkeitsuntergrenze
 ui.global.min_cap = Minimale Schwierigkeit
 ui.global.max_cap = Maximale Schwierigkeit
-ui.global.esc_header = Distanzeskalation
+ui.global.esc_header = Seltenheit & Distanzeskalation
 ui.global.esc_enabled = Eskalation aktiviert
 ui.global.esc_start = Startdistanz (Blöcke)
 ui.global.esc_blocks = Blöcke pro Punkt
 ui.global.esc_max_bonus = Maximaler Bonus
 ui.global.esc_rarity = Seltenheit pro Punkt
 ui.global.stat_curve_header = Schwierigkeits-Statuskurve
+
+# Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
+ui.global.preview_title = Vorschau: Skelett
+ui.global.preview_note = Ein einfaches Mob, das nur durch die obige Schwierigkeits-Statuskurve verarbeitet wird. Seltenheits- und Varianten-Multiplikatoren stapeln sich oben auf diese Zahlen beim Spawn.
+ui.global.preview_row = S{diff}   HP {hp}   Schaden {out}   Erlitten {in}
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.hp_per_point = HP pro Punkt
@@ -186,6 +190,80 @@ ui.world.hud_header = HUD-Sichtbarkeit
 ui.world.zone_hud = Zonen-HUD
 ui.world.inspector_hud = Inspektor-HUD
 ui.world.hint = Jede Einstellung hier ist bearbeitbar: Abstimmung, Distanzeskalation, Offene-Welt-Skalierung, die Schwierigkeits-Statuskurve, der Spawn-Pool und HUD-Sichtbarkeit. Ein leeres Feld oder Vererbung fällt auf die übergeordnete Datei zurück, dann auf den globalen Wert. Allow/Deny-Listen sind durch Kommas getrennte IDs; Verbieten hat Vorrang.
+# Appended to a blank/Inherit field's hint (a computed line, {value} is DATA); shows what it currently
+# resolves to (the parent file, then the global setting) so a blank field is never a mystery.
+ui.world.inherits = Erbt von: {value}
+ui.world.inherits_all = (alle)
+ui.world.inherits_none = (keine)
+
+# ============================================================================
+# Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
+# live in the values themselves / would drift if restated here). A world-form field that mirrors an
+# IDENTICAL global concept reuses the matching hint key below (see MobScalingAdminPage.buildWorldSpecs);
+# a tri-state, a pool gate, or a world-identity field has no true global equivalent and gets its own key.
+# ============================================================================
+
+# Global tab.
+ui.hint.enabled = Hauptschalter für die Mob-Skalierungssysteme. Das Ausschalten entfernt alle Skalierungseffekte beim Neustart.
+ui.hint.floor = Die niedrigste Schwierigkeit, auf die eine Welt jemals fällt, bevor Zonen-, Biom- oder Distanzbonusse angewendet werden.
+ui.hint.min_cap = Die niedrigste effektive Schwierigkeit, auf die sich ein Mob jemals auflösen kann, nachdem jeder Bonus hinzugefügt wurde.
+ui.hint.max_cap = Die höchste effektive Schwierigkeit, auf die sich ein Mob jemals auflösen kann, nachdem jeder Bonus hinzugefügt wurde.
+ui.hint.intensity = Passt an, wie steil die Schwierigkeitskurve anwächst; höher macht skalierte Mobs insgesamt zäher und schlagkräftiger.
+ui.hint.hp_per_point = Wie viel zäher die Gesundheit eines Mobs für jeden Schwierigkeitspunkt über dem Grundwert wächst.
+ui.hint.out_per_point = Wie viel stärker ein Mob für jeden Schwierigkeitspunkt über dem Grundwert zuschlägt.
+ui.hint.in_reduction = Wie viel eingehenden Schaden ein Mob für jeden Schwierigkeitspunkt über dem Grundwert abschüttelt.
+ui.hint.max_hp = Die härteste Obergrenze, auf die die Schwierigkeitskurve einen Mob-Gesundheits-Multiplikator jemals drücken kann.
+ui.hint.max_out = Die härteste Obergrenze, auf die die Schwierigkeitskurve einen Mob-Ausgangsschaden-Multiplikator jemals drücken kann.
+ui.hint.min_in = Die meiste eingehende Schadensreduktion, die die Schwierigkeitskurve einem Mob jemals gewähren kann.
+ui.hint.rarity = Die Chance, dass ein feindselig Mob mit einer seltenen oder höheren Stufe spawnt, anstatt einfach zu sein.
+ui.hint.esc_enabled = Ob die Schwierigkeit steigt, je weiter ein Spieler vom Welt-Spawnpunkt entfernt wandert.
+ui.hint.esc_start = Die Entfernung vom Spawn, die ein Spieler zurücklegen kann, bevor die Distanzeskalation beginnt, Schwierigkeit hinzuzufügen.
+ui.hint.esc_blocks = Wie viele Blöcke über die Startdistanz hinaus einen Schwierigkeitspunkt hinzufügen.
+ui.hint.esc_max_bonus = Die meiste zusätzliche Schwierigkeit, die die Distanzeskalation jemals hinzufügen kann.
+ui.hint.esc_rarity = Wie viel zusätzliche Seltenheits-Spawnchance die Distanzeskalation pro Eskalationspunkt hinzufügt.
+ui.hint.player_scaling = Ob nahegelegene Spieler und ihre Macht die Schwierigkeit einer Region überhaupt erhöhen.
+ui.hint.aggregation = Wie die Macht mehrerer nahegelegener Spieler in eine Regionschwierigkeit-Anzeige fließt.
+ui.hint.region_size = Die Größe des Nähe-Gitters, das verwendet wird, um Spieler in eine gemeinsame Regionsanzeige einzuordnen.
+ui.hint.band_width = Wie viel die Schwierigkeit einer Region von ihrer Grundlage durch nahegelegene Spielermacht abweichen kann.
+ui.hint.only_raise = Wenn aktiviert, kann die Macht nahegelegener Spieler die Schwierigkeit einer Region nur erhöhen, niemals unter den Grundwert absenken.
+ui.hint.party_join = Ob ein stärkerer Spieler oder eine Gruppe, die einer Region beitritt, deren Schwierigkeit sofort erhöht.
+ui.hint.late_arrival = Die Größe des einmaligen Schwierigkeitsbonus, der angewendet wird, wenn ein stärkeres Ankommen eine Region beitritt.
+ui.hint.composition = Ob die Zusammensetzung nahegelegener Spieler, nicht nur ihre rohe Macht, in die Skalierung einfließt.
+
+# Zone HUD tab (hud_position/hud_offset_x/hud_offset_y are shared with the Inspector HUD tab below).
+ui.hint.zone_enabled = Ob die Zonen-Schwierigkeits-Anzeige überhaupt auf dem Bildschirm angezeigt wird.
+ui.hint.zone_show_location = Ob die Anzeige auch den Namen der aktuellen Zone und des aktuellen Bioms anzeigt.
+ui.hint.hud_position = Welche Bildschirmecke die Anzeige verankert.
+ui.hint.hud_offset_x = Feine Pixeleinstellung von der verankerten horizontalen Kante.
+ui.hint.hud_offset_y = Feine Pixeleinstellung von der verankerten vertikalen Kante.
+ui.hint.zone_name_prefix = Das Sprachschlüssel-Präfix, das verwendet wird, um einen benutzerfreundlichen Namen für die aktuelle Zone nachzuschlagen.
+ui.hint.biome_name_prefix = Das Sprachschlüssel-Präfix, das verwendet wird, um einen benutzerfreundlichen Namen für das aktuelle Biom nachzuschlagen.
+
+# Inspector HUD tab.
+ui.hint.insp_enabled = Ob die Fadenkreuz-Mob-Inspektor-Anzeige überhaupt auf dem Bildschirm angezeigt wird.
+ui.hint.insp_portrait = Ob die Inspektor-Karte das generierte Porträtbild des Ziels anzeigt.
+ui.hint.insp_range = Wie weit das Fadenkreuz reicht, um einen Mob zum Inspizieren zu erkennen.
+
+# Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
+ui.hint.world_id = Der Dateiname, unter dem die Einstellungen dieser Welt gespeichert werden; leer lassen, um ihn aus dem Match-Muster abzuleiten.
+ui.hint.world_match = Welche Welt diese Datei betrifft: ein genauer Name, ein Platzhalter-Präfix oder ein einfacher Platzhalter für jede Welt.
+ui.hint.world_parent = Eine andere Weltdatei, von der Einstellungen geerbt werden, bevor die eigenen Übergrifftionen dieser Datei angewendet werden.
+ui.hint.w_enabled = Ob die Mob-Skalierung in dieser Welt überhaupt läuft. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.w_esc_enabled = Ob die Distanzeskalation in dieser Welt angewendet wird. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.w_player_scaling = Ob nahegelegene Spieler in dieser Welt die Schwierigkeit erhöhen. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.w_only_raise = Ob die Macht nahegelegener Spieler die Schwierigkeit hier nur erhöhen kann, niemals absenken. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.w_party_join = Ob ein stärkeres Ankommen die Schwierigkeit hier sofort erhöht. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.w_composition = Ob die Spielerzusammensetzung in die Skalierung hier einfließt. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.pool_rarities_allow = Seltenheitsstufen, die hier rollen dürfen; leer lassen, um jede Stufe zuzulassen.
+ui.hint.pool_rarities_deny = Seltenheitsstufen, die hier nicht rollen dürfen; Verbot siegt immer über Erlaubnis.
+ui.hint.pool_variants_allow = Varianten-Overlays, die hier rollen dürfen; leer lassen, um jede Variante zuzulassen.
+ui.hint.pool_variants_deny = Varianten-Overlays, die hier nicht rollen dürfen; Verbot siegt immer über Erlaubnis.
+ui.hint.pool_variant_chance = Passt an, wie oft ein berechtigtes Varianten-Overlay in dieser Welt rollt.
+ui.hint.pool_affixes_allow = Affixe, die hier rollen dürfen; leer lassen, um jedes Affix zuzulassen.
+ui.hint.pool_affixes_deny = Affixe, die hier nicht rollen dürfen; Verbot siegt immer über Erlaubnis.
+ui.hint.pool_extra_slots = Zusätzliche Affix-Plätze, die zusätzlich zu dem gewährt werden, was die Seltenheit und Variante bereits zulassen.
+ui.hint.w_zone_hud = Ob die Zonen-Schwierigkeits-Anzeige in dieser Welt angezeigt werden darf. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.w_inspector_hud = Ob die Mob-Inspektor-Anzeige in dieser Welt angezeigt werden darf. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
 
 # Status line.
 ui.status.saved = Gespeichert.
