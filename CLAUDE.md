@@ -14,7 +14,7 @@ provider), the native `ItemDropList` death loot (`MobScalingLootDropSystem` + pe
 `Server/Drops/*` tables), the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
 `boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|ui` (1.0.2 adds `ui`, the in-game admin
-config page, + full write-back persistence for every runtime edit), content validation, 9-locale `scaling.lang`, and TWO
+config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `scaling.lang`, and TWO
 player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
 crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
 concerns pass ADDED: the NATIVE-ZONE floor resolver (`world/ZoneDifficultyResolver`: authored
@@ -51,8 +51,12 @@ breaks class identity):
 - **ZiggfreedCommon >= 1.3.0** (`compileOnly files(ziggfreedCommonJar)`, pin
   `ziggfreedCommonVersion`) - the shared primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
-  `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`) backs the admin page. The
-  mod's own `hud/HudPosition` copy was retired for the lifted common one.
+  `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
+  `FieldSpec`/`SettingsForm` + the five `Pages/ZigForm*Row.ui` templates) backs the admin page, which
+  is now spec-driven over `ui/form/` for full coverage of every CONSUMED knob (a few leaves - the
+  per-world HUD group beyond `Enabled`, `RegionSizeChunks` - decode but deliberately apply globally, so
+  the per-world form does not expose them; see `pages/CLAUDE.md`). The mod's own `hud/HudPosition` copy
+  was retired for the lifted common one.
 - **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
   `MMOSkillTree-1.5.0.jar` dev jar (pin `mmoSkillTreeVersion=1.5.0`), which carries the frozen 1.5.0 API
   the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /

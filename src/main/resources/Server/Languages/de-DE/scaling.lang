@@ -100,10 +100,7 @@ ui.tab.worlds = Welten
 ui.toggle.on = AN
 ui.toggle.off = AUS
 
-ui.button.save = Speichern
-ui.button.save_caps = Limits speichern
-ui.button.save_esc = Eskalation speichern
-ui.button.save_position = Position speichern
+ui.button.save_tab = Speichern
 ui.button.save_world = Übergriffen speichern
 ui.button.clear = Formular löschen
 ui.button.edit = Bearbeiten
@@ -113,10 +110,20 @@ ui.button.remove = Entfernen
 ui.global.enabled = Skalierung aktiviert
 ui.global.enabled_note = Wirkt sich beim Neustart aus (das Mod registriert seine Systeme beim Start).
 ui.global.preset = Aktives Preset
+ui.global.preset_mode = Preset-Modus
 ui.global.intensity = Schwierigkeitsmultiplikator
 ui.global.rarity = Seltenheits-Spawnchance
+ui.global.open_world_header = Offene-Welt-Skalierung
 ui.global.player_scaling = Spieler-/Gruppen-Skalierung
-ui.global.caps_header = Schwierigkeitsgrenzen
+ui.global.aggregation = Gruppenmacht-Aggregation
+ui.global.region_size = Regionsgröße (Chunks)
+ui.global.band_width = Gruppenmacht-Bandbreite
+ui.global.only_raise = Nur Schwierigkeit erhöhen
+ui.global.party_join = Erhöhung bei Gruppenbeitritt
+ui.global.late_arrival = Verspätungs-Bonus
+ui.global.composition = Zusammensetzungs-Skalierung
+ui.global.difficulty_header = Schwierigkeit
+ui.global.floor = Basis-Schwierigkeitsuntergrenze
 ui.global.min_cap = Minimale Schwierigkeit
 ui.global.max_cap = Maximale Schwierigkeit
 ui.global.esc_header = Distanzeskalation
@@ -125,6 +132,15 @@ ui.global.esc_start = Startdistanz (Blöcke)
 ui.global.esc_blocks = Blöcke pro Punkt
 ui.global.esc_max_bonus = Maximaler Bonus
 ui.global.esc_rarity = Seltenheit pro Punkt
+ui.global.stat_curve_header = Schwierigkeits-Statuskurve
+
+# Difficulty stat curve values (shared by the Global tab and the per-world editor).
+ui.curve.hp_per_point = HP pro Punkt
+ui.curve.out_per_point = Ausgehender Schaden pro Punkt
+ui.curve.in_reduction = Eingehende Reduktion pro Punkt
+ui.curve.max_hp = Max. HP-Multiplikator
+ui.curve.max_out = Max. Ausgehend-Schaden-Multiplikator
+ui.curve.min_in = Min. Eingehender-Schaden-Multiplikator
 
 # Shared HUD tab rows.
 ui.hud.position = Position
@@ -134,29 +150,42 @@ ui.hud.offset_y = Versatz Y
 # Zone HUD tab.
 ui.zone.enabled = Zone-HUD aktiviert
 ui.zone.show_location = Ortsnamen anzeigen
+ui.zone.zone_name_prefix = Zonen-Namenspräfix
+ui.zone.biome_name_prefix = Biom-Namenspräfix
 
 # Inspector HUD tab.
 ui.inspector.enabled = Inspektor-HUD aktiviert
 ui.inspector.portrait = Porträt anzeigen
 ui.inspector.range = Reichweite (Blöcke)
 
-# Worlds tab (per-world WorldOverrides CRUD).
+# Worlds tab (per-world file CRUD, two-panel: list on the left, the add/edit editor on the right).
 ui.world.empty = Keine weltspezifischen Einstellungsdateien vorhanden. Fügen Sie unten eine hinzu.
 ui.world.badge_override = Übers.
 ui.world.badge_default = Mitgeliefert
 ui.world.editor_header = Welt hinzufügen / bearbeiten
+ui.world.new = Neue Welt
 ui.world.id = Dateiname
 ui.world.match = Weltmatch
 ui.world.parent = Übergeordnete Datei
 ui.world.enabled = Skalierung in dieser Welt
+ui.world.tuning_header = Abstimmung
 ui.world.floor = Basis-Schwierigkeitsuntergrenze
 ui.world.intensity = Schwierigkeit
 ui.world.rarity = Seltenheitschance
-ui.world.min_cap = Minimale Schwierigkeit
-ui.world.max_cap = Maximale Schwierigkeit
 ui.world.player_scaling = Spieler-Skalierung
-ui.world.escalation = Distanzeskalation
-ui.world.hint = Jede Welt ist eine eigene Datei. Leere Felder erben von der übergeordneten Datei, dann vom globalen Wert. Pool-, Statuskurven- und HUD-Einstellungen bleiben in der Datei.
+ui.world.pool_header = Spawn-Pool
+ui.world.pool_rarities_allow = Erlaubte Seltenheiten
+ui.world.pool_rarities_deny = Verbotene Seltenheiten
+ui.world.pool_variants_allow = Erlaubte Varianten
+ui.world.pool_variants_deny = Verbotene Varianten
+ui.world.pool_variant_chance = Varianten-Chance-Multiplikator
+ui.world.pool_affixes_allow = Erlaubte Affixe
+ui.world.pool_affixes_deny = Verbotene Affixe
+ui.world.pool_extra_slots = Zusätzliche Affix-Plätze
+ui.world.hud_header = HUD-Sichtbarkeit
+ui.world.zone_hud = Zonen-HUD
+ui.world.inspector_hud = Inspektor-HUD
+ui.world.hint = Jede Einstellung hier ist bearbeitbar: Abstimmung, Distanzeskalation, Offene-Welt-Skalierung, die Schwierigkeits-Statuskurve, der Spawn-Pool und HUD-Sichtbarkeit. Ein leeres Feld oder Vererbung fällt auf die übergeordnete Datei zurück, dann auf den globalen Wert. Allow/Deny-Listen sind durch Kommas getrennte IDs; Verbieten hat Vorrang.
 
 # Status line.
 ui.status.saved = Gespeichert.
@@ -164,8 +193,7 @@ ui.status.saved_restart = Gespeichert. Wirkt sich beim Neustart aus.
 ui.status.world_deleted = Weltdatei entfernt. Eine mitgelieferte Datei mit demselben Namen gilt wieder.
 ui.status.invalid_parent = Geben Sie eine andere Datei als übergeordnete Datei an (eine Datei kann nicht von sich selbst erben).
 ui.status.save_failed = Die Weltdatei konnte nicht geschrieben werden.
-ui.status.invalid_number = Geben Sie eine gültige Nummer ein (>= 0).
-ui.status.invalid_chance = Geben Sie eine Chance zwischen 0 und 1 ein.
+ui.status.invalid_field = Geben Sie einen gültigen Wert für {field} ein. Zahlen müssen 0 oder höher sein, Chancen müssen zwischen 0 und 1 liegen, und Ganzzahl-Felder müssen eine ganze Zahl sein.
 ui.status.invalid_caps = Maximum muss mindestens dem Minimum entsprechen.
 ui.status.unknown_preset = Unbekanntes Preset.
-ui.status.match_required = Geben Sie zunächst ein Welt-Match-Muster ein.
+ui.status.id_or_match_required = Geben Sie zuerst einen Dateinamen oder ein Weltmatch-Muster ein.

@@ -91,6 +91,16 @@ public final class WorldSettingsConfig {
     /** Every resolved body by id (INCLUDING pool-only bases), for the admin UI / command list. */
     @Nonnull private volatile Map<String, WorldSettings> byId = Map.of();
 
+    /**
+     * The PRE-{@code Parent}-merge raw body per lower-cased id (jar+pack+owner, id-replace layering
+     * already applied, but BEFORE {@link JsonParentResolver#resolve} walks the chain). Backs
+     * {@link #authoredById}, the admin-UI editor's seed source: {@link #byId} (and therefore both
+     * {@link #foldedView()} and {@link #effectiveById}) is the Parent-MERGED view, which is right for
+     * spawn-time reads but wrong for an editor - seeding ~40 exposed knobs from it and saving back would
+     * materialize every inherited leaf into the child file and silently break inheritance.
+     */
+    @Nonnull private volatile Map<String, JsonObject> rawBodies = Map.of();
+
     /** The AUTHORED (pre-strip) {@code Parent} reference per id, for display/editing. */
     @Nonnull private volatile Map<String, String> parentById = Map.of();
 
@@ -180,6 +190,7 @@ public final class WorldSettingsConfig {
         this.ownerIds = Collections.unmodifiableSet(owners);
         this.byId = Collections.unmodifiableMap(newById);
         this.entries = List.copyOf(newEntries);
+        this.rawBodies = Collections.unmodifiableMap(pool);
         MobScalingConfig.getInstance().invalidateWorldViews();
     }
 
@@ -208,6 +219,46 @@ public final class WorldSettingsConfig {
             return null;
         }
         return byId.get(id.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * The AUTHORED body for a file id, decoded straight from its own raw JSON: jar/pack/owner layering
+     * still applies (id-replace, so an owner file fully shadows a same-id shipped one), but with NO
+     * {@code Parent}-CHAIN merge. This is the admin-UI editor's seed source (see {@link #rawBodies}); a
+     * blank field in the editor round-trips as "inherit" instead of baking an ancestor's value into the
+     * child file on save. {@code null} when the id has no body at all.
+     */
+    @Nullable
+    public WorldSettings authoredById(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        JsonObject raw = rawBodies.get(id.trim().toLowerCase(Locale.ROOT));
+        if (raw == null) {
+            return null;
+        }
+        JsonObject body = JsonTreeUtil.deepClone(raw);
+        body.remove(PARENT_KEY); // WorldSettings.CODEC has no Parent field; strip it like the resolver does
+        return decode(id, body);
+    }
+
+    /**
+     * The AUTHORED raw JSON body for a file id - a deep clone of whatever {@link #rawBodies} holds
+     * (jar/pack/owner, id-replace layering already applied), verbatim: its {@code Parent} key, any
+     * {@code $Comment}, and every leaf the body carries, EXPOSED by the admin UI or not. This is the
+     * seed a brand-new owner file copies from the first time a save overrides a shipped/pack world
+     * (see {@link MobScalingOwnerWriter#saveWorldFile}) - without it, a fresh owner file would carry
+     * ONLY the handful of leaves the UI's form exposes, silently dropping everything else the shipped
+     * body authored (per-world HUD position/offsets/range/name-key-prefixes, {@code RegionSizeChunks},
+     * {@code $Comment}, ...). {@code null} when the id has no body at all.
+     */
+    @Nullable
+    public JsonObject authoredRawJsonById(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        JsonObject raw = rawBodies.get(id.trim().toLowerCase(Locale.ROOT));
+        return raw == null ? null : JsonTreeUtil.deepClone(raw);
     }
 
     /** The AUTHORED {@code Parent} reference of a file id (pre-strip), or {@code null} when none. */

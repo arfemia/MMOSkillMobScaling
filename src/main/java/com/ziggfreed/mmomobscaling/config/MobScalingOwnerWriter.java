@@ -9,6 +9,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonObject;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 
 /**
@@ -151,16 +152,33 @@ public final class MobScalingOwnerWriter {
 
     /**
      * Write dotted-PascalCase leaves into the OWNER world file {@code worlds/<id>.json} (a bare
-     * {@code WorldSettings} body; created when missing, siblings preserved, a null value removes a
-     * leaf), then refold the worlds pool so the change applies live. Editing an existing owner file
-     * is a partial leaf merge; overriding a jar/pack-shipped world creates a NEW owner file, so the
-     * caller seeds the full leaf set it wants (an owner file REPLACES the shipped body wholesale by
-     * id - layering is id-replace, inheritance is {@code Parent}'s job).
+     * {@code WorldSettings} body; siblings preserved, a null value removes a leaf), then refold the
+     * worlds pool so the change applies live. Editing an EXISTING owner file is a plain partial leaf
+     * merge (unchanged). The FIRST time a save overrides a jar/pack-shipped (or otherwise unowned)
+     * world - the owner file does not exist yet - the new file is SEEDED from the shipped body's
+     * AUTHORED raw JSON ({@link WorldSettingsConfig#authoredRawJsonById}: its {@code Parent},
+     * {@code $Comment}, and every leaf, exposed by the admin UI or not) before the caller's leaves
+     * merge on top. Without this seed step, a fresh owner file would carry ONLY the leaves the caller
+     * passed (the admin UI's ~40 exposed knobs), silently dropping anything unexposed the shipped body
+     * authored (per-world HUD position/offsets/range/prefixes, {@code RegionSizeChunks}, a
+     * {@code $Comment}, ...) - an owner file otherwise replaces the shipped body wholesale by id
+     * (layering is id-replace, inheritance is {@code Parent}'s job). A leaf the caller sets to
+     * {@code null} still removes that leaf from the seeded copy, exactly as it would from an existing
+     * file.
      */
     public static boolean saveWorldFile(@Nonnull String id, @Nonnull Map<String, Object> leaves) {
         WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
         Path file = worlds.ownerFileFor(id);
-        if (file == null || !JsonOverrideWriter.setLeaves(file, leaves)) {
+        if (file == null) {
+            return false;
+        }
+        if (!Files.exists(file)) {
+            JsonObject seed = worlds.authoredRawJsonById(id);
+            if (seed != null && !WorldSettingsConfig.writeWorldFile(file, seed)) {
+                return false;
+            }
+        }
+        if (!JsonOverrideWriter.setLeaves(file, leaves)) {
             return false;
         }
         worlds.refold();

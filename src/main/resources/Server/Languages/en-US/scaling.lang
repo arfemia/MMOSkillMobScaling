@@ -111,10 +111,7 @@ ui.tab.worlds = Worlds
 ui.toggle.on = ON
 ui.toggle.off = OFF
 
-ui.button.save = Save
-ui.button.save_caps = Save caps
-ui.button.save_esc = Save escalation
-ui.button.save_position = Save position
+ui.button.save_tab = Save
 ui.button.save_world = Save override
 ui.button.clear = Clear form
 ui.button.edit = Edit
@@ -124,10 +121,20 @@ ui.button.remove = Remove
 ui.global.enabled = Scaling enabled
 ui.global.enabled_note = Takes effect on restart (the mod registers its systems at startup).
 ui.global.preset = Active preset
+ui.global.preset_mode = Preset mode
 ui.global.intensity = Intensity multiplier
 ui.global.rarity = Rarity spawn chance
+ui.global.open_world_header = Open world scaling
 ui.global.player_scaling = Player/group scaling
-ui.global.caps_header = Difficulty caps
+ui.global.aggregation = Group power aggregation
+ui.global.region_size = Region size (chunks)
+ui.global.band_width = Group power band width
+ui.global.only_raise = Only raise difficulty
+ui.global.party_join = Raise on party join
+ui.global.late_arrival = Late arrival bump
+ui.global.composition = Composition scaling
+ui.global.difficulty_header = Difficulty
+ui.global.floor = Baseline difficulty floor
 ui.global.min_cap = Minimum difficulty
 ui.global.max_cap = Maximum difficulty
 ui.global.esc_header = Distance escalation
@@ -136,6 +143,15 @@ ui.global.esc_start = Start distance (blocks)
 ui.global.esc_blocks = Blocks per point
 ui.global.esc_max_bonus = Max bonus
 ui.global.esc_rarity = Rarity per point
+ui.global.stat_curve_header = Difficulty stat curve
+
+# Difficulty stat curve values (shared by the Global tab and the per-world editor).
+ui.curve.hp_per_point = HP per point
+ui.curve.out_per_point = Outgoing damage per point
+ui.curve.in_reduction = Incoming reduction per point
+ui.curve.max_hp = Max HP multiplier
+ui.curve.max_out = Max outgoing damage multiplier
+ui.curve.min_in = Min incoming damage multiplier
 
 # Shared HUD tab rows.
 ui.hud.position = Position
@@ -145,29 +161,42 @@ ui.hud.offset_y = Offset Y
 # Zone HUD tab.
 ui.zone.enabled = Zone HUD enabled
 ui.zone.show_location = Show location name
+ui.zone.zone_name_prefix = Zone name key prefix
+ui.zone.biome_name_prefix = Biome name key prefix
 
 # Inspector HUD tab.
 ui.inspector.enabled = Inspector HUD enabled
 ui.inspector.portrait = Show portrait
 ui.inspector.range = Range (blocks)
 
-# Worlds tab (per-world WorldOverrides CRUD).
+# Worlds tab (per-world file CRUD, two-panel: list on the left, the add/edit editor on the right).
 ui.world.empty = No per-world settings files. Add one below.
 ui.world.badge_override = override
 ui.world.badge_default = shipped
 ui.world.editor_header = Add / edit world
+ui.world.new = New world
 ui.world.id = File name
 ui.world.match = World match
 ui.world.parent = Parent file
 ui.world.enabled = Scaling in this world
+ui.world.tuning_header = Tuning
 ui.world.floor = Baseline difficulty floor
 ui.world.intensity = Intensity
 ui.world.rarity = Rarity chance
-ui.world.min_cap = Minimum difficulty
-ui.world.max_cap = Maximum difficulty
 ui.world.player_scaling = Player scaling
-ui.world.escalation = Distance escalation
-ui.world.hint = Each world is its own file. Blank fields inherit the parent file, then the global value. Pool, stat curve and HUD tuning stay in the file.
+ui.world.pool_header = Spawn pool
+ui.world.pool_rarities_allow = Allowed rarities
+ui.world.pool_rarities_deny = Denied rarities
+ui.world.pool_variants_allow = Allowed variants
+ui.world.pool_variants_deny = Denied variants
+ui.world.pool_variant_chance = Variant chance multiplier
+ui.world.pool_affixes_allow = Allowed affixes
+ui.world.pool_affixes_deny = Denied affixes
+ui.world.pool_extra_slots = Extra affix slots
+ui.world.hud_header = HUD visibility
+ui.world.zone_hud = Zone HUD
+ui.world.inspector_hud = Inspector HUD
+ui.world.hint = Every setting here is editable: tuning, distance escalation, open world scaling, the difficulty stat curve, the spawn pool, and HUD visibility. A blank field or Inherit falls back to the parent file, then the global value. Allow/deny lists are comma-separated ids; deny wins.
 
 # Status line.
 ui.status.saved = Saved.
@@ -175,8 +204,7 @@ ui.status.saved_restart = Saved. Takes effect on restart.
 ui.status.world_deleted = World file removed. A shipped file with the same name applies again.
 ui.status.invalid_parent = Enter a different file as the parent (a file cannot inherit from itself).
 ui.status.save_failed = Could not write the world file.
-ui.status.invalid_number = Enter a valid number (>= 0).
-ui.status.invalid_chance = Enter a chance between 0 and 1.
+ui.status.invalid_field = Enter a valid value for {field}. Numbers must be 0 or higher, chances must be between 0 and 1, and whole number fields must be a whole number.
 ui.status.invalid_caps = Maximum must be at least the minimum.
 ui.status.unknown_preset = Unknown preset.
-ui.status.match_required = Enter a world match pattern first.
+ui.status.id_or_match_required = Enter a file name or a world match pattern first.

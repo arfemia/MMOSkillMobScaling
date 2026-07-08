@@ -91,6 +91,28 @@ class WorldSettingsConfigTest {
     }
 
     @Test
+    void authoredByIdReturnsUnmergedBodyUnlikeEffectiveById(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.applyPackLayer(Map.of(
+                "Shared_Base", JsonParser.parseString(
+                        "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject()));
+        Files.writeString(tmp.resolve("mine.json"),
+                "{ \"Match\": \"mine_*\", \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
+                StandardCharsets.UTF_8);
+        worlds.setOwnerDir(tmp);
+        worlds.refold();
+
+        WorldSettings authored = worlds.authoredById("mine");
+        assertNotNull(authored, "the child's own body decodes");
+        assertEquals(2.0, authored.getIntensity(), 1e-9, "the child's own leaf survives");
+        assertNull(authored.getDifficulty(), "the parent's leaf is NOT merged in (authored-only)");
+
+        WorldSettings effective = worlds.effectiveById("mine");
+        assertEquals(Boolean.FALSE, effective.getDifficulty().getDistanceEscalation().getEnabled(),
+                "effectiveById (unlike authoredById) shows the Parent-merged view");
+    }
+
+    @Test
     void sanitizeFileIdDropsWildcardsAndSeparators() {
         assertEquals("instance-dungeon_of_fear_i", WorldSettingsConfig.sanitizeFileId("instance-dungeon_of_fear_i*"));
         assertEquals("arena", WorldSettingsConfig.sanitizeFileId(" Arena_* "));

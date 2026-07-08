@@ -98,10 +98,7 @@ ui.tab.worlds = Dünyalar
 ui.toggle.on = AÇIK
 ui.toggle.off = KAPALI
 
-ui.button.save = Kaydet
-ui.button.save_caps = Sınırları kaydet
-ui.button.save_esc = Kademeli artışı kaydet
-ui.button.save_position = Konumu kaydet
+ui.button.save_tab = Kaydet
 ui.button.save_world = Geçersil kılmayı kaydet
 ui.button.clear = Formu temizle
 ui.button.edit = Düzenle
@@ -111,10 +108,20 @@ ui.button.remove = Kaldır
 ui.global.enabled = Ölçekleme etkinleştirildi
 ui.global.enabled_note = Yeniden başlatmada etkili olur (mod, sistemlerini başlangıçta kaydeder).
 ui.global.preset = Etkin ön ayar
+ui.global.preset_mode = Ön ayar modu
 ui.global.intensity = Zorluk çarpanı
 ui.global.rarity = Nadirlik belirme şansı
+ui.global.open_world_header = Açık dünya ölçeklemesi
 ui.global.player_scaling = Oyuncu/grup ölçeklemesi
-ui.global.caps_header = Zorluk sınırları
+ui.global.aggregation = Grup gücü toplama
+ui.global.region_size = Bölge boyutu (blok)
+ui.global.band_width = Grup gücü band genişliği
+ui.global.only_raise = Zorluğu yalnızca artır
+ui.global.party_join = Partiye katılınca artır
+ui.global.late_arrival = Geç gelenlere artış
+ui.global.composition = Grup bileşimi ölçeklemesi
+ui.global.difficulty_header = Zorluk
+ui.global.floor = Temel zorluk tabanı
 ui.global.min_cap = Minimum zorluk
 ui.global.max_cap = Maksimum zorluk
 ui.global.esc_header = Mesafe kademeli artışı
@@ -123,6 +130,15 @@ ui.global.esc_start = Başlangıç mesafesi (blok)
 ui.global.esc_blocks = Blok başına nokta
 ui.global.esc_max_bonus = Maksimum bonus
 ui.global.esc_rarity = Nokta başına nadirlik
+ui.global.stat_curve_header = Zorluk istatistik eğrisi
+
+# Difficulty stat curve values (shared by the Global tab and the per-world editor).
+ui.curve.hp_per_point = Nokta başına HP
+ui.curve.out_per_point = Nokta başına giden hasar
+ui.curve.in_reduction = Nokta başına gelen hasar azaltması
+ui.curve.max_hp = Maksimum HP çarpanı
+ui.curve.max_out = Maksimum giden hasar çarpanı
+ui.curve.min_in = Minimum alınan hasar çarpanı
 
 # Shared HUD tab rows.
 ui.hud.position = Konum
@@ -132,29 +148,42 @@ ui.hud.offset_y = Y Kaymı
 # Zone HUD tab.
 ui.zone.enabled = Bölge HUD'u etkinleştirildi
 ui.zone.show_location = Konum adını göster
+ui.zone.zone_name_prefix = Bölge adı anahtar öneki
+ui.zone.biome_name_prefix = Biome adı anahtar öneki
 
 # Inspector HUD tab.
 ui.inspector.enabled = İnceleme aracı HUD'u etkinleştirildi
 ui.inspector.portrait = Portre göster
 ui.inspector.range = Menzil (blok)
 
-# Worlds tab (per-world WorldOverrides CRUD).
+# Worlds tab (per-world file CRUD, two-panel: list on the left, the add/edit editor on the right).
 ui.world.empty = Dünya başına ayar dosyası yok. Aşağıya bir tane ekleyin.
 ui.world.badge_override = geçersil
 ui.world.badge_default = yerleşik
 ui.world.editor_header = Dünya ekle / düzenle
+ui.world.new = Yeni dünya
 ui.world.id = Dosya adı
 ui.world.match = Dünya eşleştir
 ui.world.parent = Üst dosya
 ui.world.enabled = Bu dünyada ölçekleme
+ui.world.tuning_header = İyileştirme
 ui.world.floor = Temel zorluk tabanı
 ui.world.intensity = Zorluk çarpanı
 ui.world.rarity = Nadirlik şansı
-ui.world.min_cap = Minimum zorluk
-ui.world.max_cap = Maksimum zorluk
 ui.world.player_scaling = Oyuncu ölçeklemesi
-ui.world.escalation = Mesafe kademeli artışı
-ui.world.hint = Her dünya kendi dosyasıdır. Boş alanlar önce üst dosyadan, sonra genel değerden devralınır. Havuz, istatistik eğrisi ve HUD ayarları dosyada kalır.
+ui.world.pool_header = Belirme havuzu
+ui.world.pool_rarities_allow = İzin verilen nadirlikler
+ui.world.pool_rarities_deny = Reddedilen nadirlikler
+ui.world.pool_variants_allow = İzin verilen varyantlar
+ui.world.pool_variants_deny = Reddedilen varyantlar
+ui.world.pool_variant_chance = Varyant şans çarpanı
+ui.world.pool_affixes_allow = İzin verilen affixler
+ui.world.pool_affixes_deny = Reddedilen affixler
+ui.world.pool_extra_slots = Ek affix yuvaları
+ui.world.hud_header = HUD görünürlüğü
+ui.world.zone_hud = Bölge HUD'u
+ui.world.inspector_hud = İnceleme HUD'u
+ui.world.hint = Buradaki her ayar düzenlenebilir: iyileştirme, mesafe kademeli artışı, açık dünya ölçeklemesi, zorluk istatistik eğrisi, belirme havuzu ve HUD görünürlüğü. Boş bir alan veya Devral, önce üst dosyadan, sonra genel değerden devralınır. İzin ver/Reddet listeleri virgüllerle ayrılmış kimliklerdir; Reddet kazanır.
 
 # Status line.
 ui.status.saved = Kaydedildi.
@@ -162,8 +191,7 @@ ui.status.saved_restart = Kaydedildi. Yeniden başlatmada etkili olur.
 ui.status.world_deleted = Dünya dosyası kaldırıldı. Aynı adı taşıyan yerleşik dosya yeniden geçerli olur.
 ui.status.invalid_parent = Üst dosya olarak farklı bir dosya girin (bir dosya kendisinden devralamaz).
 ui.status.save_failed = Dünya dosyası yazılamadı.
-ui.status.invalid_number = Geçerli bir sayı girin (>= 0).
-ui.status.invalid_chance = 0 ile 1 arasında bir şans girin.
+ui.status.invalid_field = {field} için geçerli bir değer girin. Sayılar 0 veya daha yüksek olmalı, şanslar 0 ile 1 arasında olmalı ve tam sayı alanları tam sayı olmalıdır.
 ui.status.invalid_caps = Maksimum en az minimum kadar olmalıdır.
 ui.status.unknown_preset = Bilinmeyen ön ayar.
-ui.status.match_required = Önce bir dünya eşleştir modeli girin.
+ui.status.id_or_match_required = Önce bir dosya adı veya dünya eşleştir modeli girin.

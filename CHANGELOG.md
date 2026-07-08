@@ -53,11 +53,39 @@ that removes the old WorldRules mob-scaling baseline - update BOTH together) and
   HUD and Mob Inspector HUD (enable, position preset + pixel offsets, sub-toggles, inspector range), and
   Worlds (a per-world FILE editor: add / edit / delete `worlds/*.json`, each row badged shipped vs
   owner override, with file name / Match / Parent / kill-switch / baseline floor / intensity / rarity
-  chance / caps / player scaling / escalation; blank fields inherit; deleting an owner file re-exposes
-  the shipped file underneath; the Pool / OpenWorld-rest / HUD / StatCurve per-world groups stay
-  file-authored). Global + HUD edits write the owner file `mods/MmoMobScaling/mob-scaling.json` and
-  refold live; HUD + preset edits apply to all online players with no reconnect. `Enabled` shows a
-  "takes effect on restart" note (the zero-cost registration gate registers systems at startup).
+  chance / caps / player scaling / escalation). Global + HUD edits write the owner file
+  `mods/MmoMobScaling/mob-scaling.json` and refold live; HUD + preset edits apply to all online players
+  with no reconnect. `Enabled` shows a "takes effect on restart" note (the zero-cost registration gate
+  registers systems at startup).
+- Change (rework): the admin config page is now SPEC-DRIVEN over the new ziggfreed-common `ui/form`
+  engine (`FieldSpec` + `SettingsForm`, five `Pages/ZigForm*Row.ui` templates) instead of ~24
+  hand-written per-knob `.ui` rows + a matching per-field `EventData` codec key - adding a knob later is
+  one `FieldSpec` line plus one lang key. `EventData` collapses to five keys (`Action`/`Tab`/`WorldId`/
+  `Field`/`@Value`). FULL knob coverage across all four tabs: Global gains `PresetMode`, the whole
+  `OpenWorld` group (aggregation, region size, band width, only-raise, party-join, late-arrival,
+  composition), and the six `StatCurve` leaves; the per-world editor gains the same `OpenWorld` group,
+  the six `StatCurve` leaves, the `Pool` group (rarity/variant/affix allow-deny + variant chance + extra
+  affix slots), and per-world Zone/Inspector HUD visibility - every CONSUMED per-world knob is editable
+  now (the rest of each HUD group - position, offsets, range, the zone/biome name-key prefixes - and
+  `OpenWorld.RegionSizeChunks` decode on `WorldSettings` but apply GLOBALLY on purpose, so they stay off
+  the per-world form: a HUD position is a per-viewport concern, not a per-world one, and the
+  region-power grid size must stay identical across worlds). The Worlds
+  tab is a TWO-PANEL layout (world list left, add/edit editor right, on a wider 960x680 frame) instead
+  of one long single-column scroller. The page NEVER reopens itself now: every event answers with a
+  partial `sendUpdate` (world-list changes clear + re-append + rebind in the same update, the official
+  shared-source `ChangeModelPage.buildModelList` pattern), so editing no longer resets scroll position.
+  Every hint/note WRAPS (the `ZigFormNoteRow` template) instead of truncating. Each tab (Global/Zone
+  HUD/Inspector HUD) collects + saves as ONE unit via `SettingsForm.collectLeaves`; a toggle (`Enabled`,
+  `PlayerScalingEnabled`, HUD enable/portrait/show-location, etc.) is instant-persist on click via a
+  small `id -> ToggleDef` lookup table, not a chain of switch arms. A `collectLeaves` validation failure
+  now NAMES the failing field (`scaling.ui.status.invalid_field`, a nested client-resolved `Message`
+  param, validated against the official `PortalDeviceActivePage` precedent).
+- Change: the per-world editor seeds from the file's AUTHORED body, not the `Parent`-merged effective
+  view (`WorldSettingsConfig.authoredById`, a new accessor over a newly-tracked pre-merge raw-body pool;
+  `foldedView()`/`effectiveById()` are both backed by the SAME post-merge map, so neither was safe to
+  seed an editor from once the exposed knob count grew to ~40 - saving back would have materialized
+  every inherited leaf into the child file and silently broken inheritance). A blank field / the Inherit
+  tri-state now round-trips faithfully across a save.
 - New: full persistence for the live commands. `/mobscaling intensity`, `/mobscaling hud`, and
   `/mobscaling preset` now SAVE to the owner file (they were runtime-only in 1.0.1, lost on restart). The
   UI and the commands share ONE write-back path (`config/MobScalingOwnerWriter` -> the owner file ->

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.gson.JsonParser;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 
 /**
@@ -138,5 +139,42 @@ class MobScalingOwnerWriterTest {
         assertNull(worlds.effectiveById("arena").getIntensity(), "removed leaf inherits again");
         String body = Files.readString(tmp.resolve("worlds").resolve("arena.json"), StandardCharsets.UTF_8);
         assertFalse(body.contains("Intensity"), body);
+    }
+
+    @Test
+    void saveWorldFileSeedsFromShippedBodyOnFirstOverrideKeepingUnexposedLeaves(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(tmp.resolve("worlds"));
+        // A jar/pack-shipped world with a Parent AND a leaf the admin UI does NOT expose per world
+        // (InspectorHud.RangeBlocks) - no owner file exists for it yet.
+        worlds.applyPackLayer(Map.of(
+                "Shared_Base", JsonParser.parseString(
+                        "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject(),
+                "shipped_world", JsonParser.parseString(
+                        "{ \"Match\": \"shipped_*\", \"Parent\": \"Shared_Base\", \"Intensity\": 5.0, "
+                      + "\"InspectorHud\": { \"RangeBlocks\": 20.0 } }").getAsJsonObject()));
+        assertTrue(worlds.ownerAuthoredIds().isEmpty(), "no owner file for shipped_world yet");
+
+        // A UI-style save: only the exposed leaves the admin form collected, with Intensity blanked
+        // (Inherit) - the pre-fix bug dropped everything else the shipped body authored.
+        Map<String, Object> uiLeaves = new LinkedHashMap<>();
+        uiLeaves.put("Match", "shipped_*");
+        uiLeaves.put("Intensity", null);
+        assertTrue(MobScalingOwnerWriter.saveWorldFile("shipped_world", uiLeaves));
+
+        Path ownerFile = tmp.resolve("worlds").resolve("shipped_world.json");
+        String body = Files.readString(ownerFile, StandardCharsets.UTF_8);
+        assertTrue(body.contains("\"RangeBlocks\": 20.0"), "unexposed leaf survives the seed: " + body);
+        assertTrue(body.contains("\"Parent\": \"Shared_Base\""), "Parent survives the seed: " + body);
+        assertFalse(body.contains("\"Intensity\""), "the blanked EXPOSED leaf is removed: " + body);
+
+        WorldSettings ws = worlds.effectiveById("shipped_world");
+        assertNotNull(ws);
+        assertNotNull(ws.getInspectorHud());
+        assertEquals(20.0, ws.getInspectorHud().getRangeBlocks(), 1e-9, "unexposed leaf still decodes");
+        assertNull(ws.getIntensity(), "blanked exposed leaf is gone (falls through to the parent/global)");
+        assertEquals(Boolean.FALSE, ws.getDifficulty().getDistanceEscalation().getEnabled(),
+                "the Parent chain still resolves after the seed");
+        assertTrue(worlds.ownerAuthoredIds().contains("shipped_world"), "now badged as owner-authored");
     }
 }

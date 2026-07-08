@@ -98,10 +98,7 @@ ui.tab.worlds = Mondes
 ui.toggle.on = ON
 ui.toggle.off = OFF
 
-ui.button.save = Enregistrer
-ui.button.save_caps = Enregistrer plafonds
-ui.button.save_esc = Enregistrer escalade
-ui.button.save_position = Enregistrer position
+ui.button.save_tab = Enregistrer
 ui.button.save_world = Enregistrer remplacement
 ui.button.clear = Effacer formulaire
 ui.button.edit = Modifier
@@ -111,10 +108,20 @@ ui.button.remove = Supprimer
 ui.global.enabled = Mise à l'échelle activée
 ui.global.enabled_note = Prend effet au redémarrage (le mod enregistre ses systèmes au démarrage).
 ui.global.preset = Préréglage actif
+ui.global.preset_mode = Mode de préréglage
 ui.global.intensity = Multiplicateur d'intensité
 ui.global.rarity = Probabilité d'apparition de rareté
+ui.global.open_world_header = Mise à l'échelle du monde ouvert
 ui.global.player_scaling = Mise à l'échelle joueur/groupe
-ui.global.caps_header = Plafonds de difficulté
+ui.global.aggregation = Agrégation de puissance du groupe
+ui.global.region_size = Taille de la région (chunks)
+ui.global.band_width = Largeur de bande de puissance du groupe
+ui.global.only_raise = Augmenter uniquement la difficulté
+ui.global.party_join = Augmenter lors de l'ajout au groupe
+ui.global.late_arrival = Bonus d'arrivée tardive
+ui.global.composition = Mise à l'échelle de composition
+ui.global.difficulty_header = Difficulté
+ui.global.floor = Plancher de difficulté de base
 ui.global.min_cap = Difficulté minimale
 ui.global.max_cap = Difficulté maximale
 ui.global.esc_header = Escalade de distance
@@ -123,6 +130,15 @@ ui.global.esc_start = Distance de départ (blocs)
 ui.global.esc_blocks = Blocs par point
 ui.global.esc_max_bonus = Bonus maximum
 ui.global.esc_rarity = Rareté par point
+ui.global.stat_curve_header = Courbe de statistiques de difficulté
+
+# Difficulty stat curve values (shared by the Global tab and the per-world editor).
+ui.curve.hp_per_point = PV par point
+ui.curve.out_per_point = Dégâts infligés par point
+ui.curve.in_reduction = Réduction des dégâts subis par point
+ui.curve.max_hp = Multiplicateur de PV max
+ui.curve.max_out = Multiplicateur de dégâts infligés max
+ui.curve.min_in = Multiplicateur de dégâts subis min
 
 # Shared HUD tab rows.
 ui.hud.position = Position
@@ -132,29 +148,42 @@ ui.hud.offset_y = Décalage Y
 # Zone HUD tab.
 ui.zone.enabled = HUD de zone activé
 ui.zone.show_location = Afficher le nom de l'emplacement
+ui.zone.zone_name_prefix = Préfixe de clé de nom de zone
+ui.zone.biome_name_prefix = Préfixe de clé de nom de biome
 
 # Inspector HUD tab.
 ui.inspector.enabled = HUD inspecteur activé
 ui.inspector.portrait = Afficher le portrait
 ui.inspector.range = Plage (blocs)
 
-# Worlds tab (per-world WorldOverrides CRUD).
+# Worlds tab (per-world file CRUD, two-panel: list on the left, the add/edit editor on the right).
 ui.world.empty = Aucun fichier de paramètres par monde. Ajoutez-en un ci-dessous.
 ui.world.badge_override = remplacement
 ui.world.badge_default = fourni
 ui.world.editor_header = Ajouter / modifier un monde
+ui.world.new = Nouveau monde
 ui.world.id = Nom de fichier
 ui.world.match = Correspondance du monde
 ui.world.parent = Fichier parent
 ui.world.enabled = Mise à l'échelle dans ce monde
+ui.world.tuning_header = Réglage
 ui.world.floor = Plancher de difficulté de base
 ui.world.intensity = Intensité
 ui.world.rarity = Probabilité de rareté
-ui.world.min_cap = Difficulté minimale
-ui.world.max_cap = Difficulté maximale
 ui.world.player_scaling = Mise à l'échelle du joueur
-ui.world.escalation = Escalade de distance
-ui.world.hint = Chaque monde possède son propre fichier. Les champs vides héritent du fichier parent, puis de la valeur globale. Le pool, la courbe de statistiques et le réglage du HUD restent dans le fichier.
+ui.world.pool_header = Pool d'apparition
+ui.world.pool_rarities_allow = Rareté autorisées
+ui.world.pool_rarities_deny = Rareté interdites
+ui.world.pool_variants_allow = Variantes autorisées
+ui.world.pool_variants_deny = Variantes interdites
+ui.world.pool_variant_chance = Multiplicateur de chance de variante
+ui.world.pool_affixes_allow = Affixes autorisés
+ui.world.pool_affixes_deny = Affixes interdits
+ui.world.pool_extra_slots = Emplacements d'affix supplémentaires
+ui.world.hud_header = Visibilité du HUD
+ui.world.zone_hud = HUD de zone
+ui.world.inspector_hud = HUD inspecteur
+ui.world.hint = Tous les paramètres ici sont modifiables : réglage, escalade de distance, mise à l'échelle du monde ouvert, courbe de statistiques de difficulté, pool d'apparition, et visibilité du HUD. Un champ vide ou Héritage revient au fichier parent, puis à la valeur globale. Les listes autoriser/interdire sont des id séparées par des virgules; interdire l'emporte.
 
 # Status line.
 ui.status.saved = Enregistré.
@@ -162,8 +191,7 @@ ui.status.saved_restart = Enregistré. Prend effet au redémarrage.
 ui.status.world_deleted = Fichier de monde supprimé. Un fichier fourni portant le même nom s'applique de nouveau.
 ui.status.invalid_parent = Choisissez un autre fichier comme parent (un fichier ne peut pas hériter de lui-même).
 ui.status.save_failed = Impossible d'écrire le fichier de monde.
-ui.status.invalid_number = Entrez un nombre valide (>= 0).
-ui.status.invalid_chance = Entrez une probabilité entre 0 et 1.
+ui.status.invalid_field = Entrez une valeur valide pour {field}. Les nombres doivent être 0 ou supérieur, les chances doivent être entre 0 et 1, et les champs numéro entier doivent être un entier.
 ui.status.invalid_caps = Le maximum doit être au moins le minimum.
 ui.status.unknown_preset = Préréglage inconnu.
-ui.status.match_required = Entrez d'abord un modèle de correspondance de monde.
+ui.status.id_or_match_required = Entrez d'abord un nom de fichier ou un modèle de correspondance de monde.

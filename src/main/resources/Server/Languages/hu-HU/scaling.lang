@@ -97,10 +97,7 @@ ui.tab.worlds = Világok
 ui.toggle.on = BE
 ui.toggle.off = KI
 
-ui.button.save = Mentés
-ui.button.save_caps = Korlátok mentése
-ui.button.save_esc = Eszkalációs mentése
-ui.button.save_position = Pozíció mentése
+ui.button.save_tab = Mentés
 ui.button.save_world = Felülbírálat mentése
 ui.button.clear = Képernyő törlése
 ui.button.edit = Szerkesztés
@@ -110,10 +107,20 @@ ui.button.remove = Eltávolítás
 ui.global.enabled = Szörnyscálázás engedélyezve
 ui.global.enabled_note = Az újraindítást követően lép érvénybe (a mod az indítás során regisztrálja a rendszereit).
 ui.global.preset = Aktív előbeállítás
+ui.global.preset_mode = Előbeállítás mód
 ui.global.intensity = Intenzitás szorzó
 ui.global.rarity = Ritkasági megjelenési esély
+ui.global.open_world_header = Nyílt világ skálázása
 ui.global.player_scaling = Játékos/csoport skálázása
-ui.global.caps_header = Nehézségi korlátok
+ui.global.aggregation = Csoport erő összesítése
+ui.global.region_size = Régió mérete (térképlapok)
+ui.global.band_width = Csoport erő sáv szélessége
+ui.global.only_raise = Csak nehézség növelés
+ui.global.party_join = Nehézség növelés csapathoz csatlakozáskor
+ui.global.late_arrival = Késői érkezés bónusz
+ui.global.composition = Összetétel skálázása
+ui.global.difficulty_header = Nehézség
+ui.global.floor = Alap nehézségi küszöb
 ui.global.min_cap = Minimális nehézség
 ui.global.max_cap = Maximális nehézség
 ui.global.esc_header = Távolsági eszkalációs
@@ -122,6 +129,15 @@ ui.global.esc_start = Kezdő távolság (blokk)
 ui.global.esc_blocks = Blokk pontok száma
 ui.global.esc_max_bonus = Maximális bónusz
 ui.global.esc_rarity = Ritkasági pont
+ui.global.stat_curve_header = Nehézségi érték görbe
+
+# Difficulty stat curve values (shared by the Global tab and the per-world editor).
+ui.curve.hp_per_point = HP pontonként
+ui.curve.out_per_point = Kimenő sérülés pontonként
+ui.curve.in_reduction = Bejövő csökkentés pontonként
+ui.curve.max_hp = Maximális HP szorzó
+ui.curve.max_out = Maximális kimenő sérülés szorzó
+ui.curve.min_in = Minimális bejövő sérülés szorzó
 
 # Megosztott HUD lap sorok.
 ui.hud.position = Pozíció
@@ -131,38 +147,50 @@ ui.hud.offset_y = Eltolás Y
 # Zóna HUD lap.
 ui.zone.enabled = Zóna HUD engedélyezve
 ui.zone.show_location = Hely nevének megjelenítése
+ui.zone.zone_name_prefix = Zóna név kulcs előtag
+ui.zone.biome_name_prefix = Biom név kulcs előtag
 
 # Vizsgáló HUD lap.
 ui.inspector.enabled = Vizsgáló HUD engedélyezve
 ui.inspector.portrait = Portrét megjelenítése
 ui.inspector.range = Hatótávolság (blokk)
 
-# Világok lap (világonkénti WorldOverrides CRUD).
+# Világok lap (per-world file CRUD, two-panel: list on the left, the add/edit editor on the right).
 ui.world.empty = Nincsenek világonkénti beállítási fájlok. Adjon hozzá egyet alább.
 ui.world.badge_override = felülbírálat
 ui.world.badge_default = gyári
 ui.world.editor_header = Világ hozzáadása / szerkesztése
+ui.world.new = Új világ
 ui.world.id = Fájlnév
 ui.world.match = Világ egyeztetése
 ui.world.parent = Szülő fájl
 ui.world.enabled = Skálázás ebben a világban
+ui.world.tuning_header = Finomhangolás
 ui.world.floor = Alap nehézségi küszöb
 ui.world.intensity = Intenzitás
 ui.world.rarity = Ritkasági esély
-ui.world.min_cap = Minimális nehézség
-ui.world.max_cap = Maximális nehézség
 ui.world.player_scaling = Játékos skálázása
-ui.world.escalation = Távolsági eszkalációs
-ui.world.hint = Minden világ saját fájl. Az üres mezők a szülő fájltól öröklődnek, majd a globális értéktől. A pool, az értékgörbe és a HUD finomhangolása a fájlban marad.
+ui.world.pool_header = Megjelenési készlet
+ui.world.pool_rarities_allow = Megengedett ritkasági szintek
+ui.world.pool_rarities_deny = Tiltott ritkasági szintek
+ui.world.pool_variants_allow = Megengedett variációk
+ui.world.pool_variants_deny = Tiltott variációk
+ui.world.pool_variant_chance = Variáció esély szorzó
+ui.world.pool_affixes_allow = Megengedett módosítók
+ui.world.pool_affixes_deny = Tiltott módosítók
+ui.world.pool_extra_slots = Extra módosító helyek
+ui.world.hud_header = HUD láthatóság
+ui.world.zone_hud = Zóna HUD
+ui.world.inspector_hud = Vizsgáló HUD
+ui.world.hint = Minden beállítás szerkeszthető: finomhangolás, távolsági eszkalációs, nyílt világ skálázása, a nehézségi érték görbe, a megjelenési készlet és a HUD láthatóság. Az üres mező vagy az Örökölj a szülő fájltól, majd a globális értéktől kerülnek. Engedélyez/Tilt listák pontosvesszővel elválasztott azonosítók; a Tilt nyer.
 
-# Állapotsort.
+# Status line.
 ui.status.saved = Elmentve.
 ui.status.saved_restart = Elmentve. Az újraindítást követően lép érvénybe.
 ui.status.world_deleted = A világfájl eltávolítva. Az azonos nevű gyári fájl ismét érvénybe lép.
 ui.status.invalid_parent = Adjon meg egy másik fájlt szülőként (egy fájl nem örökölhet önmagától).
 ui.status.save_failed = Nem sikerült írni a világfájlt.
-ui.status.invalid_number = Adjon meg egy érvényes számot (>= 0).
-ui.status.invalid_chance = Adjon meg egy esélyt 0 és 1 között.
+ui.status.invalid_field = Adj meg érvényes értéket a(z) {field} mezőhöz. A számoknak 0 vagy annál nagyobbnak kell lenniük, az esélyek 0 és 1 között kell hogy legyenek, az egész szám mezőkben egész számnak kell lennie.
 ui.status.invalid_caps = A maximális legalább akkora, mint a minimális.
 ui.status.unknown_preset = Ismeretlen előbeállítás.
-ui.status.match_required = Adjon meg előbb egy világ egyeztetési mintát.
+ui.status.id_or_match_required = Adjon meg előbb egy fájlnevet vagy világ egyeztetési mintát.

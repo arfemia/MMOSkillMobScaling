@@ -71,7 +71,7 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
 | `intensity [multiplier]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
 | `hud <zone\|inspector> <on\|off\|POSITION> [offsetX] [offsetY]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
 | `worlds` | List every loaded per-world settings file: its match pattern, parent, shipped-vs-owner origin, and on/off state. |
-| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and an editor over the per-world files). Each edit is saved and applied live. |
+| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and a two-panel editor over the per-world files - world list on the left, add/edit on the right). Every setting that applies per world is editable here now, including a world's spawn pool, difficulty stat curve, open-world scaling group, and whether it shows the zone/inspector HUD (a few knobs, like the HUD's on-screen position, only make sense globally and stay in the config file). Each edit is saved and applied live. |
 | `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |
 
 Every change made in `/mobscaling ui` or via the `intensity` / `hud` / `preset` subcommands is now SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
