@@ -50,14 +50,13 @@ class MobScalingAssetCodecTest {
         WorldSettingsAsset asset = decode("/Server/MmoMobScaling/Worlds/DungeonOfFear_I.json",
                 WorldSettingsAsset.CODEC);
         com.google.gson.JsonObject body = asset.getPayloadAsJsonObject();
-        assertNotNull(body, "raw Payload survives for the Parent pre-merge");
-        assertEquals("DungeonOfFear_Base", body.get("Parent").getAsString(), "authored Parent");
-        // The body decodes through the ONE schema authority (Parent stripped as the resolver would).
-        body.remove("Parent");
+        assertNotNull(body, "raw Payload survives for the pre-merge");
+        // Dungeon of Fear I ships as a flat, self-contained file (no Parent): it simply turns
+        // open-world mob scaling OFF in its instance worlds.
         WorldSettings ws = WorldSettings.CODEC.decodeJson(
                 RawJsonReader.fromJsonString(body.toString()), new ExtraInfo());
         assertEquals("instance-dungeon_of_fear_i*", ws.getMatch(), "Match");
-        assertEquals(Boolean.FALSE, ws.getOpenWorld().getPlayerScalingEnabled(), "OpenWorld.PlayerScalingEnabled");
+        assertEquals(Boolean.FALSE, ws.getEnabled(), "Enabled kill-switch off");
     }
 
     @Test

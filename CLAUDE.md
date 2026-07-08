@@ -49,7 +49,9 @@ NEVER bundled (bundling double-loads engine-touching classes under two classload
 breaks class identity):
 
 - **ZiggfreedCommon >= 1.3.0** (`compileOnly files(ziggfreedCommonJar)`, pin
-  `ziggfreedCommonVersion`) - the shared primitive lib; its `scaling/` engine is the fold this mod
+  `ziggfreedCommonVersion`; 1.3.0's `world/WorldNameMatcher` carries the suffix/contains match forms
+  a `*KweebecNightmare_*` per-world Match needs to catch the `instance-`-prefixed worlds) - the shared
+  primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
   `FieldSpec`/`SettingsForm` + the five `Pages/ZigForm*Row.ui` templates) backs the admin page, which

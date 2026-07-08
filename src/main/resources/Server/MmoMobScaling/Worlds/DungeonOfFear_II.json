@@ -2,7 +2,6 @@
   "Name": "Dungeon of Fear II",
   "Payload": {
     "Match": "instance-dungeon_of_fear_ii*",
-    "Parent": "DungeonOfFear_Base",
-    "OpenWorld": { "PlayerScalingEnabled": false }
+    "Enabled": false
   }
 }

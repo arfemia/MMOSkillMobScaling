@@ -1,7 +1,0 @@
-{
-  "Name": "Dungeon of Fear shared base",
-  "Payload": {
-    "$Comment": "Pool-only BASE (no Match, never matched directly): the shared Dungeon of Fear policy the per-instance files inherit via Parent. Authored dungeons do not escalate with distance from spawn.",
-    "Difficulty": { "DistanceEscalation": { "Enabled": false } }
-  }
-}

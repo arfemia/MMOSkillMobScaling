@@ -59,11 +59,11 @@ class MobScalingConfigTest {
      * Feed the jar-bundled {@code Server/MmoMobScaling/Worlds/*.json} payloads into
      * {@link WorldSettingsConfig}'s pack layer (in production the engine store delivers them on
      * {@code LoadedAssetsEvent}; a unit JVM loads them straight off the test classpath). This
-     * exercises the REAL shipped files incl. the {@code Parent} chains.
+     * exercises the REAL shipped files (flat, self-contained; no shared Parent).
      */
     private static void loadJarWorlds() {
         Map<String, JsonObject> bodies = new LinkedHashMap<>();
-        for (String name : List.of("DungeonOfFear_Base", "DungeonOfFear_I", "DungeonOfFear_II",
+        for (String name : List.of("DungeonOfFear_I", "DungeonOfFear_II",
                 "DungeonOfFear_III", "KweebecNightmare")) {
             try (InputStream in = MobScalingConfigTest.class.getResourceAsStream(
                     "/Server/MmoMobScaling/Worlds/" + name + ".json")) {
@@ -107,13 +107,13 @@ class MobScalingConfigTest {
         assertEquals(1.0, cfg.getDifficultyMinCap(), 1e-9, "Difficulty.MinCap default");
         assertEquals(200.0, cfg.getDifficultyMaxCap(), 1e-9, "Difficulty.MaxCap default");
         assertTrue(cfg.isDistanceEscalationEnabled(), "Difficulty.DistanceEscalation.Enabled default");
-        assertEquals(5000.0, cfg.getEscalationStartDistanceBlocks(), 1e-9, "escalation start default");
+        assertEquals(15000.0, cfg.getEscalationStartDistanceBlocks(), 1e-9, "escalation start default");
         assertEquals(500.0, cfg.getEscalationBlocksPerPoint(), 1e-9, "escalation slope default");
         assertEquals(199.0, cfg.getEscalationMaxBonus(), 1e-9, "escalation cap default");
         assertEquals(0.01, cfg.getEscalationRarityChancePerPoint(), 1e-9, "escalation chance-bonus default");
         // Difficulty.StatCurve: the shipped steep per-difficulty stat curve.
         assertEquals(0.08, cfg.getStatCurveHpPerPoint(), 1e-9, "StatCurve.HpPerPoint default");
-        assertEquals(0.04, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
+        assertEquals(0.01, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
         assertEquals(0.002, cfg.getStatCurveInDamageReductionPerPoint(), 1e-9,
                 "StatCurve.InDamageReductionPerPoint default");
         assertEquals(20.0, cfg.getStatCurveMaxHpMult(), 1e-9, "StatCurve.MaxHpMult default");
@@ -183,7 +183,7 @@ class MobScalingConfigTest {
         assertEquals(150.0, cfg.getDifficultyMaxCap(), 1e-9, "owner nested cap applied");
         assertEquals(1.0, cfg.getDifficultyMinCap(), 1e-9, "sibling cap stays default");
         assertEquals(40.0, cfg.getEscalationMaxBonus(), 1e-9, "doubly-nested owner leaf applied");
-        assertEquals(5000.0, cfg.getEscalationStartDistanceBlocks(), 1e-9,
+        assertEquals(15000.0, cfg.getEscalationStartDistanceBlocks(), 1e-9,
                 "doubly-nested sibling leaf stays default");
         // Doubly-nested StatCurve: the owner sets only HpPerPoint; sibling leaves keep the Default.
         assertEquals(0.2, cfg.getStatCurveHpPerPoint(), 1e-9, "doubly-nested StatCurve owner leaf applied");
@@ -223,7 +223,7 @@ class MobScalingConfigTest {
         MobScalingConfig cfg = freshDefaults(); // Intensity default 1.0
         MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
         assertEquals(0.08, curve.hpPerPoint(), 1e-9, "intensity 1.0 leaves the slope unchanged");
-        assertEquals(0.04, curve.outPerPoint(), 1e-9, "intensity 1.0 leaves the out slope unchanged");
+        assertEquals(0.01, curve.outPerPoint(), 1e-9, "intensity 1.0 leaves the out slope unchanged");
         // The caps are NOT scaled by intensity.
         assertEquals(20.0, curve.maxHpMult(), 1e-9, "intensity does not scale caps");
     }
@@ -239,7 +239,7 @@ class MobScalingConfigTest {
         assertEquals(2.0, cfg.getIntensity(), 1e-9, "owner Intensity applied");
         MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
         assertEquals(0.16, curve.hpPerPoint(), 1e-9, "2.0 intensity doubles the HP slope");
-        assertEquals(0.08, curve.outPerPoint(), 1e-9, "2.0 intensity doubles the out slope");
+        assertEquals(0.02, curve.outPerPoint(), 1e-9, "2.0 intensity doubles the out slope");
     }
 
     @Test
@@ -257,31 +257,25 @@ class MobScalingConfigTest {
     }
 
     @Test
-    void shippedDungeonWorldsInheritTheBasePolicyThroughParent() {
+    void shippedDungeonWorldsDecodeToTheirFlatPolicies() {
         MobScalingConfig cfg = freshDefaults();
-        loadJarWorlds(); // the jar Worlds/*.json files, incl. the DungeonOfFear_Base Parent chain
+        loadJarWorlds(); // the jar Worlds/*.json files (flat, self-contained; no shared Parent)
 
-        SpawnScalingSettings i = cfg.spawnSettingsFor("instance-dungeon_of_fear_i");
-        assertFalse(i.isPlayerScalingEnabled(), "Dungeon of Fear I has player scaling off");
-        assertFalse(i.isDistanceEscalationEnabled(), "Dungeon of Fear I inherits escalation-off from the base");
+        // Dungeon of Fear I and II simply turn open-world scaling OFF in their instances.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isWorldScalingEnabled(),
+                "Dungeon of Fear I turns scaling off");
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii").isWorldScalingEnabled(),
+                "Dungeon of Fear II turns scaling off");
 
-        SpawnScalingSettings ii = cfg.spawnSettingsFor("instance-dungeon_of_fear_ii");
-        assertFalse(ii.isPlayerScalingEnabled(), "Dungeon of Fear II has player scaling off");
-        assertFalse(ii.isDistanceEscalationEnabled(), "Dungeon of Fear II inherits escalation-off from the base");
-
+        // Dungeon of Fear III keeps scaling ON (player scaling on, global default) but with distance escalation off.
         SpawnScalingSettings iii = cfg.spawnSettingsFor("instance-dungeon_of_fear_iii");
+        assertTrue(iii.isWorldScalingEnabled(), "Dungeon of Fear III keeps scaling on");
         assertTrue(iii.isPlayerScalingEnabled(), "Dungeon of Fear III keeps player scaling on (global default)");
-        assertFalse(iii.isDistanceEscalationEnabled(), "Dungeon of Fear III inherits ONLY escalation-off");
+        assertFalse(iii.isDistanceEscalationEnabled(), "Dungeon of Fear III turns distance escalation off");
 
         // The Kweebec Nightmare world file is the per-world kill-switch (absorbed from hyMMO WorldRules).
         assertFalse(cfg.spawnSettingsFor("KweebecNightmare_run7").isWorldScalingEnabled(),
                 "the Kweebec world file turns scaling off there");
-
-        // The pool-only base (no Match) never matches a world; it exists only as a Parent target.
-        assertTrue(WorldSettingsConfig.getInstance().foldedView().containsKey("dungeonoffear_base"),
-                "the base is in the folded view (Parent target)");
-        assertTrue(cfg.spawnSettingsFor("dungeonoffear_base") == cfg,
-                "a base with no Match is never matched as a world");
 
         // A non-dungeon world matches nothing -> the global config itself (player scaling on, escalation on).
         SpawnScalingSettings overworld = cfg.spawnSettingsFor("world");
@@ -295,12 +289,13 @@ class MobScalingConfigTest {
         MobScalingConfig cfg = freshDefaults();
         loadJarWorlds();
         // A suffixed instance world of each tier resolves to its OWN entry, never a shorter-prefix sibling.
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i_ab12").isPlayerScalingEnabled(),
-                "suffixed _i matches the _i* entry (player scaling off)");
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii_ab12").isPlayerScalingEnabled(),
-                "suffixed _ii matches the _ii* entry (player scaling off), not _i*");
-        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii_ab12").isPlayerScalingEnabled(),
-                "suffixed _iii matches the _iii* entry (player scaling ON), not _i*/_ii*");
+        // I and II turn scaling off; III keeps it on, so a _iii mis-resolved to _i*/_ii* would read scaling OFF.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i_ab12").isWorldScalingEnabled(),
+                "suffixed _i matches the _i* entry (scaling off)");
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii_ab12").isWorldScalingEnabled(),
+                "suffixed _ii matches the _ii* entry (scaling off)");
+        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii_ab12").isWorldScalingEnabled(),
+                "suffixed _iii matches the _iii* entry (scaling ON), not the shorter _i*/_ii*");
     }
 
     @Test
@@ -360,14 +355,14 @@ class MobScalingConfigTest {
         // Owner's new world takes effect.
         assertFalse(cfg.spawnSettingsFor("myworld_1").isPlayerScalingEnabled(), "owner's new world file applies");
         // The shipped dungeon files NOT touched by the owner still resolve.
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isPlayerScalingEnabled(),
-                "shipped _i file survives an owner adding other files");
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isWorldScalingEnabled(),
+                "shipped _i file survives an owner adding other files (still scaling-off)");
         // Owner's same-id file REPLACES the shipped _iii wholesale: player scaling now off there, and the
-        // shipped Parent (escalation-off) is GONE because the owner body carries no Parent of its own.
+        // shipped file's escalation-off policy is GONE because the owner body does not carry it.
         assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii").isPlayerScalingEnabled(),
                 "owner same-id file beats the shipped _iii file");
         assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii").isDistanceEscalationEnabled(),
-                "the replace is WHOLESALE: the shipped Parent policy does not leak into the owner body");
+                "the replace is WHOLESALE: the shipped file's escalation-off does not leak into the owner body");
     }
 
     @Test

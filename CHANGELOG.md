@@ -9,6 +9,22 @@ config UI, and full persistence for every runtime tuning path. Requires MMO Skil
 that removes the old WorldRules mob-scaling baseline - update BOTH together) and Ziggfreed's CommonLib
 1.3.0+.
 
+- Change (default tuning): softened the DEFAULT difficulty->stat curve and pushed distance escalation
+  farther out, so a scaled mob is tankier than it is bursty and the deep-frontier ramp starts later.
+  `Settings/Default.json` `StatCurve.OutDamagePerPoint` 0.04 -> 0.01 (the OUTGOING-damage bonus per
+  difficulty point; the HP + incoming-reduction slopes and every cap are unchanged) and
+  `DistanceEscalation.StartDistanceBlocks` 5000 -> 15000. The `Casual` (0.02 -> 0.0025) and `Hardcore`
+  (0.08 -> 0.05) presets get the same out-damage softening; `Playtest` is deliberately left steep.
+- Change (dungeon defaults rework): the shipped Dungeon of Fear world files are flat + self-contained now -
+  the shared `DungeonOfFear_Base` Parent file is removed. `DungeonOfFear_I`/`II` turn scaling OFF outright
+  (`Enabled:false`) in their instances; `DungeonOfFear_III` keeps player/group scaling ON with distance
+  escalation OFF (inlined, no longer inherited from the base). III's effective behaviour is unchanged; I/II
+  now disable scaling entirely instead of only pinning player-scaling off.
+- Fix (Kweebec match): `KweebecNightmare.json`'s per-world Match is `*KweebecNightmare_*` (contains) so it
+  catches the real instance worlds, whose live names carry BOTH a leading `instance-` prefix AND a random
+  suffix (`instance-KweebecNightmare_Chase_Dread-<uuid>`). The old trailing-`*` prefix (`KweebecNightmare_*`)
+  never matched those, so the scaling-off kill-switch silently did nothing there. Needs Ziggfreed's CommonLib
+  1.3.0+, whose `WorldNameMatcher` carries the suffix/contains match forms (manifest requirement `>=1.3.0`).
 - Change (schema rework): per-world settings move OUT of the inline `WorldOverrides` array into their own
   keyed asset files, `Server/MmoMobScaling/Worlds/*.json` (packs/jar) + a scanned owner dir
   `mods/MmoMobScaling/worlds/*.json` (one file per world rule; filename = id; a bare body is canonical,
@@ -90,6 +106,11 @@ that removes the old WorldRules mob-scaling baseline - update BOTH together) and
   `/mobscaling preset` now SAVE to the owner file (they were runtime-only in 1.0.1, lost on restart). The
   UI and the commands share ONE write-back path (`config/MobScalingOwnerWriter` -> the owner file ->
   `MobScalingConfig.refreshFromDisk`), so a change made either way sticks and applies live.
+- Fix: `/mobscaling` now takes the subcommand as a REQUIRED positional arg. It was optional, which (the
+  Hytale parser binds optional args by NAME, not position) meant a bare token like `/mobscaling hud`
+  never bound to the subcommand and silently fell through to `inspect`. The follow-on tuning values stay
+  optional, so they are passed by name: `--hudTarget=<zone|inspector>`, `--hudValue=<on|off|POSITION>`,
+  `--hudOffsetX`/`--hudOffsetY`, `--presetName`, `--intensity`.
 - Change: requires Ziggfreed's CommonLib 1.3.0+ - the shared settings-UI toolkit the admin page consumes
   (`util/JsonOverrideWriter` owner-file write-back, `ui/hud/HudPosition` layout value, `ui/SettingsUiUtil`
   form binding, `Pages/ZigListRow.ui` row). The mod's private `hud/HudPosition` copy is retired in favour

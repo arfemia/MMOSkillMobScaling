@@ -1,8 +1,8 @@
 {
   "Name": "Dungeon of Fear III",
   "Payload": {
-    "$Comment": "III keeps player/group scaling ON (unlike I and II); only the escalation-off policy is inherited from the base.",
+    "$Comment": "III keeps player/group scaling ON (unlike I and II, which turn scaling off entirely); only distance escalation is switched off here.",
     "Match": "instance-dungeon_of_fear_iii*",
-    "Parent": "DungeonOfFear_Base"
+    "Difficulty": { "DistanceEscalation": { "Enabled": false } }
   }
 }

@@ -62,14 +62,15 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
 
 ## Commands
 
-`/mobscaling <subcommand>` (requires the `hytale:Admin` role, or OP when permissions are off):
+`/mobscaling <subcommand>` (requires the `hytale:Admin` role, or OP when permissions are off). The
+subcommand comes first; any extra values are passed by NAME (e.g. `--hudTarget=zone`), not by position:
 
 | Subcommand | What it does |
 | --- | --- |
-| `inspect` | Report the difficulty inputs at your position (zone floor, distance bonus, effective difficulty, region power, rarity chance). The default subcommand. |
-| `preset <name>` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. |
-| `intensity [multiplier]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
-| `hud <zone\|inspector> <on\|off\|POSITION> [offsetX] [offsetY]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
+| `inspect` | Report the difficulty inputs at your position (zone floor, distance bonus, effective difficulty, region power, rarity chance). |
+| `preset [--presetName=<name>]` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. With no value, report the active preset. |
+| `intensity [--intensity=<multiplier>]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
+| `hud --hudTarget=<zone\|inspector> --hudValue=<on\|off\|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
 | `worlds` | List every loaded per-world settings file: its match pattern, parent, shipped-vs-owner origin, and on/off state. |
 | `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and a two-panel editor over the per-world files - world list on the left, add/edit on the right). Every setting that applies per world is editable here now, including a world's spawn pool, difficulty stat curve, open-world scaling group, and whether it shows the zone/inspector HUD (a few knobs, like the HUD's on-screen position, only make sense globally and stay in the config file). The Global tab is difficulty-first and shows a live "Preview: Skeleton" panel beside your settings (a plain mob run through your current difficulty stat curve at five sample levels, updating as you type, with the skeleton's real health shown alongside the multiplier). Every field has a short help line, and a blank/Inherit field in the world editor tells you exactly what it is inheriting. World rows wrap instead of cutting off long names. Each edit is saved and applied live. |
 | `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |

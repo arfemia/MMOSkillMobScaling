@@ -11,6 +11,7 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
+import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
 import com.hypixel.hytale.server.core.entity.effect.EffectControllerComponent;
@@ -43,8 +44,10 @@ import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
- * {@code /mobscaling <purge|inspect|hud|preset|intensity>} - the admin maintenance + tuning tools
- * (permission group {@code hytale:Admin}; all strings are lang keys).
+ * {@code /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>} - the admin maintenance + tuning
+ * tools (permission group {@code hytale:Admin}; all strings are lang keys). The subcommand is a REQUIRED
+ * positional arg; the follow-on values below are OPTIONAL args, which the Hytale parser binds by NAME
+ * (e.g. {@code --hudTarget=zone}), NOT by position.
  *
  * <ul>
  *   <li>{@code purge} - strip ALL scaling residue (the {@code mmoscaling_hp} MAX modifier + every
@@ -54,25 +57,25 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *       registers OUTSIDE the zero-cost gate (a command carries no per-tick cost): disable scaling,
  *       run {@code /mobscaling purge} per world, then uninstall clean. Only LOADED mobs are swept;
  *       run it near the areas that matter (unloaded residue self-heals if the mod is re-enabled).</li>
- *   <li>{@code inspect} (default) - report the difficulty inputs at the caller's position: their own
+ *   <li>{@code inspect} - report the difficulty inputs at the caller's position: their own
  *       power level, the world floor + kill-switch, the tracked region power scalar, the exact
  *       effective difficulty a spawn HERE would resolve (shared {@code effectiveDifficulty} code path),
  *       and the plain-mob HP / outgoing-damage / incoming-taken stat curve that difficulty resolves to
  *       (so an admin can confirm plain mobs scale), then the rarity spawn chance.</li>
- *   <li>{@code hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]} - LIVE-tune the two
+ *   <li>{@code hud --hudTarget=<zone|inspector> --hudValue=<on|off|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]} - LIVE-tune the two
  *       player-facing overlays: flip one on/off for everyone, or re-anchor it to a named corner
  *       preset with optional pixel offsets, applied to all online players without a reconnect.
  *       RUNTIME ONLY: the change is lost on restart; the persistent authority is the
  *       {@code ZoneHud*}/{@code InspectorHud*} keys in {@code mods/MmoMobScaling/mob-scaling.json}
  *       (the command reminds the admin).</li>
- *   <li>{@code preset [name]} - with no name, report the active preset + the presets available in
+ *   <li>{@code preset [--presetName=<name>]} - with no name, report the active preset + the presets available in
  *       the loaded settings store. With a name, LIVE-swap the active preset (re-folds config from
  *       that preset asset over the jar {@code Default}), clears the memoized zone-difficulty floors
  *       so new spawns pick up the new numbers immediately, and refreshes both HUDs for all online
  *       players. RUNTIME ONLY: the swap is lost on restart; the persistent authority is the
  *       {@code ActivePreset} key in {@code mods/MmoMobScaling/mob-scaling.json} (the command reminds
  *       the admin).</li>
- *   <li>{@code intensity [multiplier]} - with no value, report the current GLOBAL intensity multiplier
+ *   <li>{@code intensity [--intensity=<multiplier>]} - with no value, report the current GLOBAL intensity multiplier
  *       on the difficulty-&gt;stat curve; with a value ({@code >= 0}), LIVE-set it (denser HP / harder
  *       hits scale with the multiplier). RUNTIME ONLY: lost on restart; the persistent authority is the
  *       {@code Intensity} key in {@code mods/MmoMobScaling/mob-scaling.json}. A world with an authored
@@ -84,7 +87,7 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  */
 public final class MobScalingCommand extends CommandBase {
 
-    private final OptionalArg<String> subArg;
+    private final RequiredArg<String> subArg;
     private final OptionalArg<String> hudTargetArg;
     private final OptionalArg<String> hudValueArg;
     private final OptionalArg<String> hudOffsetXArg;
@@ -96,7 +99,9 @@ public final class MobScalingCommand extends CommandBase {
         // The engine resolves the command + arg descriptions as localization keys.
         super("mobscaling", "scaling.command.desc");
         this.setPermissionGroups(HytalePermissionsProvider.GROUP_ADMIN);
-        this.subArg = withOptionalArg("sub", "scaling.command.arg.sub", ArgTypes.STRING);
+        // Required so it binds POSITIONALLY (the Hytale parser binds OPTIONAL args by name, not
+        // position - an optional sub would never bind "/mobscaling hud" and always fall through).
+        this.subArg = withRequiredArg("sub", "scaling.command.arg.sub", ArgTypes.STRING);
         this.hudTargetArg = withOptionalArg("hudTarget", "scaling.command.arg.hud_target", ArgTypes.STRING);
         this.hudValueArg = withOptionalArg("hudValue", "scaling.command.arg.hud_value", ArgTypes.STRING);
         this.hudOffsetXArg = withOptionalArg("hudOffsetX", "scaling.command.arg.hud_offset_x", ArgTypes.STRING);
@@ -107,7 +112,8 @@ public final class MobScalingCommand extends CommandBase {
 
     @Override
     protected void executeSync(@Nonnull CommandContext ctx) {
-        String sub = ctx.provided(subArg) ? subArg.get(ctx).toLowerCase(Locale.ROOT) : "inspect";
+        String sub = subArg.get(ctx);
+        sub = sub == null ? "" : sub.toLowerCase(Locale.ROOT);
         switch (sub) {
             case "purge" -> purge(ctx);
             case "inspect" -> inspect(ctx);

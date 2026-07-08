@@ -20,14 +20,14 @@
     "MaxCap": 200.0,
     "DistanceEscalation": {
       "Enabled": true,
-      "StartDistanceBlocks": 5000.0,
+      "StartDistanceBlocks": 15000.0,
       "BlocksPerPoint": 500.0,
       "MaxBonus": 199.0,
       "RarityChancePerPoint": 0.01
     },
     "StatCurve": {
       "HpPerPoint": 0.08,
-      "OutDamagePerPoint": 0.04,
+      "OutDamagePerPoint": 0.01,
       "InDamageReductionPerPoint": 0.002,
       "MaxHpMult": 20.0,
       "MaxOutDamageMult": 12.0,
