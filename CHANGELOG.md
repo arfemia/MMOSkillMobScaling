@@ -109,13 +109,21 @@ that removes the old WorldRules mob-scaling baseline - update BOTH together) and
   (`MobScalingAdminPage.refreshPreview`, mirroring `MobScalingConfig.buildCurve` - package-private there,
   so the `MobScaleFold.DifficultyStatCurve` is constructed directly in the page). Shows HP / outgoing-
   damage multipliers and incoming-damage-reduction percent per sample, formatted compactly
-  (`x2.6`/`x1.8`/`-22%`); refreshes on every Global-form `field`/`press`/`saveGlobal`/`selectPreset` event
-  via a small preview-only partial update (never re-pushing the form's own values). MULTIPLIERS-ONLY: an
-  absolute Skeleton HP number was investigated (the vanilla role's base `MaxHealth` is 92 in
-  `hytale-shared-source`) but rejected - reading a Role's declared stat requires the full
-  `NPCPlugin`/`BuilderManager`/`BuilderSupport` build pipeline, which needs a LIVE spawned `NPCEntity` +
-  `Holder`; there is no lighter registry a plugin can query standalone, and faking one would be exactly
-  the fragile hand-rolled hack the mod's native-asset-first paradigm warns against for a UI preview.
+  (`x1.8`/`-22%`); refreshes on every Global-form `field`/`press`/`saveGlobal`/`selectPreset` event via a
+  small preview-only partial update (never re-pushing the form's own values). Damage stays factor-only
+  (base attack damage lives in weapon/attack assets, out of scope).
+- New: the HP cell shows the skeleton's REAL health, not just the multiplier (`x2.6 (239)`), via a new
+  `pages/RoleBaseHealthResolver`. The role registry read is public and entity-free
+  (`NPCPlugin.getIndex` -> `getRoleBuilderInfo` -> `BuilderInfo.getBuilder()` returns the already-parsed
+  `Builder<Role>` off the loaded-asset registry); the engine's OWN `BuilderManager.validateAllSpawnableNPCs`
+  proves the EVALUATION is equally entity-free (`new ExecutionContext(builder.getBuilderParameters().createScope())`).
+  The one non-public hop - `BuilderRole`'s `protected final IntHolder maxHealth` field, whose public
+  accessor demands a `BuilderSupport` (and so a live entity) purely as an API-surface artifact - is
+  bridged with a cached, `setAccessible`-once reflective field read, evaluated via the SAME entity-free
+  pattern (`holder.rawGet(null)` for a static value, mirroring the engine's own `IntHolder.readJSON`;
+  a real `ExecutionContext` for a `"Compute"`-driven one). Fully `try/catch(Throwable)`-guarded;
+  memoizes both a success and a failure per role name for the process lifetime, so a broken read
+  degrades silently to multipliers-only once, never retried per keystroke.
 - New: inline help text on every setting. Every leaf-bearing field/toggle spec across all FOUR forms
   (Global, Zone HUD, Inspector HUD, Worlds; ~80 fields) now carries a `.withHint(...)` - one qualitative
   sentence, no digits - rendered under the row via the ziggfreed-common `ui/form` engine's `#Hint`

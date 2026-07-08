@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -98,6 +99,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String PREVIEW_NOTE_SEL = "#MmoscalingPreviewNote";
     // Five evenly-spaced sample difficulties between the current MinCap and MaxCap (the Global-tab preview).
     private static final int PREVIEW_SAMPLES = 5;
+    // The preview's fixed sample role (matches scaling.ui.global.preview_title, "Preview: Skeleton").
+    private static final String PREVIEW_ROLE_NAME = "Skeleton";
 
     // World-form field ids referenced outside the spec table (id derivation, self-Parent check).
     private static final String F_WORLD_ID = "worldId";
@@ -293,7 +296,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
      * {@link MobScaleFold.DifficultyStatCurve} is constructed directly here): the three slopes scale by
      * {@code max(0, intensity)}, the caps do not. Each row shows a plain mob (no rarity/variant) run
      * through that curve alone - rarity/variant multipliers stack on top at spawn, they are not part of
-     * this read.
+     * this read. The HP cell additionally shows the ABSOLUTE health when
+     * {@link RoleBaseHealthResolver#baseMaxHealth} resolves the sample role's declared base (memoized,
+     * so this is cheap on every keystroke); damage stays factor-only (base attack damage lives in
+     * weapon/attack assets, out of scope here).
      */
     private void refreshPreview(@Nonnull UICommandBuilder cmd) {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
@@ -314,12 +320,13 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         double minInMult = Math.max(0.01, Math.min(1.0, previewValue("minIn", cfg.getStatCurveMinInDamageMult())));
         MobScaleFold.DifficultyStatCurve curve = new MobScaleFold.DifficultyStatCurve(
                 hpPerPoint * k, outPerPoint * k, inReductionPerPoint * k, maxHpMult, maxOutMult, minInMult);
+        OptionalInt baseHealth = RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME);
 
         for (int i = 1; i <= PREVIEW_SAMPLES; i++) {
             double d = min + (max - min) * i / (double) PREVIEW_SAMPLES;
             Message line = tr("scaling.ui.global.preview_row")
                     .param("diff", String.valueOf(Math.round(d)))
-                    .param("hp", formatMult(curve.hpFactor(d)))
+                    .param("hp", formatHp(curve.hpFactor(d), baseHealth))
                     .param("out", formatMult(curve.outFactor(d)))
                     .param("in", formatReduction((1.0 - curve.inFactor(d)) * 100.0));
             cmd.set(PREVIEW_LIST + "[" + (i - 1) + "] #Line.TextSpans", line);
@@ -349,6 +356,18 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     @Nonnull
     private static String formatMult(double v) {
         return "x" + String.format(Locale.ROOT, "%.1f", v);
+    }
+
+    /**
+     * The HP cell: the multiplier alone ({@code x2.6}) when {@code baseHealth} did not resolve
+     * (multipliers-only fallback), or the multiplier PLUS the absolute health ({@code x2.6 (239)}, the
+     * base rounded through the same multiplier) when {@link RoleBaseHealthResolver} resolved the sample
+     * role's declared base. One formatted param string either way - no lang-key change needed.
+     */
+    @Nonnull
+    private static String formatHp(double mult, @Nonnull OptionalInt baseHealth) {
+        String m = formatMult(mult);
+        return baseHealth.isPresent() ? m + " (" + Math.round(baseHealth.getAsInt() * mult) + ")" : m;
     }
 
     /**
