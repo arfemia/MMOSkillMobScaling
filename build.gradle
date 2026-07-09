@@ -22,7 +22,7 @@ repositories {
 // ============================================================================
 // VERSION STORY (intentional, do not "fix"):
 //   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar
-//   (1.5.0), which carries the frozen 1.5.0 API surface the scaling systems call
+//   (1.5.1), which carries the frozen 1.5.0 API surface the scaling systems call
 //   (getPowerLevel / getPowerLevelMin / getPowerLevelMax / statRewardSum / getCombatLevel,
 //   plus the registerMobKillXpMultiplier reward hook). Its manifest, however, pins the RUNTIME requirement at
 //   "Ziggfreed:MMOSkillTree": ">=1.5.0" - the eventual hyMMO release that ships

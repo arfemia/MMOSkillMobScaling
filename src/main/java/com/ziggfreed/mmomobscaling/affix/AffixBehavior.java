@@ -10,9 +10,12 @@ import javax.annotation.Nullable;
  * {@code EntityEffect}). Everything data-shaped (Armored/Stalwart/Swift) is a pure native effect and needs
  * NO behavior.
  *
- * <p>This is a plain descriptor (id + kind + params); the LIVE wiring into the damage path lands in Phase 5
- * (the damage filter reads a scaled mob's behavioral affixes and, on a hit it deals, applies the lifesteal
- * or applies the {@link #effectId} native effect to the victim, reusing the MMO {@code OnHitEffects} seam).
+ * <p>This is a plain descriptor (id + kind + params), resolved by {@link AffixBehaviorRegistry}. The LIFESTEAL
+ * kind dispatches through {@code com.ziggfreed.common.cast.OnHitRegistry} (the shared cast on-hit registry
+ * lifted into ziggfreed-common; this mod is its proving second consumer), which builds a per-hit heal
+ * consumer from a type+params payload. The APPLY_EFFECT_ON_HIT kind applies the {@link #effectId} effect
+ * asset directly to the victim via {@code EntityEffectService}, since that call needs a
+ * {@code CommandBuffer} accessor the on-hit consumer shape does not carry.
  */
 public final class AffixBehavior {
 

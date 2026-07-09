@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.instance.effect.EntityEffectService;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
@@ -97,13 +96,13 @@ public final class MobScalingOnHitSystem extends DamageEventSystem {
                 continue;
             }
             switch (behavior.kind()) {
-                case LIFESTEAL -> {
-                    float heal = (float) (dealt * behavior.magnitude());
-                    if (heal > 0f) {
-                        HealthUtil.heal(store, attackerRef, heal);
-                    }
-                }
+                case LIFESTEAL ->
+                        AffixBehaviorRegistry.lifestealOnHit(dealt * behavior.magnitude(), attackerRef)
+                                .accept(store, victimRef);
                 case APPLY_EFFECT_ON_HIT -> {
+                    // Effect-on-hit stays a direct call (not routed through the cast on-hit registry): the
+                    // registry's BiConsumer<Store,Ref> shape carries no CommandBuffer accessor, and
+                    // EntityEffectService.apply needs the CommandBuffer (Phase B API-shape finding).
                     // Prefer the affix asset's authored EffectId (was DEAD for HYBRID) over the registry copy,
                     // and let the effect asset's own Duration + OverlapBehavior govern (asset-authoritative).
                     String effectId = affix.effectId() != null ? affix.effectId() : behavior.effectId();
