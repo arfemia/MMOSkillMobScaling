@@ -2,6 +2,49 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
+## 1.1.0 (unreleased, in-game-validation pending)
+
+NPC caster rosters: a Pattern-A asset (Server/MmoMobScaling/CasterRosters/*.json) binding a Role
+selector (exact Id XOR glob) to a list of abilities a matching, gate-eligible mob arms at spawn and
+fires on its own cadence+jitter. Each entry is AbilityId (cast via the MMO's new
+MMOSkillTreeAPI.castNpcAbility(Store,Ref,String), 1.6.0-cycle) XOR NativeChain (a RootInteraction id
+armed via native CombatSupport.addAttackOverride), gated by MinDifficulty/Rarities/Scope
+(HOSTILE|BOSS|ANY) against the frozen MobScaleResult - the gate model matches MobScaleResult exactly
+(a difficulty float, a rarity id string, a scope byte), no integer tier concept introduced.
+
+- New: CasterRosterAsset + CasterRosterConfig (defaults<pack<owner fold) + Rosters.casterRosters()
+  (id-sorted for a deterministic CasterRosterMatcher tie-break).
+- New: CasterRosterMatcher, a pure precedence matcher (exact roleId > longest matching glob > first),
+  the first implementation of the planned BossCurve keying pattern.
+- New: per-entry Windup animations - an optional Windup{Animation, ItemAnimations, Slot} group played
+  through the engine's own entity-generic AnimationUtils immediately before an ability cast, so a
+  scaled mob visibly telegraphs the hit (zero MMO coupling; a NATIVE_CHAIN entry needs no Windup, its
+  chain carries its own animation nodes).
+- New: MobScalingCasterArmSystem (RefSystem, mirrors MobScalingEffectApplySystem) +
+  MobScalingCasterTickSystem (EntityTickingSystem whose Archetype query itself excludes every
+  non-caster mob, so steady-state cost is proportional to armed mobs only). NATIVE_CHAIN entries arm
+  ONCE at spawn, never on cadence (a re-arm resets the engine's attack round-robin cursor and starves
+  the mob's other chains).
+- New: CasterFeatureState - a session-wide latch that disables ability-cast rosters with ONE warning
+  on a LinkageError (running against a pre-1.6.0-cycle MMO jar), so a mismatched jar pair degrades
+  gracefully; NativeChain entries are unaffected.
+- New: ScalingContentValidator.validateCasterRosters (Role.Id XOR Glob, AbilityId XOR NativeChain,
+  unknown Scope, CadenceSeconds >= 2s floor, negative MinDifficulty/JitterSeconds, duplicate Role.Glob).
+- New: demo content - Demo_Boss_Caster.json arms the shipped Fire Dragon boss with the MMO's fireball
+  (~14s cadence, a Hurt-flinch Windup on the Status slot since the dragon rig ships no cast animation),
+  the NPC-only dragon_arcana ice bolt (~20s, no Windup - its native chain carries its own animation
+  nodes), and a dodge NativeChain pointing at this mod's OWN Attack-tagged
+  Mmoscaling_Demo_Dodge root (arms out of the box, and never risks the engine classifying a dodging
+  PLAYER as attacking, which is why the MMO's player-facing MMO_Dodge stays untagged). Plus a fully
+  native CAE_Mmoscaling_Caster_Demo.json/Mmoscaling_Caster_Demo.json pair (spawn via
+  /npc spawn Mmoscaling_Caster_Demo) demonstrating the same periodic-cast idea authored entirely as
+  native asset content, zero Java.
+- Fix (compat): MobScalingDamageFilter's Order.BEFORE dependency retargeted from CombatXpEventSystem
+  (moved to the MMO's Inspect damage group this cycle) to CombatDamageEventSystem (confirmed still
+  Filter-group) - SystemDependency resolves by class across the whole graph regardless of group, so
+  the old dependency was not actually broken by the move, just redundant and pointed at a system no
+  longer in this phase; retargeting removes that latent fragility.
+
 ## 1.0.2 (unreleased, in-game-validation pending)
 
 An in-game admin config UI (`/mobscaling ui`) with full persistence for every runtime tuning path,
