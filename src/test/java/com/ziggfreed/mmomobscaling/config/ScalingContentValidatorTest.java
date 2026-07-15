@@ -17,6 +17,8 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
+import com.ziggfreed.mmomobscaling.caster.CasterEntry;
+import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.variant.Variant;
@@ -118,6 +120,127 @@ class ScalingContentValidatorTest {
         assertEquals(1, ScalingContentValidator.validateDifficultyCaps(1.0, 200.0, 1.0, 120.0).size());
         assertEquals(1, ScalingContentValidator.validateDifficultyCaps(5.0, 200.0, 1.0, 200.0).size());
         assertEquals(2, ScalingContentValidator.validateDifficultyCaps(5.0, 150.0, 1.0, 200.0).size());
+    }
+
+    @Test
+    void cleanCasterRosterPasses() {
+        CasterEntry ability = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 20.0, List.of(),
+                CasterEntry.Scope.BOSS, false, 14_000L, 3_000L,
+                new CasterEntry.Windup("Hurt", null, null));
+        CasterEntry chain = new CasterEntry(CasterEntry.Kind.NATIVE_CHAIN, null, "MMO_Dodge", 0.0, List.of(),
+                CasterEntry.Scope.BOSS, false, 6_000L, 2_000L, null);
+        CasterRoster roster = new CasterRoster("demo_boss_caster", "Dragon_Fire", null, List.of(ability, chain));
+        assertTrue(ScalingContentValidator.validateCasterRosters(List.of(roster)).isEmpty(),
+                "the shipped demo roster's shape is clean (incl. the fireball entry's Windup)");
+    }
+
+    @Test
+    void windupBlankAnimationIsFlagged() {
+        CasterEntry blank = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, 0L, new CasterEntry.Windup("", null, null));
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(blank));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(1, findings.size(), "a Windup group present with a blank Animation is flagged: " + findings);
+        assertTrue(findings.get(0).contains("Windup.Animation"), findings.toString());
+    }
+
+    @Test
+    void windupOnNativeChainEntryIsFlagged() {
+        CasterEntry chain = new CasterEntry(CasterEntry.Kind.NATIVE_CHAIN, null, "MMO_Dodge", 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, 0L, new CasterEntry.Windup("Hurt", null, null));
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(chain));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(1, findings.size(), "a Windup authored on a NativeChain entry is flagged as ineffective: " + findings);
+        assertTrue(findings.get(0).contains("Windup only applies to AbilityId entries"), findings.toString());
+    }
+
+    @Test
+    void windupUnknownSlotIsFlagged() {
+        CasterEntry entry = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, 0L, new CasterEntry.Windup("Hurt", null, "Bogus"));
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(entry));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(1, findings.size(), "an unrecognised Windup.Slot name is flagged: " + findings);
+        assertTrue(findings.get(0).contains("unknown Windup.Slot"), findings.toString());
+    }
+
+    @Test
+    void windupKnownSlotPasses() {
+        CasterEntry entry = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, 0L, new CasterEntry.Windup("Hurt", null, "Status"));
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(entry));
+        assertTrue(ScalingContentValidator.validateCasterRosters(List.of(roster)).isEmpty(),
+                "a recognised Windup.Slot name is clean");
+    }
+
+    @Test
+    void casterRosterRoleSelectorXorIsFlagged() {
+        CasterRoster neither = new CasterRoster("neither", null, null, List.of());
+        CasterRoster both = new CasterRoster("both", "Dragon_Fire", "Dragon_*", List.of());
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(neither, both));
+        assertEquals(2, findings.size(), "both the neither-authored and both-authored rosters are flagged: " + findings);
+    }
+
+    @Test
+    void casterEntryInvalidKindIsFlagged() {
+        CasterEntry invalid = new CasterEntry(CasterEntry.Kind.INVALID, null, null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, 0L, null);
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(invalid));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(1, findings.size(), "the INVALID (neither/both AbilityId+NativeChain) entry is flagged: " + findings);
+        assertTrue(findings.get(0).contains("AbilityId"), findings.toString());
+    }
+
+    @Test
+    void casterEntryUnknownScopeIsFlagged() {
+        CasterEntry unknown = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, true, 10_000L, 0L, null);
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(unknown));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(1, findings.size(), "an unrecognised authored Scope is flagged: " + findings);
+        assertTrue(findings.get(0).contains("Scope"), findings.toString());
+    }
+
+    @Test
+    void casterEntryCadenceFloorIsFlagged() {
+        // Absent CadenceSeconds folds to 0ms; an authored-too-low value (e.g. 1s) also trips the floor.
+        CasterEntry absent = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 0L, 0L, null);
+        CasterEntry tooLow = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 1_000L, 0L, null);
+        CasterEntry clean = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 2_000L, 0L, null);
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(absent, tooLow, clean));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(2, findings.size(), "absent (0) and 1s both trip the >= 2s floor; 2s is clean: " + findings);
+    }
+
+    @Test
+    void casterEntryNegativeMinDifficultyAndJitterAreFlagged() {
+        CasterEntry bad = new CasterEntry(CasterEntry.Kind.ABILITY, "fireball", null, -5.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, -1_000L, null);
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(bad));
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(roster));
+        assertEquals(2, findings.size(), "negative MinDifficulty + negative JitterSeconds both flagged: " + findings);
+    }
+
+    @Test
+    void duplicateRoleGlobAcrossRostersIsFlagged() {
+        CasterRoster a = new CasterRoster("a", null, "Dragon_*", List.of());
+        CasterRoster b = new CasterRoster("b", null, "Dragon_*", List.of());
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(a, b));
+        assertEquals(1, findings.size(), "the second roster's duplicate Glob is flagged: " + findings);
+        assertTrue(findings.get(0).contains("duplicate Role.Glob"), findings.toString());
+    }
+
+    @Test
+    void duplicateRoleIdAcrossRostersIsFlagged() {
+        // Case-insensitive, matching CasterRosterMatcher's equalsIgnoreCase exact-Role.Id precedence.
+        CasterRoster a = new CasterRoster("a", "Dragon_Fire", null, List.of());
+        CasterRoster b = new CasterRoster("b", "dragon_fire", null, List.of());
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(a, b));
+        assertEquals(1, findings.size(), "the second roster's duplicate Role.Id is flagged: " + findings);
+        assertTrue(findings.get(0).contains("duplicate Role.Id"), findings.toString());
     }
 
     @Test

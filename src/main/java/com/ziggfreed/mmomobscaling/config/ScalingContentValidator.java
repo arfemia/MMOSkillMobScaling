@@ -12,6 +12,9 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
+import com.ziggfreed.mmomobscaling.caster.CasterCadence;
+import com.ziggfreed.mmomobscaling.caster.CasterEntry;
+import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
@@ -27,6 +30,14 @@ import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
  * value ranges + shape rules those sites cannot see.
  */
 public final class ScalingContentValidator {
+
+    /**
+     * The exact {@code AnimationSlot} enum names the engine's {@code AnimationSlot.valueOf} accepts
+     * (case-sensitive, mirrored here rather than depending on the engine enum so this class stays
+     * pure/engine-decoupled like the rest of this validator).
+     */
+    private static final Set<String> KNOWN_ANIMATION_SLOTS =
+            Set.of("Movement", "Status", "Action", "Face", "Emote");
 
     private ScalingContentValidator() {
     }
@@ -315,6 +326,101 @@ public final class ScalingContentValidator {
             }
         }
         return findings;
+    }
+
+    /**
+     * Validate folded caster rosters: {@code Role.Id} XOR {@code Role.Glob} (a roster with neither/both
+     * never matches anything - silently dead content), an {@code Abilities[]} entry missing exactly one
+     * of {@code AbilityId}/{@code NativeChain} ({@link CasterEntry.Kind#INVALID}, never armed), an
+     * unrecognised {@code Scope} value, a {@code CadenceSeconds} below the {@link CasterCadence#MIN_CADENCE_MS}
+     * floor (including an absent/zero value), a negative {@code JitterSeconds}, a negative
+     * {@code MinDifficulty}, two DIFFERENT rosters authoring the exact same {@code Role.Glob}
+     * pattern OR the exact same {@code Role.Id} (matcher precedence silently picks one - the same
+     * "duplicate Match" shape as {@link #validateWorldSettings}), a blank {@code Windup.Animation} on an
+     * otherwise-present {@code Windup} group, a {@code Windup} authored on a {@code NativeChain} entry
+     * (wind-ups only apply to {@code AbilityId} entries - a native chain arms once at spawn and carries
+     * its own animation nodes), and an unrecognised {@code Windup.Slot} name. Empty = clean.
+     *
+     * <p>NOT validated: whether a {@code Windup.Animation} model-level key actually exists in the
+     * matching role's model {@code AnimationSets} - model assets are engine-side and read only at
+     * animation-play time, so a bad key degrades to a per-minute engine warning + no-op instead of a
+     * content-audit finding.
+     */
+    @Nonnull
+    public static List<String> validateCasterRosters(@Nonnull Collection<CasterRoster> rosters) {
+        List<String> findings = new ArrayList<>();
+        Set<String> seenGlob = new HashSet<>();
+        Set<String> seenRoleId = new HashSet<>();
+        for (CasterRoster r : rosters) {
+            String at = "caster roster '" + r.id() + "'";
+            if (!r.hasValidRoleSelector()) {
+                findings.add(at + ": Role needs exactly one of Id or Glob (got Id='" + nullToEmpty(r.roleId())
+                        + "', Glob='" + nullToEmpty(r.roleGlob()) + "') - this roster will never match any mob");
+            }
+            if (r.hasRoleGlob()) {
+                String glob = r.roleGlob().trim().toLowerCase(Locale.ROOT);
+                if (!seenGlob.add(glob)) {
+                    findings.add(at + ": duplicate Role.Glob '" + r.roleGlob()
+                            + "' across roster files (matcher precedence silently picks one)");
+                }
+            }
+            if (r.hasRoleId()) {
+                String id = r.roleId().trim().toLowerCase(Locale.ROOT);
+                if (!seenRoleId.add(id)) {
+                    findings.add(at + ": duplicate Role.Id '" + r.roleId()
+                            + "' across roster files (matcher precedence silently picks one)");
+                }
+            }
+            for (int i = 0; i < r.abilities().size(); i++) {
+                findings.addAll(casterEntryFindings(at + " Abilities[" + i + "]", r.abilities().get(i)));
+            }
+        }
+        return findings;
+    }
+
+    /** Per-entry findings for one {@code Abilities[]} element of a caster roster. */
+    @Nonnull
+    private static List<String> casterEntryFindings(@Nonnull String at, @Nonnull CasterEntry e) {
+        List<String> findings = new ArrayList<>();
+        if (e.kind() == CasterEntry.Kind.INVALID) {
+            findings.add(at + ": needs exactly one of AbilityId or NativeChain (got neither or both)"
+                    + " - this entry will never arm");
+        }
+        if (e.scopeUnknown()) {
+            findings.add(at + ": unknown Scope (HOSTILE | BOSS | ANY expected) - falls back to ANY");
+        }
+        if (e.minDifficulty() < 0) {
+            findings.add(at + ": MinDifficulty must be >= 0");
+        }
+        if (e.cadenceMs() < CasterCadence.MIN_CADENCE_MS) {
+            findings.add(at + ": CadenceSeconds must be >= " + (CasterCadence.MIN_CADENCE_MS / 1000.0)
+                    + " (got " + (e.cadenceMs() / 1000.0) + "s; a too-low/absent value is clamped at runtime"
+                    + " but should be fixed in content)");
+        }
+        if (e.jitterMs() < 0) {
+            findings.add(at + ": JitterSeconds must be >= 0");
+        }
+        CasterEntry.Windup windup = e.windup();
+        if (windup != null) {
+            if (windup.animation().isBlank()) {
+                findings.add(at + ": Windup.Animation is blank - the Windup group is present but does nothing");
+            }
+            if (e.kind() == CasterEntry.Kind.NATIVE_CHAIN) {
+                findings.add(at + ": Windup only applies to AbilityId entries - a NativeChain entry arms once"
+                        + " at spawn and its own chain carries its own animation nodes, so this Windup never plays");
+            }
+            String slot = windup.slot();
+            if (slot != null && !slot.isBlank() && !KNOWN_ANIMATION_SLOTS.contains(slot)) {
+                findings.add(at + ": unknown Windup.Slot '" + slot
+                        + "' (Movement | Status | Action | Face | Emote expected) - falls back to the default slot");
+            }
+        }
+        return findings;
+    }
+
+    @Nonnull
+    private static String nullToEmpty(@Nullable String s) {
+        return s != null ? s : "";
     }
 
     private static boolean isBlank(@Nullable String s) {

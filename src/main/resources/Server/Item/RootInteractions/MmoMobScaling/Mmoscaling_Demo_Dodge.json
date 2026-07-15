@@ -1,0 +1,8 @@
+{
+  "$Comment": "1.1.0 dedicated NPC-only demo root for the caster-roster NativeChain example: references the MMO Skill Tree jar's MMO_Dodge Interaction chain by id (resolves at runtime ONLY when the MMO Skill Tree mod is installed alongside this one - the caster-roster NativeChain entry that arms this root degrades to one log warning if it is not). Carries the bare Attack tag with an EMPTY sub-tag list on purpose: NativeChainAttacker's arm-check only needs the 'Attack' key to be present (RootInteraction.getAssetMap().getKeysForTag(CombatSupport.ATTACK_TAG_INDEX)), and an empty list avoids the 'Melee' sub-tag vanilla combat perception keys on, so a dodging PLAYER (via the MMO's own player-facing MMO_Dodge root) is never misclassified as attacking. This root is additive and NPC-only - it does not replace or alter the MMO's player-facing MMO_Dodge root. Delete this file to remove the demo.",
+  "Interactions": ["MMO_Dodge"],
+  "RequireNewClick": true,
+  "Tags": {
+    "Attack": []
+  }
+}

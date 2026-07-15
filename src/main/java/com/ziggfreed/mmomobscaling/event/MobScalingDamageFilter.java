@@ -19,7 +19,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.mmoskilltree.event.CombatXpEventSystem;
+import com.ziggfreed.mmoskilltree.event.CombatDamageEventSystem;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 
@@ -29,10 +29,24 @@ import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
  * path. A scaled ATTACKER scales its OUTGOING damage by {@code outDmgMult}; a scaled VICTIM scales INCOMING
  * damage by {@code inDmgMult}. Both directions are handled by checking attacker + victim independently.
  *
- * <p><b>Ordering ({@link #getDependencies}):</b> pinned {@code BEFORE} the MMO's {@code CombatXpEventSystem} so
- * combat-XP crediting is deterministic (it always observes the SCALED amount, not a restart-dependent pre/post
- * order), and {@code BEFORE} the vanilla {@code ArmorDamageReduction} so the multiply lands before armor's flat
- * subtraction (multiplying post-armor would make flat armor disproportionately strong against scaled mobs).
+ * <p><b>Ordering ({@link #getDependencies}):</b> pinned {@code BEFORE} the MMO's
+ * {@code CombatDamageEventSystem} (crit multiplier + defense reduction - the other FILTER-GROUP damage
+ * MODIFIER) so our scaling multiply lands before that math, and {@code BEFORE} the vanilla
+ * {@code ArmorDamageReduction} so the multiply lands before armor's flat subtraction (multiplying
+ * post-armor would make flat armor disproportionately strong against scaled mobs).
+ *
+ * <p><b>1.1.0 retarget (was {@code CombatXpEventSystem}):</b> the MMO moved {@code CombatXpEventSystem}
+ * out of the Filter group into the INSPECT group (a passive XP-read, not a damage modifier - it now
+ * reads {@code damage.getAmount()} post-{@code ApplyDamage}, the same FINAL value
+ * {@link MobScalingOnHitSystem} reads). {@code SystemDependency} resolves purely by CLASS across the
+ * whole store's dependency graph (group-agnostic - see {@code SystemDependency.resolveGraphEdge} in the
+ * shared source), so the OLD dependency kept validating and resolving correctly even after that move
+ * (Filter always structurally precedes Inspect, so XP crediting still observed the scaled amount) - it
+ * was not broken, just redundant and pointed at a system no longer in this phase. Retargeting to
+ * {@code CombatDamageEventSystem} (confirmed still Filter-group) restores a same-phase ordering
+ * guarantee against this filter's actual peer and drops the latent risk of {@code SystemDependency
+ * .validate()} throwing {@code IllegalArgumentException} if a future MMO build removes/renames
+ * {@code CombatXpEventSystem} outright rather than just moving its group.
  *
  * <p><b>Behavioral affixes are NOT here.</b> Lifesteal + the Freezing on-hit slow moved to
  * {@link MobScalingOnHitSystem} (the INSPECT group), where {@code damage.getAmount()} is the FINAL applied value
@@ -44,8 +58,8 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
 
     @Nonnull
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-            // Deterministic combat-XP crediting: the MMO reads damage.getAmount() for XP AFTER we scale.
-            new SystemDependency<>(Order.BEFORE, CombatXpEventSystem.class),
+            // Filter-phase peer ordering: our scaling multiply lands before the MMO's own crit/defense math.
+            new SystemDependency<>(Order.BEFORE, CombatDamageEventSystem.class),
             // Multiply BEFORE armor's flat subtraction (verifier: post-armor multiply over-weights flat armor).
             new SystemDependency<>(Order.BEFORE, DamageSystems.ArmorDamageReduction.class));
 

@@ -1,0 +1,31 @@
+{
+  "$Comment": "1.1.0 flagship native-asset-first DEMO: a Combat Action Evaluator that fires the native MMO_Dodge RootInteraction as a SELF-targeted Ability action. The periodic-cast cadence is the EVALUATOR-level RunConditions gate below: a TimeSinceLastUsed condition whose utility ramps Linearly 0->1 over the 16s XRange since the evaluator itself last ran this action, so the MinRunUtility 0.5 threshold opens the gate at roughly the XRange midpoint, ~8 seconds. (The Dodge action carries no per-action TimeSinceLastUsed condition - a redundant one there would just re-gate the same clock a second time.) The engine additionally imposes its own hardcoded ~2s minimum between repeats of a self-targeted Ability action via CombatSupport's attackPause, so a much shorter XRange would still be floored at ~2s regardless of what this JSON says. This periodic-cast cadence lives entirely in this JSON, zero Java. Modeled on the vanilla Server/NPC/Balancing/Intelligent/CAE_Goblin_Scavenger_Sword.json shape. Wired to the additive Server/NPC/Roles/MmoMobScaling/Mmoscaling_Caster_Demo.json role only - nothing vanilla references this asset. Delete both files to remove the demo.",
+  "Type": "CombatActionEvaluator",
+  "TargetMemoryDuration": 10,
+  "CombatActionEvaluator": {
+    "RunConditions": [
+      {
+        "Type": "TimeSinceLastUsed",
+        "Curve": {
+          "ResponseCurve": "Linear",
+          "XRange": [0, 16]
+        }
+      }
+    ],
+    "MinRunUtility": 0.5,
+    "MinActionUtility": 0.01,
+    "AvailableActions": {
+      "Dodge": {
+        "Type": "Ability",
+        "Description": "Periodically dodge in place to demonstrate a native, Java-free caster cadence",
+        "Target": "Self",
+        "Ability": "MMO_Dodge"
+      }
+    },
+    "ActionSets": {
+      "Default": {
+        "Actions": ["Dodge"]
+      }
+    }
+  }
+}

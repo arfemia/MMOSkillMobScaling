@@ -1,0 +1,137 @@
+{
+  "$Comment": "1.1.0 flagship native-asset-first DEMO role: an ADDITIVE, brand-new role id (never overrides anything vanilla) wiring CombatConfig to Server/NPC/Balancing/MmoMobScaling/CAE_Mmoscaling_Caster_Demo.json, so a spawned instance periodically dodges entirely via native CAE content (zero Java). The Idle/Combat state tree below is copied from the official minimal template, Server/NPC/Roles/_Core/Tests_Development/Test_Combat_Action_Evaluator.json, so the CombatActionEvaluator actually gets driven. Spawn with '/npc spawn Mmoscaling_Caster_Demo' (admin). Delete this file (and the CAE file) to remove the demo.",
+  "Type": "Generic",
+  "Appearance": "Sheep",
+  "CombatConfig": "CAE_Mmoscaling_Caster_Demo",
+  "HotbarItems": [],
+  "DefaultPlayerAttitude": "Hostile",
+  "DefaultNPCAttitude": "Hostile",
+  "StartState": "Idle",
+  "MotionControllerList": [
+    {
+      "Type": "Walk",
+      "MaxWalkSpeed": 3,
+      "Gravity": 10,
+      "MaxFallSpeed": 20,
+      "Acceleration": 10
+    }
+  ],
+  "MaxHealth": { "Compute": "MaxHealth" },
+  "Parameters": {
+    "MaxHealth": {
+      "Value": 300,
+      "Description": "Max health for the NPC"
+    }
+  },
+  "Instructions": [
+    {
+      "Instructions": [
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Idle"
+          },
+          "Instructions": [
+            {
+              "Sensor": {
+                "Type": "Mob",
+                "Range": 10,
+                "GetPlayers": true,
+                "Filters": [
+                  {
+                    "Type": "Attitude",
+                    "Attitudes": ["Hostile", "Friendly"]
+                  }
+                ],
+                "Collector": {
+                  "Type": "CombatTargets"
+                }
+              },
+              "Actions": [
+                {
+                  "Type": "State",
+                  "State": "Combat"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "Sensor": {
+            "Type": "State",
+            "State": "Combat"
+          },
+          "Instructions": [
+            {
+              "Sensor": {
+                "Type": "Or",
+                "Sensors": [
+                  {
+                    "Type": "Mob",
+                    "Range": 30,
+                    "GetPlayers": true,
+                    "LockOnTarget": false,
+                    "Filters": [
+                      {
+                        "Type": "Attitude",
+                        "Attitudes": ["Hostile", "Friendly"]
+                      }
+                    ],
+                    "Collector": {
+                      "Type": "CombatTargets"
+                    }
+                  },
+                  {
+                    "Type": "HasHostileTargetMemory"
+                  }
+                ]
+              },
+              "Instructions": [
+                {
+                  "Sensor": {
+                    "Type": "CombatActionEvaluator",
+                    "TargetInRange": true
+                  },
+                  "HeadMotion": {
+                    "Type": "Aim"
+                  },
+                  "BodyMotion": {
+                    "Type": "MaintainDistance",
+                    "DesiredDistanceRange": [1, 1],
+                    "MoveThreshold": 0.3,
+                    "RelativeForwardsSpeed": 1
+                  },
+                  "Actions": [
+                    {
+                      "Type": "CombatAbility"
+                    }
+                  ]
+                },
+                {
+                  "Sensor": {
+                    "Type": "CombatActionEvaluator",
+                    "TargetInRange": false
+                  },
+                  "BodyMotion": {
+                    "Type": "Seek",
+                    "SlowDownDistance": 1,
+                    "StopDistance": 1
+                  }
+                }
+              ]
+            },
+            {
+              "Actions": [
+                {
+                  "Type": "State",
+                  "State": "Idle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "NameTranslationKey": "server.npcRoles.Mmoscaling_Caster_Demo.name"
+}

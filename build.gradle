@@ -22,13 +22,17 @@ repositories {
 // ============================================================================
 // VERSION STORY (intentional, do not "fix"):
 //   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar
-//   (1.5.1), which carries the frozen 1.5.0 API surface the scaling systems call
+//   (1.5.2), which carries the frozen 1.5.0 API surface the scaling systems call
 //   (getPowerLevel / getPowerLevelMin / getPowerLevelMax / statRewardSum / getCombatLevel,
-//   plus the registerMobKillXpMultiplier reward hook). Its manifest, however, pins the RUNTIME requirement at
+//   plus the registerMobKillXpMultiplier reward hook) PLUS (1.1.0) a phase-h build of
+//   castNpcAbility(Store, Ref, String), the API the caster roster's ABILITY entries call.
+//   Its manifest, however, pins the RUNTIME requirement at
 //   "Ziggfreed:MMOSkillTree": ">=1.5.0" - the eventual hyMMO release that ships
 //   those API methods publicly. So: compile against the dev jar, require 1.5.0 at
 //   runtime. This is deliberate and lets the mob-scaling mod be built now against
-//   the in-progress API.
+//   the in-progress API; castNpcAbility specifically degrades gracefully (one session
+//   warning via caster/CasterFeatureState) rather than crashing when the runtime jar
+//   is older than the dev jar this compiled against - see that class's javadoc.
 // ============================================================================
 
 // Compile against the SAME jar the server runs (path in gradle.properties).
