@@ -19,7 +19,16 @@
         "Type": "Ability",
         "Description": "Periodically dodge in place to demonstrate a native, Java-free caster cadence",
         "Target": "Self",
-        "Ability": "MMO_Dodge"
+        "Ability": "MMO_Dodge",
+        "AttackDistanceRange": [0, 30],
+        "Conditions": [
+          {
+            "$Comment": "Schema-REQUIRED (a null Conditions list fails asset validation, boot-verified 2026-07-15). Always-eligible constant; the real ~8s cadence stays on the evaluator-level RunConditions gate above.",
+            "Type": "Randomiser",
+            "MinValue": 1,
+            "MaxValue": 1
+          }
+        ]
       }
     },
     "ActionSets": {
