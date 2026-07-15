@@ -12,7 +12,9 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.ziggfreed.common.asset.AssetStoreRegistrar;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
+import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
@@ -54,6 +56,8 @@ public final class MobScalingAssetRegistrar {
     private static final String DIFFICULTY_PATH = "MmoMobScaling/Difficulty";
     /** Keyed per-world settings store ({@code Server/MmoMobScaling/Worlds/*.json}, raw Parent-able bodies). */
     private static final String WORLDS_PATH = "MmoMobScaling/Worlds";
+    /** Keyed NPC caster-roster store ({@code Server/MmoMobScaling/CasterRosters/*.json}). */
+    private static final String CASTER_ROSTERS_PATH = "MmoMobScaling/CasterRosters";
 
     private MobScalingAssetRegistrar() {
     }
@@ -127,6 +131,39 @@ public final class MobScalingAssetRegistrar {
                 null);
         plugin.getEventRegistry().register(LoadedAssetsEvent.class, WorldSettingsAsset.class,
                 MobScalingAssetRegistrar::onWorldsLoaded);
+
+        // Caster rosters (keyed multi-asset store; folded into CasterRosterConfig on load, matched +
+        // gated by MobScalingCasterArmSystem at spawn, rolled/re-armed by MobScalingCasterTickSystem).
+        AssetStoreRegistrar.registerStore(
+                CasterRosterAsset.class,
+                new DefaultAssetMap<String, CasterRosterAsset>(),
+                CASTER_ROSTERS_PATH,
+                CasterRosterAsset::getId,
+                CasterRosterAsset.CODEC,
+                null);
+        plugin.getEventRegistry().register(LoadedAssetsEvent.class, CasterRosterAsset.class,
+                MobScalingAssetRegistrar::onCasterRostersLoaded);
+    }
+
+    /**
+     * Fold the loaded caster-roster assets (same all-entries fold as rarities: this mod ships jar
+     * defaults, so the bundled demo roster IS a default, not just an example) into
+     * {@link CasterRosterConfig}'s pack layer, rebuild {@link Rosters#casterRosters()}, and run the
+     * roster-shape content checks.
+     */
+    static void onCasterRostersLoaded(
+            LoadedAssetsEvent<String, CasterRosterAsset, DefaultAssetMap<String, CasterRosterAsset>> event) {
+        Map<String, CasterRoster> layer = new LinkedHashMap<>();
+        for (Map.Entry<String, CasterRosterAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
+            CasterRosterAsset asset = entry.getValue();
+            if (asset != null) {
+                layer.put(entry.getKey(), asset.toDomain());
+            }
+        }
+        CasterRosterConfig.getInstance().mergePackLayer(layer);
+        Rosters.rebuild();
+        logApplied("caster rosters", layer.size());
+        warnFindings(ScalingContentValidator.validateCasterRosters(layer.values()));
     }
 
     /**

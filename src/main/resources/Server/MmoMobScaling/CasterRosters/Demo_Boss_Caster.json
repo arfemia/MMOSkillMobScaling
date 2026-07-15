@@ -1,0 +1,29 @@
+{
+  "$Comment": "1.1.0 caster-roster DEMO: arms the shipped Fire Dragon boss (Server/NPC/Groups/Mmoscaling_Bosses.json) with two ABILITY entries (casts the MMO's 'fireball' and 'dragon_arcana' abilities via MMOSkillTreeAPI.castNpcAbility - needs the MMO's 1.6.0-cycle jar; degrades to one session warning on an older jar) and one NATIVE_CHAIN entry (armed ONCE at spawn via CombatSupport.addAttackOverride - see NativeChainAttacker's javadoc for why a cadence re-arm would starve other chains; CadenceSeconds/JitterSeconds on this entry are folded but functionally inert for a NATIVE_CHAIN kind). All three entries are Scope:BOSS (belt-and-suspenders on top of the exact Role.Id match), so plain/hostile mobs are never touched by this file. The NativeChain now points at this mod's OWN dedicated Server/Item/RootInteractions/MmoMobScaling/Mmoscaling_Demo_Dodge.json (Attack-tagged, NPC-only) instead of the MMO's player-facing MMO_Dodge root - it arms out of the box (no MMO-side tagging needed) and never risks misclassifying a dodging PLAYER as attacking. 'dragon_arcana' (1.6.0 Phase H) is the MMO's NPC-only NATIVE_CHAIN exemplar - it fires the MMO's own Effects[0] NativeChain step, which in turn fires the vanilla chargeless Goblin_Duke_Magic_1 ice-bolt chain; ~20s cadence keeps it noticeably rarer than the fireball. The fireball entry's Windup plays the Dragon_Fire model's own 'Hurt' AnimationSets key (verified present in hytale-shared-source/HytaleAssets/Server/Models/Elemental/Dragon_Fire.json) on the default Status slot, a rear-back flinch that reads as a wind-up cue with zero new assets - the dragon has no dedicated cast/attack animation. dragon_arcana deliberately carries NO Windup: its own NativeChain step (fired inside the MMO's ability) carries its own animation nodes. Note: dragon_arcana's underlying chain is inherited from a goblin-authored Throw item-anim and likely no-ops silently on the dragon rig (item-anim pairs skip model validation and simply do nothing on a mismatched rig) - in-game verification pending; a proper dragon cast animation is a future model-authoring pass. Delete this file to remove the demo.",
+  "Role": {
+    "Id": "Dragon_Fire"
+  },
+  "Abilities": [
+    {
+      "AbilityId": "fireball",
+      "Scope": "BOSS",
+      "CadenceSeconds": 14.0,
+      "JitterSeconds": 3.0,
+      "Windup": {
+        "Animation": "Hurt"
+      }
+    },
+    {
+      "NativeChain": "Mmoscaling_Demo_Dodge",
+      "Scope": "BOSS",
+      "CadenceSeconds": 6.0,
+      "JitterSeconds": 2.0
+    },
+    {
+      "AbilityId": "dragon_arcana",
+      "Scope": "BOSS",
+      "CadenceSeconds": 20.0,
+      "JitterSeconds": 3.0
+    }
+  ]
+}

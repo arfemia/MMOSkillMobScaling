@@ -16,6 +16,8 @@ import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.caster.CasterEntry;
+import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
@@ -43,6 +45,7 @@ class MobScalingAssetCodecTest {
         // AssetBuilderCodec), so touch its class-init explicitly to keep the PascalCase guarantee.
         assertNotNull(WorldSettings.CODEC, "WorldSettings.CODEC static-init (the per-world body schema)");
         assertNotNull(WorldSettings.Pool.CODEC, "WorldSettings.Pool.CODEC static-init");
+        assertNotNull(CasterRosterAsset.CODEC, "CasterRosterAsset.CODEC static-init (PascalCase key guard)");
     }
 
     @Test
@@ -148,6 +151,131 @@ class MobScalingAssetCodecTest {
     }
 
     @Test
+    void decodesShippedDemoBossCasterRoster() throws Exception {
+        CasterRoster r = decode("/Server/MmoMobScaling/CasterRosters/Demo_Boss_Caster.json", CasterRosterAsset.CODEC)
+                .toDomain();
+        assertEquals("Dragon_Fire", r.roleId(), "Role.Id");
+        assertNull(r.roleGlob(), "no Role.Glob authored");
+        assertTrue(r.hasValidRoleSelector(), "exactly one of Id/Glob authored");
+        assertEquals(3, r.abilities().size(), "two ABILITY entries + one NATIVE_CHAIN entry");
+
+        CasterEntry ability = r.abilities().get(0);
+        assertEquals(CasterEntry.Kind.ABILITY, ability.kind());
+        assertEquals("fireball", ability.abilityId());
+        assertNull(ability.nativeChain());
+        assertEquals(CasterEntry.Scope.BOSS, ability.scope());
+        assertTrue(!ability.scopeUnknown());
+        assertEquals(14_000L, ability.cadenceMs(), "CadenceSeconds 14.0 -> 14000ms");
+        assertEquals(3_000L, ability.jitterMs(), "JitterSeconds 3.0 -> 3000ms");
+        // 1.1.0: the fireball entry's Windup plays the Dragon_Fire model's own "Hurt" AnimationSets key
+        // (a model-level cue, no ItemAnimations pair, no Slot override -> default Status slot at play time).
+        assertNotNull(ability.windup(), "fireball entry carries a Windup");
+        assertEquals("Hurt", ability.windup().animation(), "Windup.Animation");
+        assertNull(ability.windup().itemAnimations(), "no ItemAnimations authored (model-level key)");
+        assertNull(ability.windup().slot(), "no Slot override authored (defaults to Status at play time)");
+        assertTrue(!ability.windup().isItemAnim(), "a bare model-level Animation is not an item-anim pair");
+
+        CasterEntry chain = r.abilities().get(1);
+        assertEquals(CasterEntry.Kind.NATIVE_CHAIN, chain.kind());
+        assertEquals("Mmoscaling_Demo_Dodge", chain.nativeChain(),
+                "retargeted to this mod's own Attack-tagged NPC-only demo root, not the MMO's player-facing MMO_Dodge");
+        assertNull(chain.abilityId());
+        assertEquals(CasterEntry.Scope.BOSS, chain.scope());
+        assertEquals(6_000L, chain.cadenceMs());
+        assertEquals(2_000L, chain.jitterMs());
+        assertNull(chain.windup(), "the NATIVE_CHAIN entry authors no Windup (its own chain carries its own nodes)");
+
+        // 1.6.0 Phase H: dragon_arcana, the MMO's NPC-only NATIVE_CHAIN exemplar - a second
+        // ABILITY entry, rarer cadence than the fireball.
+        CasterEntry arcana = r.abilities().get(2);
+        assertEquals(CasterEntry.Kind.ABILITY, arcana.kind());
+        assertEquals("dragon_arcana", arcana.abilityId());
+        assertNull(arcana.nativeChain());
+        assertEquals(CasterEntry.Scope.BOSS, arcana.scope());
+        assertTrue(!arcana.scopeUnknown());
+        assertEquals(20_000L, arcana.cadenceMs(), "CadenceSeconds 20.0 -> 20000ms");
+        assertEquals(3_000L, arcana.jitterMs(), "JitterSeconds 3.0 -> 3000ms");
+        assertNull(arcana.windup(), "dragon_arcana authors no Windup (its own NativeChain step carries its own nodes)");
+    }
+
+    @Test
+    void casterRosterEntryXorViolationsFoldToInvalid() throws Exception {
+        CasterRosterAsset asset = decodeJson("""
+                { "Role": { "Id": "Test_Role" },
+                  "Abilities": [
+                    { "MinDifficulty": 5.0 },
+                    { "AbilityId": "fireball", "NativeChain": "MMO_Dodge" }
+                  ] }
+                """, CasterRosterAsset.CODEC);
+        CasterRoster r = asset.toDomain();
+        assertEquals(2, r.abilities().size(), "both malformed entries are KEPT (not dropped) for the validator to see");
+        assertEquals(CasterEntry.Kind.INVALID, r.abilities().get(0).kind(), "neither AbilityId nor NativeChain");
+        assertEquals(CasterEntry.Kind.INVALID, r.abilities().get(1).kind(), "both AbilityId and NativeChain");
+    }
+
+    @Test
+    void windupGroupAbsentFoldsToNull() throws Exception {
+        CasterRosterAsset asset = decodeJson("""
+                { "Role": { "Id": "Test_Role" },
+                  "Abilities": [
+                    { "AbilityId": "fireball" }
+                  ] }
+                """, CasterRosterAsset.CODEC);
+        CasterEntry entry = asset.toDomain().abilities().get(0);
+        assertNull(entry.windup(), "no Windup key authored -> null, zero-cost for every entry that opts out");
+    }
+
+    @Test
+    void windupItemAnimationPairAndSlotOverrideRoundTrip() throws Exception {
+        CasterRosterAsset asset = decodeJson("""
+                { "Role": { "Id": "Test_Role" },
+                  "Abilities": [
+                    { "AbilityId": "fireball",
+                      "Windup": { "Animation": "Throw", "ItemAnimations": "Goblin_Item_Anims", "Slot": "Action" } }
+                  ] }
+                """, CasterRosterAsset.CODEC);
+        CasterEntry.Windup w = asset.toDomain().abilities().get(0).windup();
+        assertNotNull(w, "Windup group decodes");
+        assertEquals("Throw", w.animation(), "Animation (the item-anim pair's animation id)");
+        assertEquals("Goblin_Item_Anims", w.itemAnimations(), "ItemAnimations");
+        assertEquals("Action", w.slot(), "Slot override");
+        assertTrue(w.isItemAnim(), "ItemAnimations authored -> an item-anim pair");
+    }
+
+    @Test
+    void windupBlankAnimationIsKeptNotDropped() throws Exception {
+        // Mirrors the CasterEntry.Kind.INVALID precedent: a malformed Windup group is preserved as a
+        // domain object (not silently null) so ScalingContentValidator can flag it as content.
+        CasterRosterAsset asset = decodeJson("""
+                { "Role": { "Id": "Test_Role" },
+                  "Abilities": [
+                    { "AbilityId": "fireball", "Windup": { "Slot": "Status" } }
+                  ] }
+                """, CasterRosterAsset.CODEC);
+        CasterEntry.Windup w = asset.toDomain().abilities().get(0).windup();
+        assertNotNull(w, "the Windup group is present (even without Animation) so it survives to the validator");
+        assertEquals("", w.animation(), "absent Animation folds to blank, not null");
+        assertTrue(w.animation().isBlank());
+    }
+
+    @Test
+    void casterRosterRoleSelectorViolationsPreserveRawValues() throws Exception {
+        CasterRosterAsset neither = decodeJson("{ \"Abilities\": [] }", CasterRosterAsset.CODEC);
+        CasterRoster neitherRoster = neither.toDomain();
+        assertNull(neitherRoster.roleId());
+        assertNull(neitherRoster.roleGlob());
+        assertTrue(!neitherRoster.hasValidRoleSelector());
+
+        CasterRosterAsset both = decodeJson(
+                "{ \"Role\": { \"Id\": \"Dragon_Fire\", \"Glob\": \"Dragon_*\" }, \"Abilities\": [] }",
+                CasterRosterAsset.CODEC);
+        CasterRoster bothRoster = both.toDomain();
+        assertEquals("Dragon_Fire", bothRoster.roleId());
+        assertEquals("Dragon_*", bothRoster.roleGlob());
+        assertTrue(!bothRoster.hasValidRoleSelector(), "both authored is ALSO invalid (XOR), even though both values decode");
+    }
+
+    @Test
     void affixWithoutIconHasNoIcon() {
         Affix plain = new Affix("x", "", "", null, 1, 0, java.util.List.of("*"), 0, 0, 0, 0,
                 Affix.KIND_STAT, null, false);
@@ -185,5 +313,10 @@ class MobScalingAssetCodecTest {
             String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             return codec.decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
         }
+    }
+
+    private static <T extends JsonAsset<String>> T decodeJson(String json, AssetBuilderCodec<String, T> codec)
+            throws Exception {
+        return codec.decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
     }
 }

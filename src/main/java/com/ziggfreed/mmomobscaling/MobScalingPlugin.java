@@ -12,10 +12,13 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.command.MobScalingCommand;
+import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
+import com.ziggfreed.mmomobscaling.event.MobScalingCasterArmSystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingCasterTickSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingHudSystem;
@@ -35,12 +38,20 @@ import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
  * (rolls rarity/affixes + reconciles HP), the effect-reconcile {@code MobScalingEffectApplySystem}
  * (applies + sweeps the native aura / affix effects), the {@code MobScalingDamageFilter}
  * (the damage-multiply, pinned before armor + the MMO combat-XP read), and the
- * {@code MobScalingOnHitSystem} (lifesteal + the Freezing on-hit slow, in the inspect group) -
- * plus a kill-XP reward multiplier registered on the frozen {@code MMOSkillTreeAPI}.
+ * {@code MobScalingOnHitSystem} (lifesteal + the Freezing on-hit slow, in the inspect group), and
+ * (1.1.0) the NPC caster roster - {@code MobScalingCasterArmSystem} (arms a matching, gate-eligible
+ * mob's {@code Server/MmoMobScaling/CasterRosters/*.json} abilities at spawn) +
+ * {@code MobScalingCasterTickSystem} (casts an {@code ABILITY} entry via
+ * {@code MMOSkillTreeAPI.castNpcAbility} or re-arms a {@code NATIVE_CHAIN} entry's native attack
+ * override, both on the roster's own cadence) - plus a kill-XP reward multiplier registered on the
+ * frozen {@code MMOSkillTreeAPI}.
  *
  * <p>Version story: this mod compiles against the local MMOSkillTree dev jar (which
  * already carries the frozen 1.5.0 API) while its manifest pins the runtime
- * requirement at MMOSkillTree {@code >=1.5.0}. See build.gradle for the rationale.
+ * requirement at MMOSkillTree {@code >=1.5.0}. See build.gradle for the rationale. The 1.1.0 caster
+ * roster's {@code ABILITY} entries additionally need the MMO's 1.6.0-cycle jar (which adds
+ * {@code castNpcAbility}); running against an older jar degrades gracefully (see
+ * {@code caster/CasterFeatureState}) rather than crashing or spamming the log.
  */
 public class MobScalingPlugin extends JavaPlugin {
 
@@ -51,6 +62,9 @@ public class MobScalingPlugin extends JavaPlugin {
     /** The registered transient {@code ScaledMobComponent} type (set in {@link #setup()} when enabled). */
     private ComponentType<EntityStore, ScaledMobComponent> scaledMobComponentType;
 
+    /** The registered transient {@code CasterKitComponent} type (set in {@link #setup()} when enabled). */
+    private ComponentType<EntityStore, CasterKitComponent> casterKitComponentType;
+
     @Nonnull
     public static MobScalingPlugin getInstance() {
         return instance;
@@ -59,6 +73,11 @@ public class MobScalingPlugin extends JavaPlugin {
     /** The frozen scaled-mob component type; {@code null} until {@code setup()} registers it (mod enabled). */
     public ComponentType<EntityStore, ScaledMobComponent> getScaledMobComponentType() {
         return scaledMobComponentType;
+    }
+
+    /** The frozen caster-kit component type; {@code null} until {@code setup()} registers it (mod enabled). */
+    public ComponentType<EntityStore, CasterKitComponent> getCasterKitComponentType() {
+        return casterKitComponentType;
     }
 
     public MobScalingPlugin(@Nonnull JavaPluginInit init) {
@@ -99,9 +118,12 @@ public class MobScalingPlugin extends JavaPlugin {
         }
 
         // Register the frozen scaled-mob component FIRST (transient: re-derived per spawn from the stable
-        // seed, no codec) so the systems can resolve its ComponentType at construction.
+        // seed, no codec) so the systems can resolve its ComponentType at construction. CasterKitComponent
+        // is transient too (re-armed identically on every spawn/reload; see its own javadoc).
         scaledMobComponentType = getEntityStoreRegistry().registerComponent(
                 ScaledMobComponent.class, ScaledMobComponent::new);
+        casterKitComponentType = getEntityStoreRegistry().registerComponent(
+                CasterKitComponent.class, CasterKitComponent::new);
 
         // Register the settings + rarity/affix asset stores + their LoadedAssetsEvent folds (real claimed
         // assets, pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
@@ -115,6 +137,12 @@ public class MobScalingPlugin extends JavaPlugin {
         getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
         getEntityStoreRegistry().registerSystem(new MobScalingOnHitSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingLootDropSystem());
+
+        // NPC caster roster (1.1.0): arm-at-spawn (RefSystem, mirrors MobScalingEffectApplySystem)
+        // + the cadence caster (EntityTickingSystem, only ever ticks mobs an armed CasterKitComponent
+        // was actually stamped onto).
+        getEntityStoreRegistry().registerSystem(new MobScalingCasterArmSystem());
+        getEntityStoreRegistry().registerSystem(new MobScalingCasterTickSystem());
 
         // Open-world group delta: track player presence per region grid (updates only on region cross)
         // so the spawn hook reads a CACHED per-region power scalar - never a per-spawn player scan.
