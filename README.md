@@ -9,7 +9,7 @@ tougher, rarer enemies while a lone newcomer is not overwhelmed.
 
 ## Status
 
-**v1.0.1 (released); v1.0.2 in flight** (per-world settings as one-file-per-world with `Parent` inheritance, per-world spawn pools + kill-switch + baseline floor, the `/mobscaling ui` admin panel, and persisted live tuning). The full scaling system is in:
+**v1.0.1 (released); v1.0.2 in flight** (the `/mobscaling ui` admin panel with persisted live tuning, per-world settings as one-file-per-world with `Parent` inheritance, and per-world spawn pools + kill-switch + baseline floor). The full scaling system is in:
 layered native zone/biome difficulty floors + a distance-from-spawn escalation + a group-power
 delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix catalog on native
 `EntityEffect` assets, deterministic per-UUID rolls, bonus kill-XP + native drop-list loot, the

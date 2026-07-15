@@ -4,10 +4,10 @@ All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
 ## 1.0.2 (unreleased, in-game-validation pending)
 
-Per-world config reworked onto its own files with inheritance, more per-world knobs, an in-game admin
-config UI, and full persistence for every runtime tuning path. Requires MMO Skill Tree 1.5.0+ (the build
-that removes the old WorldRules mob-scaling baseline - update BOTH together) and Ziggfreed's CommonLib
-1.3.0+.
+An in-game admin config UI (`/mobscaling ui`) with full persistence for every runtime tuning path,
+plus per-world config reworked onto its own files with inheritance and more per-world knobs. Requires
+MMO Skill Tree 1.5.0+ (the build that removes the old WorldRules mob-scaling baseline - update BOTH
+together) and Ziggfreed's CommonLib 1.3.0+.
 
 - Change (default tuning): softened the DEFAULT difficulty->stat curve and pushed distance escalation
   farther out, so a scaled mob is tankier than it is bursty and the deep-frontier ramp starts later.
