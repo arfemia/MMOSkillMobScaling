@@ -29,6 +29,18 @@ mastery + achievements, weights in `Server/MMOSkillTree/PowerLevel/Default.json`
 reflects builds, not just the max combat level. Remaining FOLLOW-UPS: the TriggerVolume floor layer +
 `BossCurve` (see the hyMMO handoff plan). Everything is IN-GAME-VALIDATION PENDING.
 
+**1.1.0 adds the CasterRoster system**: a Pattern-A asset
+(`Server/MmoMobScaling/CasterRosters/*.json`) binding a `Role` selector (exact `Id` XOR `Glob`,
+precedence exact > longest glob > first) to `Abilities[]` entries (`AbilityId` cast via the MMO's
+`castNpcAbility` API XOR `NativeChain` armed once at spawn via native `CombatSupport.addAttackOverride`),
+each entry gated by `MinDifficulty`/`Rarities`/`Scope`, on its own cadence + jitter, with an optional
+per-entry `Windup` animation played through the engine's own `AnimationUtils` immediately before the
+cast so a scaled mob visibly telegraphs the hit. Content is validated by
+`ScalingContentValidator.validateCasterRosters`. Demo content ships as `Demo_Boss_Caster.json` (arms
+the shipped Fire Dragon boss) plus a fully native CAE pair, spawnable via `/npc spawn
+Mmoscaling_Caster_Demo`, that shows the same periodic-special-move idea authored with zero mod config
+at all. IN-GAME-VALIDATION PENDING like the rest of the mod.
+
 Package root: **`com.ziggfreed.mmomobscaling`**.
 
 ## Build
@@ -60,11 +72,15 @@ breaks class identity):
   the per-world form does not expose them; see `pages/CLAUDE.md`). The mod's own `hud/HudPosition` copy
   was retired for the lifted common one.
 - **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
-  `MMOSkillTree-1.5.0.jar` dev jar (pin `mmoSkillTreeVersion=1.5.0`), which carries the frozen 1.5.0 API
+  `MMOSkillTree-1.5.2.jar` dev jar (pin `mmoSkillTreeVersion=1.5.2`), which carries the frozen 1.5.0 API
   the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /
   `getCombatLevel` (power reads) plus `registerMobKillXpMultiplier` (the kill-XP reward hook). The
   settings fold cross-checks `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift
-  (guarded: an older jar without the getters validates clean). See the comment block in `build.gradle`.
+  (guarded: an older jar without the getters validates clean). The 1.1.0 caster-roster feature's
+  `ABILITY` entries ALSO call the MMO's `castNpcAbility(Store, Ref, String)` API (present in
+  1.6.0-cycle jars, which is why the dev-jar pin is ahead of the ">=1.5.0" runtime-manifest floor
+  above); `MobScalingCasterTickSystem` latches ability casting off for the whole session with one
+  warning when that method is missing on an older jar. See the comment block in `build.gradle`.
 
 jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
 config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.
