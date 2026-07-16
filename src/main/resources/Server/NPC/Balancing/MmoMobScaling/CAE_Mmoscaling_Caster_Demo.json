@@ -23,10 +23,10 @@
         "AttackDistanceRange": [0, 30],
         "Conditions": [
           {
-            "$Comment": "Schema-REQUIRED (a null Conditions list fails asset validation, boot-verified 2026-07-15). Always-eligible constant; the real ~8s cadence stays on the evaluator-level RunConditions gate above.",
+            "$Comment": "Schema-REQUIRED (a null Conditions list fails asset validation, boot-verified 2026-07-15). Effectively-always-eligible jitter; the real ~8s cadence stays on the evaluator-level RunConditions gate above. ENGINE CONSTRAINT (world-crash-verified 2026-07-15): RandomiserCondition.calculateUtility calls ThreadLocalRandom.nextDouble(MinValue, MaxValue), which throws IllegalArgumentException when MinValue >= MaxValue and KILLS THE WORLD THREAD every evaluator tick (incl. on world LOAD while the NPC is saved). MinValue must be STRICTLY less than MaxValue; the codec validates only the 0..1 range, not the ordering.",
             "Type": "Randomiser",
-            "MinValue": 1,
-            "MaxValue": 1
+            "MinValue": 0.9,
+            "MaxValue": 1.0
           }
         ]
       }
