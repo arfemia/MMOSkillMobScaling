@@ -2,5 +2,5 @@
   "$Comment": "Type-wide zone wildcard: any native zone WITHOUT its own mapping (e.g. a new zone added by a worldgen update) floors here instead of falling to the biome/world layers.",
   "TargetType": "Zone",
   "TargetId": "*",
-  "Floor": 10.0
+  "Floor": 2.0
 }

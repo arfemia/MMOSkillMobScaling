@@ -2,5 +2,5 @@
   "$Comment": "Zone4 prefix family: floors every Zone4_* chunk unless a longer exact override below wins.",
   "TargetType": "Zone",
   "TargetId": "Zone4",
-  "Floor": 55.0
+  "Floor": 20.0
 }

@@ -70,7 +70,7 @@ class MobScalingAssetCodecTest {
         assertNotNull(m, "shipped mapping resolves");
         assertEquals(DifficultyMapping.TargetType.ZONE, m.targetType(), "TargetType");
         assertTrue(m.matches("Zone2") && m.matches("zone2"), "TargetId matches case-insensitively");
-        assertEquals(22.0, m.floor(), 1e-9, "Floor");
+        assertEquals(5.0, m.floor(), 1e-9, "Floor");
     }
 
     @Test

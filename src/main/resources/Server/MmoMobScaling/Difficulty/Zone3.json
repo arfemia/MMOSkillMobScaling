@@ -2,5 +2,5 @@
   "$Comment": "Zone3 prefix family: floors every Zone3_* chunk (Shore_Tier1-3, Shallow_Ocean_Tier1-3, ...) unless a longer exact override below wins.",
   "TargetType": "Zone",
   "TargetId": "Zone3",
-  "Floor": 38.0
+  "Floor": 12.0
 }

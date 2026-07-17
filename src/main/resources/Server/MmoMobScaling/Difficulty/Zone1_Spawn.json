@@ -2,5 +2,5 @@
   "$Comment": "Exact override for the safe spawn sub-zone (below the Zone1 prefix family floor).",
   "TargetType": "Zone",
   "TargetId": "Zone1_Spawn",
-  "Floor": 3.0
+  "Floor": 1.0
 }

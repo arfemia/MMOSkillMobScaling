@@ -12,6 +12,11 @@ armed via native CombatSupport.addAttackOverride), gated by MinDifficulty/Rariti
 (HOSTILE|BOSS|ANY) against the frozen MobScaleResult - the gate model matches MobScaleResult exactly
 (a difficulty float, a rarity id string, a scope byte), no integer tier concept introduced.
 
+- Tuning: the shipped zone difficulty-floor gradient is flattened to a gentler early game -
+  Zone1 8 -> 1 (Spawn 3 -> 1, Tier1/2/3 6/9/12 -> 1/2/3), Zone2 22 -> 5 (Tier1/2/3 18/22/26 ->
+  5/8/10), Zone3 38 -> 12 (Tier1/2/3 34/38/42 -> 12/15/18), Zone4 55 -> 20 (Tier4/5 52/58 ->
+  25/28), zone wildcard 10 -> 2. The world-baseline `Difficulty.Floor` (30.0) and the
+  distance-escalation curve are unchanged.
 - New: CasterRosterAsset + CasterRosterConfig (defaults<pack<owner fold) + Rosters.casterRosters()
   (id-sorted for a deterministic CasterRosterMatcher tie-break).
 - New: CasterRosterMatcher, a pure precedence matcher (exact roleId > longest matching glob > first),
