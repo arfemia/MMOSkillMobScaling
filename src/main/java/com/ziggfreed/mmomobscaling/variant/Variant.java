@@ -6,6 +6,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.instance.reward.LootEntry;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 
 /**
@@ -24,6 +25,11 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  * <p>{@link #chance} is this variant's ABSOLUTE spawn probability on an eligible mob (not a relative weight):
  * {@link VariantRoster} draws once and the chances of all eligible variants partition the roll, with the
  * remainder = no variant. Author the chances of co-occurring variants to sum to at most 1.0.
+ *
+ * <p>{@link #bonusRewards} is the P4 ADDITIVE reward layer (mirrors {@code Rarity.bonusRewards}): authored
+ * ziggfreed-common {@code LootEntry} compact specs stacked on top of the base rarity's own additive layer,
+ * granted to the KILLER alongside both hosts' {@code BonusDropList} item loot. Empty (never {@code null})
+ * means no additive layer for this variant.
  */
 public record Variant(
         @Nonnull String id,
@@ -41,7 +47,8 @@ public record Variant(
         @Nullable String auraEffectId,
         @Nullable String bonusDropListId,
         @Nonnull String nameColor,
-        @Nonnull FamilyFilter familyFilter) {
+        @Nonnull FamilyFilter familyFilter,
+        @Nonnull List<LootEntry> bonusRewards) {
 
     /** The fallback display colour when a variant authors no {@code NameColor} (plain white). */
     public static final String DEFAULT_NAME_COLOR = "#ffffff";
@@ -49,29 +56,47 @@ public record Variant(
     public Variant {
         allowedAffixes = List.copyOf(allowedAffixes);
         allowedRarities = List.copyOf(allowedRarities);
+        bonusRewards = List.copyOf(bonusRewards);
     }
 
     /**
      * Convenience constructor without a requires-rarity gate / aura / drop list / display colour / family
-     * filter (defaults: any base rarity, no aura, no bonus drops, white, {@link FamilyFilter#ALLOW_ALL}).
+     * filter / bonus-reward layer (defaults: any base rarity, no aura, no bonus drops, white,
+     * {@link FamilyFilter#ALLOW_ALL}, empty {@link #bonusRewards}).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
             double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
             int affixSlots, @Nonnull List<String> allowedAffixes) {
         this(id, displayNameKey, chance, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
-                xpMult, affixSlots, allowedAffixes, List.of("*"), null, null, "", FamilyFilter.ALLOW_ALL);
+                xpMult, affixSlots, allowedAffixes, List.of("*"), null, null, "", FamilyFilter.ALLOW_ALL,
+                List.of());
     }
 
     /**
      * Convenience constructor with a display colour + family filter but no requires-rarity gate / aura /
-     * drop list (any base rarity, no aura, no bonus drops).
+     * drop list / bonus-reward layer (any base rarity, no aura, no bonus drops, empty {@link #bonusRewards}).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
             double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
             int affixSlots, @Nonnull List<String> allowedAffixes, @Nonnull String nameColor,
             @Nonnull FamilyFilter familyFilter) {
         this(id, displayNameKey, chance, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
-                xpMult, affixSlots, allowedAffixes, List.of("*"), null, null, nameColor, familyFilter);
+                xpMult, affixSlots, allowedAffixes, List.of("*"), null, null, nameColor, familyFilter,
+                List.of());
+    }
+
+    /**
+     * Convenience constructor with the full requires-rarity gate / aura / drop list / display colour /
+     * family filter but no bonus-reward layer (the shape before P4; {@link #bonusRewards} = empty).
+     */
+    public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
+            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            int affixSlots, @Nonnull List<String> allowedAffixes, @Nonnull List<String> allowedRarities,
+            @Nullable String auraEffectId, @Nullable String bonusDropListId, @Nonnull String nameColor,
+            @Nonnull FamilyFilter familyFilter) {
+        this(id, displayNameKey, chance, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+                xpMult, affixSlots, allowedAffixes, allowedRarities, auraEffectId, bonusDropListId, nameColor,
+                familyFilter, List.of());
     }
 
     /** The authored HUD/name display colour ({@code #rrggbb}); {@link #DEFAULT_NAME_COLOR} when unset. */

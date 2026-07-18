@@ -12,6 +12,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.instance.reward.LootEntry;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 
@@ -36,7 +37,8 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  *   "Roll": { "Chance": 0.15, "MinDifficulty": 20 },
  *   "Multipliers": { "Hp": 1.5, "OutDamage": 1.4, "InDamage": 0.9, "Loot": 1.3, "Xp": 1.2 },
  *   "Affixes": { "Slots": 1, "Allowed": ["venomous"] },
- *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"] } }
+ *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"] },
+ *   "BonusRewards": ["xp COMBAT 250"] }
  * }</pre>
  */
 public final class VariantAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, VariantAsset>> {
@@ -52,6 +54,7 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private Families families;
     @Nullable private String auraEffectId;
     @Nullable private String bonusDropList;
+    @Nullable private String[] bonusRewards;
 
     public static final AssetBuilderCodec<String, VariantAsset> CODEC = AssetBuilderCodec.builder(
                     VariantAsset.class,
@@ -89,6 +92,12 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
             .append(new KeyedCodec<>("BonusDropList", Codec.STRING, false),
                     (a, v) -> a.bonusDropList = v, a -> a.bonusDropList)
             .add()
+            // The P4 ADDITIVE reward layer (mirrors RarityAsset.BonusRewards): ziggfreed-common LootEntry
+            // compact specs, stacked ON TOP of the base rarity's own additive layer and granted to the
+            // killer alongside both hosts' BonusDropList item loot. Absent = no additive layer.
+            .append(new KeyedCodec<>("BonusRewards", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.bonusRewards = v, a -> a.bonusRewards)
+            .add()
             .build();
 
     public VariantAsset() {
@@ -103,7 +112,8 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
      * Build the runtime {@link Variant} (the map key is the id). Absent groups/leaves take the neutral
      * defaults (chance 0 = not rollable, no band gate, all multipliers 1.0, zero affix slots). An absent
      * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow none".
-     * An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL} (every mob eligible).
+     * An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL} (every mob eligible). Malformed
+     * {@code BonusRewards} specs are skipped ({@link LootEntry#parseAll}, never throws).
      */
     @Nonnull
     public Variant toVariant() {
@@ -123,8 +133,9 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         String nameKey = displayNameKey != null ? displayNameKey : "";
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
+        List<LootEntry> rewards = LootEntry.parseAll(bonusRewards);
         return new Variant(id, nameKey, chance, minDifficulty, hp, out, in, loot, xp, slots, allowed,
-                allowedRarities, auraEffectId, bonusDropList, color, filter);
+                allowedRarities, auraEffectId, bonusDropList, color, filter, rewards);
     }
 
     private static double mult(@Nullable Double v) {

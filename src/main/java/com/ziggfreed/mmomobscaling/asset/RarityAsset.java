@@ -12,6 +12,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.ziggfreed.common.instance.reward.LootEntry;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 
@@ -35,7 +36,8 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  *   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },
  *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [] },
- *   "AuraEffectId": "Mmoscaling_Aura_Epic", "BonusDropList": "Mmoscaling_Drops_Epic" }
+ *   "AuraEffectId": "Mmoscaling_Aura_Epic", "BonusDropList": "Mmoscaling_Drops_Epic",
+ *   "BonusRewards": ["xp MINING 500"] }
  * }</pre>
  */
 public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, RarityAsset>> {
@@ -51,6 +53,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private Families families;
     @Nullable private String auraEffectId;
     @Nullable private String bonusDropList;
+    @Nullable private String[] bonusRewards;
 
     public static final AssetBuilderCodec<String, RarityAsset> CODEC = AssetBuilderCodec.builder(
                     RarityAsset.class,
@@ -92,6 +95,12 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
             .append(new KeyedCodec<>("BonusDropList", Codec.STRING, false),
                     (a, v) -> a.bonusDropList = v, a -> a.bonusDropList)
             .add()
+            // The P4 ADDITIVE reward layer (currency/command/token entries a native ItemDropList cannot
+            // carry): ziggfreed-common LootEntry compact specs, granted to the killer alongside the item
+            // loot above. Absent = no additive layer for this tier (the pre-P4 behavior).
+            .append(new KeyedCodec<>("BonusRewards", Codec.STRING_ARRAY, false),
+                    (a, v) -> a.bonusRewards = v, a -> a.bonusRewards)
+            .add()
             .build();
 
     public RarityAsset() {
@@ -107,6 +116,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
      * defaults (weight 1, no band gate, all multipliers 1.0, zero affix slots). An absent
      * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow
      * none". An absent display key stays {@code ""} so the text util falls back to the convention key.
+     * Malformed {@code BonusRewards} specs are skipped ({@link LootEntry#parseAll}, never throws).
      */
     @Nonnull
     public Rarity toRarity() {
@@ -122,8 +132,9 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         String nameKey = displayNameKey != null ? displayNameKey : "";
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
+        List<LootEntry> rewards = LootEntry.parseAll(bonusRewards);
         return new Rarity(id, nameKey, weight, minDifficulty, hp, out, in,
-                loot, xp, slots, auraEffectId, bonusDropList, allowed, color, filter);
+                loot, xp, slots, auraEffectId, bonusDropList, allowed, color, filter, rewards);
     }
 
     private static double mult(@Nullable Double v) {

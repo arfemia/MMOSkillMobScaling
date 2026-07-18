@@ -11,7 +11,19 @@ delta), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps na
 effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
 lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
 provider), the native `ItemDropList` death loot (`MobScalingLootDropSystem` + per-rarity
-`Server/Drops/*` tables), the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
+`Server/Drops/*` tables; the native roll + in-world spawn PLUMBING itself is consolidated onto
+ziggfreed-common's `instance.reward.NativeLootService` (loot-native-consolidation Phase P4), so this
+mod keeps only the pull-count policy, the per-mob seed, and the rarity/variant bonus-table selection - a
+rarity/variant may ALSO author an optional additive `BonusRewards` layer, a `String[]` of ziggfreed-common
+`LootEntry` compact specs (e.g. `"xp MINING 500"`, resolved through the MMO's own `xp`
+`RewardSpecRegistry` token when the MMO jar is present) for currency/command/token rewards a native
+`ItemDropList` cannot carry; resolved as guaranteed/any (no win/score axis on a mob kill) and granted to
+the KILLER via `InstanceRewardGranter` + a `reward.MobScalingRewardSink` (mirrors Kweebec's sink: no
+standalone currency system here, so a `currency` spec no-ops; a `COMMAND` spec, e.g. the MMO's `xp`
+token, runs as console). The killer is resolved off the corpse's still-resident `DeathComponent.getDeathInfo()`
+(mirrors the MMO jar's `MobKillEventSystem.resolveAttackerRef`); a non-player killer just skips the reward
+layer. The continuous kill-XP multiplier (`MobScalingXpReward`) is a separate path, untouched by this),
+the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
 `boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|ui` (1.0.2 adds `ui`, the in-game admin
 config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `scaling.lang`, and TWO
@@ -225,7 +237,8 @@ phases:
   affix(es). The variant roll is ONE deterministic draw partitioned by the eligible variants' absolute
   `Chance`, gated by `MobFamilyMatcher` (`Families`) AND the variant's `AllowedRarities` (which base rarities
   it may overlay; `["*"]` = any incl. plain, passed the rolled base rarity id). A variant's `BonusDropList`
-  stacks on the rarity's in `MobScalingLootDropSystem` (both lists pulled), and its `AuraEffectId` is a
+  stacks on the rarity's in `MobScalingLootDropSystem` (both lists pulled), as does its `BonusRewards`
+  additive command/token layer (P4; both hosts' entries are granted to the killer), and its `AuraEffectId` is a
   FALLBACK tint applied by `MobScalingEffectApplySystem` only when the base rarity contributed no aura (rarity
   always wins the single tint channel). The crosshair inspector HUD renders the variant as its own coloured
   tag (`#MmoscalingInspectVariant`, `Variant.displayColor()`).
