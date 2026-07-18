@@ -98,6 +98,14 @@ affix.freezing.name = Freezing
 affix.freezing.desc = Its chilling touch numbs and slows the unwary.
 affix.venomous.name = Venomous
 affix.venomous.desc = Its bite courses with burning venom.
+affix.ward_fire.name = Fireward
+affix.ward_fire.desc = Wrapped in a shimmering ward that quenches scorching blows.
+affix.ward_ice.name = Iceward
+affix.ward_ice.desc = Wrapped in a shimmering ward that thaws icy blows.
+affix.ward_arcane.name = Arcaneward
+affix.ward_arcane.desc = Bound in a shimmering ward that unravels arcane force.
+affix.ward_void.name = Voidward
+affix.ward_void.desc = Cloaked in a shimmering ward that seals off the void's touch.
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.

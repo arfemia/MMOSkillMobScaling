@@ -19,6 +19,14 @@ affix.freezing.name = Congelante
 affix.freezing.desc = Seu toque gélido entorpece e retarda os desatentos.
 affix.venomous.name = Venenoso
 affix.venomous.desc = Sua mordida arde com veneno abrasador.
+affix.ward_fire.name = Selo de Fogo
+affix.ward_fire.desc = Envolto em um selo brilhante que sufoca os golpes ardentes.
+affix.ward_ice.name = Selo de Gelo
+affix.ward_ice.desc = Envolto em um selo brilhante que derrete os golpes gélidos.
+affix.ward_arcane.name = Selo Arcano
+affix.ward_arcane.desc = Cingido por um selo brilhante que dissolve a força arcana.
+affix.ward_void.name = Selo do Vazio
+affix.ward_void.desc = Envolto em um selo brilhante que sela o toque do vazio.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}

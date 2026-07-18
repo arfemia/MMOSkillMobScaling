@@ -19,6 +19,14 @@ affix.freezing.name = Леденящий
 affix.freezing.desc = Его ледяное касание сковывает и замедляет неосторожных.
 affix.venomous.name = Ядовитый
 affix.venomous.desc = Его укус пылает жгучим ядом.
+affix.ward_fire.name = Огненный оберег
+affix.ward_fire.desc = Окутан мерцающим оберегом, гасящим обжигающие удары.
+affix.ward_ice.name = Ледяной оберег
+affix.ward_ice.desc = Окутан мерцающим оберегом, растапливающим ледяные удары.
+affix.ward_arcane.name = Чародейский оберег
+affix.ward_arcane.desc = Окружён мерцающим оберегом, рассеивающим тайную силу.
+affix.ward_void.name = Оберег Пустоты
+affix.ward_void.desc = Окутан мерцающим оберегом, запечатывающим прикосновение пустоты.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}

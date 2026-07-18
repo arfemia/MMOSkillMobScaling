@@ -19,6 +19,14 @@ affix.freezing.name = Fagyasztó
 affix.freezing.desc = Dermesztő érintése elzsibbasztja és lelassítja az óvatlanokat.
 affix.venomous.name = Mérgező
 affix.venomous.desc = Harapása perzselő méregtől lüktet.
+affix.ward_fire.name = Tűzpajzs
+affix.ward_fire.desc = Csillogó pajzs védi, amely megfojtja a perzselő csapásokat.
+affix.ward_ice.name = Jégpajzs
+affix.ward_ice.desc = Csillogó pajzs védi, amely felolvasztja a jeges csapásokat.
+affix.ward_arcane.name = Arkánpajzs
+affix.ward_arcane.desc = Csillogó pajzs övezi, amely szétoszlatja az arkán erőt.
+affix.ward_void.name = Ürességpajzs
+affix.ward_void.desc = Csillogó pajzs borítja, amely lezárja az üresség érintését.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}
