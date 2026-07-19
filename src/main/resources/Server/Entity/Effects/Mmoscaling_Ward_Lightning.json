@@ -1,0 +1,13 @@
+{
+  "$Comment": "Requires the Lightning DamageCause asset (Server/Entity/Damage/Lightning.json), shipped by the MMO Skill Tree jar's Phase I six-school roster work (or any pack authoring it), NOT by this mod. Without it this effect fails asset validation at load and Ward_Lightning logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "DamageResistance": {
+    "Lightning": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.4
+      }
+    ]
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

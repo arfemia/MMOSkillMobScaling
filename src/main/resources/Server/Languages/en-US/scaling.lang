@@ -106,6 +106,10 @@ affix.ward_arcane.name = Arcaneward
 affix.ward_arcane.desc = Bound in a shimmering ward that unravels arcane force.
 affix.ward_void.name = Voidward
 affix.ward_void.desc = Cloaked in a shimmering ward that seals off the void's touch.
+affix.ward_lightning.name = Lightningward
+affix.ward_lightning.desc = Wrapped in a shimmering ward that grounds crackling blows.
+affix.ward_water.name = Waterward
+affix.ward_water.desc = Cloaked in a shimmering ward that dampens surging blows.
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.

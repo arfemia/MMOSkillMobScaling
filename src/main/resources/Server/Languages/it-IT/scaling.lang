@@ -27,6 +27,10 @@ affix.ward_arcane.name = Sigillo Arcano
 affix.ward_arcane.desc = Cinto da un sigillo splendente che dissolve la forza arcana.
 affix.ward_void.name = Sigillo del Vuoto
 affix.ward_void.desc = Avvolto in un sigillo splendente che sigilla il tocco del vuoto.
+affix.ward_lightning.name = Sigillo del Fulmine
+affix.ward_lightning.desc = Avvolto in un sigillo splendente che scarica i colpi crepitanti.
+affix.ward_water.name = Sigillo dell'Acqua
+affix.ward_water.desc = Avvolto in un sigillo splendente che attutisce i colpi torrenziali.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}

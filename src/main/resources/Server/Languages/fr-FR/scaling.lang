@@ -27,6 +27,10 @@ affix.ward_arcane.name = Sceau Arcanique
 affix.ward_arcane.desc = Cerné d'un sceau chatoyant qui dissout la force arcanique.
 affix.ward_void.name = Sceau du Néant
 affix.ward_void.desc = Enveloppé d'un sceau chatoyant qui referme le contact du néant.
+affix.ward_lightning.name = Sceau de Foudre
+affix.ward_lightning.desc = Enveloppé d'un sceau chatoyant qui désamorce les coups crépitants.
+affix.ward_water.name = Sceau d'Eau
+affix.ward_water.desc = Enveloppé d'un sceau chatoyant qui amortit les coups déferlants.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}

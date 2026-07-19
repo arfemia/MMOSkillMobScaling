@@ -1,0 +1,11 @@
+{
+  "$Comment": "The Lightning DamageCause is authored by the MMO Skill Tree jar's Phase I six-school roster work (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Lightning.json, Mmoscaling_Ward_Lightning.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "Name": "ward_lightning",
+  "DisplayNameKey": "scaling.affix.ward_lightning.name",
+  "DescriptionKey": "scaling.affix.ward_lightning.desc",
+  "EffectId": "Mmoscaling_Ward_Lightning",
+  "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
+  "Kind": "STAT",
+  "ResistanceBearing": true,
+  "Icon": { "ItemId": "Ingredient_Lightning_Essence" }
+}

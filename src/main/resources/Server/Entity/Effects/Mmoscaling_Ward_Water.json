@@ -1,0 +1,13 @@
+{
+  "$Comment": "Requires the Water DamageCause asset (Server/Entity/Damage/Water.json), shipped by the MMO Skill Tree jar's Phase I six-school roster work (or any pack authoring it), NOT by this mod. Without it this effect fails asset validation at load and Ward_Water logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "DamageResistance": {
+    "Water": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.4
+      }
+    ]
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

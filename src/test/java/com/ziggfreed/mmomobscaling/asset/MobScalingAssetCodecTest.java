@@ -145,13 +145,17 @@ class MobScalingAssetCodecTest {
 
     @Test
     void decodesShippedWardAffixes() throws Exception {
-        // The four Fire/Ice/Arcane/Void ward affixes mirror Armored 1:1 (STAT + ResistanceBearing), so they
-        // share Armored's single-resistance-affix-per-mob cap (AffixRoster) without any roster code change.
-        // Rarer than Armored (Weight 1.5 < 3.0) and gated to a higher MinDifficulty (10 > 5).
+        // The six Fire/Ice/Arcane/Void/Lightning/Water ward affixes mirror Armored 1:1 (STAT +
+        // ResistanceBearing), so they share Armored's single-resistance-affix-per-mob cap (AffixRoster)
+        // without any roster code change. Rarer than Armored (Weight 1.5 < 3.0) and gated to a higher
+        // MinDifficulty (10 > 5). Lightning/Water are the maintainer's six-school-roster expansion
+        // (Phase I), the same degraded-mode-until-Phase-I-ships story as Arcane/Void.
         assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Fire.json", "Mmoscaling_Ward_Fire");
         assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Ice.json", "Mmoscaling_Ward_Ice");
         assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Arcane.json", "Mmoscaling_Ward_Arcane");
         assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Void.json", "Mmoscaling_Ward_Void");
+        assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Lightning.json", "Mmoscaling_Ward_Lightning");
+        assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Water.json", "Mmoscaling_Ward_Water");
     }
 
     private static void assertWardAffix(@Nonnull String resource, @Nonnull String expectedEffectId) throws Exception {

@@ -27,6 +27,10 @@ affix.ward_arcane.name = Arkánpajzs
 affix.ward_arcane.desc = Csillogó pajzs övezi, amely szétoszlatja az arkán erőt.
 affix.ward_void.name = Ürességpajzs
 affix.ward_void.desc = Csillogó pajzs borítja, amely lezárja az üresség érintését.
+affix.ward_lightning.name = Villámpajzs
+affix.ward_lightning.desc = Csillogó pajzs védi, amely földeli a sistergő csapásokat.
+affix.ward_water.name = Vízpajzs
+affix.ward_water.desc = Csillogó pajzs borítja, amely tompítja a hömpölygő csapásokat.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}

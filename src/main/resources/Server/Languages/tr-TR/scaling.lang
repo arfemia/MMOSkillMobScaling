@@ -27,6 +27,10 @@ affix.ward_arcane.name = Gizem Tılsımı
 affix.ward_arcane.desc = Gizemli gücü dağıtan parıldayan bir tılsımla çevrili.
 affix.ward_void.name = Boşluk Tılsımı
 affix.ward_void.desc = Boşluğun dokunuşunu mühürleyen parıldayan bir tılsımla örtülü.
+affix.ward_lightning.name = Yıldırım Tılsımı
+affix.ward_lightning.desc = Çatırdayan darbeleri topraklayan parıldayan bir tılsımla sarılı.
+affix.ward_water.name = Su Tılsımı
+affix.ward_water.desc = Coşkun darbeleri yumuşatan parıldayan bir tılsımla örtülü.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}

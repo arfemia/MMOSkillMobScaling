@@ -27,6 +27,10 @@ affix.ward_arcane.name = Чародейский оберег
 affix.ward_arcane.desc = Окружён мерцающим оберегом, рассеивающим тайную силу.
 affix.ward_void.name = Оберег Пустоты
 affix.ward_void.desc = Окутан мерцающим оберегом, запечатывающим прикосновение пустоты.
+affix.ward_lightning.name = Оберег Молнии
+affix.ward_lightning.desc = Окутан мерцающим оберегом, заземляющим потрескивающие удары.
+affix.ward_water.name = Водный оберег
+affix.ward_water.desc = Окутан мерцающим оберегом, смягчающим бурлящие удары.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}

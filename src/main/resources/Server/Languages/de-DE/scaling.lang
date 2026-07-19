@@ -27,6 +27,10 @@ affix.ward_arcane.name = Arkanschutz
 affix.ward_arcane.desc = Von einem schimmernden Bann umschlossen, der arkane Kraft auflöst.
 affix.ward_void.name = Leerenschutz
 affix.ward_void.desc = Von einem schimmernden Bann umhüllt, der die Berührung der Leere versiegelt.
+affix.ward_lightning.name = Blitzschutz
+affix.ward_lightning.desc = Von einem schimmernden Bann umhüllt, der knisternde Schläge erdet.
+affix.ward_water.name = Wasserschutz
+affix.ward_water.desc = Von einem schimmernden Bann umhüllt, der flutende Schläge dämpft.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}

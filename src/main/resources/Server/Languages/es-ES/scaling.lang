@@ -27,6 +27,10 @@ affix.ward_arcane.name = Sello Arcano
 affix.ward_arcane.desc = Ceñido por un sello reluciente que disuelve la fuerza arcana.
 affix.ward_void.name = Sello del Vacío
 affix.ward_void.desc = Envuelto en un sello reluciente que sella el contacto del vacío.
+affix.ward_lightning.name = Sello del Rayo
+affix.ward_lightning.desc = Envuelto en un sello reluciente que descarga los golpes crepitantes.
+affix.ward_water.name = Sello del Agua
+affix.ward_water.desc = Envuelto en un sello reluciente que amortigua los golpes torrenciales.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
