@@ -19,6 +19,14 @@ affix.freezing.name = Gelido
 affix.freezing.desc = Il suo tocco gelido intorpidisce e rallenta gli incauti.
 affix.venomous.name = Velenoso
 affix.venomous.desc = Il suo morso arde di veleno bruciante.
+affix.ward_fire.name = Sigillo di Fuoco
+affix.ward_fire.desc = Avvolto in un sigillo splendente che soffoca i colpi ardenti.
+affix.ward_ice.name = Sigillo di Ghiaccio
+affix.ward_ice.desc = Avvolto in un sigillo splendente che scioglie i colpi gelidi.
+affix.ward_arcane.name = Sigillo Arcano
+affix.ward_arcane.desc = Cinto da un sigillo splendente che dissolve la forza arcana.
+affix.ward_void.name = Sigillo del Vuoto
+affix.ward_void.desc = Avvolto in un sigillo splendente che sigilla il tocco del vuoto.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}

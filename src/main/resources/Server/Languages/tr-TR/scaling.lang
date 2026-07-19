@@ -19,6 +19,14 @@ affix.freezing.name = Dondurucu
 affix.freezing.desc = Buz gibi dokunuşu dikkatsizleri uyuşturur ve yavaşlatır.
 affix.venomous.name = Zehirli
 affix.venomous.desc = Isırığı yakıcı zehirle kaynar.
+affix.ward_fire.name = Ateş Tılsımı
+affix.ward_fire.desc = Yakıcı darbeleri söndüren parıldayan bir tılsımla sarılı.
+affix.ward_ice.name = Buz Tılsımı
+affix.ward_ice.desc = Buzlu darbeleri eriten parıldayan bir tılsımla sarılı.
+affix.ward_arcane.name = Gizem Tılsımı
+affix.ward_arcane.desc = Gizemli gücü dağıtan parıldayan bir tılsımla çevrili.
+affix.ward_void.name = Boşluk Tılsımı
+affix.ward_void.desc = Boşluğun dokunuşunu mühürleyen parıldayan bir tılsımla örtülü.
 
 name.decorated = {rarity} {base}
 name.variant_decorated = {variant} {inner}

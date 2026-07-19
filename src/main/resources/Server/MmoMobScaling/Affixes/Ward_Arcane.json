@@ -1,0 +1,11 @@
+{
+  "$Comment": "The Arcane DamageCause is authored by the MMO Skill Tree jar's Phase I 4-school roster work (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Arcane.json, Mmoscaling_Ward_Arcane.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "Name": "ward_arcane",
+  "DisplayNameKey": "scaling.affix.ward_arcane.name",
+  "DescriptionKey": "scaling.affix.ward_arcane.desc",
+  "EffectId": "Mmoscaling_Ward_Arcane",
+  "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
+  "Kind": "STAT",
+  "ResistanceBearing": true,
+  "Icon": { "ItemId": "Ingredient_Crystal_Purple" }
+}

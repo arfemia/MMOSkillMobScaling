@@ -1,0 +1,11 @@
+{
+  "$Comment": "The Void DamageCause is authored by the MMO Skill Tree jar's Phase I 4-school roster work (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Void.json, Mmoscaling_Ward_Void.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "Name": "ward_void",
+  "DisplayNameKey": "scaling.affix.ward_void.name",
+  "DescriptionKey": "scaling.affix.ward_void.desc",
+  "EffectId": "Mmoscaling_Ward_Void",
+  "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
+  "Kind": "STAT",
+  "ResistanceBearing": true,
+  "Icon": { "ItemId": "Ingredient_Void_Essence" }
+}

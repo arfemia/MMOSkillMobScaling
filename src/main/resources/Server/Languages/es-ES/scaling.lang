@@ -19,6 +19,14 @@ affix.freezing.name = Gélido
 affix.freezing.desc = Su tacto helado entumece y ralentiza a los incautos.
 affix.venomous.name = Venenoso
 affix.venomous.desc = Su mordedura arde con veneno abrasador.
+affix.ward_fire.name = Sello Ígneo
+affix.ward_fire.desc = Envuelto en un sello reluciente que apaga los golpes abrasadores.
+affix.ward_ice.name = Sello Gélido
+affix.ward_ice.desc = Envuelto en un sello reluciente que derrite los golpes helados.
+affix.ward_arcane.name = Sello Arcano
+affix.ward_arcane.desc = Ceñido por un sello reluciente que disuelve la fuerza arcana.
+affix.ward_void.name = Sello del Vacío
+affix.ward_void.desc = Envuelto en un sello reluciente que sella el contacto del vacío.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}

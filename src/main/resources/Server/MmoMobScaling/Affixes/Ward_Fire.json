@@ -1,0 +1,10 @@
+{
+  "Name": "ward_fire",
+  "DisplayNameKey": "scaling.affix.ward_fire.name",
+  "DescriptionKey": "scaling.affix.ward_fire.desc",
+  "EffectId": "Mmoscaling_Ward_Fire",
+  "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
+  "Kind": "STAT",
+  "ResistanceBearing": true,
+  "Icon": { "ItemId": "Ingredient_Fire_Essence" }
+}

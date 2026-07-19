@@ -19,6 +19,14 @@ affix.freezing.name = Glacial
 affix.freezing.desc = Son toucher glacé engourdit et ralentit les imprudents.
 affix.venomous.name = Venimeux
 affix.venomous.desc = Sa morsure brûle d'un venin ardent.
+affix.ward_fire.name = Sceau de Feu
+affix.ward_fire.desc = Enveloppé d'un sceau chatoyant qui étouffe les coups brûlants.
+affix.ward_ice.name = Sceau de Glace
+affix.ward_ice.desc = Enveloppé d'un sceau chatoyant qui dégèle les coups glacés.
+affix.ward_arcane.name = Sceau Arcanique
+affix.ward_arcane.desc = Cerné d'un sceau chatoyant qui dissout la force arcanique.
+affix.ward_void.name = Sceau du Néant
+affix.ward_void.desc = Enveloppé d'un sceau chatoyant qui referme le contact du néant.
 
 name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}

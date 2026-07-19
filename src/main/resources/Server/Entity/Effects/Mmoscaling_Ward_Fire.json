@@ -1,0 +1,12 @@
+{
+  "DamageResistance": {
+    "Fire": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.4
+      }
+    ]
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

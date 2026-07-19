@@ -1,0 +1,13 @@
+{
+  "$Comment": "Requires the Arcane DamageCause asset (Server/Entity/Damage/Arcane.json), shipped by the MMO Skill Tree jar's Phase I 4-school roster work (or any pack authoring it), NOT by this mod. Without it this effect fails asset validation at load and Ward_Arcane logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "DamageResistance": {
+    "Arcane": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.4
+      }
+    ]
+  },
+  "OverlapBehavior": "Extend",
+  "Infinite": true
+}

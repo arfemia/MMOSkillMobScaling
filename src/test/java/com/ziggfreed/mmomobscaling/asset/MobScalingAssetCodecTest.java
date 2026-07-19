@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import org.junit.jupiter.api.Test;
 
 import com.hypixel.hytale.assetstore.JsonAsset;
@@ -139,6 +141,28 @@ class MobScalingAssetCodecTest {
         assertTrue(a.hasIcon(), "Armored ships an Icon");
         assertEquals("Armor_Bronze_Chest", a.iconItemId(), "Icon.ItemId");
         assertNull(a.iconTexturePath(), "item-id icon has no texture path");
+    }
+
+    @Test
+    void decodesShippedWardAffixes() throws Exception {
+        // The four Fire/Ice/Arcane/Void ward affixes mirror Armored 1:1 (STAT + ResistanceBearing), so they
+        // share Armored's single-resistance-affix-per-mob cap (AffixRoster) without any roster code change.
+        // Rarer than Armored (Weight 1.5 < 3.0) and gated to a higher MinDifficulty (10 > 5).
+        assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Fire.json", "Mmoscaling_Ward_Fire");
+        assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Ice.json", "Mmoscaling_Ward_Ice");
+        assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Arcane.json", "Mmoscaling_Ward_Arcane");
+        assertWardAffix("/Server/MmoMobScaling/Affixes/Ward_Void.json", "Mmoscaling_Ward_Void");
+    }
+
+    private static void assertWardAffix(@Nonnull String resource, @Nonnull String expectedEffectId) throws Exception {
+        Affix a = decode(resource, AffixAsset.CODEC).toAffix();
+        assertEquals(expectedEffectId, a.effectId(), resource + ": EffectId");
+        assertEquals(Affix.KIND_STAT, a.kind(), resource + ": Kind");
+        assertTrue(a.resistanceBearing(), resource + ": ResistanceBearing");
+        assertEquals(1.5, a.spawnWeight(), 1e-9, resource + ": Weight rarer than Armored's 3.0");
+        assertEquals(10.0, a.minDifficulty(), 1e-9, resource + ": MinDifficulty higher than Armored's 5");
+        assertTrue(a.allowsRarity("legendary"), resource + ": wildcard AllowedRarities allows any rarity");
+        assertTrue(a.hasIcon(), resource + ": ships an Icon");
     }
 
     @Test
