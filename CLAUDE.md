@@ -84,15 +84,16 @@ breaks class identity):
   the per-world form does not expose them; see `pages/CLAUDE.md`). The mod's own `hud/HudPosition` copy
   was retired for the lifted common one.
 - **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
-  `MMOSkillTree-1.5.2.jar` dev jar (pin `mmoSkillTreeVersion=1.5.2`), which carries the frozen 1.5.0 API
+  `MMOSkillTree-1.6.0.jar` dev jar (pin `mmoSkillTreeVersion=1.6.0`), which carries the frozen 1.5.0 API
   the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /
   `getCombatLevel` (power reads) plus `registerMobKillXpMultiplier` (the kill-XP reward hook). The
   settings fold cross-checks `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift
   (guarded: an older jar without the getters validates clean). The 1.1.0 caster-roster feature's
-  `ABILITY` entries ALSO call the MMO's `castNpcAbility(Store, Ref, String)` API (present in
-  1.6.0-cycle jars, which is why the dev-jar pin is ahead of the ">=1.5.0" runtime-manifest floor
-  above); `MobScalingCasterTickSystem` latches ability casting off for the whole session with one
-  warning when that method is missing on an older jar. See the comment block in `build.gradle`.
+  `ABILITY` entries ALSO call the MMO's `castNpcAbility(Store, Ref, String)` API (present starting in
+  MMO 1.6.0, which is why the dev-jar pin is ahead of the ">=1.5.0" runtime-manifest floor above, kept
+  deliberately lenient for graceful degradation on an older jar); `MobScalingCasterTickSystem` latches
+  ability casting off for the whole session with one warning when that method is missing on an older
+  jar. See the comment block in `build.gradle`.
 
 jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
 config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.

@@ -1,5 +1,5 @@
 {
-  "$Comment": "The Water DamageCause is authored by the MMO Skill Tree jar's Phase I six-school roster work (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Water.json, Mmoscaling_Ward_Water.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply - a known, documented degraded mode until Phase I ships.",
+  "$Comment": "The Water DamageCause is authored by the MMO Skill Tree jar's elemental damage-school roster (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Water.json, Mmoscaling_Ward_Water.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply until that asset is present.",
   "Name": "ward_water",
   "DisplayNameKey": "scaling.affix.ward_water.name",
   "DescriptionKey": "scaling.affix.ward_water.desc",

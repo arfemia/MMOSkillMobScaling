@@ -7,10 +7,13 @@ All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 NPC caster rosters: a Pattern-A asset (Server/MmoMobScaling/CasterRosters/*.json) binding a Role
 selector (exact Id XOR glob) to a list of abilities a matching, gate-eligible mob arms at spawn and
 fires on its own cadence+jitter. Each entry is AbilityId (cast via the MMO's new
-MMOSkillTreeAPI.castNpcAbility(Store,Ref,String), 1.6.0-cycle) XOR NativeChain (a RootInteraction id
-armed via native CombatSupport.addAttackOverride), gated by MinDifficulty/Rarities/Scope
-(HOSTILE|BOSS|ANY) against the frozen MobScaleResult - the gate model matches MobScaleResult exactly
-(a difficulty float, a rarity id string, a scope byte), no integer tier concept introduced.
+MMOSkillTreeAPI.castNpcAbility(Store,Ref,String), requires MMO Skill Tree 1.6.0) XOR NativeChain (a
+RootInteraction id armed via native CombatSupport.addAttackOverride), gated by MinDifficulty/Rarities/
+Scope (HOSTILE|BOSS|ANY) against the frozen MobScaleResult - the gate model matches MobScaleResult
+exactly (a difficulty float, a rarity id string, a scope byte), no integer tier concept introduced.
+The manifest runtime requirement stays ">=1.5.0" (unchanged, deliberate); only the ABILITY caster
+entries need MMO 1.6.0, and they degrade gracefully with one warning on an older jar instead of
+refusing to load the whole mod - see CasterFeatureState.
 
 - Tuning: the shipped zone difficulty-floor gradient is flattened to a gentler early game -
   Zone1 8 -> 1 (Spawn 3 -> 1, Tier1/2/3 6/9/12 -> 1/2/3), Zone2 22 -> 5 (Tier1/2/3 18/22/26 ->
@@ -31,7 +34,7 @@ armed via native CombatSupport.addAttackOverride), gated by MinDifficulty/Rariti
   ONCE at spawn, never on cadence (a re-arm resets the engine's attack round-robin cursor and starves
   the mob's other chains).
 - New: CasterFeatureState - a session-wide latch that disables ability-cast rosters with ONE warning
-  on a LinkageError (running against a pre-1.6.0-cycle MMO jar), so a mismatched jar pair degrades
+  on a LinkageError (running against a pre-1.6.0 MMO jar), so a mismatched jar pair degrades
   gracefully; NativeChain entries are unaffected.
 - New: ScalingContentValidator.validateCasterRosters (Role.Id XOR Glob, AbilityId XOR NativeChain,
   unknown Scope, CadenceSeconds >= 2s floor, negative MinDifficulty/JitterSeconds, duplicate Role.Glob).
