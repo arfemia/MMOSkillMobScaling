@@ -408,6 +408,14 @@ public final class MobScalingCommand extends CommandBase {
                         .param("power", scaling.regionPower())
                         .param("mode", MobScalingPresenceSystem.mode(spawn).name())
                         .param("tracked", RegionPowerTracker.get().trackedPlayers()));
+                // WHY the group delta did or did not apply: without this a zero delta is ambiguous between
+                // "no players tracked", "player scaling off in this world", and "inside the protected ring".
+                player.sendMessage(Message.translation("scaling.command.inspect.player_scaling")
+                        .param("applied", scaling.playerScalingApplied())
+                        .param("enabled", spawn.isPlayerScalingEnabled())
+                        .param("ring", spawn.getPlayerScalingStartRingBlocks())
+                        .param("inRing", scaling.insideStartRing())
+                        .param("distance", scaling.distanceFromSpawn()));
                 player.sendMessage(Message.translation("scaling.command.inspect.difficulty")
                         .param("difficulty", scaling.difficulty()));
                 // What a PLAIN (non-rarity, non-affix) hostile mob's HP / damage / tankiness curve

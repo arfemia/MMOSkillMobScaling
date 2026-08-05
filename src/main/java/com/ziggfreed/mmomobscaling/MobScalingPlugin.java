@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -108,6 +109,13 @@ public class MobScalingPlugin extends JavaPlugin {
         // per-tick cost): /mobscaling purge exists precisely for the DISABLED/uninstalling case,
         // where no system runs to self-heal saved scaling residue.
         getCommandRegistry().registerCommand(new MobScalingCommand());
+
+        // The boot-time content audit registers OUTSIDE the gate for the same reason: a DISABLED mod must
+        // still be able to explain itself. Its first half tells a pack author why their Server/MmoMobScaling
+        // overrides did nothing (load-order shadowing, a missing manifest dependency, or scaling being off
+        // entirely); its second half names every dangling asset reference. BootEvent is the only hook that
+        // guarantees every pack + every engine store has finished loading. Log-only, never a boot failure.
+        getEventRegistry().register(BootEvent.class, event -> MobScalingAssetRegistrar.runBootAudit());
 
         // THE ZERO-COST REGISTRATION GATE: when disabled we register NO SYSTEMS, so the
         // mod has no per-tick cost at all. shouldRegisterSystems keeps the decision

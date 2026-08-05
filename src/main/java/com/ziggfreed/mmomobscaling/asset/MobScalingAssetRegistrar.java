@@ -1,14 +1,22 @@
 package com.ziggfreed.mmomobscaling.asset;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
+import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
+import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
+import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
+import com.hypixel.hytale.server.core.asset.type.item.config.ItemDropList;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
+import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.asset.AssetStoreRegistrar;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
@@ -320,7 +328,7 @@ public final class MobScalingAssetRegistrar {
             }
             DifficultyMapping mapping = asset.toMapping(entry.getKey());
             if (mapping == null) {
-                warnFindings(java.util.List.of("difficulty mapping '" + entry.getKey()
+                warnFindings(List.of("difficulty mapping '" + entry.getKey()
                         + "' skipped: TargetType must be Zone|Biome and TargetId non-blank"));
                 continue;
             }
@@ -331,11 +339,86 @@ public final class MobScalingAssetRegistrar {
         warnFindings(ScalingContentValidator.validateDifficultyMappings(layer.values()));
     }
 
+    /**
+     * The ONE boot-time content audit, run from a {@code BootEvent} listener registered OUTSIDE the mod's
+     * zero-cost gate (see {@code MobScalingPlugin.setup}). Two sweeps that both need EVERY asset store
+     * loaded, which is exactly what {@code BootEvent} guarantees and the per-store {@code LoadedAssetsEvent}
+     * folds cannot (they fire per pack, in store order):
+     *
+     * <ul>
+     *   <li>{@link PackDependencyAudit} - names any content pack whose mob-scaling overrides are being
+     *       silently shadowed by the mod's own defaults, and the manifest line that fixes it.</li>
+     *   <li>{@link ScalingContentValidator} reference EXISTENCE - names every dangling
+     *       {@code AuraEffectId} / affix {@code EffectId} / {@code BonusDropList} / {@code Families}
+     *       group + role / caster {@code NativeChain}, at boot, instead of at whatever future spawn
+     *       first happens to touch it.</li>
+     * </ul>
+     *
+     * <p>Findings are WARNINGS only - a dangling reference degrades (the content still rolls, it just
+     * applies nothing), it never fails the load.
+     */
+    public static void runBootAudit() {
+        PackDependencyAudit.run();
+        validateReferences();
+    }
+
+    /** Run the reference-existence sweep over every folded store, resolved against the LIVE asset maps. */
+    private static void validateReferences() {
+        try {
+            ScalingContentValidator.ReferenceResolvers resolvers = liveResolvers();
+            warnFindings(ScalingContentValidator.validateRarityReferences(
+                    RarityConfig.getInstance().all().values(), resolvers));
+            warnFindings(ScalingContentValidator.validateVariantReferences(
+                    VariantConfig.getInstance().all().values(), resolvers));
+            warnFindings(ScalingContentValidator.validateAffixReferences(
+                    AffixConfig.getInstance().all().values(), resolvers));
+            warnFindings(ScalingContentValidator.validateCasterRosterReferences(
+                    CasterRosterConfig.getInstance().all().values(), resolvers));
+        } catch (Throwable t) {
+            warnFindings(List.of("reference audit skipped: " + t));
+        }
+    }
+
+    /**
+     * Existence predicates over the live engine asset maps. Every lookup is try-guarded and answers
+     * {@code true} on failure ("cannot tell" must never become a false warning), mirroring
+     * {@code MobFamilyMatcher.resolveGroupIndex}.
+     */
+    @Nonnull
+    private static ScalingContentValidator.ReferenceResolvers liveResolvers() {
+        return new ScalingContentValidator.ReferenceResolvers(
+                id -> exists(() -> EntityEffect.getAssetMap().getAsset(id) != null),
+                id -> exists(() -> ItemDropList.getAssetMap().getAsset(id) != null),
+                id -> exists(() -> NPCGroup.getAssetMap().getIndex(id) != AssetMapWithIndexes.NOT_FOUND),
+                id -> exists(() -> NPCPlugin.get().getIndex(id) != AssetMapWithIndexes.NOT_FOUND),
+                id -> exists(() -> RootInteraction.getAssetMap().getAsset(id) != null));
+    }
+
+    /** Evaluate one guarded existence lookup; an engine throw (store absent, unit JVM) means "cannot tell". */
+    private static boolean exists(@Nonnull BooleanSupplier lookup) {
+        try {
+            return lookup.getAsBoolean();
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
     /** Log each content-validation finding as a warning; bad content degrades, it never blocks the load. */
-    private static void warnFindings(@Nonnull java.util.List<String> findings) {
+    static void warnFindings(@Nonnull List<String> findings) {
         for (String finding : findings) {
             try {
                 MobScalingPlugin.LOGGER.atWarning().log("Mob-scaling content: " + finding);
+            } catch (Throwable ignored) {
+                // log-manager-less JVMs
+            }
+        }
+    }
+
+    /** Log each positive audit line at INFO (the "your pack IS layering correctly" confirmation). */
+    static void infoLines(@Nonnull List<String> lines) {
+        for (String line : lines) {
+            try {
+                MobScalingPlugin.LOGGER.atInfo().log("Mob-scaling content: " + line);
             } catch (Throwable ignored) {
                 // log-manager-less JVMs
             }

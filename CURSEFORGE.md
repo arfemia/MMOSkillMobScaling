@@ -108,6 +108,74 @@ and the mod's asset stores. You never edit Java.
 Content packs can add or replace rarities, affixes, zone floors, per-world files, and drop tables; the
 fold order is `mod defaults < content pack < server owner`.
 
+### Where the files live
+
+All owner files are created under `mods/MmoMobScaling/`, **relative to the folder your server runs
+from** (its working directory), not next to the jar. They are generated on first start, and the server
+log prints the absolute paths on every start, so search the log for `mob-scaling config:` if you cannot
+find them.
+
+| Path | What it is |
+| --- | --- |
+| `mods/MmoMobScaling/mob-scaling.json` | Your overrides. Starts empty; every key you do not set inherits the default. |
+| `mods/MmoMobScaling/_reference/defaults-mob-scaling.json` | The complete default settings, rewritten every start so it always matches your installed version. Read it, copy the keys you want into `mob-scaling.json`. Editing this file does nothing. |
+| `mods/MmoMobScaling/worlds/` | One file per world rule (see the per-world section above). Created empty on first start, with a `README.txt` describing the format. |
+
+### Extension packs
+
+A content pack that authors mob-scaling content **must declare this mod as a dependency**. Without it,
+Hytale loads your pack in an earlier wave than the mod, the mod's own defaults are applied on top, and
+every one of your overrides is silently discarded with no error anywhere.
+
+A minimal `manifest.json`, which must sit at the **root of the zip** (no wrapper folder, or the pack is
+skipped entirely):
+
+```json
+{
+  "Group": "YourName",
+  "Name": "YourPack",
+  "Version": "1.0.0",
+  "ServerVersion": ">=0.5.0-pre.0 <0.6.0",
+  "IncludesAssetPack": true,
+  "Dependencies": { "Ziggfreed:MmoMobScaling": ">=1.1.0" }
+}
+```
+
+Things worth knowing before you ship a pack:
+
+- The id is exactly `Ziggfreed:MmoMobScaling` and it is **case-sensitive**. `Ziggfreed:MMOMobScaling`
+  or a bare `MmoMobScaling` does not resolve, and an unresolved dependency aborts the server's ENTIRE
+  asset load (see Troubleshooting below). The version RANGE is not enforced, only the id.
+- With scaling switched off in `mob-scaling.json`, the mod registers no asset stores at all, so
+  everything under your pack's `Server/MmoMobScaling/` is ignored. That is not a pack bug.
+- On every start, this mod audits the loaded packs and logs a line naming any pack whose mob-scaling
+  content is being shadowed, plus the exact dependency line to add. A correctly layered pack gets a
+  confirmation line instead. It also lists any rarity, variant, affix, or caster roster that points at
+  an effect, drop list, NPC group, role, or interaction id that does not exist, so a typo shows up at
+  start instead of the first time a mob happens to spawn. These are warnings only and never stop the
+  server.
+- `Server/NPC/Groups/Mmoscaling_Bosses.json` and `Mmoscaling_Excluded.json` are overridable the same
+  way. An override **replaces** the mod's `IncludeRoles` list wholesale, it does not merge into it, so
+  copy the shipped list first if you want to keep it. Entries are NPC **role ids** (glob patterns
+  allowed), not display names, and a role id that does not exist is a harmless warning in the log, never
+  an error.
+
+## Troubleshooting
+
+**The server dies with `IllegalStateException: Missing default DamageCause assets`.** No asset pack
+loaded at all, which means the pack sort failed before anything was read. Scroll UP in the log for
+`Failed to calculate asset pack load order` and `Missing required dependencies`, and fix the offending
+`Dependencies` id in that pack's `manifest.json` (usually a case or spelling mistake, see above). This
+crash is not caused by a bad id inside a rarity or affix file: a dangling `EffectId` or drop list only
+warns and no-ops.
+
+**A content pack's changes do nothing.** Check the start-up log for the pack audit line described above.
+The usual causes are a missing `Ziggfreed:MmoMobScaling` dependency, a `manifest.json` that is not at
+the zip root, or scaling being disabled.
+
+**I cannot find the config.** It is created relative to the server's working directory. The absolute
+path is printed on every start; search the log for `mob-scaling config:`.
+
 ## Uninstall note
 
 While the mod is enabled it reconciles scaled mobs every time they load, so a retune or a removal is
@@ -126,6 +194,14 @@ remove the jar.
 Native-asset-first by design: scaling rides Hytale's own worldgen, effects, NPC groups, and drop
 lists, so it coexists with other content mods. A world using a non-standard worldgen (flat/void/custom)
 simply falls back to a distance-and-proximity grid with the world's baseline floor.
+
+**Third-party nameplate mods.** The rarity and variant decoration is written to a mob's display name,
+the value Hytale uses for logs and kill feeds, as a localized message so each player reads it in their
+own language. It is not the overhead nameplate, which this mod never touches. A mod that adds its own
+overhead nameplate and copies the display name into it can flatten that localized message and print the
+raw template (something like `{rarity} {base}`) instead of the finished text. That comes from the other
+mod, and nothing can be changed here to fix it. The Mob Inspector overlay always shows the correct
+rarity, variant, and affixes: look at the mob and read the crosshair card.
 
 ## Links & Support
 

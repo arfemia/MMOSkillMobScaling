@@ -34,7 +34,8 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
  *   <li>{@code OpenWorld} - REUSES the settings {@link OpenWorld} codec so the whole group is
  *       per-world (1.0.2): {@code AggregationMode}, {@code GroupDeltaBandWidth},
  *       {@code OnlyRaiseDifficulty}, {@code AllowDifficultyIncreaseOnPartyJoin},
- *       {@code LateArrivalBumpFactor}, {@code CompositionEnabled}, {@code PlayerScalingEnabled}.
+ *       {@code LateArrivalBumpFactor}, {@code CompositionEnabled}, {@code PlayerScalingEnabled},
+ *       {@code PlayerScalingStartRingBlocks}.
  *       {@code RegionSizeChunks} DECODES but is IGNORED per-world (the region grid must stay
  *       globally consistent).</li>
  *   <li>{@code ZoneHud} / {@code InspectorHud} - REUSE the settings HUD codecs; this cycle only

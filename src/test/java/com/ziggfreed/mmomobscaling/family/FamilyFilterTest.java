@@ -60,4 +60,32 @@ class FamilyFilterTest {
         assertFalse(f.allowsRole("Spider_Cave"), "blank allow patterns never match");
         assertFalse(f.deniesRole("Spider_Cave"), "blank deny patterns never match");
     }
+
+    @Test
+    void noForceListsByDefault() {
+        assertFalse(FamilyFilter.ALLOW_ALL.hasForce(), "the neutral filter forces nothing");
+        assertFalse(filter(List.of("Spiders"), List.of(), List.of(), List.of()).hasForce(),
+                "an allow/deny-only filter forces nothing");
+    }
+
+    @Test
+    void forcesRoleGlob() {
+        FamilyFilter f = new FamilyFilter(List.of(), List.of(), List.of(), List.of(),
+                List.of("Bosses"), List.of("Dragon_*"));
+        assertTrue(f.hasForce(), "either force list makes the entry a forcing one");
+        assertTrue(f.forcesRole("Dragon_Fire"), "force glob claims the family");
+        assertFalse(f.forcesRole("Spider_Cave"), "force glob leaves others alone");
+        assertTrue(f.forceGroups().contains("Bosses"), "force groups are carried for the matcher");
+    }
+
+    @Test
+    void forceListsDoNotMakeAFilterRestricted() {
+        // A force list only ever WIDENS the outcome, so it must not flip isUnrestricted (which is the
+        // matcher's eligible() short-circuit). hasForce() is the separate test for "does it force".
+        FamilyFilter forceOnly = new FamilyFilter(List.of(), List.of(), List.of(), List.of(),
+                List.of("Bosses"), List.of());
+        assertTrue(forceOnly.isUnrestricted(), "a force-only filter constrains nothing");
+        assertTrue(forceOnly.allowsAll(), "a force-only filter still allows every mob");
+        assertTrue(forceOnly.hasForce(), "but it does force");
+    }
 }

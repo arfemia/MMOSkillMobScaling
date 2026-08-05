@@ -170,6 +170,12 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
                 ? o.getPlayerScalingEnabled() : g.isPlayerScalingEnabled();
     }
 
+    @Override public double getPlayerScalingStartRingBlocks() {
+        OpenWorld o = ow();
+        return o != null && o.getPlayerScalingStartRingBlocks() != null
+                ? Math.max(0.0, o.getPlayerScalingStartRingBlocks()) : g.getPlayerScalingStartRingBlocks();
+    }
+
     @Nonnull @Override public String getOpenWorldAggregationMode() {
         OpenWorld o = ow();
         String v = o == null ? null : o.getAggregationMode();

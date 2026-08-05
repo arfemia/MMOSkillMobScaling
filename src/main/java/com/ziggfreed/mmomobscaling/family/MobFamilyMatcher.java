@@ -28,7 +28,8 @@ import com.ziggfreed.mmomobscaling.MobScalingPlugin;
  *
  * <p><b>Missing-group asymmetry (documented):</b> a {@code NOT_FOUND} group matches nothing, so a missing id
  * in {@code allowGroups} (with no other allow entry) makes the entry fail CLOSED (never eligible), while a
- * missing id in {@code denyGroups} is fail-OPEN (a no-op). Deny always wins over allow.
+ * missing id in {@code denyGroups} or {@code forceGroups} is fail-OPEN (a no-op). Precedence is
+ * force &gt; deny &gt; allow.
  */
 public final class MobFamilyMatcher {
 
@@ -51,17 +52,38 @@ public final class MobFamilyMatcher {
     }
 
     /**
-     * True when a content entry carrying {@code filter} may apply to {@code npc}. Deny wins; an unrestricted
-     * allow side (both allow lists empty) allows all; an entirely empty filter short-circuits to eligible.
+     * True when a content entry carrying {@code filter} FORCES itself onto {@code npc} (a force-list role
+     * glob or native group membership matches). Cheap short-circuit when the entry authors no force list at
+     * all, which is the common case.
+     */
+    public boolean forces(@Nonnull FamilyFilter filter, @Nonnull NPCEntity npc) {
+        if (!filter.hasForce()) {
+            return false;
+        }
+        String roleName = npc.getRoleName();
+        if (roleName != null && filter.forcesRole(roleName)) {
+            return true;
+        }
+        return matchesAnyGroup(filter.forceGroups(), npc.getRoleIndex());
+    }
+
+    /**
+     * True when a content entry carrying {@code filter} may apply to {@code npc}. Force wins outright, then
+     * deny, then allow; an unrestricted allow side (both allow lists empty) allows all; an entirely empty
+     * filter short-circuits to eligible.
      */
     public boolean eligible(@Nonnull FamilyFilter filter, @Nonnull NPCEntity npc) {
         if (filter.isUnrestricted()) {
             return true;
         }
+        // Force outranks the allow/deny gate: a forced family is always eligible for this entry.
+        if (forces(filter, npc)) {
+            return true;
+        }
         String roleName = npc.getRoleName();
         int roleIndex = npc.getRoleIndex();
 
-        // Deny wins: a single deny match (role glob OR group membership) makes the entry ineligible.
+        // Deny wins over allow: a single deny match (role glob OR group membership) makes the entry ineligible.
         if (roleName != null && filter.deniesRole(roleName)) {
             return false;
         }

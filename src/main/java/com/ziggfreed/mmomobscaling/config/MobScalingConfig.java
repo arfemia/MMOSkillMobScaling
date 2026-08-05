@@ -56,6 +56,12 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private static final String REFERENCE_FILE = "defaults-mob-scaling.json";
 
     /**
+     * Per-world rules folder beside the owner file. Named here only for the boot INFO line;
+     * {@code WorldSettingsConfig} owns the real path (set from {@code MobScalingPlugin.setup}).
+     */
+    private static final String WORLDS_DIR = "worlds";
+
+    /**
      * The empty override scaffold seeded at {@code mods/MmoMobScaling/mob-scaling.json} on first run.
      * It carries NO real overrides (an empty {@code {}} folds to the jar defaults on every leaf), only a
      * self-documenting {@code $Comment} the codec ignores, so a fresh install has a file to edit + a
@@ -119,6 +125,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // Whether player/group-based scaling applies at all (1.0.1; default on). Spawn-path read (volatile);
     // a world with PlayerScalingEnabled=false pins difficulty to the escalated floor.
     private volatile boolean playerScalingEnabled = true;
+    // Protected radius around world spawn inside which the group delta never applies (its OWN knob, NOT the
+    // distance-escalation start radius). Spawn-path read, so volatile. 0 = no protected ring.
+    private volatile double playerScalingStartRingBlocks;
     @Nonnull private String presetMode = "";
     // Intensity multiplier on the difficulty->stat curve slopes (1.0.1; default 1.0, clamped >= 0). Spawn-path
     // read (statCurveModel) so volatile; runtime-tunable via setIntensityRuntime (/mobscaling intensity).
@@ -381,6 +390,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getOnlyRaiseDifficulty), true);
         this.playerScalingEnabled = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getPlayerScalingEnabled), true);
+        this.playerScalingStartRingBlocks = Math.max(0.0, or(fold3(owner, store, jar,
+                MobScalingSettingsAsset::getOpenWorld, OpenWorld::getPlayerScalingStartRingBlocks), 0.0));
 
         // Difficulty group (nested; world-baseline floor + caps + the doubly-nested distance escalation).
         this.difficultyFloor = Math.max(0.0, or(
@@ -592,6 +603,11 @@ public final class MobScalingConfig implements SpawnScalingSettings {
      * an empty {@code {}} overrides nothing, so defaults still apply). Fully guarded - a write failure only
      * warns and never breaks the {@code setup()}-time registration gate. No-op when {@link #configPath} is
      * null (defaults-only / unit tests).
+     *
+     * <p>It then logs the config locations at INFO on EVERY boot, not just the first: the paths are
+     * relative to the SERVER's working directory (not to the jar), which is the single detail that makes
+     * an owner conclude the config was never generated. The line prints ABSOLUTE paths so it is
+     * copy-pasteable from the log.
      */
     private void scaffoldConfigFiles(@Nullable String rawDefaults) {
         Path owner = this.configPath;
@@ -610,11 +626,33 @@ public final class MobScalingConfig implements SpawnScalingSettings {
             }
             if (!Files.exists(owner)) {
                 Files.writeString(owner, OWNER_SCAFFOLD, StandardCharsets.UTF_8);
-                info("first run: wrote an empty override scaffold at " + owner
+                info("first run: wrote an empty override scaffold at " + absolute(owner)
                         + " - edit it to override defaults; the full schema is in _reference/" + REFERENCE_FILE);
             }
+            logConfigLocations(owner, dir);
         } catch (Exception e) {
             warn("could not write the config scaffold (" + owner + "): " + e.getMessage());
+        }
+    }
+
+    /**
+     * One INFO line per boot naming the three places an owner edits this mod: the override file, the
+     * regenerated schema reference beside it, and the per-world rules folder.
+     */
+    private static void logConfigLocations(@Nonnull Path owner, @Nullable Path dir) {
+        String reference = dir == null ? "(none)" : absolute(dir.resolve("_reference").resolve(REFERENCE_FILE));
+        String worlds = dir == null ? "(none)" : absolute(dir.resolve(WORLDS_DIR));
+        info("config: " + absolute(owner) + " (schema reference: " + reference
+                + ", per-world rules: " + worlds + ")");
+    }
+
+    /** Absolute form of a path for a copy-pasteable log line; falls back to the raw path if unresolvable. */
+    @Nonnull
+    private static String absolute(@Nonnull Path path) {
+        try {
+            return path.toAbsolutePath().toString();
+        } catch (Exception e) {
+            return path.toString();
         }
     }
 
@@ -643,6 +681,7 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     public boolean isCompositionEnabled() { return compositionEnabled; }
     @Override public boolean isOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
     @Override public boolean isPlayerScalingEnabled() { return playerScalingEnabled; }
+    @Override public double getPlayerScalingStartRingBlocks() { return playerScalingStartRingBlocks; }
     @Nonnull public String getPresetMode() { return presetMode; }
     /** The GLOBAL intensity multiplier on the stat-curve slopes (1.0.1; default 1.0). */
     public double getIntensity() { return intensity; }

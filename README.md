@@ -25,6 +25,25 @@ loaded before this mod:
 - **ZiggfreedCommon >= 1.2.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on).
 - **MMOSkillTree >= 1.5.0** - the MMO Skill Tree mod (supplies the player-power / combat-level API).
 
+## Configuration
+
+Config files are generated on first start under `mods/MmoMobScaling/`, **relative to the folder the
+server runs from** (its working directory), not next to the jar. The absolute paths are logged on every
+start (search the log for `mob-scaling config:`).
+
+- `mob-scaling.json` - your overrides, empty by default; anything you do not set inherits the default.
+- `_reference/defaults-mob-scaling.json` - the full default settings, rewritten every start. Read-only
+  reference to copy keys from; editing it has no effect.
+- `worlds/` - one file per world rule, with a `README.txt` describing the format.
+
+## Extension packs
+
+A content pack that authors `Server/MmoMobScaling/**` (or one of the `Server/NPC/Groups/Mmoscaling_*.json`
+tagsets) **must** declare `"Ziggfreed:MmoMobScaling"` in its `manifest.json` `Dependencies`, or the mod's
+own defaults load after it and silently overwrite every override. The id is case-sensitive, and a
+misspelled one aborts the server's entire asset load. The mod audits the loaded packs at start and logs
+exactly which line to add. Full authoring notes and troubleshooting: [CURSEFORGE.md](CURSEFORGE.md).
+
 ## Version story
 
 This mod is compiled against the LOCAL `MMOSkillTree-1.5.0.jar` dev jar, which carries the

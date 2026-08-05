@@ -1,6 +1,7 @@
 package com.ziggfreed.mmomobscaling.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -110,6 +111,27 @@ class WorldSettingsConfigTest {
         WorldSettings effective = worlds.effectiveById("mine");
         assertEquals(Boolean.FALSE, effective.getDifficulty().getDistanceEscalation().getEnabled(),
                 "effectiveById (unlike authoredById) shows the Parent-merged view");
+    }
+
+    @Test
+    void ownerDirIsScaffoldedOnFirstUse(@TempDir Path tmp) throws Exception {
+        // A fresh install must SHOW the folder the docs point at, rather than only creating it the first
+        // time something happens to save a per-world rule.
+        Path dir = tmp.resolve("worlds");
+        assertFalse(Files.exists(dir), "precondition: the owner dir does not exist yet");
+
+        WorldSettingsConfig worlds = scan(dir);
+
+        assertTrue(Files.isDirectory(dir), "setOwnerDir creates the per-world rules folder");
+        assertTrue(Files.exists(dir.resolve("README.txt")), "and seeds a readme explaining the convention");
+        assertTrue(worlds.foldedView().isEmpty(), "an empty scaffolded dir folds to no rules");
+        // The readme is not a *.json, so a re-scan must still see zero rules and must not clobber it.
+        Files.writeString(dir.resolve("README.txt"), "hand edited", StandardCharsets.UTF_8);
+        worlds.setOwnerDir(dir);
+        worlds.refold();
+        assertEquals("hand edited", Files.readString(dir.resolve("README.txt"), StandardCharsets.UTF_8),
+                "an existing readme is never overwritten");
+        assertTrue(worlds.foldedView().isEmpty(), "the readme is never loaded as a world rule");
     }
 
     @Test

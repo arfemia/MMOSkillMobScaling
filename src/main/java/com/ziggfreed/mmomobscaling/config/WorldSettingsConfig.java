@@ -65,6 +65,41 @@ public final class WorldSettingsConfig {
     /** The top-level parent-reference key on a world body (stripped by the resolver pre-decode). */
     public static final String PARENT_KEY = "Parent";
 
+    /** Filename of the seeded owner-dir readme (deliberately not a {@code *.json}, so the scan skips it). */
+    static final String OWNER_DIR_README = "README.txt";
+
+    /** Body of the seeded owner-dir readme: what goes in this folder and how it layers. */
+    private static final String OWNER_DIR_README_TEXT = """
+            MMO Mob Scaling - per-world settings
+            ====================================
+
+            One file per world rule. The filename (without .json) is the rule id, and the body is a
+            bare WorldSettings object using the same PascalCase keys as the shipped rules:
+
+              {
+                "Match": "MyWorld*",
+                "Enabled": true,
+                "Difficulty": { "Floor": 45.0 }
+              }
+
+            Key points:
+              - "Match" selects the world by name: an exact name, a "Prefix*", a "*Suffix", a
+                "*Contains*", or "*" for every world. Most specific match wins (exact, then the
+                longest literal core). A blank or absent "Match" makes the file a pool-only base
+                that other files inherit from but that never matches a world on its own.
+              - "Parent": "<other-file-id>" inherits every key that file sets; anything still unset
+                falls back to the global settings in ../mob-scaling.json.
+              - A file here REPLACES a shipped rule of the same name outright. Delete yours to get
+                the shipped one back.
+              - The full schema, with every key filled in, is in ../_reference/defaults-mob-scaling.json
+                and in the shipped rules inside the mod jar under Server/MmoMobScaling/Worlds/.
+              - Changes are picked up on server restart, or immediately when saved from
+                /mobscaling ui.
+
+            This readme is regenerated when absent and is ignored by the loader (only *.json files
+            in this folder are read).
+            """;
+
     /** Same guarded-logger pattern as {@link MobScalingConfig} (this class is unit-tested). */
     @Nullable private static final HytaleLogger LOGGER = initLogger();
 
@@ -118,9 +153,36 @@ public final class WorldSettingsConfig {
         return instance;
     }
 
-    /** The scanned owner directory ({@code mods/MmoMobScaling/worlds}); {@code null} = none (tests). */
+    /**
+     * The scanned owner directory ({@code mods/MmoMobScaling/worlds}); {@code null} = none (tests).
+     * Setting a non-null dir also SCAFFOLDS it (see {@link #ensureOwnerDir}) so an owner who reads the
+     * docs and goes looking for the folder finds it on a fresh install, instead of an empty parent that
+     * only sprouts a {@code worlds/} the first time something happens to save a per-world rule.
+     */
     public void setOwnerDir(@Nullable Path ownerDir) {
         this.ownerDir = ownerDir;
+        ensureOwnerDir();
+    }
+
+    /**
+     * Create the owner dir up front and seed a one-time {@code README.txt} explaining the one-file-per-world
+     * convention. The readme is NOT a {@code *.json}, so {@link #scanOwnerDirInto}'s directory filter never
+     * tries to load it. Fully guarded (a read-only mods dir only warns) and never clobbers an existing file.
+     */
+    private void ensureOwnerDir() {
+        Path dir = this.ownerDir;
+        if (dir == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(dir);
+            Path readme = dir.resolve(OWNER_DIR_README);
+            if (!Files.exists(readme)) {
+                Files.writeString(readme, OWNER_DIR_README_TEXT, StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            warn("could not create the worlds owner dir " + dir + ": " + e.getMessage());
+        }
     }
 
     @Nullable

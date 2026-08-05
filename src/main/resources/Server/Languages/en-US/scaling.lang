@@ -30,6 +30,7 @@ command.inspect.region = Tracked region power: {power} (mode {mode}, tracked pla
 command.inspect.difficulty = Effective spawn difficulty here: {difficulty}
 command.inspect.curve = Plain-mob stat curve here: HP x{hp}, outgoing dmg x{out}, incoming taken x{in}
 command.inspect.chance = Rarity spawn chance: {chance}
+command.inspect.player_scaling = Player scaling: {applied} (enabled: {enabled}, start ring: {ring} blocks, inside ring: {inRing}, distance from spawn: {distance})
 
 # /mobscaling preset - switch the active settings preset live (Default, Casual, Hardcore, Playtest).
 command.preset.usage = Usage: /mobscaling preset [name]
@@ -137,6 +138,7 @@ ui.global.intensity = Intensity multiplier
 ui.global.rarity = Rarity spawn chance
 ui.global.open_world_header = Open world scaling
 ui.global.player_scaling = Player/group scaling
+ui.global.player_ring = Player scaling start ring (blocks)
 ui.global.aggregation = Group power aggregation
 ui.global.region_size = Region size (chunks)
 ui.global.band_width = Group power band width
@@ -250,6 +252,7 @@ ui.hint.esc_blocks = How many blocks past the start distance add one more point 
 ui.hint.esc_max_bonus = The most extra difficulty distance escalation can ever add.
 ui.hint.esc_rarity = How much extra rarity spawn chance distance escalation adds per escalation point.
 ui.hint.player_scaling = Whether nearby players and their power raise a region's difficulty at all.
+ui.hint.player_ring = Protected radius around the world spawn where nearby player power never raises difficulty. Zero means no protected area, so group scaling applies everywhere.
 ui.hint.aggregation = How the power of multiple nearby players folds into one region difficulty reading.
 ui.hint.region_size = The size of the proximity grid used to bucket players into a shared region reading.
 ui.hint.band_width = The most a region's difficulty can swing above its baseline from nearby player power.

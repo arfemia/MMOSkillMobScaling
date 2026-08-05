@@ -76,6 +76,14 @@ public interface SpawnScalingSettings {
      */
     boolean isPlayerScalingEnabled();
 
+    /**
+     * Protected radius around the world spawn (blocks, XZ Euclidean) inside which the player/group power
+     * delta does NOT apply - so a newcomer's home area is never inflated by a passing strong group.
+     * {@code 0} = no protected ring (player/group scaling applies everywhere). Fully INDEPENDENT of
+     * {@link #getEscalationStartDistanceBlocks()}, which only gates the additive distance bonus.
+     */
+    double getPlayerScalingStartRingBlocks();
+
     /** The open-world group-power aggregation mode name (folded through {@code AggregationMode.fromName}). */
     @Nonnull
     String getOpenWorldAggregationMode();

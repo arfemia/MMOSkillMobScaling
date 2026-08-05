@@ -166,6 +166,14 @@ public final class MobScalingSettingsAsset
                 .append(new KeyedCodec<>("PlayerScalingEnabled", Codec.BOOLEAN, false),
                         (o, v) -> o.playerScalingEnabled = v, o -> o.playerScalingEnabled)
                 .add()
+                // Protected radius around the world spawn (blocks, XZ Euclidean) inside which the
+                // player/group power delta does NOT apply, so a newcomer's home area is never inflated by a
+                // passing strong group. Its OWN knob, fully independent of
+                // Difficulty.DistanceEscalation.StartDistanceBlocks (which only gates the additive
+                // distance bonus). 0 = no protected ring, player/group scaling applies everywhere.
+                .append(new KeyedCodec<>("PlayerScalingStartRingBlocks", Codec.DOUBLE, false),
+                        (o, v) -> o.playerScalingStartRingBlocks = v, o -> o.playerScalingStartRingBlocks)
+                .add()
                 .build();
 
         @Nullable private String aggregationMode;
@@ -176,6 +184,7 @@ public final class MobScalingSettingsAsset
         @Nullable private Boolean compositionEnabled;
         @Nullable private Boolean onlyRaiseDifficulty;
         @Nullable private Boolean playerScalingEnabled;
+        @Nullable private Double playerScalingStartRingBlocks;
 
         @Nullable public String getAggregationMode() { return aggregationMode; }
         @Nullable public Integer getRegionSizeChunks() { return regionSizeChunks; }
@@ -185,6 +194,7 @@ public final class MobScalingSettingsAsset
         @Nullable public Boolean getCompositionEnabled() { return compositionEnabled; }
         @Nullable public Boolean getOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
         @Nullable public Boolean getPlayerScalingEnabled() { return playerScalingEnabled; }
+        @Nullable public Double getPlayerScalingStartRingBlocks() { return playerScalingStartRingBlocks; }
     }
 
     /** Effective-difficulty clamps + the world-baseline floor + the nested distance-from-spawn escalation curve. */

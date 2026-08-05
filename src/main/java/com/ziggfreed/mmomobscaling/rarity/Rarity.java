@@ -29,10 +29,11 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  * loot by {@code MobScalingLootDropSystem}, resolved as guaranteed/any (a mob kill has no win/score axis).
  * Empty (never {@code null}) means no additive layer for this tier.
  *
- * <p>{@link #familyFilter} gates WHICH mob families this tier may roll on (an {@code AllowGroups}/
- * {@code DenyGroups}/{@code AllowRoles}/{@code DenyRoles} {@code Families} block on the asset); it holds only
- * pure data - the engine-coupled evaluation against a spawning mob is {@code family/MobFamilyMatcher}. Absent
- * = {@link FamilyFilter#ALLOW_ALL} (every mob eligible, the pre-feature behavior).
+ * <p>{@link #familyFilter} is the tier's family TARGETING block ({@code AllowGroups}/{@code DenyGroups}/
+ * {@code AllowRoles}/{@code DenyRoles}/{@code ForceGroups}/{@code ForceRoles} on the asset): which families
+ * may roll it, which never may, and which ALWAYS get at least it. It holds only pure data - the
+ * engine-coupled evaluation against a spawning mob is {@code family/MobFamilyMatcher}. Absent =
+ * {@link FamilyFilter#ALLOW_ALL} (every mob eligible, nothing forced).
  */
 public record Rarity(
         @Nonnull String id,
@@ -99,6 +100,23 @@ public record Rarity(
         this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
                 xpMult, affixSlots, auraEffectId, bonusDropListId, allowedAffixes, nameColor, familyFilter,
                 List.of());
+    }
+
+    /**
+     * Ordering scalar for "which tier is stronger", used wherever two tiers must be compared outside the
+     * weighted roll (the {@code ForceGroups}/{@code ForceRoles} resolution: highest forced tier wins, and a
+     * normal roll only replaces a forced tier when it is stronger still). Derived from the authored combat
+     * multipliers rather than {@code minDifficulty}, because an off-ladder tier (weight 0, e.g. a boss tier)
+     * carries no meaningful band. Comparison order is HP, then outgoing damage, then id - a total,
+     * content-determined order, so it never depends on map iteration.
+     */
+    public int compareStrength(@Nonnull Rarity other) {
+        int cmp = Double.compare(this.hpMult, other.hpMult);
+        if (cmp != 0) {
+            return cmp;
+        }
+        cmp = Double.compare(this.outDamageMult, other.outDamageMult);
+        return cmp != 0 ? cmp : this.id.compareTo(other.id);
     }
 
     /** The authored HUD/name display colour ({@code #rrggbb}); {@link #DEFAULT_NAME_COLOR} when unset. */

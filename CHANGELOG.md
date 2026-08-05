@@ -38,6 +38,52 @@ refusing to load the whole mod - see CasterFeatureState.
   gracefully; NativeChain entries are unaffected.
 - New: ScalingContentValidator.validateCasterRosters (Role.Id XOR Glob, AbilityId XOR NativeChain,
   unknown Scope, CadenceSeconds >= 2s floor, negative MinDifficulty/JitterSeconds, duplicate Role.Glob).
+
+Community bug-fix wave (2026-08-04 Discord scan):
+
+- Fix (CRITICAL, player scaling inert): the player/group power delta was gated behind a start ring that
+  reused the distance-escalation start radius (shipped default 15000 blocks), so spawn difficulty sat
+  at the floor everywhere regardless of player power, and toggling DistanceEscalation changed nothing.
+  The ring is now its own orthogonal knob, `OpenWorld.PlayerScalingStartRingBlocks` (global default
+  5000.0 = a newbie-protected ring near spawn; per-world overridable, and the three shipped Dungeon of
+  Fear rules pin it to 0.0 so instance scaling applies from the first spawn). `/mobscaling inspect`
+  gains a player-scaling line (applied / enabled / ring radius / in-ring / distance from spawn) and the
+  admin UI exposes the knob on both the global and per-world forms.
+- Rework: per-rarity role/group TARGETING lists replace the unfinished Java-side boss special case. A
+  rarity's `Families` group gains `ForceGroups`/`ForceRoles` beside the existing Allow/Deny lists
+  (force > deny > allow; the strongest matching forced tier wins, and force acts as a floor a stronger
+  natural roll can still beat). The shipped `Rarities/Boss.json` now authors
+  `Families.ForceGroups: ["Mmoscaling_Bosses"]`, so the boss NPCGroup finally does what its comment
+  always promised; an owner overriding Boss.json without ForceGroups deliberately opts out.
+- Fix (log spam + wasted tick time): re-adding an already-scaled mob (chunk reload, world transfer)
+  threw `IllegalArgumentException: Entity contains component type: ScaledMobComponent` on every
+  attempt (reported at 13k+ occurrences in one session, 46% of that log's warnings) and aborted the
+  HP reconcile that re-add exists to run. The stamp is now an idempotent replace, so a re-add
+  reconciles quietly (deterministic per-mob seed: same mob, same roll) and the reconcile-on-load
+  design actually works for already-stamped mobs. The caster-kit arm stamp gets the same treatment.
+- New: boot-time pack audit (PackDependencyAudit): a pack that authors `Server/MmoMobScaling/*` or
+  `Server/NPC/Groups/Mmoscaling_*.json` without declaring the `Ziggfreed:MmoMobScaling` manifest
+  dependency is named in the log with the exact missing dependency line, covering both failure shapes
+  (a whole-asset-load abort with a misleading engine stack trace, or a silently shadowed override that
+  loses the last-pack-wins race). Log-only, never a boot failure, and runs even when scaling is
+  disabled.
+- New: reference-existence validation in ScalingContentValidator: a dangling rarity/variant
+  AuraEffectId, affix EffectId, BonusDropList, Families Allow/Deny/Force group id, or roster role id
+  now WARNs by name at load (previously an unresolvable effect id was one runtime warn-once and a
+  silent no-op, and a misleading engine boot crash got blamed on it). Degrades to permissive when an
+  engine store cannot answer.
+- Fix (config discoverability): the per-world `worlds/` owner folder is scaffolded up front with a
+  README describing the one-file-per-world convention, and every boot logs the absolute owner-config
+  paths (`mob-scaling config: ...`), closing the "the mod never creates its config" reports (the
+  paths are relative to the server working directory, which is what made them hard to find).
+- New: validator findings for shadowable per-world Match patterns: a rule whose match core is a strict
+  prefix of another's (fragile if the longer rule is ever removed) and two rules with equal-length
+  cores (a silent insertion-order tie-break) each WARN.
+- Docs: CURSEFORGE/README gain "Where the files live", "Extension packs" (copy-pasteable manifest
+  dependency, case sensitivity, zip-root rule), and a third-party nameplate compatibility note (a mod
+  that flattens the localized display-name Message without substituting params prints the raw
+  `{rarity} {base}` template; this mod deliberately never writes the overhead nameplate, and the
+  crosshair inspector HUD renders rarity/variant correctly regardless).
 - New: demo content - Demo_Boss_Caster.json arms the shipped Fire Dragon boss with the MMO's fireball
   (~14s cadence, a Hurt-flinch Windup on the Status slot since the dragon rig ships no cast animation),
   the NPC-only dragon_arcana ice bolt (~20s, no Windup - its native chain carries its own animation

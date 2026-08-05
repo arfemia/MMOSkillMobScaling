@@ -6,8 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +65,23 @@ class ScalingContentValidatorTest {
                 new FamilyFilter(List.of("Spiders"), List.of(), List.of("Spider*"), List.of()));
         List<String> findings = ScalingContentValidator.validateRarities(List.of(denyAll, dead, forced, ok));
         assertEquals(2, findings.size(), "deny-all + dead-allow flagged; weight-0 + valid gate clean: " + findings);
+    }
+
+    @Test
+    void forceListContradictionsAreFlagged() {
+        // A force-only tier (weight 0) is now REACHABLE content, so its filter is validated: an id present
+        // in both ForceGroups and DenyGroups is a dead deny entry (force wins).
+        Rarity contradiction = new Rarity("contradiction", "", 0, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+                new FamilyFilter(List.of(), List.of("Bosses"), List.of(), List.of("Dragon_*"),
+                        List.of("Bosses"), List.of("Dragon_*")));
+        List<String> findings = ScalingContentValidator.validateRarities(List.of(contradiction));
+        assertEquals(2, findings.size(), "both the group and the role contradiction are flagged: " + findings);
+
+        // A deny-ALL is not dead content when the tier forces itself onto a family (force outranks deny).
+        Rarity forcedDespiteDenyAll = new Rarity("forced", "", 0, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+                new FamilyFilter(List.of(), List.of(), List.of(), List.of("*"), List.of("Bosses"), List.of()));
+        assertTrue(ScalingContentValidator.validateRarities(List.of(forcedDespiteDenyAll)).isEmpty(),
+                "a force-only tier that denies the normal roll outright is a legitimate shape");
     }
 
     @Test
@@ -302,6 +322,139 @@ class ScalingContentValidatorTest {
                         """));
         assertTrue(ScalingContentValidator.validateWorldSettings(worlds).isEmpty(),
                 "a clean per-world set (incl. a pool-only base + a Parent chain) passes");
+    }
+
+    // ==================== Reference existence ====================
+
+    /** Resolvers that reject exactly the listed ids and accept everything else. */
+    private static ScalingContentValidator.ReferenceResolvers rejecting(String... missing) {
+        Set<String> gone = new HashSet<>(List.of(missing));
+        Predicate<String> p = id -> !gone.contains(id);
+        return new ScalingContentValidator.ReferenceResolvers(p, p, p, p, p);
+    }
+
+    @Test
+    void danglingAffixEffectIdIsFlagged() {
+        Affix broken = new Affix("offensive", "", "", "Mmoscaling_Affix_Offensive", 1, 0, List.of("*"),
+                1, 0, 0, 0, Affix.KIND_STAT, null, false);
+        List<String> findings = ScalingContentValidator.validateAffixReferences(
+                List.of(broken), rejecting("Mmoscaling_Affix_Offensive"));
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).contains("offensive"), findings.toString());
+        assertTrue(findings.get(0).contains("Mmoscaling_Affix_Offensive"), findings.toString());
+    }
+
+    @Test
+    void resolvableAndBlankAffixEffectIdsAreClean() {
+        Affix resolvable = new Affix("armored", "", "", "Mmoscaling_Armored", 1, 0, List.of("*"),
+                0, 0, 0, 0, Affix.KIND_STAT, null, true);
+        Affix effectless = new Affix("vampiric", "", "", null, 1, 0, List.of("*"),
+                0, 0, 0, 0, Affix.KIND_BEHAVIORAL, "vampiric", false);
+        // The effectless affix must stay clean even against a resolver that rejects everything.
+        Predicate<String> no = id -> false;
+        var strict = new ScalingContentValidator.ReferenceResolvers(no, no, no, no, no);
+        assertTrue(ScalingContentValidator.validateAffixReferences(
+                List.of(resolvable), rejecting("SomethingElse")).isEmpty(), "a resolvable EffectId is clean");
+        assertTrue(ScalingContentValidator.validateAffixReferences(List.of(effectless), strict).isEmpty(),
+                "a null EffectId is a legitimate shape, never a dangling reference");
+    }
+
+    @Test
+    void danglingRarityAuraDropListAndGroupAreFlagged() {
+        Rarity broken = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, "NoSuchAura", "NoSuchDrops",
+                List.of("*"), "", new FamilyFilter(List.of("NoSuchGroup"), List.of(), List.of(), List.of()));
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(broken), rejecting("NoSuchAura", "NoSuchDrops", "NoSuchGroup"));
+        assertEquals(3, findings.size(), "aura, drop list and Families group all flagged: " + findings);
+    }
+
+    @Test
+    void danglingForceGroupAndForceRoleAreFlagged() {
+        // The force lists are the boss-tier targeting surface, so a typo there silently un-forces the tier.
+        Rarity boss = new Rarity("boss", "", 0, 0, 1, 1, 1, 1, 1, 2, null, null, List.of("*"), "",
+                new FamilyFilter(List.of(), List.of(), List.of(), List.of(),
+                        List.of("Mmoscaling_Bosses"), List.of("Baron", "Cult_*_Miniboss")));
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(boss), rejecting("Mmoscaling_Bosses", "Baron", "Cult_*_Miniboss"));
+        assertEquals(2, findings.size(),
+                "the missing group and the missing EXACT role are flagged; the glob is not: " + findings);
+        assertTrue(findings.toString().contains("Mmoscaling_Bosses"), findings.toString());
+        assertTrue(findings.toString().contains("Baron"), findings.toString());
+    }
+
+    @Test
+    void permissiveResolversNeverFlagAnything() {
+        Rarity r = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, "Aura", "Drops", List.of("*"), "",
+                new FamilyFilter(List.of("Group"), List.of(), List.of("Role"), List.of()));
+        assertTrue(ScalingContentValidator.validateRarityReferences(
+                List.of(r), ScalingContentValidator.ReferenceResolvers.permissive()).isEmpty(),
+                "an engine-absent resolver set must degrade to silence, never to false warnings");
+    }
+
+    @Test
+    void danglingVariantReferencesAreFlagged() {
+        Variant v = new Variant("horrific", "", 0.15, 0, 1, 1, 1, 1, 1, 1, List.of("*"), List.of("*"),
+                "NoSuchAura", "NoSuchDrops", "", FamilyFilter.ALLOW_ALL);
+        List<String> findings = ScalingContentValidator.validateVariantReferences(
+                List.of(v), rejecting("NoSuchAura", "NoSuchDrops"));
+        assertEquals(2, findings.size(), findings.toString());
+    }
+
+    @Test
+    void danglingCasterNativeChainIsFlaggedButAbilityIdIsNot() {
+        CasterEntry chain = new CasterEntry(CasterEntry.Kind.NATIVE_CHAIN, null, "No_Such_Chain", 0.0,
+                List.of(), CasterEntry.Scope.ANY, false, 10_000L, 0L, null);
+        CasterEntry ability = new CasterEntry(CasterEntry.Kind.ABILITY, "no_such_ability", null, 0.0,
+                List.of(), CasterEntry.Scope.ANY, false, 10_000L, 0L, null);
+        CasterRoster roster = new CasterRoster("r", "Some_Role", null, List.of(chain, ability));
+        List<String> findings = ScalingContentValidator.validateCasterRosterReferences(
+                List.of(roster), rejecting("No_Such_Chain", "no_such_ability"));
+        assertEquals(1, findings.size(),
+                "only the native chain is checkable here; abilities live in the MMO jar: " + findings);
+        assertTrue(findings.get(0).contains("NativeChain"), findings.toString());
+    }
+
+    // ==================== Match-pattern ambiguity ====================
+
+    @Test
+    void nestedPrefixMatchesReportTheirClosestShadow(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
+                "a", "{ \"Match\": \"a*\" }",
+                "aa", "{ \"Match\": \"aa*\" }",
+                "aaa", "{ \"Match\": \"aaa*\" }"));
+        List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
+        assertEquals(2, findings.size(),
+                "'a*' shadows 'aa*' and 'aa*' shadows 'aaa*'; only the CLOSEST pair per rule: " + findings);
+        assertTrue(findings.toString().contains("shadows"), findings.toString());
+    }
+
+    @Test
+    void disjointEqualLengthPrefixesAreClean(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
+                "foo", "{ \"Match\": \"foo*\" }",
+                "bar", "{ \"Match\": \"bar*\" }"));
+        assertTrue(ScalingContentValidator.validateWorldSettings(worlds).isEmpty(),
+                "two prefixes of equal length can never both match one world name");
+    }
+
+    @Test
+    void equalLengthContainsCoresReportTheOrderDecidedTie(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
+                "alpha", "{ \"Match\": \"*abc*\" }",
+                "beta", "{ \"Match\": \"*xyz*\" }"));
+        List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).contains("file order"), findings.toString());
+    }
+
+    @Test
+    void containsRuleShadowingAPrefixRuleIsFlagged(@TempDir Path tmp) throws Exception {
+        WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
+                "any_fear", "{ \"Match\": \"*fear*\" }",
+                "dungeon", "{ \"Match\": \"instance-dungeon_of_fear_i*\" }"));
+        List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).contains("*fear*"), findings.toString());
     }
 
     private static MobScalingSettingsAsset decodeSettings(String json) throws Exception {

@@ -118,7 +118,9 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
             if (armed.isEmpty()) {
                 return;
             }
-            cb.addComponent(ref, CasterKitComponent.getComponentType(), new CasterKitComponent(armed));
+            // IDEMPOTENT (putComponent, never addComponent): a re-added entity may already carry a kit, and
+            // addComponent throws on a present component type. A re-arm REPLACES the kit with the fresh roll.
+            cb.putComponent(ref, CasterKitComponent.getComponentType(), new CasterKitComponent(armed));
         } catch (Throwable t) {
             safeWarn("caster arm failed: " + t);
         }

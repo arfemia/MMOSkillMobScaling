@@ -1,7 +1,9 @@
 {
   "Name": "Dungeon of Fear I",
   "Payload": {
+    "$Comment": "Mob scaling is switched off entirely in this instance. PlayerScalingStartRingBlocks is pinned to 0 so that an owner who flips Enabled back on gets the player/group delta from the first block, instead of the global newcomer ring around world spawn suppressing it.",
     "Match": "instance-dungeon_of_fear_i*",
-    "Enabled": false
+    "Enabled": false,
+    "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
   }
 }

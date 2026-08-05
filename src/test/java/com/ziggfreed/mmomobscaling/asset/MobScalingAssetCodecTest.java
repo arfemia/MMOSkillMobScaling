@@ -123,6 +123,31 @@ class MobScalingAssetCodecTest {
     }
 
     @Test
+    void rarityFamilyForceListsDecode() throws Exception {
+        // FIXTURE asset (not a shipped file): pins the ForceGroups/ForceRoles keys and their precedence
+        // data, without asserting anything about shipped balance content.
+        RarityAsset asset = decodeJson("""
+                { "Name": "fixture_forced",
+                  "Roll": { "Weight": 0, "MinDifficulty": 0 },
+                  "Families": { "ForceGroups": ["Fixture_Group"], "ForceRoles": ["Fixture_*"],
+                                "DenyRoles": ["Fixture_Excluded"] } }
+                """, RarityAsset.CODEC);
+        com.ziggfreed.mmomobscaling.family.FamilyFilter f = asset.toRarity().familyFilter();
+        assertTrue(f.hasForce(), "the Force lists decode");
+        assertTrue(f.forceGroups().contains("Fixture_Group"), "ForceGroups decoded");
+        assertTrue(f.forcesRole("Fixture_Boss"), "ForceRoles glob matches the family");
+        assertTrue(!f.forcesRole("Other_Role"), "and leaves everything else alone");
+        assertTrue(!f.isUnrestricted(), "the Deny leaf still constrains the allow/deny gate");
+    }
+
+    @Test
+    void rarityWithoutForceListsHasNone() throws Exception {
+        RarityAsset asset = decodeJson("{ \"Name\": \"fixture_plain\", \"Roll\": { \"Weight\": 1 } }",
+                RarityAsset.CODEC);
+        assertTrue(!asset.toRarity().familyFilter().hasForce(), "no Families block -> nothing forced");
+    }
+
+    @Test
     void rarityWithoutNameColorFallsBackToWhite() {
         Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, java.util.List.of("*"));
         assertEquals("", plain.nameColor(), "convenience constructor leaves NameColor empty");

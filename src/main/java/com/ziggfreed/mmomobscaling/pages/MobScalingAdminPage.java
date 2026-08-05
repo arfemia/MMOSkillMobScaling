@@ -757,6 +757,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("escMaxBonus", num(cfg.getEscalationMaxBonus()));
         seed.put("escRarity", num(cfg.getEscalationRarityChancePerPoint()));
         seed.put("playerScaling", onOff(cfg.isPlayerScalingEnabled()));
+        seed.put("playerRing", num(cfg.getPlayerScalingStartRingBlocks()));
         seed.put("aggregation", blankToFirst(cfg.getOpenWorldAggregationMode(), AGGREGATION_MODES));
         seed.put("regionSize", String.valueOf(cfg.getRegionSizeChunks()));
         seed.put("bandWidth", num(cfg.getGroupDeltaBandWidth()));
@@ -822,6 +823,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("wEscMaxBonus", numOrBlank(esc == null ? null : esc.getMaxBonus()));
         seed.put("wEscRarity", numOrBlank(esc == null ? null : esc.getRarityChancePerPoint()));
         seed.put("wPlayerScaling", triOrInherit(ow == null ? null : ow.getPlayerScalingEnabled()));
+        seed.put("wPlayerRing", numOrBlank(ow == null ? null : ow.getPlayerScalingStartRingBlocks()));
         seed.put("wAggregation", dropdownOrInherit(ow == null ? null : ow.getAggregationMode()));
         seed.put("wBandWidth", numOrBlank(ow == null ? null : ow.getGroupDeltaBandWidth()));
         seed.put("wOnlyRaise", triOrInherit(ow == null ? null : ow.getOnlyRaiseDifficulty()));
@@ -944,6 +946,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 ? esc.getRarityChancePerPoint() : cfg.getEscalationRarityChancePerPoint())));
         m.put("wPlayerScaling", onOffDisplay(ow != null && ow.getPlayerScalingEnabled() != null
                 ? ow.getPlayerScalingEnabled() : cfg.isPlayerScalingEnabled()));
+        m.put("wPlayerRing", Message.raw(num(ow != null && ow.getPlayerScalingStartRingBlocks() != null
+                ? ow.getPlayerScalingStartRingBlocks() : cfg.getPlayerScalingStartRingBlocks())));
         m.put("wAggregation", Message.raw(
                 ow != null && ow.getAggregationMode() != null && !ow.getAggregationMode().isBlank()
                         ? ow.getAggregationMode() : cfg.getOpenWorldAggregationMode()));
@@ -1091,6 +1095,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.header("hdrOpenWorld", "scaling.ui.global.open_world_header"));
         s.add(FieldSpec.toggle("playerScaling", "scaling.ui.global.player_scaling")
                 .withHint("scaling.ui.hint.player_scaling"));
+        s.add(FieldSpec.number("playerRing", "OpenWorld.PlayerScalingStartRingBlocks",
+                "scaling.ui.global.player_ring").withHint("scaling.ui.hint.player_ring"));
         s.add(FieldSpec.dropdown("aggregation", "OpenWorld.AggregationMode", "scaling.ui.global.aggregation",
                 AGGREGATION_MODES).withHint("scaling.ui.hint.aggregation"));
         s.add(FieldSpec.integer("regionSize", "OpenWorld.RegionSizeChunks", "scaling.ui.global.region_size")
@@ -1186,6 +1192,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.header("wHdrOpenWorld", "scaling.ui.global.open_world_header"));
         s.add(FieldSpec.tristate("wPlayerScaling", "OpenWorld.PlayerScalingEnabled",
                 "scaling.ui.world.player_scaling").withHint("scaling.ui.hint.w_player_scaling"));
+        s.add(FieldSpec.number("wPlayerRing", "OpenWorld.PlayerScalingStartRingBlocks",
+                "scaling.ui.global.player_ring").withHint("scaling.ui.hint.player_ring"));
         s.add(FieldSpec.dropdown("wAggregation", "OpenWorld.AggregationMode", "scaling.ui.global.aggregation",
                 AGGREGATION_MODES_INHERIT).withHint("scaling.ui.hint.aggregation"));
         s.add(FieldSpec.number("wBandWidth", "OpenWorld.GroupDeltaBandWidth", "scaling.ui.global.band_width")

@@ -194,6 +194,44 @@ class MobScalingConfigTest {
     }
 
     @Test
+    void playerScalingRingAndEscalationStartAreIndependentLeaves(@TempDir Path tmp) throws Exception {
+        Path configFile = tmp.resolve("mob-scaling.json");
+        // The player-scaling protected ring and the distance-escalation start radius are separate knobs:
+        // moving one must never move the other (they were one field, which silently disabled group scaling).
+        Files.writeString(configFile, """
+                {
+                  "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 },
+                  "Difficulty": { "DistanceEscalation": { "StartDistanceBlocks": 1234.0 } }
+                }
+                """);
+
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(configFile);
+        cfg.load();
+
+        assertEquals(0.0, cfg.getPlayerScalingStartRingBlocks(), 1e-9, "owner ring override applied");
+        assertEquals(1234.0, cfg.getEscalationStartDistanceBlocks(), 1e-9,
+                "the escalation start radius is its own leaf, untouched by the ring");
+    }
+
+    @Test
+    void perWorldPlayerScalingRingOverlaysTheGlobal(@TempDir Path tmp) throws Exception {
+        MobScalingConfig cfg = freshDefaults();
+        ownerWorld(tmp, "ringed", """
+                {
+                    "Match": "ringed_*",
+                    "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
+                }
+                """);
+
+        assertEquals(0.0, cfg.spawnSettingsFor("ringed_1").getPlayerScalingStartRingBlocks(), 1e-9,
+                "the per-world OpenWorld leaf overlays the global ring");
+        assertEquals(cfg.getPlayerScalingStartRingBlocks(),
+                cfg.spawnSettingsFor("elsewhere").getPlayerScalingStartRingBlocks(), 1e-9,
+                "an unmatched world keeps the global ring");
+    }
+
+    @Test
     void applyStoreLayerFoldsTheDecodedAssetOverOwner() throws Exception {
         // The async store layer in production is the engine-folded jar Default.json. Decode that
         // same bundled codec asset and confirm applyStoreLayer yields the codec defaults (no owner).
@@ -395,5 +433,32 @@ class MobScalingConfigTest {
         assertTrue(body.contains("\"Intensity\": 2.0"), "sibling owner keys survive the strip: " + body);
         assertFalse(body.contains("WorldOverrides"), "the legacy array is stripped: " + body);
         assertFalse(worlds.migrateLegacyOwnerOverrides(configFile), "idempotent: nothing left to migrate");
+    }
+
+    @Test
+    void firstRunScaffoldsTheOwnerFileAndSchemaReferenceWithoutClobberingEdits(@TempDir Path tmp)
+            throws Exception {
+        // Structure only (does the scaffold exist, is it idempotent) - never any shipped default VALUE.
+        Path owner = tmp.resolve("MmoMobScaling").resolve("mob-scaling.json");
+        Path reference = owner.getParent().resolve("_reference").resolve("defaults-mob-scaling.json");
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        try {
+            cfg.setConfigPath(owner);
+            cfg.load();
+
+            assertTrue(Files.exists(owner), "first run seeds the owner override file");
+            assertTrue(Files.exists(reference), "and writes the full schema beside it for copy-paste");
+
+            // A hand-edited owner file must survive a second boot AND take effect.
+            String edited = "{ \"Intensity\": 3.0 }";
+            Files.writeString(owner, edited, StandardCharsets.UTF_8);
+            cfg.load();
+            assertEquals(edited, Files.readString(owner, StandardCharsets.UTF_8),
+                    "the scaffold never clobbers an existing owner file");
+            assertEquals(3.0, cfg.getIntensity(), 1e-9, "the hand-edited override folds over the defaults");
+        } finally {
+            cfg.setConfigPath(null);
+            cfg.load();
+        }
     }
 }

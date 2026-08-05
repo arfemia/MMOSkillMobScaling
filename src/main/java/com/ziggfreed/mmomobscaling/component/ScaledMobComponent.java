@@ -18,8 +18,9 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  *
  * <p>Holds an immutable {@link MobScaleResult}; {@link #clone()} shares that reference (safe - it is
  * immutable). The no-arg constructor (used by the engine's default {@code Supplier}) yields a benign plain
- * result so an unpopulated instance is never harmful; the spawn hook adds a populated instance via
- * {@code Holder.addComponent}.
+ * result so an unpopulated instance is never harmful; the spawn hook stamps a populated instance via the
+ * IDEMPOTENT {@code Holder.putComponent} (never {@code addComponent}, which throws when a re-added holder
+ * already carries the type).
  *
  * <p>The ONE mutable field is {@link #bonusLootDropped()}, a death-path latch so the bonus-loot ticking
  * system pays a corpse exactly once (mirrors the vanilla {@code Role.hasDroppedDeathItems} latch);

@@ -18,7 +18,10 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  *   <li>{@code Server/NPC/Groups/Mmoscaling_Excluded.json} membership -> EXCLUDED ({@code null}; ships
  *       empty, an owner opt-out list). Wins over everything.</li>
  *   <li>{@code Server/NPC/Groups/Mmoscaling_Bosses.json} membership -> {@link MobScaleResult#SCOPE_BOSS}
- *       (the spawn hook forces the {@code boss} rarity tier instead of rolling the ladder).</li>
+ *       (the scope stamped on the spawn result; caster-roster entries gate on it via {@code Scope: BOSS}).
+ *       The boss RARITY tier is a separate, purely config-driven concern: the shipped
+ *       {@code Rarities/Boss.json} names this same group in its {@code Families.ForceGroups}, so any tier
+ *       may claim any group without a Java-side special case.</li>
  *   <li>Else the native role {@link Attitude}: {@code HOSTILE} scales ({@link MobScaleResult#SCOPE_HOSTILE});
  *       every non-hostile attitude (Neutral/Friendly, which covers livestock) is EXCLUDED.</li>
  * </ol>

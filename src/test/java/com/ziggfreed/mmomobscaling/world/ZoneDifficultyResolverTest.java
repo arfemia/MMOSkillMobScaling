@@ -1,7 +1,9 @@
 package com.ziggfreed.mmomobscaling.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 
@@ -150,6 +152,25 @@ class ZoneDifficultyResolverTest {
         assertEquals(20.0, ZoneDifficultyResolver.escalationBonus(15000.0, 5000.0, 500.0, 92.0), 1e-9);
         assertEquals(92.0, ZoneDifficultyResolver.escalationBonus(1_000_000.0, 5000.0, 500.0, 92.0), 1e-9,
                 "a million blocks out saturates at MaxBonus (the frontier is deadly, not infinite)");
+    }
+
+    @Test
+    void startRingIsIndependentOfTheEscalationStartRadius() {
+        // The protected ring reads its OWN radius: 0 (the "no ring" value) is never inside, whatever the
+        // distance, so player/group scaling applies everywhere by default.
+        assertFalse(ZoneDifficultyResolver.insideStartRing(0.0, 0.0), "ring radius 0 = no ring");
+        assertFalse(ZoneDifficultyResolver.insideStartRing(100.0, 0.0), "ring radius 0 = no ring");
+        assertFalse(ZoneDifficultyResolver.insideStartRing(100.0, -50.0), "a negative radius disables the ring");
+        // A real ring: inside at and below the radius, outside beyond it.
+        assertTrue(ZoneDifficultyResolver.insideStartRing(100.0, 500.0), "inside the ring");
+        assertTrue(ZoneDifficultyResolver.insideStartRing(500.0, 500.0), "the boundary counts as inside");
+        assertFalse(ZoneDifficultyResolver.insideStartRing(600.0, 500.0), "outside the ring");
+        // Pinned together: a LARGE escalation start radius yields no escalation bonus at close range, yet
+        // must not suppress player scaling - the two knobs are read independently.
+        assertEquals(0.0, ZoneDifficultyResolver.escalationBonus(100.0, 9000.0, 500.0, 90.0), 1e-9,
+                "no escalation bonus inside the escalation start radius");
+        assertFalse(ZoneDifficultyResolver.insideStartRing(100.0, 0.0),
+                "and with no protected ring authored, player scaling still applies at that same spot");
     }
 
     @Test

@@ -68,8 +68,8 @@ public final class ZoneDifficultyResolver {
      * One fully-resolved floor read (the {@code /mobscaling inspect} breakdown): the native zone name,
      * the pre-escalation base floor, the additive distance bonus, the cap-clamped effective floor the
      * group delta rides on, the escalation-boosted rarity spawn chance, whether the spawn is INSIDE the
-     * start ring (where player-power scaling is fully off), the raw distance from world spawn, and the
-     * native biome name.
+     * player-scaling protected ring ({@code OpenWorld.PlayerScalingStartRingBlocks}, where the group delta
+     * is fully off), the raw distance from world spawn, and the native biome name.
      */
     public record ResolvedFloor(@Nonnull String zoneName, double baseFloor, double escalationBonus,
             double effectiveFloor, double raritySpawnChance, boolean insideStartRing,
@@ -120,17 +120,18 @@ public final class ZoneDifficultyResolver {
             @Nonnull SpawnScalingSettings settings) {
         ChunkInfo info = chunkInfo(world, chunkX, chunkZ);
         double base = baseFloor(info, settings);
-        // Distance from world spawn is resolved UNCONDITIONALLY (even with escalation off): the start
-        // ring is the "power scaling off near spawn" gate, independent of the additive escalation bonus.
+        // Distance from world spawn is resolved UNCONDITIONALLY (even with escalation off): it feeds TWO
+        // fully independent knobs - the player-scaling protected ring (OpenWorld.PlayerScalingStartRingBlocks)
+        // and the additive escalation bonus (Difficulty.DistanceEscalation.StartDistanceBlocks). They read
+        // DIFFERENT settings, so a large escalation start radius never suppresses player/group scaling.
         WorldMemo memo = memoFor(world);
         double dx = centerBlock(chunkX) - memo.spawnX;
         double dz = centerBlock(chunkZ) - memo.spawnZ;
         double distance = Math.sqrt(dx * dx + dz * dz);
-        double startDistance = settings.getEscalationStartDistanceBlocks();
-        boolean insideStartRing = startDistance > 0.0 && distance <= startDistance;
+        boolean insideStartRing = insideStartRing(distance, settings.getPlayerScalingStartRingBlocks());
         double bonus = 0.0;
         if (settings.isDistanceEscalationEnabled()) {
-            bonus = escalationBonus(distance, startDistance,
+            bonus = escalationBonus(distance, settings.getEscalationStartDistanceBlocks(),
                     settings.getEscalationBlocksPerPoint(), settings.getEscalationMaxBonus());
         }
         double effective = clamp(base + bonus, settings.getDifficultyMinCap(), settings.getDifficultyMaxCap());
@@ -177,6 +178,16 @@ public final class ZoneDifficultyResolver {
             }
         }
         return settings.getDifficultyFloor();
+    }
+
+    /**
+     * The player-scaling PROTECTED RING test (pure; unit-tested): true when a spawn this far from world
+     * spawn sits inside the configured ring, where the player/group power delta is fully off. A ring radius
+     * of {@code 0} (or less) disables the ring entirely - power scaling then applies everywhere. Reads the
+     * ring radius ONLY; the escalation start radius is a separate knob ({@link #escalationBonus}).
+     */
+    static boolean insideStartRing(double distance, double ringRadius) {
+        return ringRadius > 0.0 && distance <= ringRadius;
     }
 
     /** The additive distance-escalation bonus (pure; unit-tested): 0 inside the start radius, then linear, capped. */

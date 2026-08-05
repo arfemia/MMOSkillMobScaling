@@ -35,7 +35,8 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  *   "Roll": { "Weight": 25, "MinDifficulty": 25 },
  *   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },
  *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
- *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [] },
+ *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [],
+ *                 "ForceGroups": [], "ForceRoles": [] },
  *   "AuraEffectId": "Mmoscaling_Aura_Epic", "BonusDropList": "Mmoscaling_Drops_Epic",
  *   "BonusRewards": ["xp MINING 500"] }
  * }</pre>
@@ -201,11 +202,22 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     }
 
     /**
-     * The mob-family gate: which mob families this tier may / may not roll on. Two composable match
-     * mechanisms per side - native {@code NPCGroup} tagset ids ({@code AllowGroups}/{@code DenyGroups}) and
-     * role-name globs ({@code AllowRoles}/{@code DenyRoles}, native {@code IncludeRoles} semantics like
-     * {@code Spider*}, case-insensitive). Deny wins; an empty allow SIDE (both allow lists empty) allows all;
-     * an entirely absent/empty block = {@link FamilyFilter#ALLOW_ALL}. Every leaf is a nullable
+     * The mob-family TARGETING gate: which mob families this tier may / may not / MUST roll on. Two
+     * composable match mechanisms per list - native {@code NPCGroup} tagset ids ({@code AllowGroups} /
+     * {@code DenyGroups} / {@code ForceGroups}) and role-name globs ({@code AllowRoles} / {@code DenyRoles} /
+     * {@code ForceRoles}, native {@code IncludeRoles} semantics like {@code Spider*}, case-insensitive).
+     *
+     * <p>Three orthogonal list pairs, evaluated <b>force &gt; deny &gt; allow</b>:
+     * <ul>
+     *   <li><b>Allow</b> (whitelist) - only these families may roll this tier. An empty allow SIDE (both
+     *       allow lists empty) allows all.</li>
+     *   <li><b>Deny</b> (blacklist) - these families never roll this tier; deny wins over allow.</li>
+     *   <li><b>Force</b> - these families ALWAYS get at least this tier, bypassing the weight / difficulty
+     *       band / spawn-chance roll and the allow+deny gate. When several tiers force the same mob, the
+     *       strongest wins ({@code Multipliers.Hp}, then {@code Multipliers.OutDamage}, then id); a normal
+     *       roll that lands on an even stronger tier still wins, since force is a FLOOR.</li>
+     * </ul>
+     * An entirely absent/empty block = {@link FamilyFilter#ALLOW_ALL}. Every leaf is a nullable
      * {@code String[]} so a partial owner overlay folds per-leaf (absent = the empty list, i.e. no constraint
      * on that leaf).
      */
@@ -223,16 +235,29 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
                 .append(new KeyedCodec<>("DenyRoles", Codec.STRING_ARRAY, false),
                         (f, v) -> f.denyRoles = v, f -> f.denyRoles)
                 .add()
+                // Native NPCGroup tagset ids whose members ALWAYS get at least this tier (the boss group's
+                // mechanism: no weight/band/chance roll, no allow+deny gate).
+                .append(new KeyedCodec<>("ForceGroups", Codec.STRING_ARRAY, false),
+                        (f, v) -> f.forceGroups = v, f -> f.forceGroups)
+                .add()
+                // Role-name globs whose matches ALWAYS get at least this tier (same semantics as ForceGroups,
+                // without needing a tagset asset).
+                .append(new KeyedCodec<>("ForceRoles", Codec.STRING_ARRAY, false),
+                        (f, v) -> f.forceRoles = v, f -> f.forceRoles)
+                .add()
                 .build();
 
         @Nullable private String[] allowGroups;
         @Nullable private String[] denyGroups;
         @Nullable private String[] allowRoles;
         @Nullable private String[] denyRoles;
+        @Nullable private String[] forceGroups;
+        @Nullable private String[] forceRoles;
 
         @Nonnull
         FamilyFilter toFilter() {
-            return new FamilyFilter(list(allowGroups), list(denyGroups), list(allowRoles), list(denyRoles));
+            return new FamilyFilter(list(allowGroups), list(denyGroups), list(allowRoles), list(denyRoles),
+                    list(forceGroups), list(forceRoles));
         }
     }
 }

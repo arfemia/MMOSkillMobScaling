@@ -112,6 +112,67 @@ class RarityRosterTest {
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Forced-tier targeting (Families.ForceGroups / Families.ForceRoles)
+    // ---------------------------------------------------------------------
+
+    /** Fixture tiers whose HP multipliers are authored HERE purely to order them weakest -> strongest. */
+    private static Rarity tier(String id, double weight, double minDiff, double hp) {
+        return new Rarity(id, "", weight, minDiff, hp, 1, 1, 1, 1, 0, null, null, List.of("*"));
+    }
+
+    private static RarityRoster strengthLadder() {
+        return RarityRoster.build(List.of(
+                tier("weak", 70, 0, 1.5),
+                tier("mid", 25, 0, 2.0),
+                tier("strong", 5, 0, 3.0),
+                tier("offladder", 0, 0, 4.0)));
+    }
+
+    @Test
+    void forcedPicksTheStrongestMatchingTier() {
+        RarityRoster r = strengthLadder();
+        assertEquals("strong", id(r.forced(t -> t.id().equals("weak") || t.id().equals("strong"))),
+                "the strongest of several forced tiers wins");
+    }
+
+    @Test
+    void forcedSpansNonRollableTiers() {
+        RarityRoster r = strengthLadder();
+        assertEquals(3, r.size(), "the weight-0 tier stays OFF the roll ladder");
+        assertEquals("offladder", id(r.forced(t -> t.id().equals("offladder"))),
+                "but it is still reachable by force (that is the whole point of a weight-0 tier)");
+    }
+
+    @Test
+    void forcedYieldsNullWhenNothingMatches() {
+        assertNull(strengthLadder().forced(t -> false), "no force match -> null (plain, or whatever rolled)");
+    }
+
+    @Test
+    void forcedIsAFloorNotAPin() {
+        RarityRoster r = strengthLadder();
+        Rarity weak = r.forced(t -> t.id().equals("weak"));
+        Rarity strong = r.forced(t -> t.id().equals("strong"));
+        assertEquals("strong", id(RarityRoster.strongerOf(strong, weak)), "a stronger ROLL beats a weak force");
+        assertEquals("strong", id(RarityRoster.strongerOf(weak, strong)), "and a stronger FORCE beats a weak roll");
+        assertEquals("weak", id(RarityRoster.strongerOf(null, weak)), "a plain roll takes the forced tier");
+        assertEquals("weak", id(RarityRoster.strongerOf(weak, null)), "and nothing forced keeps the rolled tier");
+        assertNull(RarityRoster.strongerOf(null, null), "plain stays plain");
+    }
+
+    @Test
+    void forcedConsumesNoRng() {
+        RarityRoster r = strengthLadder();
+        // The forced lookup is a pure scan over the tier set: it must not advance the generator, so a roll
+        // taken AFTER it off the same seed still matches a fresh-seeded roll.
+        SplitMix64 shared = new SplitMix64(4242L);
+        r.forced(t -> t.id().equals("offladder"));
+        Rarity afterForce = r.pick(60, 1.0, shared, ANY);
+        Rarity untouched = r.pick(60, 1.0, new SplitMix64(4242L), ANY);
+        assertEquals(id(untouched), id(afterForce), "resolving a forced tier must not perturb the roll stream");
+    }
+
     private static String id(Rarity r) {
         return r == null ? null : r.id();
     }

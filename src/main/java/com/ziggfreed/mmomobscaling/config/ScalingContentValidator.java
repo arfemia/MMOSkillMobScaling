@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -17,17 +18,29 @@ import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
+import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
  * Value-sanity validation over the FOLDED rarity/affix content (jar + pack + owner), run once per
  * {@code LoadedAssetsEvent} fold by {@code MobScalingAssetRegistrar} and logged as warnings; a finding
  * never blocks the load (bad content degrades, it does not kill the mod). Pure logic (no engine types),
- * unit-tested. EXISTENCE checks that need live asset maps stay at their consumption sites on purpose
- * (an unresolvable {@code AuraEffectId}/affix {@code EffectId} warns once in the effect-apply system, an
- * unresolvable {@code BonusDropList} warns once in the loot-drop system) - this class covers the pure
- * value ranges + shape rules those sites cannot see.
+ * unit-tested.
+ *
+ * <p>Two families of check live here:
+ * <ul>
+ *   <li><b>Value + shape</b> ({@code validateRarities}, {@code validateAffixes}, ...) - pure range and
+ *       self-contradiction rules, run per store fold.</li>
+ *   <li><b>Reference EXISTENCE</b> ({@code validate*References}, taking a {@link ReferenceResolvers}) -
+ *       "does the id this content points at actually resolve to an asset". These stay pure by taking the
+ *       live asset lookups as injected predicates (the same shape {@link #validateDifficultyCaps} uses for
+ *       the MMO power bounds), and they run ONCE at boot, after every store has loaded, rather than per
+ *       fold: a per-fold check would race the load order of the stores it reads. The per-spawn warn-once
+ *       sites (the effect-apply system, the loot-drop system, the family matcher) stay exactly as they
+ *       are - this is an EARLIER, whole-catalog report of the same class of typo, not a replacement.</li>
+ * </ul>
  */
 public final class ScalingContentValidator {
 
@@ -71,12 +84,14 @@ public final class ScalingContentValidator {
             if (!r.nameColor().isBlank() && !r.nameColor().matches("#[0-9a-fA-F]{6}")) {
                 findings.add(at + ": NameColor must be #rrggbb or absent (got '" + r.nameColor() + "')");
             }
-            // A rollable tier (Weight > 0) whose family filter can NEVER match is dead content: it costs a
-            // roster slot but can never be picked. Only the PURE self-contradictions are checkable here
-            // (a "*" deny nukes everything; an id in both allow + deny is a dead allow entry since deny wins).
-            // Whether a referenced NPCGroup id EXISTS needs the live asset map, so that check is warn-once in
-            // MobFamilyMatcher at resolve time (mirrors the AuraEffectId/BonusDropList existence checks).
-            if (r.weight() > 0) {
+            // A REACHABLE tier whose family filter can NEVER match is dead content: it costs a roster slot
+            // but can never be picked. Reachable = rollable (Weight > 0) OR force-only (Weight 0 with a
+            // Force list, the boss-tier shape). Only the PURE self-contradictions are checkable here (a "*"
+            // deny nukes everything; an id in both allow + deny is a dead allow entry since deny wins; an id
+            // in both force + deny is a dead DENY entry since force wins). Whether a referenced NPCGroup id
+            // EXISTS needs the live asset map, so that check is warn-once in MobFamilyMatcher at resolve
+            // time (mirrors the AuraEffectId/BonusDropList existence checks).
+            if (r.weight() > 0 || r.familyFilter().hasForce()) {
                 findings.addAll(familyFilterFindings(at, r.familyFilter()));
             }
         }
@@ -85,11 +100,23 @@ public final class ScalingContentValidator {
 
     /** Pure self-contradiction findings for a rarity's family filter (deny-all / allow-entry-also-denied). */
     @Nonnull
-    private static List<String> familyFilterFindings(@Nonnull String at,
-            @Nonnull com.ziggfreed.mmomobscaling.family.FamilyFilter filter) {
+    private static List<String> familyFilterFindings(@Nonnull String at, @Nonnull FamilyFilter filter) {
         List<String> findings = new ArrayList<>();
-        if (filter.denyRoles().contains("*") || filter.denyGroups().contains("*")) {
+        // A deny-all is only dead content when nothing forces the entry (force outranks deny).
+        if (!filter.hasForce() && (filter.denyRoles().contains("*") || filter.denyGroups().contains("*"))) {
             findings.add(at + ": Families deny list contains '*' - this tier can never roll (denies everything)");
+        }
+        for (String id : filter.forceGroups()) {
+            if (filter.denyGroups().contains(id)) {
+                findings.add(at + ": Families group '" + id + "' is in both ForceGroups and DenyGroups"
+                        + " (force wins, so the deny entry is dead)");
+            }
+        }
+        for (String pattern : filter.forceRoles()) {
+            if (filter.denyRoles().contains(pattern)) {
+                findings.add(at + ": Families role pattern '" + pattern + "' is in both ForceRoles and DenyRoles"
+                        + " (force wins, so the deny entry is dead)");
+            }
         }
         for (String id : filter.allowGroups()) {
             if (filter.denyGroups().contains(id)) {
@@ -108,10 +135,9 @@ public final class ScalingContentValidator {
 
     /** Validate folded variants; one human-readable finding per violation (empty = clean). */
     @Nonnull
-    public static List<String> validateVariants(
-            @Nonnull Collection<com.ziggfreed.mmomobscaling.variant.Variant> variants) {
+    public static List<String> validateVariants(@Nonnull Collection<Variant> variants) {
         List<String> findings = new ArrayList<>();
-        for (com.ziggfreed.mmomobscaling.variant.Variant v : variants) {
+        for (Variant v : variants) {
             String at = "variant '" + v.id() + "'";
             if (v.chance() < 0 || v.chance() > 1) {
                 findings.add(at + ": Chance must be in [0,1] (0 = not rollable)");
@@ -177,6 +203,167 @@ public final class ScalingContentValidator {
             }
         }
         return findings;
+    }
+
+    // ==================== Reference EXISTENCE (boot-time, injected resolvers) ====================
+
+    /**
+     * The live-asset existence lookups the {@code validate*References} checks need, injected so this class
+     * stays pure and engine-decoupled (the same shape {@link #validateDifficultyCaps} uses for the MMO
+     * power bounds). Each predicate answers "does an asset with this id exist"; an implementation that
+     * CANNOT answer (store not loaded yet, engine class absent in a unit JVM) MUST return {@code true}, so
+     * an unknown degrades to silence instead of a false warning.
+     *
+     * <p>Deliberately five independent predicates rather than one lookup object: a caller may be able to
+     * answer some questions and not others, and a new reference kind adds a field without disturbing the
+     * rest.
+     */
+    public record ReferenceResolvers(
+            @Nonnull Predicate<String> effectExists,
+            @Nonnull Predicate<String> dropListExists,
+            @Nonnull Predicate<String> npcGroupExists,
+            @Nonnull Predicate<String> roleExists,
+            @Nonnull Predicate<String> interactionExists) {
+
+        /** Resolvers that answer "exists" to everything - the engine-absent / unit-test no-op. */
+        @Nonnull
+        public static ReferenceResolvers permissive() {
+            Predicate<String> yes = id -> true;
+            return new ReferenceResolvers(yes, yes, yes, yes, yes);
+        }
+    }
+
+    /**
+     * Existence-check every asset id a folded rarity points at: its {@code AuraEffectId}, its
+     * {@code BonusDropList}, and the native {@code NPCGroup} ids / exact role names in its {@code Families}
+     * allow / deny / force lists. WARN-level findings only: a dangling id degrades (the tier still rolls,
+     * it just applies nothing), it never blocks the load.
+     */
+    @Nonnull
+    public static List<String> validateRarityReferences(@Nonnull Collection<Rarity> rarities,
+            @Nonnull ReferenceResolvers resolvers) {
+        List<String> findings = new ArrayList<>();
+        for (Rarity r : rarities) {
+            String at = "rarity '" + r.id() + "'";
+            referenceFinding(findings, at, "AuraEffectId", r.auraEffectId(), resolvers.effectExists(),
+                    "EntityEffect asset", "the tier rolls but applies no aura");
+            referenceFinding(findings, at, "BonusDropList", r.bonusDropListId(), resolvers.dropListExists(),
+                    "ItemDropList asset", "the tier rolls but drops no bonus loot");
+            findings.addAll(familyReferenceFindings(at, r.familyFilter(), resolvers));
+        }
+        return findings;
+    }
+
+    /** Existence-check a folded variant's references; same rules as {@link #validateRarityReferences}. */
+    @Nonnull
+    public static List<String> validateVariantReferences(@Nonnull Collection<Variant> variants,
+            @Nonnull ReferenceResolvers resolvers) {
+        List<String> findings = new ArrayList<>();
+        for (Variant v : variants) {
+            String at = "variant '" + v.id() + "'";
+            referenceFinding(findings, at, "AuraEffectId", v.auraEffectId(), resolvers.effectExists(),
+                    "EntityEffect asset", "the variant rolls but applies no fallback aura");
+            referenceFinding(findings, at, "BonusDropList", v.bonusDropListId(), resolvers.dropListExists(),
+                    "ItemDropList asset", "the variant rolls but drops no bonus loot");
+            findings.addAll(familyReferenceFindings(at, v.familyFilter(), resolvers));
+        }
+        return findings;
+    }
+
+    /**
+     * Existence-check a folded affix's {@code EffectId}. A blank id is a legitimate shape (a pure fold-delta
+     * or BEHAVIORAL affix); only an AUTHORED id that resolves to nothing is a finding.
+     */
+    @Nonnull
+    public static List<String> validateAffixReferences(@Nonnull Collection<Affix> affixes,
+            @Nonnull ReferenceResolvers resolvers) {
+        List<String> findings = new ArrayList<>();
+        for (Affix a : affixes) {
+            referenceFinding(findings, "affix '" + a.id() + "'", "EffectId", a.effectId(),
+                    resolvers.effectExists(), "EntityEffect asset",
+                    "the affix rolls onto mobs but applies nothing");
+        }
+        return findings;
+    }
+
+    /**
+     * Existence-check a folded caster roster's {@code NativeChain} ids against the native
+     * {@code RootInteraction} store. An {@code AbilityId} is deliberately NOT checked here: abilities live
+     * in the MMO jar's own catalog, which this mod reaches only through the frozen API, and that entry
+     * already degrades with its own one-shot warning when the ability is missing.
+     */
+    @Nonnull
+    public static List<String> validateCasterRosterReferences(@Nonnull Collection<CasterRoster> rosters,
+            @Nonnull ReferenceResolvers resolvers) {
+        List<String> findings = new ArrayList<>();
+        for (CasterRoster r : rosters) {
+            String at = "caster roster '" + r.id() + "'";
+            for (int i = 0; i < r.abilities().size(); i++) {
+                CasterEntry e = r.abilities().get(i);
+                if (e.kind() != CasterEntry.Kind.NATIVE_CHAIN) {
+                    continue;
+                }
+                referenceFinding(findings, at + " Abilities[" + i + "]", "NativeChain", e.nativeChain(),
+                        resolvers.interactionExists(), "RootInteraction asset",
+                        "the entry never arms, so the mob never fires that attack");
+            }
+        }
+        return findings;
+    }
+
+    /** Existence findings for one {@code Families} block's group ids + EXACT (non-glob) role names. */
+    @Nonnull
+    private static List<String> familyReferenceFindings(@Nonnull String at, @Nonnull FamilyFilter filter,
+            @Nonnull ReferenceResolvers resolvers) {
+        List<String> findings = new ArrayList<>();
+        groupReferenceFindings(findings, at, "AllowGroups", filter.allowGroups(), resolvers);
+        groupReferenceFindings(findings, at, "DenyGroups", filter.denyGroups(), resolvers);
+        groupReferenceFindings(findings, at, "ForceGroups", filter.forceGroups(), resolvers);
+        roleReferenceFindings(findings, at, "AllowRoles", filter.allowRoles(), resolvers);
+        roleReferenceFindings(findings, at, "DenyRoles", filter.denyRoles(), resolvers);
+        roleReferenceFindings(findings, at, "ForceRoles", filter.forceRoles(), resolvers);
+        return findings;
+    }
+
+    /** One finding per {@code Families} group id that names no {@code NPCGroup} tagset ({@code "*"} exempt). */
+    private static void groupReferenceFindings(@Nonnull List<String> out, @Nonnull String at,
+            @Nonnull String field, @Nonnull List<String> ids, @Nonnull ReferenceResolvers resolvers) {
+        for (String id : ids) {
+            if (isBlank(id) || "*".equals(id.trim()) || resolvers.npcGroupExists().test(id.trim())) {
+                continue;
+            }
+            out.add(at + ": Families." + field + " names NPCGroup '" + id
+                    + "', which has no tagset asset (the entry can never match; author"
+                    + " Server/NPC/Groups/" + id + ".json or fix the id)");
+        }
+    }
+
+    /**
+     * One finding per EXACT role name in a {@code Families} role list that names no NPC role. A pattern
+     * containing {@code *} is a glob (it is meant to match a FAMILY of roles, several of which may not
+     * exist on a given server) and is deliberately never existence-checked.
+     */
+    private static void roleReferenceFindings(@Nonnull List<String> out, @Nonnull String at,
+            @Nonnull String field, @Nonnull List<String> patterns, @Nonnull ReferenceResolvers resolvers) {
+        for (String pattern : patterns) {
+            if (isBlank(pattern) || pattern.indexOf('*') >= 0 || resolvers.roleExists().test(pattern.trim())) {
+                continue;
+            }
+            out.add(at + ": Families." + field + " names role '" + pattern
+                    + "', which is not a loaded NPC role (the entry can never match; use a '*' glob if"
+                    + " you meant a family of roles, or fix the id)");
+        }
+    }
+
+    /** Add one dangling-reference finding when an AUTHORED (non-blank) id fails its existence predicate. */
+    private static void referenceFinding(@Nonnull List<String> out, @Nonnull String at,
+            @Nonnull String field, @Nullable String id, @Nonnull Predicate<String> exists,
+            @Nonnull String assetKind, @Nonnull String consequence) {
+        if (isBlank(id) || exists.test(id.trim())) {
+            return;
+        }
+        out.add(at + ": " + field + " '" + id + "' does not resolve to a " + assetKind
+                + " (" + consequence + ")");
     }
 
     /**
@@ -252,11 +439,17 @@ public final class ScalingContentValidator {
      * {@code Difficulty.MinCap > MaxCap}, and a pool id present in both {@code Allow} and {@code Deny}
      * (deny wins, the allow entry is dead). Pool id EXISTENCE stays at the roll sites (the rarity /
      * variant / affix stores fold on their own events, so a static cross-check would race the load).
+     *
+     * <p>Also reports the two SILENT ambiguities the matcher resolves without telling anyone: a
+     * {@code Match} that fully SHADOWS a more specific one (correct today, but it captures that rule's
+     * worlds the moment the more specific rule is deleted, disabled by removal, or renamed) and a pair of
+     * rules the matcher can only separate by file order. See {@link #matchAmbiguityFindings}.
      */
     @Nonnull
     public static List<String> validateWorldSettings(@Nonnull WorldSettingsConfig worlds) {
         List<String> findings = new ArrayList<>();
         Set<String> seenMatch = new HashSet<>();
+        List<MatchRule> rules = new ArrayList<>();
         for (var e : worlds.foldedView().entrySet()) {
             String id = e.getKey();
             WorldSettings ws = e.getValue();
@@ -266,10 +459,13 @@ public final class ScalingContentValidator {
                 findings.add(at + ": Parent '" + parent + "' not found (the file resolved standalone)");
             }
             String match = ws.getMatch();
-            if (match != null && !match.isBlank()
-                    && !seenMatch.add(match.trim().toLowerCase(Locale.ROOT))) {
-                findings.add(at + ": duplicate Match '" + match + "' across world files"
-                        + " (matcher precedence silently picks one)");
+            if (match != null && !match.isBlank()) {
+                if (!seenMatch.add(match.trim().toLowerCase(Locale.ROOT))) {
+                    findings.add(at + ": duplicate Match '" + match + "' across world files"
+                            + " (matcher precedence silently picks one)");
+                } else {
+                    rules.add(MatchRule.parse(id, match));
+                }
             }
             Double intensity = ws.getIntensity();
             if (intensity != null && intensity < 0) {
@@ -304,7 +500,123 @@ public final class ScalingContentValidator {
                 }
             }
         }
+        findings.addAll(matchAmbiguityFindings(rules));
         return findings;
+    }
+
+    // ==================== Match-pattern ambiguity ====================
+
+    /**
+     * The {@code Match} forms {@code WorldNameMatcher} understands, mirrored here (the matcher's own
+     * parsed core is private) so the validator can reason about a pattern without touching common.
+     */
+    private enum MatchKind { EXACT, PREFIX, SUFFIX, CONTAINS, ALL }
+
+    /** One matchable world rule, pre-parsed the way {@code WorldNameMatcher.Entry} parses it. */
+    private record MatchRule(@Nonnull String worldId, @Nonnull String pattern,
+            @Nonnull MatchKind kind, @Nonnull String core) {
+
+        /** Parse a {@code Match} into its kind + lower-cased literal core (leading/trailing {@code *} stripped). */
+        @Nonnull
+        static MatchRule parse(@Nonnull String worldId, @Nonnull String pattern) {
+            String p = pattern.trim().toLowerCase(Locale.ROOT);
+            boolean lead = p.startsWith("*");
+            boolean trail = p.endsWith("*");
+            String core = p;
+            if (trail) {
+                core = core.substring(0, core.length() - 1);
+            }
+            if (lead && !core.isEmpty()) {
+                core = core.substring(1);
+            }
+            MatchKind kind;
+            if (core.isEmpty()) {
+                kind = MatchKind.ALL;
+            } else if (lead && trail) {
+                kind = MatchKind.CONTAINS;
+            } else if (lead) {
+                kind = MatchKind.SUFFIX;
+            } else if (trail) {
+                kind = MatchKind.PREFIX;
+            } else {
+                kind = MatchKind.EXACT;
+            }
+            return new MatchRule(worldId, pattern.trim(), kind, core);
+        }
+    }
+
+    /**
+     * Report the two ambiguities {@code WorldNameMatcher} resolves SILENTLY.
+     *
+     * <ol>
+     *   <li><b>Shadowing.</b> A wildcard rule whose literal core is strictly contained in a longer rule's
+     *       core matches EVERYTHING that longer rule matches ({@code dungeon_i*} matches every world
+     *       {@code dungeon_ii*} does). Today the longer core wins on specificity, so the pair behaves; the
+     *       moment the longer rule is deleted or renamed, the short one silently inherits its worlds. One
+     *       finding per rule, naming only the CLOSEST rule it shadows, so a family of three nested
+     *       patterns reports two lines rather than every pair.</li>
+     *   <li><b>Order-decided ties.</b> Two {@code *core*} contains-rules with equal-length cores tie on
+     *       both specificity axes, so a world containing both cores is decided by FILE ORDER. (Two prefix
+     *       or two suffix rules with equal-length cores cannot both match one name unless their cores are
+     *       identical, which the duplicate-{@code Match} check already reports, and a cross-KIND tie is
+     *       broken deterministically by anchoring - so neither is flagged here.)</li>
+     * </ol>
+     */
+    @Nonnull
+    private static List<String> matchAmbiguityFindings(@Nonnull List<MatchRule> rules) {
+        List<String> findings = new ArrayList<>();
+        for (MatchRule rule : rules) {
+            MatchRule closest = null;
+            for (MatchRule other : rules) {
+                if (other == rule || !subsumes(rule, other)) {
+                    continue;
+                }
+                if (closest == null || other.core().length() < closest.core().length()) {
+                    closest = other;
+                }
+            }
+            if (closest != null) {
+                findings.add("world '" + rule.worldId() + "': Match '" + rule.pattern()
+                        + "' also matches every world '" + closest.pattern() + "' (world '"
+                        + closest.worldId() + "') matches, so it shadows that rule as soon as the more"
+                        + " specific one is removed or renamed - consider a delimiter before the wildcard");
+            }
+        }
+        for (int i = 0; i < rules.size(); i++) {
+            MatchRule a = rules.get(i);
+            if (a.kind() != MatchKind.CONTAINS) {
+                continue;
+            }
+            for (int j = i + 1; j < rules.size(); j++) {
+                MatchRule b = rules.get(j);
+                if (b.kind() == MatchKind.CONTAINS && a.core().length() == b.core().length()) {
+                    findings.add("world '" + a.worldId() + "': Match '" + a.pattern() + "' and world '"
+                            + b.worldId() + "' Match '" + b.pattern() + "' have equal-length cores of the"
+                            + " same kind - a world matching both is decided by file order, not"
+                            + " specificity; lengthen one core to make the intent explicit");
+                }
+            }
+        }
+        return findings;
+    }
+
+    /**
+     * True when EVERY world {@code specific} matches is also matched by {@code general}, with a strictly
+     * shorter (so strictly less specific) core. Same-anchoring only, plus the contains-over-anything case:
+     * a prefix core can only subsume another prefix, a suffix another suffix, while a contains core
+     * subsumes any rule whose core contains it.
+     */
+    private static boolean subsumes(@Nonnull MatchRule general, @Nonnull MatchRule specific) {
+        if (general.core().length() >= specific.core().length()) {
+            return false;
+        }
+        return switch (general.kind()) {
+            case PREFIX -> specific.kind() == MatchKind.PREFIX && specific.core().startsWith(general.core());
+            case SUFFIX -> specific.kind() == MatchKind.SUFFIX && specific.core().endsWith(general.core());
+            case CONTAINS -> (specific.kind() == MatchKind.PREFIX || specific.kind() == MatchKind.SUFFIX
+                    || specific.kind() == MatchKind.CONTAINS) && specific.core().contains(general.core());
+            default -> false;
+        };
     }
 
     /** Dead-allow-entry findings for a pool gate: an id in both Allow and Deny can never roll (deny wins). */

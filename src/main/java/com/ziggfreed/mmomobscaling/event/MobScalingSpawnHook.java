@@ -40,12 +40,12 @@ import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
-import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.family.MobFamilyMatcher;
 import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
 import com.ziggfreed.mmomobscaling.pages.RoleBaseHealthResolver;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.rarity.RarityRoster;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
@@ -103,6 +103,9 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     @Override
     public void onEntityAdd(@Nonnull Holder<EntityStore> holder, @Nonnull AddReason reason,
             @Nonnull Store<EntityStore> store) {
+        // Captured before the body so the catch-all below can name WHICH mob failed (a bare stack-class
+        // warn is unactionable in a bug report).
+        String failRole = "?";
         try {
             MobScalingConfig cfg = MobScalingConfig.getInstance();
             if (!cfg.isEnabled()) {
@@ -125,6 +128,10 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             if (npc == null) {
                 return; // guaranteed by the structural query, but guard anyway
             }
+            String roleName = npc.getRoleName();
+            if (roleName != null) {
+                failRole = roleName;
+            }
             Byte scope = MobClassifier.classify(npc);
             if (scope == null) {
                 cleanupResidue(holder); // now EXCLUDED (e.g. a role added to the exclude set): strip stale scaling
@@ -146,17 +153,18 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             Predicate<Variant> variantFamilyEligible = v -> spawn.isVariantAllowed(v.id())
                     && MobFamilyMatcher.get().eligible(v.familyFilter(), npc);
 
-            Rarity rarity;
-            if (scope == MobScaleResult.SCOPE_BOSS) {
-                // Boss scope FORCES the authored boss tier (Weight 0 keeps it off the normal roll);
-                // an owner who stripped Rarities/Boss.json falls back to the normal (family-gated) curve.
-                rarity = RarityConfig.getInstance().resolve("boss");
-                if (rarity == null) {
-                    rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
-                }
-            } else {
-                rarity = Rosters.rarity().pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
-            }
+            // FORCED tier resolution (config-driven, no Java-side special case): a rarity whose authored
+            // Families.ForceGroups / Families.ForceRoles match this mob is granted regardless of weight,
+            // difficulty band, or spawn chance - the mechanism the shipped Rarities/Boss.json uses to claim
+            // the Mmoscaling_Bosses NPCGroup. It consumes no RNG, so the roll below stays deterministic, and
+            // it is a FLOOR: a normal roll landing on a stronger tier still wins.
+            // (Force test first: it short-circuits on the tiers that author no force list at all, which is
+            // every tier in the common case, before the per-world pool set lookup.)
+            Rarity forced = Rosters.rarity().forced(r -> MobFamilyMatcher.get().forces(r.familyFilter(), npc)
+                    && spawn.isRarityAllowed(r.id()));
+            Rarity rolled = Rosters.rarity()
+                    .pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
+            Rarity rarity = RarityRoster.strongerOf(rolled, forced);
             // The SECOND axis: an independent family-gated variant OVERLAY (at most one), rolled after the base
             // rarity. Draws exactly once (VariantRoster) so the seed->result mapping stays stable. The base
             // rarity id (or "" for a plain mob) feeds the variant's requires-rarity gate.
@@ -174,7 +182,11 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             // then the variant multiplier stacks multiplicatively over that.
             MobScaleFold.DifficultyStatCurve curve = spawn.statCurveModel();
             MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, effDifficulty, scope, curve);
-            holder.addComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
+            // IDEMPOTENT stamp (putComponent, never addComponent): a holder can reach onEntityAdd already
+            // carrying the component (a re-add of a live holder - world transfer, a reload of a still-resident
+            // holder, an entity clone routed back through the add pipeline). addComponent THROWS on a present
+            // component type, and the whole-body catch below would then also skip the HP reconcile.
+            holder.putComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
 
             if (rarity != null || variant != null) {
                 decorateDisplayName(holder, rarity, variant);
@@ -194,7 +206,7 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             // The companion effect system sweeps stale Mmoscaling_* auras the same add cycle.
             HealthUtil.reconcileMaxHealth(holder, result.hpMult(), HP_KEY);
         } catch (Throwable t) {
-            safeWarn("spawn scale failed: " + t);
+            safeWarn("spawn scale failed for role " + failRole + ": " + t);
         }
     }
 
@@ -207,14 +219,16 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     /**
      * Strip stale native scaling off a mob that should NOT be scaled on this load (mod runtime-disabled, world
      * kill-switch off, or newly excluded). Removes the {@code mmoscaling_hp} MAX modifier; if there WAS residue
-     * (the mob was scaled before), stamps a PLAIN {@link ScaledMobComponent} so the effect {@code RefSystem}
-     * fires and sweeps the stale {@code Mmoscaling_*} auras the same add cycle. Cheap no-op for a mob that was
-     * never scaled (the modifier is absent, so nothing is stamped and no per-entity cost is added).
+     * (the mob was scaled before), REPLACES any existing {@link ScaledMobComponent} with a PLAIN one (an
+     * idempotent {@code putComponent}, so a re-added holder that still carries the component never throws) so
+     * the effect {@code RefSystem} fires and sweeps the stale {@code Mmoscaling_*} auras the same add cycle.
+     * Cheap no-op for a mob that was never scaled (the modifier is absent, so nothing is stamped and no
+     * per-entity cost is added).
      */
     private static void cleanupResidue(@Nonnull Holder<EntityStore> holder) {
         boolean hadResidue = HealthUtil.reconcileMaxHealth(holder, 1.0, HP_KEY);
         if (hadResidue) {
-            holder.addComponent(ScaledMobComponent.getComponentType(),
+            holder.putComponent(ScaledMobComponent.getComponentType(),
                     new ScaledMobComponent(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE,
                             MobScaleFold.DifficultyStatCurve.NONE)));
         }
@@ -297,10 +311,15 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * delta), the escalation-boosted rarity spawn chance, and the diagnostic breakdown
      * ({@code /mobscaling inspect} prints every field so owners can see exactly which layer produced
      * a number).
+     *
+     * <p>{@code insideStartRing} + {@code playerScalingApplied} are the WHY of the group delta: a zero
+     * delta is otherwise indistinguishable between "no players tracked", "player scaling switched off in
+     * this world", and "inside the protected ring near world spawn".
      */
     public record SpawnScaling(double difficulty, double raritySpawnChance, @Nonnull String zoneName,
             double baseFloor, double escalationBonus, double effectiveFloor, double regionPower,
-            @Nonnull String biomeName) {
+            @Nonnull String biomeName, boolean insideStartRing, boolean playerScalingApplied,
+            double distanceFromSpawn) {
     }
 
     /**
@@ -314,7 +333,7 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         if (transform == null) {
             double floor = settings.getDifficultyFloor();
             return new SpawnScaling(floor, settings.getRaritySpawnChance(), ZoneDifficultyResolver.NO_ZONE,
-                    floor, 0.0, floor, 0.0, ZoneDifficultyResolver.NO_ZONE);
+                    floor, 0.0, floor, 0.0, ZoneDifficultyResolver.NO_ZONE, false, false, 0.0);
         }
         return resolveSpawnScaling(world,
                 ChunkUtil.chunkCoordinate(transform.getPosition().x),
@@ -330,11 +349,12 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * maintained on player region-cross, NEVER a per-spawn scan) rides on top through
      * ziggfreed-common's {@code ScalingEngine} under the configured aggregation mode + band/caps. A
      * cold region (no players tracked, scalar {@code <= 0}) is a ZERO delta: the escalated floor
-     * stands. Power scaling is also fully OFF inside the start ring near world spawn
-     * ({@code floor.insideStartRing()}), and when {@code OnlyRaiseDifficulty} is set the group delta only
-     * ever RAISES difficulty above the floor, never below it. This is what makes {@code MinDifficulty}
-     * above the floor a live lever (a strong group pushes {@code effDifficulty} past the floor, so
-     * Legendary / Freezing bands become reachable).
+     * stands. Power scaling is also fully OFF inside the PROTECTED RING near world spawn
+     * ({@code floor.insideStartRing()}, sized by its own {@code OpenWorld.PlayerScalingStartRingBlocks}
+     * knob and OFF by default at radius 0 - never the distance-escalation start radius), and when
+     * {@code OnlyRaiseDifficulty} is set the group delta only ever RAISES difficulty above the floor,
+     * never below it. This is what makes {@code MinDifficulty} above the floor a live lever (a strong
+     * group pushes {@code effDifficulty} past the floor, so Legendary / Freezing bands become reachable).
      */
     public static SpawnScaling resolveSpawnScaling(@Nonnull World world,
             int chunkX, int chunkZ, @Nonnull SpawnScalingSettings settings) {
@@ -344,12 +364,15 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 RegionPowerTracker.gridKey(chunkX, chunkZ, settings.getRegionSizeChunks()));
         double regionPower = RegionPowerTracker.get().scalarFor(world.getName(), regionKey);
         // LOCATION drives difficulty (the escalated floor). Player/group power only ever RAISES it above
-        // that floor (never lowers it, when OnlyRaiseDifficulty is set), and is fully OFF inside the start
-        // ring near world spawn, so a fresh newcomer's home zone is never inflated by a passing strong group.
+        // that floor (never lowers it, when OnlyRaiseDifficulty is set), and is fully OFF inside the
+        // PROTECTED RING near world spawn (OpenWorld.PlayerScalingStartRingBlocks, 0 = no ring), so an
+        // owner who wants a safe newcomer home area opts into one.
         // 1.0.1: a world with PlayerScalingEnabled=false (e.g. a fixed-difficulty dungeon) skips the group
         // delta entirely and stays at the escalated floor regardless of nearby player power.
         double difficulty = floor.effectiveFloor();
-        if (settings.isPlayerScalingEnabled() && regionPower > 0.0 && !floor.insideStartRing()) {
+        boolean playerScalingApplied =
+                settings.isPlayerScalingEnabled() && regionPower > 0.0 && !floor.insideStartRing();
+        if (playerScalingApplied) {
             double scaled = ScalingEngine.resolve(
                     ScalingContext.openWorld(floor.effectiveFloor(), regionPower, MobScalingPresenceSystem.mode(settings)),
                     settings.getGroupDeltaBandWidth(), settings.getDifficultyMinCap(), settings.getDifficultyMaxCap());
@@ -357,7 +380,7 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         }
         return new SpawnScaling(difficulty, floor.raritySpawnChance(), floor.zoneName(),
                 floor.baseFloor(), floor.escalationBonus(), floor.effectiveFloor(), regionPower,
-                floor.biomeName());
+                floor.biomeName(), floor.insideStartRing(), playerScalingApplied, floor.distanceFromSpawn());
     }
 
     /**

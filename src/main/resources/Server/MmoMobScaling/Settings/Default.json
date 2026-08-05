@@ -12,7 +12,8 @@
     "AllowDifficultyIncreaseOnPartyJoin": true,
     "LateArrivalBumpFactor": 5.0,
     "CompositionEnabled": false,
-    "OnlyRaiseDifficulty": true
+    "OnlyRaiseDifficulty": true,
+    "PlayerScalingStartRingBlocks": 5000.0
   },
   "Difficulty": {
     "Floor": 30.0,
