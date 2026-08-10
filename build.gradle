@@ -69,6 +69,21 @@ dependencies {
     testImplementation(files(mmoSkillTreeJar))
 }
 
+// Never call a deprecated engine API (repo-wide sibling-mod edict, additional-mods/CLAUDE.md,
+// 2026-07-22): -Xlint:removal surfaces every Hytale API annotated @Deprecated(forRemoval = true)
+// still in use, and -Werror promotes that warning to a hard compile failure, mirroring the hyMMO
+// jar's own compileJava flag. A future Hytale server update that deprecates-for-removal an API
+// this mod calls will now fail the build on sight instead of silently degrading toward a removed
+// API. compileJava only (not compileTestJava), matching the hyMMO jar's own scoping. Two plain
+// (non-removal) @Deprecated warnings remain uncaught by this flag by design (DamageSystems
+// .ArmorDamageReduction and ISpawnProvider.getSpawnPoints()) - both are the only way to reach
+// what they name (the engine's own DamageModule still registers ArmorDamageReduction as a live
+// ordering target; first-party SpawnCommand itself still calls getSpawnPoints() for the same
+// "every spawn point, no player context" need), confirmed against the shared source.
+compileJava {
+    options.compilerArgs << '-Xlint:removal' << '-Werror'
+}
+
 test {
     useJUnitPlatform()
 }

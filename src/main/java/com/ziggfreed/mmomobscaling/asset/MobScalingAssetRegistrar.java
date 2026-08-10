@@ -32,6 +32,8 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
+import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
+import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 
 /**
  * Registers this mod's OWN Pattern-A asset stores + their {@code LoadedAssetsEvent} listeners
@@ -193,10 +195,10 @@ public final class MobScalingAssetRegistrar {
                 bodies.put(entry.getKey(), body);
             }
         }
-        com.ziggfreed.mmomobscaling.config.WorldSettingsConfig.getInstance().applyPackLayer(bodies);
+        WorldSettingsConfig.getInstance().applyPackLayer(bodies);
         logApplied("world settings", bodies.size());
         warnFindings(ScalingContentValidator.validateWorldSettings(
-                com.ziggfreed.mmomobscaling.config.WorldSettingsConfig.getInstance()));
+                WorldSettingsConfig.getInstance()));
     }
 
     /**
@@ -244,7 +246,7 @@ public final class MobScalingAssetRegistrar {
     @Nullable
     private static Double powerLevelMin() {
         try {
-            return com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI.getPowerLevelMin();
+            return MMOSkillTreeAPI.getPowerLevelMin();
         } catch (Throwable t) {
             return null;
         }
@@ -254,7 +256,7 @@ public final class MobScalingAssetRegistrar {
     @Nullable
     private static Double powerLevelMax() {
         try {
-            return com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI.getPowerLevelMax();
+            return MMOSkillTreeAPI.getPowerLevelMax();
         } catch (Throwable t) {
             return null;
         }
