@@ -16,7 +16,7 @@ ziggfreed-common's `instance.reward.NativeLootService` (loot-native-consolidatio
 mod keeps only the pull-count policy, the per-mob seed, and the rarity/variant bonus-table selection - a
 rarity/variant may ALSO author an optional additive `BonusRewards` layer, a `String[]` of ziggfreed-common
 `LootEntry` compact specs (e.g. `"xp MINING 500"`, resolved through the MMO's own `xp`
-`RewardSpecRegistry` token when the MMO jar is present) for currency/command/token rewards a native
+`RewardKindRegistry` authoring token when the MMO jar is present) for currency/command/token rewards a native
 `ItemDropList` cannot carry; resolved as guaranteed/any (no win/score axis on a mob kill) and granted to
 the KILLER via `InstanceRewardGranter` + a `reward.MobScalingRewardSink` (mirrors Kweebec's sink: no
 standalone currency system here, so a `currency` spec no-ops; a `COMMAND` spec, e.g. the MMO's `xp`

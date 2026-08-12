@@ -21,7 +21,8 @@ import com.ziggfreed.common.util.CommandExecutor;
  * combat level, {@code registerMobKillXpMultiplier}, {@code castNpcAbility}) exposes no currency-grant
  * method either, so a plain {@code currency <id> <amt>} spec no-ops here. A {@code COMMAND} reward DOES
  * fire - as CONSOLE via the common {@link CommandExecutor} - which is how the practical case works: the
- * MMO jar registers an {@code xp} token with {@code RewardSpecRegistry} at its own {@code setup()} (an
+ * MMO jar registers an {@code xp} token's authoring with the common {@code RewardKindRegistry} at its own
+ * {@code setup()} (an
  * {@code xp <SKILL> <amt>} spec rewrites to a {@code /mmoawardxp} command template), so authoring
  * {@code "xp MINING 500"} in a {@code BonusRewards} list runs that command here with no mob-scaling ->
  * MMO compile dependency. The granter has already substituted {@code {amount}}; this substitutes
