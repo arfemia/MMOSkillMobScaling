@@ -219,7 +219,7 @@ class MobScalingConfigTest {
         MobScalingConfig cfg = freshDefaults();
         ownerWorld(tmp, "ringed", """
                 {
-                    "Match": "ringed_*",
+                    "Where": { "Match": ["ringed_*"] },
                     "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
                 }
                 """);
@@ -284,7 +284,7 @@ class MobScalingConfigTest {
     void setIntensityRuntimeRetunesTheCurveAndClearsTheView(@TempDir Path tmp) throws Exception {
         // An owner world FILE that does NOT set its own Intensity inherits the runtime-tuned global.
         MobScalingConfig cfg = freshDefaults();
-        ownerWorld(tmp, "arena", "{ \"Match\": \"arena_*\" }");
+        ownerWorld(tmp, "arena", "{ \"Where\": { \"Match\": [\"arena_*\"] } }");
 
         assertEquals(0.08, cfg.spawnSettingsFor("arena_1").statCurveModel().hpPerPoint(), 1e-9,
                 "arena world file inherits the global intensity 1.0");
@@ -341,7 +341,7 @@ class MobScalingConfigTest {
         MobScalingConfig cfg = freshDefaults();
         ownerWorld(tmp, "raid", """
                 {
-                    "Match": "raid_*",
+                    "Where": { "Match": ["raid_*"] },
                     "Enabled": true,
                     "Intensity": 2.0,
                     "RaritySpawnChance": 0.5,
@@ -383,9 +383,9 @@ class MobScalingConfigTest {
         Path dir = tmp.resolve("worlds");
         Files.createDirectories(dir);
         Files.writeString(dir.resolve("myworld.json"),
-                "{ \"Match\": \"myworld_*\", \"OpenWorld\": { \"PlayerScalingEnabled\": false } }");
+                "{ \"Where\": { \"Match\": [\"myworld_*\"] }, \"OpenWorld\": { \"PlayerScalingEnabled\": false } }");
         Files.writeString(dir.resolve("dungeonoffear_iii.json"),
-                "{ \"Match\": \"instance-dungeon_of_fear_iii*\", \"OpenWorld\": { \"PlayerScalingEnabled\": false } }");
+                "{ \"Where\": { \"Match\": [\"instance-dungeon_of_fear_iii*\"] }, \"OpenWorld\": { \"PlayerScalingEnabled\": false } }");
         WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
         worlds.setOwnerDir(dir);
         worlds.refold();

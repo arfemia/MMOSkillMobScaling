@@ -297,11 +297,11 @@ class ScalingContentValidatorTest {
         // + negative ExtraSlots = 9 findings.
         WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
                 "a", """
-                        { "Match": "dup_*", "Intensity": -0.5, "RaritySpawnChance": 2.0,
+                        { "Where": { "Match": ["dup_*"] }, "Intensity": -0.5, "RaritySpawnChance": 2.0,
                           "Difficulty": { "Floor": -1.0, "MinCap": 100.0, "MaxCap": 50.0 } }
                         """,
                 "b", """
-                        { "Match": "dup_*", "Parent": "nope",
+                        { "Where": { "Match": ["dup_*"] }, "Parent": "nope",
                           "Pool": { "Rarities": { "Allow": ["epic"], "Deny": ["epic"] },
                                     "Variants": { "ChanceMultiplier": -1.0 },
                                     "Affixes": { "ExtraSlots": -2 } } }
@@ -315,7 +315,7 @@ class ScalingContentValidatorTest {
         WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
                 "base", "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }",
                 "dungeon", """
-                        { "Match": "instance-dungeon_*", "Parent": "base", "Enabled": true,
+                        { "Where": { "Match": ["instance-dungeon_*"] }, "Parent": "base", "Enabled": true,
                           "Difficulty": { "Floor": 45.0, "MinCap": 40.0, "MaxCap": 120.0 },
                           "OpenWorld": { "PlayerScalingEnabled": false },
                           "Pool": { "Rarities": { "Deny": ["legendary"] } } }
@@ -419,9 +419,9 @@ class ScalingContentValidatorTest {
     @Test
     void nestedPrefixMatchesReportTheirClosestShadow(@TempDir Path tmp) throws Exception {
         WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
-                "a", "{ \"Match\": \"a*\" }",
-                "aa", "{ \"Match\": \"aa*\" }",
-                "aaa", "{ \"Match\": \"aaa*\" }"));
+                "a", "{ \"Where\": { \"Match\": [\"a*\"] } }",
+                "aa", "{ \"Where\": { \"Match\": [\"aa*\"] } }",
+                "aaa", "{ \"Where\": { \"Match\": [\"aaa*\"] } }"));
         List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
         assertEquals(2, findings.size(),
                 "'a*' shadows 'aa*' and 'aa*' shadows 'aaa*'; only the CLOSEST pair per rule: " + findings);
@@ -431,8 +431,8 @@ class ScalingContentValidatorTest {
     @Test
     void disjointEqualLengthPrefixesAreClean(@TempDir Path tmp) throws Exception {
         WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
-                "foo", "{ \"Match\": \"foo*\" }",
-                "bar", "{ \"Match\": \"bar*\" }"));
+                "foo", "{ \"Where\": { \"Match\": [\"foo*\"] } }",
+                "bar", "{ \"Where\": { \"Match\": [\"bar*\"] } }"));
         assertTrue(ScalingContentValidator.validateWorldSettings(worlds).isEmpty(),
                 "two prefixes of equal length can never both match one world name");
     }
@@ -440,18 +440,18 @@ class ScalingContentValidatorTest {
     @Test
     void equalLengthContainsCoresReportTheOrderDecidedTie(@TempDir Path tmp) throws Exception {
         WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
-                "alpha", "{ \"Match\": \"*abc*\" }",
-                "beta", "{ \"Match\": \"*xyz*\" }"));
+                "alpha", "{ \"Where\": { \"Match\": [\"*abc*\"] } }",
+                "beta", "{ \"Where\": { \"Match\": [\"*xyz*\"] } }"));
         List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
         assertEquals(1, findings.size(), findings.toString());
-        assertTrue(findings.get(0).contains("file order"), findings.toString());
+        assertTrue(findings.get(0).contains("authoring order"), findings.toString());
     }
 
     @Test
     void containsRuleShadowingAPrefixRuleIsFlagged(@TempDir Path tmp) throws Exception {
         WorldSettingsConfig worlds = foldedWorlds(tmp, Map.of(
-                "any_fear", "{ \"Match\": \"*fear*\" }",
-                "dungeon", "{ \"Match\": \"instance-dungeon_of_fear_i*\" }"));
+                "any_fear", "{ \"Where\": { \"Match\": [\"*fear*\"] } }",
+                "dungeon", "{ \"Where\": { \"Match\": [\"instance-dungeon_of_fear_i*\"] } }"));
         List<String> findings = ScalingContentValidator.validateWorldSettings(worlds);
         assertEquals(1, findings.size(), findings.toString());
         assertTrue(findings.get(0).contains("*fear*"), findings.toString());

@@ -118,7 +118,7 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             }
             // ONE per-world settings resolve (cached view; the GLOBAL config when no Worlds/*.json rule
             // matches): the kill-switch, the floor, the caps, the pool gates - everything reads off it.
-            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
             if (!spawn.isWorldScalingEnabled()) {
                 cleanupResidue(holder); // per-world kill-switch flipped off: strip stale scaling
                 return;

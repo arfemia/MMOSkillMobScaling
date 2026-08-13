@@ -43,9 +43,9 @@ class WorldSettingsConfigTest {
 
     @Test
     void bareAndPayloadWrappedOwnerFilesBothScan(@TempDir Path tmp) throws Exception {
-        Files.writeString(tmp.resolve("bare.json"), "{ \"Match\": \"bare_*\", \"Intensity\": 2.0 }");
+        Files.writeString(tmp.resolve("bare.json"), "{ \"Where\": { \"Match\": [\"bare_*\"] }, \"Intensity\": 2.0 }");
         Files.writeString(tmp.resolve("wrapped.json"),
-                "{ \"Name\": \"copy-pasted from a pack\", \"Payload\": { \"Match\": \"wrapped_*\" } }");
+                "{ \"Name\": \"copy-pasted from a pack\", \"Payload\": { \"Where\": { \"Match\": [\"wrapped_*\"] } } }");
         WorldSettingsConfig worlds = scan(tmp);
 
         assertEquals(2.0, worlds.effectiveById("bare").getIntensity(), 1e-9, "bare body is canonical");
@@ -55,7 +55,7 @@ class WorldSettingsConfigTest {
 
     @Test
     void malformedOwnerFileIsSkippedNotPoisoning(@TempDir Path tmp) throws Exception {
-        Files.writeString(tmp.resolve("good.json"), "{ \"Match\": \"good_*\" }");
+        Files.writeString(tmp.resolve("good.json"), "{ \"Where\": { \"Match\": [\"good_*\"] } }");
         Files.writeString(tmp.resolve("broken.json"), "{ not json !!");
         WorldSettingsConfig worlds = scan(tmp);
 
@@ -70,11 +70,11 @@ class WorldSettingsConfigTest {
                 "Shared_Base", JsonParser.parseString(
                         "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject(),
                 "Shipped", JsonParser.parseString(
-                        "{ \"Match\": \"shipped_*\", \"Intensity\": 5.0 }").getAsJsonObject()));
+                        "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Intensity\": 5.0 }").getAsJsonObject()));
         Files.writeString(tmp.resolve("mine.json"),
-                "{ \"Match\": \"mine_*\", \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
+                "{ \"Where\": { \"Match\": [\"mine_*\"] }, \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
                 StandardCharsets.UTF_8);
-        Files.writeString(tmp.resolve("shipped.json"), "{ \"Match\": \"shipped_*\", \"Intensity\": 1.5 }");
+        Files.writeString(tmp.resolve("shipped.json"), "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Intensity\": 1.5 }");
         worlds.setOwnerDir(tmp);
         worlds.refold();
 
@@ -98,7 +98,7 @@ class WorldSettingsConfigTest {
                 "Shared_Base", JsonParser.parseString(
                         "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject()));
         Files.writeString(tmp.resolve("mine.json"),
-                "{ \"Match\": \"mine_*\", \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
+                "{ \"Where\": { \"Match\": [\"mine_*\"] }, \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
                 StandardCharsets.UTF_8);
         worlds.setOwnerDir(tmp);
         worlds.refold();

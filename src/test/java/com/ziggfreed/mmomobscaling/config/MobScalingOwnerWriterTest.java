@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
@@ -79,7 +80,7 @@ class MobScalingOwnerWriterTest {
         worlds.refold();
 
         Map<String, Object> leaves = new LinkedHashMap<>();
-        leaves.put("Match", "arena_*");
+        leaves.put(MobScalingOwnerWriter.WHERE_MATCH, List.of("arena_*"));
         leaves.put("Intensity", 3.0);
         leaves.put("OpenWorld.PlayerScalingEnabled", Boolean.FALSE);
         leaves.put("Difficulty.MinCap", 60.0);
@@ -89,7 +90,7 @@ class MobScalingOwnerWriterTest {
         // The folded view + the per-world spawn settings reflect the new owner file.
         WorldSettings ws = worlds.effectiveById("arena");
         assertNotNull(ws);
-        assertEquals("arena_*", ws.getMatch());
+        assertEquals("arena_*", ws.firstMatchPattern());
         assertEquals(3.0, ws.getIntensity(), 1e-9);
         SpawnScalingSettings view = cfg.spawnSettingsFor("arena_pvp7");
         assertFalse(view.isPlayerScalingEnabled(), "OpenWorld.PlayerScalingEnabled applies per world");
@@ -111,13 +112,14 @@ class MobScalingOwnerWriterTest {
         worlds.setOwnerDir(tmp.resolve("worlds"));
         worlds.refold();
 
-        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of("Match", "world_a*", "Intensity", 1.5));
-        MobScalingOwnerWriter.saveWorldFile("world_b", Map.of("Match", "world_b*", "Intensity", 2.5));
+        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of(MobScalingOwnerWriter.WHERE_MATCH, List.of("world_a*"), "Intensity", 1.5));
+        MobScalingOwnerWriter.saveWorldFile("world_b", Map.of(MobScalingOwnerWriter.WHERE_MATCH, List.of("world_b*"), "Intensity", 2.5));
         // Re-save world_a with a new Intensity: a PARTIAL merge into its own file; world_b untouched.
         MobScalingOwnerWriter.saveWorldFile("world_a", Map.of("Intensity", 4.0));
 
         assertEquals(4.0, worlds.effectiveById("world_a").getIntensity(), 1e-9);
-        assertEquals("world_a*", worlds.effectiveById("world_a").getMatch(), "unwritten leaf survives the merge");
+        assertEquals("world_a*", worlds.effectiveById("world_a").firstMatchPattern(),
+                "unwritten leaf survives the merge");
         WorldSettings b = worlds.effectiveById("world_b");
         assertNotNull(b, "the other owner world file is preserved");
         assertEquals(2.5, b.getIntensity(), 1e-9);
@@ -151,7 +153,7 @@ class MobScalingOwnerWriterTest {
                 "Shared_Base", JsonParser.parseString(
                         "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject(),
                 "shipped_world", JsonParser.parseString(
-                        "{ \"Match\": \"shipped_*\", \"Parent\": \"Shared_Base\", \"Intensity\": 5.0, "
+                        "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Parent\": \"Shared_Base\", \"Intensity\": 5.0, "
                       + "\"InspectorHud\": { \"RangeBlocks\": 20.0 } }").getAsJsonObject()));
         assertTrue(worlds.ownerAuthoredIds().isEmpty(), "no owner file for shipped_world yet");
 

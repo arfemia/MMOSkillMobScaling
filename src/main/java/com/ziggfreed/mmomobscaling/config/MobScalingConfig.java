@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
@@ -27,7 +28,6 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
-import com.ziggfreed.common.world.WorldNameMatcher;
 
 /**
  * The open-world mob-scaling configuration, driven ENTIRELY by an asset codec
@@ -181,6 +181,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // match). The rules themselves live in WorldSettingsConfig (Worlds/*.json, Parent-merged); this cache
     // is cleared on any refold (global OR worlds), on setIntensityRuntime, and by invalidateWorldViews().
     @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> worldViewCache = new ConcurrentHashMap<>();
+    // The same cache for a lookup made from a world NAME alone, which can score fewer selector axes
+    // (no Names, no GameplayConfig) and so must never share an entry with the full-world lookup.
+    @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> nameOnlyViewCache = new ConcurrentHashMap<>();
 
     private MobScalingConfig() {
     }
@@ -464,6 +467,7 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         // preset swap / owner edit must re-resolve every cached world view (the rules themselves live
         // in WorldSettingsConfig and refold on their own triggers).
         this.worldViewCache.clear();
+        this.nameOnlyViewCache.clear();
     }
 
     /** The doubly-nested escalation group ({@code Difficulty.DistanceEscalation}); {@code null} when absent. */
@@ -790,6 +794,7 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     public void setIntensityRuntime(double value) {
         this.intensity = Math.max(0.0, value);
         this.worldViewCache.clear();
+        this.nameOnlyViewCache.clear();
     }
 
     // ---------------------------------------------------------------------
@@ -797,34 +802,65 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // ---------------------------------------------------------------------
 
     /**
-     * The effective spawn-time settings for {@code worldName}: the GLOBAL config itself when no
+     * The effective spawn-time settings for {@code world}: the GLOBAL config itself when no
      * {@code Worlds/*.json} rule matches (zero-alloc common case), else a cached
      * {@link ResolvedWorldSettings} overlay where every exposed leaf is
      * {@code world-file-leaf ?? global} (the file itself is already {@code Parent}-merged by
      * {@link WorldSettingsConfig}). The cache is dropped on any refold ({@link #applyFold}), on any
      * worlds refold ({@link #invalidateWorldViews}), and on {@link #setIntensityRuntime}, so a
      * reload / preset swap / owner-file edit / intensity change takes effect on the next spawn.
+     *
+     * <p>Prefer this form wherever the world is in hand: it scores all three selector axes, so a
+     * rule written on a selector name or on the world's {@code GameplayConfig} key applies. The
+     * name-only form below cannot see either.
+     */
+    @Nonnull
+    public SpawnScalingSettings spawnSettingsFor(@Nullable World world) {
+        if (world == null) {
+            return this;
+        }
+        String worldName = worldNameOf(world);
+        if (worldName == null || WorldSettingsConfig.getInstance().rules().isEmpty()) {
+            return this;
+        }
+        return worldViewCache.computeIfAbsent(worldName,
+                name -> view(WorldSettingsConfig.getInstance().resolve(world)));
+    }
+
+    /**
+     * The effective spawn-time settings for a world known only by NAME - the pure form, used where
+     * no {@code World} handle exists. A rule written on a selector name or a {@code GameplayConfig}
+     * key cannot match here, so it is kept in its OWN cache: one world must never end up serving a
+     * view resolved from fewer axes than the caller with the real world would have got.
      */
     @Nonnull
     public SpawnScalingSettings spawnSettingsFor(@Nullable String worldName) {
-        if (worldName == null || worldName.isEmpty()) {
+        if (worldName == null || worldName.isEmpty()
+                || WorldSettingsConfig.getInstance().rules().isEmpty()) {
             return this;
         }
-        List<WorldNameMatcher.Entry<WorldSettings>> entries = WorldSettingsConfig.getInstance().entries();
-        if (entries.isEmpty()) {
-            return this;
-        }
-        return worldViewCache.computeIfAbsent(worldName, this::resolveView);
+        return nameOnlyViewCache.computeIfAbsent(worldName,
+                name -> view(WorldSettingsConfig.getInstance().resolve(name)));
     }
 
     @Nonnull
-    private SpawnScalingSettings resolveView(@Nonnull String worldName) {
-        WorldSettings ws = WorldSettingsConfig.getInstance().resolve(worldName);
+    private SpawnScalingSettings view(@Nullable WorldSettings ws) {
         return ws == null ? this : new ResolvedWorldSettings(this, ws);
+    }
+
+    @Nullable
+    private static String worldNameOf(@Nonnull World world) {
+        try {
+            String name = world.getName();
+            return name == null || name.isEmpty() ? null : name;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /** Drop every cached per-world view (called by {@link WorldSettingsConfig} on each worlds refold). */
     public void invalidateWorldViews() {
         this.worldViewCache.clear();
+        this.nameOnlyViewCache.clear();
     }
 }

@@ -15,6 +15,28 @@ The manifest runtime requirement stays ">=1.5.0" (unchanged, deliberate); only t
 entries need MMO 1.6.0, and they degrade gracefully with one warning on an older jar instead of
 refusing to load the whole mod - see CasterFeatureState.
 
+- Changed (HARD BREAK, schema): a world rule targets its worlds with the SHARED `Where` selector
+  group, not a flat `Match` string. `WorldSettings.Where` decodes through `WorldSelector.CODEC`, so
+  a rule authors `Names` (shared selector names), `Match` (world-name patterns, the same wildcard
+  grammar as the old flat field), `GameplayConfig` (exact config keys, the sturdy axis for an
+  instance world whose NAME carries a fresh uuid) and `ExcludeNames` - one vocabulary shared with
+  NPC placements, dialogue world conditions and MMO world rules, scored on one specificity ladder.
+  Rewrite `"Match": "*dungeon_*"` as `"Where": { "Match": ["*dungeon_*"] }`. Base-versus-rule
+  semantics are preserved and made explicit: `"Where": {}` reads the same as omitting the group
+  (both mean a pool-only base a `Parent` inherits from, never matched), via `WorldSelector.isBlank`.
+  The 1.0.1 owner-array migration and the owner-directory README emit and teach the new shape, and
+  the four shipped `Worlds/*.json` are re-authored onto it. The three Dungeon of Fear rules also
+  move from a trailing-`*` prefix pattern to the CONTAINS form (`*dungeon_of_fear_i*`), which is
+  what actually reaches a live instance world (its name is `instance-<Name>-<uuid>`, so the token
+  sits mid-name); their relative precedence is unchanged, since the I/II/III literal cores still
+  order longest-first.
+- Changed: the copied matcher and the second evaluation engine are gone. `WorldSettingsConfig`
+  selects by `MatchRank` through the one shared selector, `resolve(World)` scores all three axes
+  while `resolve(String)` stays the pure name-only core (each with its own cache, so a world can
+  never be served a view resolved from fewer axes than it has), and
+  `ScalingContentValidator`'s private pattern parser is deleted in favour of the shared
+  `WorldNameMatcher.Pattern` - so a validator can no longer reassure an author about an ordering
+  the runtime does not use. `WorldRankParityTest` retires with the second ladder it guarded.
 - Tuning: the shipped zone difficulty-floor gradient is flattened to a gentler early game -
   Zone1 8 -> 1 (Spawn 3 -> 1, Tier1/2/3 6/9/12 -> 1/2/3), Zone2 22 -> 5 (Tier1/2/3 18/22/26 ->
   5/8/10), Zone3 38 -> 12 (Tier1/2/3 34/38/42 -> 12/15/18), Zone4 55 -> 20 (Tier4/5 52/58 ->

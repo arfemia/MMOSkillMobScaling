@@ -1,8 +1,10 @@
 {
   "Name": "Dungeon of Fear II",
   "Payload": {
-    "$Comment": "Mob scaling is switched off entirely in this instance. PlayerScalingStartRingBlocks is pinned to 0 so that an owner who flips Enabled back on gets the player/group delta from the first block, instead of the global newcomer ring around world spawn suppressing it.",
-    "Match": "instance-dungeon_of_fear_ii*",
+    "$Comment": "Mob scaling is switched off entirely in this instance. The pattern core here is longer than the one in Dungeon of Fear I, which is why a world matching both lands on this rule: the longest literal core wins. Add \"GameplayConfig\": [\"YourKey\"] beside the pattern if your instance authors one - that axis outranks every name pattern and never changes when the instance is rebuilt. PlayerScalingStartRingBlocks is pinned to 0 so that an owner who flips Enabled back on gets the player/group delta from the first block, instead of the global newcomer ring around world spawn suppressing it.",
+    "Where": {
+      "Match": ["*dungeon_of_fear_ii*"]
+    },
     "Enabled": false,
     "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
   }

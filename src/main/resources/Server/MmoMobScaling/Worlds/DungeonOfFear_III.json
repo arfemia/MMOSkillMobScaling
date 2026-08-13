@@ -1,8 +1,10 @@
 {
   "Name": "Dungeon of Fear III",
   "Payload": {
-    "$Comment": "III keeps player/group scaling ON (unlike I and II, which turn scaling off entirely); only distance escalation is switched off here. PlayerScalingStartRingBlocks is pinned to 0 so the group delta applies from the first block of the instance - the global newcomer ring is measured from world spawn and would otherwise cover the whole dungeon.",
-    "Match": "instance-dungeon_of_fear_iii*",
+    "$Comment": "III keeps player/group scaling ON (unlike I and II, which turn scaling off entirely); only distance escalation is switched off here. The pattern core is the longest of the three, so a world matching all of them lands on this rule. Add \"GameplayConfig\": [\"YourKey\"] beside the pattern if your instance authors one - that axis outranks every name pattern and never changes when the instance is rebuilt. PlayerScalingStartRingBlocks is pinned to 0 so the group delta applies from the first block of the instance - the global newcomer ring is measured from world spawn and would otherwise cover the whole dungeon.",
+    "Where": {
+      "Match": ["*dungeon_of_fear_iii*"]
+    },
     "Difficulty": { "DistanceEscalation": { "Enabled": false } },
     "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
   }

@@ -11,6 +11,12 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.validation.Finding;
+import com.ziggfreed.common.world.MatchRank;
+import com.ziggfreed.common.world.WorldNameMatcher.Kind;
+import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
+import com.ziggfreed.common.world.WorldSelector;
+import com.ziggfreed.common.world.WorldSelectorValidator;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
@@ -458,13 +464,16 @@ public final class ScalingContentValidator {
             if (parent != null && !worlds.foldedView().containsKey(parent.trim().toLowerCase(Locale.ROOT))) {
                 findings.add(at + ": Parent '" + parent + "' not found (the file resolved standalone)");
             }
-            String match = ws.getMatch();
-            if (match != null && !match.isBlank()) {
-                if (!seenMatch.add(match.trim().toLowerCase(Locale.ROOT))) {
-                    findings.add(at + ": duplicate Match '" + match + "' across world files"
-                            + " (matcher precedence silently picks one)");
+            WorldSelector where = ws.getWhere();
+            if (where != null) {
+                findings.addAll(selectorFindings(at, where));
+            }
+            for (String pattern : patternsOf(ws)) {
+                if (!seenMatch.add(pattern.trim().toLowerCase(Locale.ROOT))) {
+                    findings.add(at + ": duplicate Where.Match '" + pattern + "' across world files"
+                            + " (the selectors tie, so one silently wins on authoring order)");
                 } else {
-                    rules.add(MatchRule.parse(id, match));
+                    rules.add(new MatchRule(id, pattern.trim(), Pattern.parse(pattern)));
                 }
             }
             Double intensity = ws.getIntensity();
@@ -504,62 +513,75 @@ public final class ScalingContentValidator {
         return findings;
     }
 
+    // ==================== Where selector shape ====================
+
+    /** Every {@code Where.Match} pattern a rule authors, blanks dropped. */
+    @Nonnull
+    private static List<String> patternsOf(@Nonnull WorldSettings ws) {
+        List<String> out = new ArrayList<>();
+        String[] patterns = ws.getWhere() == null ? null : ws.getWhere().getMatch();
+        if (patterns == null) {
+            return out;
+        }
+        for (String pattern : patterns) {
+            if (pattern != null && !pattern.isBlank()) {
+                out.add(pattern);
+            }
+        }
+        return out;
+    }
+
+    /** The shared selector audit, flattened into this validator's string-finding shape. */
+    @Nonnull
+    private static List<String> selectorFindings(@Nonnull String at, @Nonnull WorldSelector where) {
+        List<String> out = new ArrayList<>();
+        for (Finding finding : WorldSelectorValidator.validateSelector(where, at + " Where")) {
+            out.add(at + ": " + finding.message());
+        }
+        return out;
+    }
+
     // ==================== Match-pattern ambiguity ====================
 
     /**
-     * The {@code Match} forms {@code WorldNameMatcher} understands, mirrored here (the matcher's own
-     * parsed core is private) so the validator can reason about a pattern without touching common.
+     * One matchable world rule, pre-parsed by the SHARED pattern parser rather than a copy of it.
+     * The parse and the runtime's own scoring then cannot drift, which is the whole point: a
+     * validator reasoning about precedence from its own parse would eventually reassure an author
+     * about an ordering the engine does not actually use.
      */
-    private enum MatchKind { EXACT, PREFIX, SUFFIX, CONTAINS, ALL }
+    private record MatchRule(@Nonnull String worldId, @Nonnull String pattern, @Nonnull Pattern parsed) {
 
-    /** One matchable world rule, pre-parsed the way {@code WorldNameMatcher.Entry} parses it. */
-    private record MatchRule(@Nonnull String worldId, @Nonnull String pattern,
-            @Nonnull MatchKind kind, @Nonnull String core) {
-
-        /** Parse a {@code Match} into its kind + lower-cased literal core (leading/trailing {@code *} stripped). */
         @Nonnull
-        static MatchRule parse(@Nonnull String worldId, @Nonnull String pattern) {
-            String p = pattern.trim().toLowerCase(Locale.ROOT);
-            boolean lead = p.startsWith("*");
-            boolean trail = p.endsWith("*");
-            String core = p;
-            if (trail) {
-                core = core.substring(0, core.length() - 1);
-            }
-            if (lead && !core.isEmpty()) {
-                core = core.substring(1);
-            }
-            MatchKind kind;
-            if (core.isEmpty()) {
-                kind = MatchKind.ALL;
-            } else if (lead && trail) {
-                kind = MatchKind.CONTAINS;
-            } else if (lead) {
-                kind = MatchKind.SUFFIX;
-            } else if (trail) {
-                kind = MatchKind.PREFIX;
-            } else {
-                kind = MatchKind.EXACT;
-            }
-            return new MatchRule(worldId, pattern.trim(), kind, core);
+        Kind kind() {
+            return parsed.kind();
+        }
+
+        @Nonnull
+        String core() {
+            return parsed.core();
+        }
+
+        /** This pattern's place on the shared specificity ladder - what actually decides a match. */
+        @Nonnull
+        MatchRank rank() {
+            return MatchRank.ofNamePattern(parsed);
         }
     }
 
     /**
-     * Report the two ambiguities {@code WorldNameMatcher} resolves SILENTLY.
+     * Report the two ambiguities the shared selector ladder resolves SILENTLY.
      *
      * <ol>
      *   <li><b>Shadowing.</b> A wildcard rule whose literal core is strictly contained in a longer rule's
      *       core matches EVERYTHING that longer rule matches ({@code dungeon_i*} matches every world
-     *       {@code dungeon_ii*} does). Today the longer core wins on specificity, so the pair behaves; the
+     *       {@code dungeon_ii*} does). Today the longer core outranks it, so the pair behaves; the
      *       moment the longer rule is deleted or renamed, the short one silently inherits its worlds. One
      *       finding per rule, naming only the CLOSEST rule it shadows, so a family of three nested
      *       patterns reports two lines rather than every pair.</li>
-     *   <li><b>Order-decided ties.</b> Two {@code *core*} contains-rules with equal-length cores tie on
-     *       both specificity axes, so a world containing both cores is decided by FILE ORDER. (Two prefix
-     *       or two suffix rules with equal-length cores cannot both match one name unless their cores are
-     *       identical, which the duplicate-{@code Match} check already reports, and a cross-KIND tie is
-     *       broken deterministically by anchoring - so neither is flagged here.)</li>
+     *   <li><b>Order-decided ties.</b> Two patterns whose {@link MatchRank}s COMPARE EQUAL cannot be
+     *       separated by specificity at all, so a world both match is decided by authoring order.
+     *       Asking the rank itself is what keeps this honest: a tie is exactly "the ladder has
+     *       nothing left to say", whichever kinds and cores produced it.</li>
      * </ol>
      */
     @Nonnull
@@ -576,7 +598,7 @@ public final class ScalingContentValidator {
                 }
             }
             if (closest != null) {
-                findings.add("world '" + rule.worldId() + "': Match '" + rule.pattern()
+                findings.add("world '" + rule.worldId() + "': Where.Match '" + rule.pattern()
                         + "' also matches every world '" + closest.pattern() + "' (world '"
                         + closest.worldId() + "') matches, so it shadows that rule as soon as the more"
                         + " specific one is removed or renamed - consider a delimiter before the wildcard");
@@ -584,16 +606,16 @@ public final class ScalingContentValidator {
         }
         for (int i = 0; i < rules.size(); i++) {
             MatchRule a = rules.get(i);
-            if (a.kind() != MatchKind.CONTAINS) {
-                continue;
-            }
             for (int j = i + 1; j < rules.size(); j++) {
                 MatchRule b = rules.get(j);
-                if (b.kind() == MatchKind.CONTAINS && a.core().length() == b.core().length()) {
-                    findings.add("world '" + a.worldId() + "': Match '" + a.pattern() + "' and world '"
-                            + b.worldId() + "' Match '" + b.pattern() + "' have equal-length cores of the"
-                            + " same kind - a world matching both is decided by file order, not"
-                            + " specificity; lengthen one core to make the intent explicit");
+                // Equal ranks only tie in reality when both patterns CAN match one world. Two
+                // equal-core prefixes cannot (their cores would have to be identical, which the
+                // duplicate check already reports), so only overlapping cores are worth a line.
+                if (a.rank().compareTo(b.rank()) == 0 && coresOverlap(a, b)) {
+                    findings.add("world '" + a.worldId() + "': Where.Match '" + a.pattern() + "' and world '"
+                            + b.worldId() + "' Where.Match '" + b.pattern() + "' are equally specific -"
+                            + " a world matching both is decided by authoring order, not specificity;"
+                            + " lengthen one core to make the intent explicit");
                 }
             }
         }
@@ -611,12 +633,21 @@ public final class ScalingContentValidator {
             return false;
         }
         return switch (general.kind()) {
-            case PREFIX -> specific.kind() == MatchKind.PREFIX && specific.core().startsWith(general.core());
-            case SUFFIX -> specific.kind() == MatchKind.SUFFIX && specific.core().endsWith(general.core());
-            case CONTAINS -> (specific.kind() == MatchKind.PREFIX || specific.kind() == MatchKind.SUFFIX
-                    || specific.kind() == MatchKind.CONTAINS) && specific.core().contains(general.core());
+            case PREFIX -> specific.kind() == Kind.PREFIX && specific.core().startsWith(general.core());
+            case SUFFIX -> specific.kind() == Kind.SUFFIX && specific.core().endsWith(general.core());
+            case CONTAINS -> (specific.kind() == Kind.PREFIX || specific.kind() == Kind.SUFFIX
+                    || specific.kind() == Kind.CONTAINS) && specific.core().contains(general.core());
             default -> false;
         };
+    }
+
+    /**
+     * Could one world name satisfy both patterns? Only a CONTAINS pattern can float, so two rules
+     * of equal rank overlap when at least one of them is a contains form - an equal-core prefix
+     * pair or suffix pair would need identical cores, which is the duplicate finding instead.
+     */
+    private static boolean coresOverlap(@Nonnull MatchRule a, @Nonnull MatchRule b) {
+        return a.kind() == Kind.CONTAINS || b.kind() == Kind.CONTAINS;
     }
 
     /** Dead-allow-entry findings for a pool gate: an id in both Allow and Deny can never roll (deny wins). */

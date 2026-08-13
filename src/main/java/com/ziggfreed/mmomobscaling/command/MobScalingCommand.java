@@ -306,7 +306,7 @@ public final class MobScalingCommand extends CommandBase {
             WorldSettings ws = e.getValue();
             String parent = worlds.parentOf(id);
             Message match = ws.isMatchable()
-                    ? Message.raw(ws.getMatch())
+                    ? Message.raw(ws.whereSummary())
                     : Message.translation("scaling.command.worlds.base");
             Message origin = Message.translation(worlds.ownerAuthoredIds().contains(id)
                     ? "scaling.command.worlds.origin_owner"
@@ -385,7 +385,7 @@ public final class MobScalingCommand extends CommandBase {
                 MobScalingConfig cfg = MobScalingConfig.getInstance();
                 // Resolve against the per-world view so inspect reports the world's ACTUAL numbers
                 // (1.0.2: the kill-switch + baseline floor live on the view, not on hyMMO WorldRules).
-                SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+                SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
                 int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
                 int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
                 MobScalingSpawnHook.SpawnScaling scaling =

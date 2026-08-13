@@ -74,7 +74,7 @@ breaks class identity):
 
 - **ZiggfreedCommon >= 1.3.0** (`compileOnly files(ziggfreedCommonJar)`, pin
   `ziggfreedCommonVersion`; 1.3.0's `world/WorldNameMatcher` carries the suffix/contains match forms
-  a `*KweebecNightmare_*` per-world Match needs to catch the `instance-`-prefixed worlds) - the shared
+  a `*KweebecNightmare_*` per-world selector needs to catch the `instance-`-prefixed worlds) - the shared
   primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
@@ -141,7 +141,11 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   `mods/MmoMobScaling/worlds/*.json` (one file per world rule, filename = id; bare body canonical, a
   pack-style `Payload` wrapper is peeled). The body's ONE schema authority is
   [`asset/WorldSettings`](src/main/java/com/ziggfreed/mmomobscaling/asset/WorldSettings.java)
-  (`BuilderCodec`, nullable leaves): `Match` (blank = a pool-only BASE, never matched), per-world
+  (`BuilderCodec`, nullable leaves): **`Where`** - the SHARED `world/WorldSelector` group
+  (`Names`/`Match`/`GameplayConfig`/`ExcludeNames`), the same spelling an NPC placement and an MMO
+  world rule use, so this mod holds no matcher and no pattern parser of its own; absent or empty
+  (tested with `WorldSelector.isBlank()`, so `"Where": {}` reads the same as omitting it) = a
+  pool-only BASE, never matched - per-world
   `Enabled` kill-switch, `Intensity`, `RaritySpawnChance`, the FULL `Difficulty` + `OpenWorld` groups
   (reused codecs; `RegionSizeChunks` decodes but stays GLOBAL for grid consistency), `ZoneHud`/
   `InspectorHud` (per-world `Enabled` consumed; hide-only vs a globally-on HUD), and the `Pool` group
@@ -153,15 +157,22 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   owns the pool + fold (pack layer cached from `LoadedAssetsEvent`, owner dir re-scanned per refold,
   replace-by-id across layers - layering is id-replace, inheritance is Parent's job) and the ONE-TIME
   migration off the shipped-1.0.1 inline owner array (`migrateLegacyOwnerOverrides`: each entry ->
-  `worlds/<match>.json`, `PlayerScalingEnabled` moved under `OpenWorld`, array stripped). Matching is
-  common's `world/WorldNameMatcher` (exact > longest `*`-prefix > `*`; the old `WorldOverrideMatcher`
-  is deleted). **The spawn hook + HUD + inspect read the per-world view via
-  `config/SpawnScalingSettings` (interface; `MobScalingConfig implements` it) +
-  `MobScalingConfig.spawnSettingsFor(worldName)` (cached `ResolvedWorldSettings` overlay with
-  precompiled pool sets; returns `this` on no-match), NEVER the global getters directly.** Jar defaults:
-  `Worlds/DungeonOfFear_Base.json` (pool-only base: escalation off) inherited by `DungeonOfFear_I/II/III`
-  (I + II pin player scaling off) + `Worlds/KweebecNightmare.json` (`Enabled:false`). The MMO jar's
-  WorldRules carries NO mob-scaling knobs anymore - this mod's files are the ONE per-world surface.
+  `worlds/<match>.json`, the flat `Match` string rewritten as `"Where": {"Match": [...]}`,
+  `PlayerScalingEnabled` moved under `OpenWorld`, array stripped). **Selection is the SHARED ladder**:
+  each rule's `Where` is scored by `WorldSelector` into a `MatchRank` and the most specific wins
+  (exact `GameplayConfig` > exact name > longest literal pattern core > bare `*`), with the FIRST of
+  two equally specific rules keeping the world. **The spawn hook + HUD + inspect read the per-world
+  view via `config/SpawnScalingSettings` (interface; `MobScalingConfig implements` it) +
+  `MobScalingConfig.spawnSettingsFor(world)` (cached `ResolvedWorldSettings` overlay with
+  precompiled pool sets; returns `this` on no-match), NEVER the global getters directly.** Prefer the
+  `World` overload wherever the world is in hand - it can score all three axes, including the
+  `GameplayConfig` key that is the only stable handle on an instance world; the `String` overload is
+  the pure, testable form and keeps its OWN cache, so a world can never serve a view resolved from
+  fewer axes than the real caller would have got. Jar defaults: `Worlds/DungeonOfFear_I/II/III.json`
+  (I + II turn scaling off entirely, III keeps player/group scaling and drops only distance
+  escalation; all three pin `PlayerScalingStartRingBlocks` to 0) + `Worlds/KweebecNightmare.json`
+  (`Enabled:false`). The MMO jar's WorldRules carries NO mob-scaling knobs - this mod's files are the
+  ONE per-world surface.
 - The **authoritative defaults** ship as the codec asset
   `src/main/resources/Server/MmoMobScaling/Settings/Default.json` (PascalCase). Owners override any
   key in `mods/MmoMobScaling/mob-scaling.json` (the SAME PascalCase codec shape, partial allowed).

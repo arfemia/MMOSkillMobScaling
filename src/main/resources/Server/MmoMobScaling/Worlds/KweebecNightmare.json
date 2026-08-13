@@ -1,8 +1,10 @@
 {
   "Name": "Kweebec Nightmare",
   "Payload": {
-    "$Comment": "The Kweebec Nightmare minigame runs its own difficulty; open-world mob scaling is OFF in its instance worlds. This entry IS the per-world kill-switch: match a world name pattern and set Enabled false to exempt it.",
-    "Match": "*KweebecNightmare_*",
+    "$Comment": "The Kweebec Nightmare minigame runs its own difficulty; open-world mob scaling is OFF in its instance worlds. This entry IS the per-world kill-switch: say where the rule applies and set Enabled false to exempt those worlds. The contains pattern is deliberate - a live instance is named instance-KweebecNightmare_<Arena>-<uuid>, so the token sits mid-name and only a *Token* form reaches it. Narrow it to one arena with a longer core, e.g. *KweebecNightmare_Barn*.",
+    "Where": {
+      "Match": ["*KweebecNightmare_*"]
+    },
     "Enabled": false
   }
 }

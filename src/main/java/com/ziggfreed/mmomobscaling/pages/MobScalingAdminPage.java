@@ -706,10 +706,18 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             finish(cmd);
             return;
         }
-        // blankIsInherit=true already puts a null "Match" leaf for a blank field (TEXT collectLeaves
-        // rule), which is exactly "no Match" = a pool-only base - nothing extra to enforce here.
+        // blankIsInherit=true already puts a null Where.Match leaf for a blank field (TEXT
+        // collectLeaves rule), which is exactly "no Where" = a pool-only base - nothing extra to
+        // enforce here.
         Map<String, Object> leaves = new LinkedHashMap<>(result.leaves());
         leaves.remove(WORLD_ID_LEAF); // the sentinel: never a real codec key on the world file
+        // The form collects ONE typed pattern; the schema leaf is a LIST. Writing the bare string
+        // would produce a body the codec cannot read, and a world file that fails to decode is a
+        // rule that silently stops applying - so wrap it here, at the one place that knows both.
+        Object typedMatch = leaves.get(MobScalingOwnerWriter.WHERE_MATCH);
+        if (typedMatch instanceof String pattern) {
+            leaves.put(MobScalingOwnerWriter.WHERE_MATCH, List.of(pattern));
+        }
         if (MobScalingOwnerWriter.saveWorldFile(id, leaves)) {
             worldForm.seedValue(F_WORLD_ID, id);
             worldForm.applyValue(cmd, WORLD_FORM_SEL, F_WORLD_ID);
@@ -809,7 +817,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
 
         Map<String, String> seed = new LinkedHashMap<>();
         seed.put(F_WORLD_ID, id);
-        seed.put(F_WORLD_MATCH, textOrBlank(ws == null ? null : ws.getMatch()));
+        seed.put(F_WORLD_MATCH, textOrBlank(ws == null ? null : ws.firstMatchPattern()));
         seed.put(F_WORLD_PARENT, textOrBlank(parent));
         seed.put("wEnabled", triOrInherit(ws == null ? null : ws.getEnabled()));
         seed.put("wIntensity", numOrBlank(ws == null ? null : ws.getIntensity()));
@@ -1160,7 +1168,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static List<FieldSpec> buildWorldSpecs() {
         List<FieldSpec> s = new ArrayList<>();
         s.add(FieldSpec.text(F_WORLD_ID, WORLD_ID_LEAF, "scaling.ui.world.id").withHint("scaling.ui.hint.world_id"));
-        s.add(FieldSpec.text(F_WORLD_MATCH, "Match", "scaling.ui.world.match")
+        s.add(FieldSpec.text(F_WORLD_MATCH, MobScalingOwnerWriter.WHERE_MATCH, "scaling.ui.world.match")
                 .withHint("scaling.ui.hint.world_match"));
         s.add(FieldSpec.text(F_WORLD_PARENT, "Parent", "scaling.ui.world.parent")
                 .withHint("scaling.ui.hint.world_parent"));
@@ -1276,7 +1284,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private String worldSummary(@Nonnull WorldSettingsConfig worlds, @Nonnull String id,
             @Nonnull WorldSettings ws) {
         StringBuilder sb = new StringBuilder();
-        append(sb, ws.isMatchable() ? ws.getMatch() : "(base)");
+        append(sb, ws.isMatchable() ? ws.whereSummary() : "(base)");
         String parent = worlds.parentOf(id);
         if (parent != null) append(sb, "parent " + parent);
         if (ws.getEnabled() != null && !ws.getEnabled()) append(sb, "OFF");

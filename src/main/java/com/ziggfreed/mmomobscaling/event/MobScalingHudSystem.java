@@ -137,7 +137,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         // Per-world view (1.0.2): the kill-switch AND the per-world zone-HUD toggle both read off it. A
         // per-world ZoneHud.Enabled=false HIDES the HUD where the global is on (a per-world true cannot
         // re-enable a globally-off HUD - the global early-out in tick() is the cheap fast path).
-        SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+        SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
         boolean visible = playerWantsVisible && cfg.isEnabled()
                 && spawn.isWorldScalingEnabled() && spawn.isZoneHudEnabled();
         if (!visible) {
@@ -188,7 +188,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         // card there (a per-world true cannot re-enable a globally-off HUD - the tick() early-out stands).
         World world = store.getExternalData().getWorld();
         if (world != null) {
-            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world.getName());
+            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
             if (!spawn.isWorldScalingEnabled() || !spawn.isInspectorHudEnabled()) {
                 hud.pushTarget(null);
                 return;

@@ -19,16 +19,21 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.common.codec.JsonParentResolver;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 import com.ziggfreed.common.util.JsonTreeUtil;
-import com.ziggfreed.common.world.WorldNameMatcher;
+import com.ziggfreed.common.world.MatchRank;
+import com.ziggfreed.common.world.WorldIdentity;
+import com.ziggfreed.common.world.WorldNameIndex;
+import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 
 /**
@@ -49,9 +54,15 @@ import com.ziggfreed.mmomobscaling.asset.WorldSettings;
  * <p>The fold: pool all bodies by lower-cased id, run the common {@code JsonParentResolver}
  * ({@code Parent} chains merge child-over-parent per leaf, cross-layer, cycle-guarded), decode
  * each resolved body through the ONE schema authority {@link WorldSettings#CODEC}, and publish
- * the non-blank-{@code Match} bodies as pre-parsed {@code WorldNameMatcher} entries (a blank/no
- * {@code Match} body is a pool-only BASE). A malformed file warns and is skipped, never poisoning
- * the fold. Every refold invalidates {@link MobScalingConfig}'s per-world view cache.
+ * every body that says WHERE it applies as a matchable rule (a body with no {@code Where} is a
+ * pool-only BASE). A malformed file warns and is skipped, never poisoning the fold. Every refold
+ * invalidates {@link MobScalingConfig}'s per-world view cache.
+ *
+ * <p>Selection is the shared world-identity ladder: each rule's {@code Where} is scored by
+ * {@link WorldSelector} into a {@link MatchRank} and the most specific wins, with the FIRST of two
+ * equally specific rules keeping the world. That is the same ordering an NPC placement and a world
+ * rule sort by, so an author who has learned it once has learned it everywhere - and it is why
+ * this file holds no matcher of its own.
  *
  * <p>Also owns the ONE-TIME MIGRATION off the shipped 1.0.1 inline {@code WorldOverrides[]}
  * array: {@link #migrateLegacyOwnerOverrides} lifts each owner-file entry into
@@ -77,16 +88,25 @@ public final class WorldSettingsConfig {
             bare WorldSettings object using the same PascalCase keys as the shipped rules:
 
               {
-                "Match": "MyWorld*",
+                "Where": { "Match": ["MyWorld*"] },
                 "Enabled": true,
                 "Difficulty": { "Floor": 45.0 }
               }
 
             Key points:
-              - "Match" selects the world by name: an exact name, a "Prefix*", a "*Suffix", a
-                "*Contains*", or "*" for every world. Most specific match wins (exact, then the
-                longest literal core). A blank or absent "Match" makes the file a pool-only base
-                that other files inherit from but that never matches a world on its own.
+              - "Where" selects the worlds, in the same vocabulary every other world-targeting file
+                uses:
+                  "Match":          world-name patterns - an exact name, "Prefix*", "*Suffix",
+                                    "*Contains*", or "*" for every world
+                  "GameplayConfig": exact matches on a world's own config key - the only stable
+                                    handle on an instance world, whose name carries a fresh uuid
+                  "Names":          shared selector names from
+                                    Server/ZiggfreedCommon/WorldSelectors
+                  "ExcludeNames":   a filter that drops worlds carrying a listed name
+                The most specific match wins: an exact GameplayConfig, then an exact name, then the
+                longest literal pattern core, then a bare "*". Leave "Where" out entirely to make
+                the file a pool-only base that other files inherit from but that never matches a
+                world on its own.
               - "Parent": "<other-file-id>" inherits every key that file sets; anything still unset
                 falls back to the global settings in ../mob-scaling.json.
               - A file here REPLACES a shipped rule of the same name outright. Delete yours to get
@@ -120,8 +140,8 @@ public final class WorldSettingsConfig {
     /** Raw jar+pack bodies keyed by lower-cased id, cached at {@code LoadedAssetsEvent}. */
     @Nonnull private volatile Map<String, JsonObject> packBodies = Map.of();
 
-    /** The resolved, matchable rules (non-blank {@code Match}), pre-parsed for the matcher. */
-    @Nonnull private volatile List<WorldNameMatcher.Entry<WorldSettings>> entries = List.of();
+    /** The resolved rules that say WHERE they apply, in fold order (jar/pack first, then owner). */
+    @Nonnull private volatile List<WorldSettings> rules = List.of();
 
     /** Every resolved body by id (INCLUDING pool-only bases), for the admin UI / command list. */
     @Nonnull private volatile Map<String, WorldSettings> byId = Map.of();
@@ -236,7 +256,7 @@ public final class WorldSettingsConfig {
                 pool, pool.keySet(), PARENT_KEY, WorldSettingsConfig::warn);
 
         LinkedHashMap<String, WorldSettings> newById = new LinkedHashMap<>();
-        List<WorldNameMatcher.Entry<WorldSettings>> newEntries = new ArrayList<>();
+        List<WorldSettings> newRules = new ArrayList<>();
         for (Map.Entry<String, JsonObject> e : resolved.entrySet()) {
             WorldSettings ws = decode(e.getKey(), e.getValue());
             if (ws == null) {
@@ -244,28 +264,71 @@ public final class WorldSettingsConfig {
             }
             newById.put(e.getKey(), ws);
             if (ws.isMatchable()) {
-                newEntries.add(new WorldNameMatcher.Entry<>(ws.getMatch().trim(), ws));
+                newRules.add(ws);
             }
         }
 
         this.parentById = Collections.unmodifiableMap(parents);
         this.ownerIds = Collections.unmodifiableSet(owners);
         this.byId = Collections.unmodifiableMap(newById);
-        this.entries = List.copyOf(newEntries);
+        this.rules = List.copyOf(newRules);
         this.rawBodies = Collections.unmodifiableMap(pool);
         MobScalingConfig.getInstance().invalidateWorldViews();
     }
 
-    /** The pre-parsed matchable rules, in fold order (jar/pack first, owner additions after). */
+    /** The matchable rules, in fold order (jar/pack first, owner additions after). */
     @Nonnull
-    public List<WorldNameMatcher.Entry<WorldSettings>> entries() {
-        return entries;
+    public List<WorldSettings> rules() {
+        return rules;
     }
 
-    /** The best-matching resolved settings for {@code worldName}, or {@code null} (use the global). */
+    /**
+     * The best-matching resolved settings for {@code world}, or {@code null} (use the global). This
+     * is the ENGINE-facing form: it can score all three selector axes, including the
+     * {@code GameplayConfig} key that is the only stable handle on an instance world.
+     */
+    @Nullable
+    public WorldSettings resolve(@Nullable World world) {
+        if (world == null) {
+            return null;
+        }
+        try {
+            return resolve(world.getName(), world.getWorldConfig().getGameplayConfig(),
+                    WorldIdentity.indexFor(world));
+        } catch (Throwable t) {
+            warn("could not read world identity for a per-world settings lookup: " + t.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * The best-matching settings for a world known only by NAME. The {@code Names} and
+     * {@code GameplayConfig} axes cannot resolve without the world itself, so a rule written on
+     * either of them will not match here - use {@link #resolve(World)} wherever the world is in
+     * hand, and treat this as the pure, testable core.
+     */
     @Nullable
     public WorldSettings resolve(@Nullable String worldName) {
-        return WorldNameMatcher.resolve(this.entries, worldName);
+        return resolve(worldName, null, WorldNameIndex.EMPTY);
+    }
+
+    /**
+     * The PURE selection: the most specific matching rule, keeping the FIRST of two equally
+     * specific ones so authoring order decides a genuine tie rather than map iteration order.
+     */
+    @Nullable
+    public WorldSettings resolve(@Nullable String worldName, @Nullable String gameplayConfig,
+            @Nonnull WorldNameIndex index) {
+        MatchRank best = null;
+        WorldSettings winner = null;
+        for (WorldSettings rule : this.rules) {
+            MatchRank rank = rule.selector().match(worldName, gameplayConfig, index);
+            if (rank != null && rank.isMoreSpecificThan(best)) {
+                best = rank;
+                winner = rule;
+            }
+        }
+        return winner;
     }
 
     /** Every resolved body by lower-cased id, INCLUDING pool-only bases (admin UI / command list). */
@@ -341,9 +404,10 @@ public final class WorldSettingsConfig {
     /**
      * One-time migration off the SHIPPED 1.0.1 schema: when the owner {@code mob-scaling.json}
      * still carries an inline {@code WorldOverrides[]} array, lift each entry into its own
-     * {@code worlds/<sanitized-match>.json} (bare body; the legacy top-level
+     * {@code worlds/<sanitized-match>.json} (bare body; the legacy flat {@code Match} string
+     * becomes {@code "Where": {"Match": [...]}}, and the legacy top-level
      * {@code PlayerScalingEnabled} moves into {@code OpenWorld.PlayerScalingEnabled} where the
-     * 1.0.2 schema keeps it), then STRIP the array (and its {@code $WorldOverridesComment}) from
+     * current schema keeps it), then STRIP the array (and its {@code $WorldOverridesComment}) from
      * the owner file via an atomic sibling-preserving rewrite. An entry whose target file already
      * exists is skipped with a warning (never clobber). Idempotent: a second boot finds no array.
      *
@@ -386,7 +450,15 @@ public final class WorldSettingsConfig {
                     continue;
                 }
                 JsonObject body = JsonTreeUtil.deepClone(entry);
-                // The 1.0.2 schema keeps the player-scaling toggle inside the OpenWorld group.
+                // The flat Match string became the shared Where selector group; rewrite it so a
+                // migrated rule keeps matching instead of quietly turning into a pool-only base.
+                body.remove("Match");
+                JsonObject where = new JsonObject();
+                JsonArray patterns = new JsonArray();
+                patterns.add(match);
+                where.add("Match", patterns);
+                body.add("Where", where);
+                // The current schema keeps the player-scaling toggle inside the OpenWorld group.
                 if (body.has("PlayerScalingEnabled")) {
                     JsonObject ow = body.has("OpenWorld") && body.get("OpenWorld").isJsonObject()
                             ? body.getAsJsonObject("OpenWorld") : new JsonObject();

@@ -60,7 +60,7 @@ class MobScalingAssetCodecTest {
         // open-world mob scaling OFF in its instance worlds.
         WorldSettings ws = WorldSettings.CODEC.decodeJson(
                 RawJsonReader.fromJsonString(body.toString()), new ExtraInfo());
-        assertEquals("instance-dungeon_of_fear_i*", ws.getMatch(), "Match");
+        assertEquals("*dungeon_of_fear_i*", ws.firstMatchPattern(), "Where.Match");
         assertEquals(Boolean.FALSE, ws.getEnabled(), "Enabled kill-switch off");
     }
 

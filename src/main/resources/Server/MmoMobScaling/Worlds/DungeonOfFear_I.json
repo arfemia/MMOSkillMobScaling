@@ -1,8 +1,10 @@
 {
   "Name": "Dungeon of Fear I",
   "Payload": {
-    "$Comment": "Mob scaling is switched off entirely in this instance. PlayerScalingStartRingBlocks is pinned to 0 so that an owner who flips Enabled back on gets the player/group delta from the first block, instead of the global newcomer ring around world spawn suppressing it.",
-    "Match": "instance-dungeon_of_fear_i*",
+    "$Comment": "Mob scaling is switched off entirely in this instance. 'Where' says which worlds the rule covers, in the same vocabulary every other world-targeting file uses. The contains pattern is deliberate: a live instance world is named instance-<Name>-<uuid>, so the token sits mid-name and only a *Token* form reaches it. If your instance authors a GameplayConfig key, add \"GameplayConfig\": [\"YourKey\"] beside the pattern - that axis outranks every name pattern and never changes when the instance is rebuilt. PlayerScalingStartRingBlocks is pinned to 0 so that an owner who flips Enabled back on gets the player/group delta from the first block, instead of the global newcomer ring around world spawn suppressing it.",
+    "Where": {
+      "Match": ["*dungeon_of_fear_i*"]
+    },
     "Enabled": false,
     "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
   }
