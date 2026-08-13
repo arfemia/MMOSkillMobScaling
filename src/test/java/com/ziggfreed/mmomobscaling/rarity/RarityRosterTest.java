@@ -21,7 +21,7 @@ class RarityRosterTest {
     private static final Predicate<Rarity> ANY = r -> true;
 
     private static Rarity rarity(String id, double weight, double minDiff) {
-        return new Rarity(id, "", weight, minDiff, 1, 1, 1, 1, 1, 0, null, null, List.of("*"));
+        return new Rarity(id, "", weight, minDiff, 1, 1, 1, 1, 1, 0, null, List.of("*"));
     }
 
     /** The shipped starter ladder shape (boss has weight 0 -> not rollable). */
@@ -118,7 +118,7 @@ class RarityRosterTest {
 
     /** Fixture tiers whose HP multipliers are authored HERE purely to order them weakest -> strongest. */
     private static Rarity tier(String id, double weight, double minDiff, double hp) {
-        return new Rarity(id, "", weight, minDiff, hp, 1, 1, 1, 1, 0, null, null, List.of("*"));
+        return new Rarity(id, "", weight, minDiff, hp, 1, 1, 1, 1, 0, null, List.of("*"));
     }
 
     private static RarityRoster strengthLadder() {
@@ -127,6 +127,46 @@ class RarityRosterTest {
                 tier("mid", 25, 0, 2.0),
                 tier("strong", 5, 0, 3.0),
                 tier("offladder", 0, 0, 4.0)));
+    }
+
+    // ---------------------------------------------------------------------
+    // Ladder position (what content outside this mod reads)
+    // ---------------------------------------------------------------------
+
+    @Test
+    void ladderPositionCountsUpFromPlain() {
+        RarityRoster r = strengthLadder();
+        assertEquals(0, r.tierOf(""), "a plain mob sits below every tier");
+        assertEquals(1, r.tierOf("weak"), "the weakest authored tier is the first step up");
+        assertEquals(2, r.tierOf("mid"));
+        assertEquals(3, r.tierOf("strong"));
+        assertEquals(4, r.tierOf("offladder"),
+                "a tier off the weighted roll still has a place on the ladder");
+    }
+
+    @Test
+    void ladderPositionIsCaseInsensitiveAndSafeOnAnUnknownTier() {
+        RarityRoster r = strengthLadder();
+        assertEquals(3, r.tierOf("STRONG"), "ids match without regard to case, like everywhere else");
+        assertEquals(0, r.tierOf("gone"), "a tier nothing knows about reads as plain, never as a throw");
+        assertEquals(0, r.tierOf(null), "and so does no tier at all");
+    }
+
+    @Test
+    void insertingATierMovesEverythingAboveItUp() {
+        // The whole reason the position is derived rather than authored: a pack adding a tier in the
+        // middle must not silently redefine what every number above it meant.
+        RarityRoster before = strengthLadder();
+        RarityRoster after = RarityRoster.build(List.of(
+                tier("weak", 70, 0, 1.5),
+                tier("mid", 25, 0, 2.0),
+                tier("inserted", 10, 0, 2.5),
+                tier("strong", 5, 0, 3.0),
+                tier("offladder", 0, 0, 4.0)));
+        assertEquals(2, before.tierOf("mid"));
+        assertEquals(2, after.tierOf("mid"), "everything below the insert keeps its place");
+        assertEquals(3, after.tierOf("inserted"));
+        assertEquals(4, after.tierOf("strong"), "and everything above it steps up");
     }
 
     @Test

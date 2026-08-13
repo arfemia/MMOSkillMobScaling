@@ -1,4 +1,5 @@
 {
+  "$Comment": "The mid tier. Its Loot block grants the native Mmoscaling_Drops_Epic table unconditionally; Multipliers.Loot 1.5 means the block is rolled twice about half the time. Add a second roll with its own Conditions for something only an epic kill under particular circumstances should pay, or point Loot.Lootables at a shared table if several tiers should draw the same one.",
   "Name": "epic",
   "DisplayNameKey": "scaling.rarity.epic.name",
   "NameColor": "#b388ff",
@@ -6,5 +7,9 @@
   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },
   "Affixes": { "Slots": 2, "Allowed": ["*"] },
   "AuraEffectId": "Mmoscaling_Aura_Epic",
-  "BonusDropList": "Mmoscaling_Drops_Epic"
+  "Loot": {
+    "Rolls": [
+      { "Grants": { "DropLists": ["Mmoscaling_Drops_Epic"] } }
+    ]
+  }
 }

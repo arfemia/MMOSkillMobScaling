@@ -10,19 +10,19 @@ reconciles HP, stamps the rarity-decorated `DisplayNameComponent`, resolves floo
 delta), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura / affix
 effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
 lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
-provider), the native `ItemDropList` death loot (`MobScalingLootDropSystem` + per-rarity
-`Server/Drops/*` tables; the native roll + in-world spawn PLUMBING itself is consolidated onto
-ziggfreed-common's `instance.reward.NativeLootService` (loot-native-consolidation Phase P4), so this
-mod keeps only the pull-count policy, the per-mob seed, and the rarity/variant bonus-table selection - a
-rarity/variant may ALSO author an optional additive `BonusRewards` layer, a `String[]` of ziggfreed-common
-`LootEntry` compact specs (e.g. `"xp MINING 500"`, resolved through the MMO's own `xp`
-`RewardKindRegistry` authoring token when the MMO jar is present) for currency/command/token rewards a native
-`ItemDropList` cannot carry; resolved as guaranteed/any (no win/score axis on a mob kill) and granted to
-the KILLER via `InstanceRewardGranter` + a `reward.MobScalingRewardSink` (mirrors Kweebec's sink: no
-standalone currency system here, so a `currency` spec no-ops; a `COMMAND` spec, e.g. the MMO's `xp`
-token, runs as console). The killer is resolved off the corpse's still-resident `DeathComponent.getDeathInfo()`
-(mirrors the MMO jar's `MobKillEventSystem.resolveAttackerRef`); a non-player killer just skips the reward
-layer. The continuous kill-XP multiplier (`MobScalingXpReward`) is a separate path, untouched by this),
+provider), the death loot (`MobScalingLootDropSystem`: a rarity and a variant each author ONE `Loot`
+block in ziggfreed-common's shared loot vocabulary - `Lootables` by id and/or inline `Rolls` whose
+`Grants` carry `DropLists` (the per-rarity native `Server/Drops/*` tables), `Items`, `Commands` and
+registered `Rewards` kinds, each roll gateable on `Conditions` and scaled by a factor-driven `Chance`.
+The engine that rolls it is `loot.LootEngine`; this mod keeps only the per-trigger POLICY - the pass
+count (`Multipliers.Loot` = how many times a block is rolled, `floor` guaranteed plus a fractional
+extra off the per-mob seed), the corpse drop position, and the killer resolution. Items and drop lists
+spill on the ground through `instance.reward.NativeLootService` whatever killed the mob; commands and
+reward kinds need a player and are wired only when the killer resolves to one, off the corpse's
+still-resident `DeathComponent.getDeathInfo()` (mirrors the MMO jar's
+`MobKillEventSystem.resolveAttackerRef`). ONE `FactorSnapshot` covers the whole death, so two rolls
+asking the same question always agree. The continuous kill-XP multiplier (`MobScalingXpReward`) is a
+separate path, untouched by this),
 the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
 `boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|ui` (1.0.2 adds `ui`, the in-game admin
@@ -52,6 +52,20 @@ cast so a scaled mob visibly telegraphs the hit. Content is validated by
 the shipped Fire Dragon boss) plus a fully native CAE pair, spawnable via `/npc spawn
 Mmoscaling_Caster_Demo`, that shows the same periodic-special-move idea authored with zero mod config
 at all. IN-GAME-VALIDATION PENDING like the rest of the mod.
+
+**1.1.0 also PUBLISHES what this mod knows about a mob, as factors** ([`factor/MobScalingFactors`](src/main/java/com/ziggfreed/mmomobscaling/factor/MobScalingFactors.java)):
+five namespaced ids claimed at `setup()` through ziggfreed-common's process-wide
+`FactorContributions` door - `mmomobscaling:mob_rarity_tier` (ladder position, 0 = plain, derived from
+the tiers' own strength ordering via `RarityRoster.tierOf`), `:mob_rarity` (Param = a rarity id),
+`:mob_affix` (Param = an affix id), `:mob_difficulty`, `:region_power`. Every one reads
+`FactorContext.target()`, the entity the moment happened TO, so a mob-kill roll can weigh the mob's
+rarity and the killer's own luck in one formula; `region_power` falls back to the subject because it is
+about a PLACE. **The claim is made INSIDE the zero-cost enabled branch on purpose**: a disabled mod
+must publish nothing, so content gated on a scaled mob fails closed exactly as it does where this mod
+is absent. The same class owns this mod's OWN `FactorRegistry` (carrying `HytaleFactors`, so a `Loot`
+roll can read the killer's native stat channels), which is what the death-loot rolls resolve against.
+**Never make another mod depend on this one to read a mob's rarity - contribute the reading, do not
+export an API.**
 
 Package root: **`com.ziggfreed.mmomobscaling`**.
 
@@ -202,8 +216,8 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   codecs with nested groups: `Rarities/*.json` (`Roll`/`Multipliers`/`Affixes`/`Families` groups, fold
   `RarityConfig`), `Variants/*.json` (the second overlay axis - `Roll` with an absolute `Chance` +
   `AllowedRarities` requires-rarity gate, `Multipliers`/`Affixes`/`Families` + top-level `AuraEffectId`
-  (fallback tint, applied only when the base rarity has none) / `BonusDropList` (stacks on the rarity's death
-  loot), fold `VariantConfig`), `Affixes/*.json` (`Roll` incl. `AllowedRarities`
+  (fallback tint, applied only when the base rarity has none) / `Loot` (the shared loot block, rolled in
+  ADDITION to the rarity's), fold `VariantConfig`), `Affixes/*.json` (`Roll` incl. `AllowedRarities`
   + `AllowedVariants`/`FoldDeltas`, fold `AffixConfig`), and
   `Difficulty/*.json` (`TargetType` Zone|Biome + `TargetId` native name or `*` + `Floor`, fold
   `DifficultyConfig` with a derived O(1) name index, consumed by `world/ZoneDifficultyResolver`; the
@@ -248,14 +262,15 @@ phases:
   aura/tint (rarity owns that channel) - identity is the `{variant} {rarity} {base}` name frame + its
   affix(es). The variant roll is ONE deterministic draw partitioned by the eligible variants' absolute
   `Chance`, gated by `MobFamilyMatcher` (`Families`) AND the variant's `AllowedRarities` (which base rarities
-  it may overlay; `["*"]` = any incl. plain, passed the rolled base rarity id). A variant's `BonusDropList`
-  stacks on the rarity's in `MobScalingLootDropSystem` (both lists pulled), as does its `BonusRewards`
-  additive command/token layer (P4; both hosts' entries are granted to the killer), and its `AuraEffectId` is a
+  it may overlay; `["*"]` = any incl. plain, passed the rolled base rarity id). A variant's own `Loot` block
+  is rolled by `MobScalingLootDropSystem` IN ADDITION to the rarity's (both hosts, same pass count), and its
+  `AuraEffectId` is a
   FALLBACK tint applied by `MobScalingEffectApplySystem` only when the base rarity contributed no aura (rarity
   always wins the single tint channel). The crosshair inspector HUD renders the variant as its own coloured
   tag (`#MmoscalingInspectVariant`, `Variant.displayColor()`).
-- **Item drops via native `ItemDropList`** (per-rarity bonus `Drops` assets + `getRandomItemDrops` on death);
-  currency / XP / notification stay on the MMO `content/reward` path.
+- **Item drops stay native `ItemDropList` assets** (the per-rarity `Server/Drops/*` tables), referenced from
+  a `Loot` block's `Grants.DropLists` and rolled through `getRandomItemDrops` on death - so WHAT falls out
+  is pure data an owner or pack overrides by id, and the loot block only decides when and how often.
 - **Effect apply via a native `RefSystem.onEntityAdded`** (synchronous, add-pipeline CommandBuffer), not a
   deferred `world.execute` hop.
 

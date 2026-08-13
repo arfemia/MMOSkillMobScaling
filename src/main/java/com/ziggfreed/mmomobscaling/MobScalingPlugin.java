@@ -28,6 +28,7 @@ import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
 import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
+import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
 
 /**
  * Entry point for MMO Mob Scaling, a standalone open-world mob difficulty-scaling
@@ -165,6 +166,13 @@ public class MobScalingPlugin extends JavaPlugin {
 
         // Reward: register the kill-XP multiplier so a rarity kill pays more through the MMO's own kill path.
         MMOSkillTreeAPI.registerMobKillXpMultiplier(new MobScalingXpReward());
+
+        // Publish what this mod knows about a mob (rarity, affixes, difficulty, region power) as ordinary
+        // factor readings, so ANY mod's authored content can gate and scale on them with no dependency in
+        // either direction. Inside the enabled branch on purpose: a switched-off mod must publish nothing,
+        // so content written against these ids fails closed exactly as it does where the mod is absent.
+        MobScalingFactors.contribute();
+        MobScalingFactors.logContributed();
 
         safeInfo("Mob scaling enabled; systems registered.");
     }

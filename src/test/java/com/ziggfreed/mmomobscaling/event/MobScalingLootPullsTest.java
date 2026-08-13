@@ -5,8 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verifies the pure pull-count math in {@link MobScalingLootDropSystem#lootPulls(double, double)}: floor of
+ * Verifies the pure pass-count math in {@link MobScalingLootDropSystem#lootPulls(double, double)}: floor of
  * the folded loot multiplier guaranteed, one extra when the per-mob roll lands under the fractional part.
+ * That count is how many times a tier's whole authored {@code Loot} block is rolled on one death.
  */
 class MobScalingLootPullsTest {
 

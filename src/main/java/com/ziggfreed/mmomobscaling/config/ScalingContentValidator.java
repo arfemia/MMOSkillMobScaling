@@ -11,9 +11,12 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.Roll;
+import com.ziggfreed.common.match.NamePattern.Kind;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.MatchRank;
-import com.ziggfreed.common.world.WorldNameMatcher.Kind;
 import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.common.world.WorldSelectorValidator;
@@ -96,7 +99,7 @@ public final class ScalingContentValidator {
             // deny nukes everything; an id in both allow + deny is a dead allow entry since deny wins; an id
             // in both force + deny is a dead DENY entry since force wins). Whether a referenced NPCGroup id
             // EXISTS needs the live asset map, so that check is warn-once in MobFamilyMatcher at resolve
-            // time (mirrors the AuraEffectId/BonusDropList existence checks).
+            // time (mirrors the AuraEffectId / Loot existence checks below).
             if (r.weight() > 0 || r.familyFilter().hasForce()) {
                 findings.addAll(familyFilterFindings(at, r.familyFilter()));
             }
@@ -220,7 +223,7 @@ public final class ScalingContentValidator {
      * CANNOT answer (store not loaded yet, engine class absent in a unit JVM) MUST return {@code true}, so
      * an unknown degrades to silence instead of a false warning.
      *
-     * <p>Deliberately five independent predicates rather than one lookup object: a caller may be able to
+     * <p>Deliberately independent predicates rather than one lookup object: a caller may be able to
      * answer some questions and not others, and a new reference kind adds a field without disturbing the
      * rest.
      */
@@ -229,21 +232,22 @@ public final class ScalingContentValidator {
             @Nonnull Predicate<String> dropListExists,
             @Nonnull Predicate<String> npcGroupExists,
             @Nonnull Predicate<String> roleExists,
-            @Nonnull Predicate<String> interactionExists) {
+            @Nonnull Predicate<String> interactionExists,
+            @Nonnull Predicate<String> lootableExists) {
 
         /** Resolvers that answer "exists" to everything - the engine-absent / unit-test no-op. */
         @Nonnull
         public static ReferenceResolvers permissive() {
             Predicate<String> yes = id -> true;
-            return new ReferenceResolvers(yes, yes, yes, yes, yes);
+            return new ReferenceResolvers(yes, yes, yes, yes, yes, yes);
         }
     }
 
     /**
-     * Existence-check every asset id a folded rarity points at: its {@code AuraEffectId}, its
-     * {@code BonusDropList}, and the native {@code NPCGroup} ids / exact role names in its {@code Families}
-     * allow / deny / force lists. WARN-level findings only: a dangling id degrades (the tier still rolls,
-     * it just applies nothing), it never blocks the load.
+     * Existence-check every asset id a folded rarity points at: its {@code AuraEffectId}, everything its
+     * {@code Loot} block references, and the native {@code NPCGroup} ids / exact role names in its
+     * {@code Families} allow / deny / force lists. WARN-level findings only: a dangling id degrades (the
+     * tier still rolls, it just applies nothing), it never blocks the load.
      */
     @Nonnull
     public static List<String> validateRarityReferences(@Nonnull Collection<Rarity> rarities,
@@ -253,8 +257,7 @@ public final class ScalingContentValidator {
             String at = "rarity '" + r.id() + "'";
             referenceFinding(findings, at, "AuraEffectId", r.auraEffectId(), resolvers.effectExists(),
                     "EntityEffect asset", "the tier rolls but applies no aura");
-            referenceFinding(findings, at, "BonusDropList", r.bonusDropListId(), resolvers.dropListExists(),
-                    "ItemDropList asset", "the tier rolls but drops no bonus loot");
+            findings.addAll(lootReferenceFindings(at, r.loot(), resolvers, "the tier"));
             findings.addAll(familyReferenceFindings(at, r.familyFilter(), resolvers));
         }
         return findings;
@@ -269,11 +272,66 @@ public final class ScalingContentValidator {
             String at = "variant '" + v.id() + "'";
             referenceFinding(findings, at, "AuraEffectId", v.auraEffectId(), resolvers.effectExists(),
                     "EntityEffect asset", "the variant rolls but applies no fallback aura");
-            referenceFinding(findings, at, "BonusDropList", v.bonusDropListId(), resolvers.dropListExists(),
-                    "ItemDropList asset", "the variant rolls but drops no bonus loot");
+            findings.addAll(lootReferenceFindings(at, v.loot(), resolvers, "the variant"));
             findings.addAll(familyReferenceFindings(at, v.familyFilter(), resolvers));
         }
         return findings;
+    }
+
+    /**
+     * Existence findings for one authored {@code Loot} block: every shared table it names by id, and every
+     * native drop table any of its inline rolls grants (top level and ladder floors alike). Both are the
+     * silent-failure shape this sweep exists for - a mistyped id costs the player loot with no error
+     * anywhere - so each is named at boot rather than at whatever future kill first touches it.
+     *
+     * @param subject how to refer to the owner in the consequence clause, e.g. {@code "the tier"}
+     */
+    @Nonnull
+    private static List<String> lootReferenceFindings(@Nonnull String at, @Nullable LootRef loot,
+            @Nonnull ReferenceResolvers resolvers, @Nonnull String subject) {
+        List<String> findings = new ArrayList<>();
+        if (loot == null) {
+            return findings;
+        }
+        String[] tables = loot.getLootables();
+        if (tables != null) {
+            for (String tableId : tables) {
+                referenceFinding(findings, at, "Loot.Lootables", tableId, resolvers.lootableExists(),
+                        "Lootable asset", subject + " rolls but that table contributes nothing");
+            }
+        }
+        Roll[] rolls = loot.getRolls();
+        if (rolls != null) {
+            for (Roll roll : rolls) {
+                if (roll == null) {
+                    continue;
+                }
+                dropListFindings(findings, at, roll.getGrants(), resolvers, subject);
+                Roll.Ladder ladder = roll.getLadder();
+                if (ladder == null || ladder.getFloors() == null) {
+                    continue;
+                }
+                for (Roll.Ladder.Floor floor : ladder.getFloors()) {
+                    if (floor != null) {
+                        dropListFindings(findings, at, floor.getGrants(), resolvers, subject);
+                    }
+                }
+            }
+        }
+        return findings;
+    }
+
+    /** One finding per native drop-table id in a grants group that names no {@code ItemDropList}. */
+    private static void dropListFindings(@Nonnull List<String> out, @Nonnull String at,
+            @Nullable LootGrants grants, @Nonnull ReferenceResolvers resolvers, @Nonnull String subject) {
+        if (grants == null || grants.getDropLists() == null) {
+            return;
+        }
+        for (String dropListId : grants.getDropLists()) {
+            referenceFinding(out, at, "Loot.Rolls[].Grants.DropLists", dropListId,
+                    resolvers.dropListExists(), "ItemDropList asset",
+                    subject + " rolls but that grant drops nothing");
+        }
     }
 
     /**

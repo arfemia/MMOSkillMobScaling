@@ -6,7 +6,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.ziggfreed.common.instance.reward.LootEntry;
+import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 
 /**
@@ -18,16 +18,12 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  * the pre-add {@code HealthUtil.scaleMaxHealth} (maximized), out/in damage into the pipeline mults, loot/xp
  * into the reward path. {@link #auraEffectId} is a native {@code EntityEffect} (e.g. {@code Mmoscaling_Aura_Epic})
  * applied via {@code addInfiniteEffect} - the native-asset-first visual channel, zero Java.
- * {@link #bonusDropListId} is a native {@code ItemDropList} ({@code Server/Drops/*}) pulled on death by
- * {@code MobScalingLootDropSystem}; {@code null} means no bonus loot for this tier.
  *
- * <p>{@link #bonusRewards} is the P4 ADDITIVE reward layer: authored ziggfreed-common
- * {@code LootEntry} compact specs (e.g. {@code "xp MINING 500"}, a registered token; a plain
- * {@code "currency <id> <amt>"} spec is accepted by the grammar but no-ops here since mob-scaling has no
- * currency system of its own) for whatever a native {@code ItemDropList} cannot carry - currency, commands,
- * or a consumer-registered token. Granted to the KILLER on death alongside {@link #bonusDropListId}'s item
- * loot by {@code MobScalingLootDropSystem}, resolved as guaranteed/any (a mob kill has no win/score axis).
- * Empty (never {@code null}) means no additive layer for this tier.
+ * <p>{@link #loot} is everything this tier hands over when a mob wearing it dies: the shared
+ * ziggfreed-common {@code LootRef} vocabulary (named {@code Lootables} and/or inline {@code Rolls} whose
+ * {@code Grants} carry items, native {@code DropLists}, commands and registered reward kinds), rolled by
+ * {@code MobScalingLootDropSystem}. {@code null} means this tier pays nothing extra. It is the same
+ * vocabulary a station's rare find and a quest reward speak, so a table authored for one works here.
  *
  * <p>{@link #familyFilter} is the tier's family TARGETING block ({@code AllowGroups}/{@code DenyGroups}/
  * {@code AllowRoles}/{@code DenyRoles}/{@code ForceGroups}/{@code ForceRoles} on the asset): which families
@@ -47,59 +43,49 @@ public record Rarity(
         double xpMult,
         int affixSlots,
         @Nullable String auraEffectId,
-        @Nullable String bonusDropListId,
         @Nonnull List<String> allowedAffixes,
         @Nonnull String nameColor,
         @Nonnull FamilyFilter familyFilter,
-        @Nonnull List<LootEntry> bonusRewards) {
+        @Nullable LootRef loot) {
 
     /** The fallback display colour when a tier authors no {@code NameColor} (plain white). */
     public static final String DEFAULT_NAME_COLOR = "#ffffff";
 
     public Rarity {
         allowedAffixes = List.copyOf(allowedAffixes);
-        bonusRewards = List.copyOf(bonusRewards);
     }
 
     /**
-     * Convenience constructor without a display colour, family filter, or bonus-reward layer
+     * Convenience constructor without a display colour, family filter, or death loot
      * ({@code NameColor} absent = empty = white; family filter = {@link FamilyFilter#ALLOW_ALL} = every mob
-     * eligible; {@link #bonusRewards} = empty).
+     * eligible; {@link #loot} = none).
      */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
             double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
-            int affixSlots, @Nullable String auraEffectId, @Nullable String bonusDropListId,
-            @Nonnull List<String> allowedAffixes) {
+            int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes) {
         this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
-                xpMult, affixSlots, auraEffectId, bonusDropListId, allowedAffixes, "", FamilyFilter.ALLOW_ALL,
-                List.of());
+                xpMult, affixSlots, auraEffectId, allowedAffixes, "", FamilyFilter.ALLOW_ALL, null);
     }
 
     /**
-     * Convenience constructor with a display colour but no family filter or bonus-reward layer
-     * ({@link FamilyFilter#ALLOW_ALL}; {@link #bonusRewards} = empty).
+     * Convenience constructor with a display colour but no family filter or death loot
+     * ({@link FamilyFilter#ALLOW_ALL}; {@link #loot} = none).
      */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
             double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
-            int affixSlots, @Nullable String auraEffectId, @Nullable String bonusDropListId,
-            @Nonnull List<String> allowedAffixes, @Nonnull String nameColor) {
+            int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
+            @Nonnull String nameColor) {
         this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
-                xpMult, affixSlots, auraEffectId, bonusDropListId, allowedAffixes, nameColor,
-                FamilyFilter.ALLOW_ALL, List.of());
+                xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, FamilyFilter.ALLOW_ALL, null);
     }
 
-    /**
-     * Convenience constructor with a display colour + family filter but no bonus-reward layer (the shape
-     * before P4; {@link #bonusRewards} = empty).
-     */
+    /** Convenience constructor with a display colour + family filter but no death loot. */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
             double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
-            int affixSlots, @Nullable String auraEffectId, @Nullable String bonusDropListId,
-            @Nonnull List<String> allowedAffixes, @Nonnull String nameColor,
-            @Nonnull FamilyFilter familyFilter) {
+            int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
+            @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter) {
         this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
-                xpMult, affixSlots, auraEffectId, bonusDropListId, allowedAffixes, nameColor, familyFilter,
-                List.of());
+                xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, null);
     }
 
     /**

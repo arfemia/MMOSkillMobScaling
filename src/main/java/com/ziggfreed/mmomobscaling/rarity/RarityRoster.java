@@ -3,7 +3,10 @@ package com.ziggfreed.mmomobscaling.rarity;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -20,6 +23,10 @@ import com.ziggfreed.common.util.SplitMix64;
  * then a difficulty-gated weighted pick among the eligible tiers; a forced tier is then folded in as a FLOOR
  * via {@link #strongerOf}.
  *
+ * <p>The same strength ordering also gives {@link #tierOf} - each tier's position on the ladder, counting
+ * up from a plain mob - which is what content outside this mod reads when it wants "elite or better"
+ * rather than one named tier.
+ *
  * <p>Deterministic for a given {@link SplitMix64} seed, so a chunk reload re-rolls identically. The tier set
  * is tiny (a handful), so the per-spawn pass over it is cheap; band-bucketing the ladder is a Phase-5
  * hot-path refinement if profiling ever shows pressure.
@@ -31,9 +38,14 @@ public final class RarityRoster {
     /** EVERY folded tier (rollable or not), strongest first - the {@link #forced} lookup space. */
     private final Rarity[] all;
 
-    private RarityRoster(@Nonnull Rarity[] entries, @Nonnull Rarity[] all) {
+    /** Lower-cased rarity id to its {@link #tierOf} ordinal, built once beside {@link #all}. */
+    private final Map<String, Integer> tiers;
+
+    private RarityRoster(@Nonnull Rarity[] entries, @Nonnull Rarity[] all,
+            @Nonnull Map<String, Integer> tiers) {
         this.entries = entries;
         this.all = all;
+        this.tiers = tiers;
     }
 
     /**
@@ -59,7 +71,29 @@ public final class RarityRoster {
         list.sort(Comparator.comparingDouble(Rarity::minDifficulty).thenComparing(Rarity::id));
         // Strongest first, so the forced lookup returns on its first match.
         everything.sort((a, b) -> b.compareStrength(a));
-        return new RarityRoster(list.toArray(new Rarity[0]), everything.toArray(new Rarity[0]));
+        // The same ordering read from the other end gives each tier its LADDER POSITION: the weakest
+        // authored tier is 1 and each stronger one is a step up, with 0 left for a plain mob. Deriving
+        // it from the tiers themselves is what lets a pack insert a tier mid-ladder and have everything
+        // above it move up, instead of an authored number that would then mean two different things.
+        Map<String, Integer> tiers = new HashMap<>();
+        for (int i = 0; i < everything.size(); i++) {
+            tiers.put(everything.get(i).id().toLowerCase(Locale.ROOT), everything.size() - i);
+        }
+        return new RarityRoster(list.toArray(new Rarity[0]), everything.toArray(new Rarity[0]),
+                Map.copyOf(tiers));
+    }
+
+    /**
+     * Where {@code rarityId} sits on the ladder: {@code 0} for a plain mob (a blank or unknown id),
+     * {@code 1} for the weakest authored tier, one more for each stronger one. Matched without regard
+     * to case, like every other id in this mod.
+     */
+    public int tierOf(@Nullable String rarityId) {
+        if (rarityId == null || rarityId.isEmpty()) {
+            return 0;
+        }
+        Integer tier = tiers.get(rarityId.toLowerCase(Locale.ROOT));
+        return tier == null ? 0 : tier;
     }
 
     /**

@@ -15,6 +15,35 @@ The manifest runtime requirement stays ">=1.5.0" (unchanged, deliberate); only t
 entries need MMO 1.6.0, and they degrade gracefully with one warning on an older jar instead of
 refusing to load the whole mod - see CasterFeatureState.
 
+- New: this mod PUBLISHES what it knows about a mob as ordinary factor readings, so any other mod's
+  authored content can gate and scale on them with no dependency in either direction. Five ids,
+  claimed through ziggfreed-common's process-wide contribution door at setup:
+  `mmomobscaling:mob_rarity_tier` (the mob's place on the rarity ladder, 0 for plain and one step per
+  authored tier, derived from the tiers themselves so inserting one moves everything above it up),
+  `mmomobscaling:mob_rarity` (Param = a rarity id, for content that means one specific tier),
+  `mmomobscaling:mob_affix` (Param = an affix id), `mmomobscaling:mob_difficulty`, and
+  `mmomobscaling:region_power` (the tracked player power in the region the moment happened in). The
+  four mob readings are about the entity the moment happened TO, never the one acting, so a mob-kill
+  formula can weigh the mob's rarity and the killer's own luck in one expression without either
+  question reading the other's entity; `region_power` is about a PLACE, so it reads the target's
+  position and falls back to the subject's when there is no target. On a server without this mod - or with it switched off,
+  since the claim is made inside the enabled branch - nothing answers the ids, so a gate on one stays
+  shut and a formula term on one adds zero, and one authored file is correct everywhere. A boot line
+  lists what was published.
+- Changed (HARD BREAK, schema): a rarity or variant authors its death loot in ONE `Loot` block, the
+  shared loot vocabulary the rest of the ecosystem already speaks, replacing the `BonusDropList`
+  string and the `BonusRewards` compact-spec array. Rewrite `"BonusDropList": "Mmoscaling_Drops_Epic"`
+  as `"Loot": { "Rolls": [ { "Grants": { "DropLists": ["Mmoscaling_Drops_Epic"] } } ] }`; a
+  `"BonusRewards": ["xp MINING 500"]` entry becomes an ordinary `Grants.Commands` line or a
+  `Grants.Rewards` entry naming a registered reward kind. The native `Server/Drops/*` tables are
+  untouched and are simply referenced from `Grants.DropLists`, so no item content moved. What the
+  block buys beyond the old pair: shared tables by id, exact item grants, per-roll `Conditions` and a
+  factor-scaled `Chance`, ladder tiers, and any reward kind another mod registered - including gating
+  on the readings above. The tier's `Multipliers.Loot` keeps its job as the number of times the whole
+  block is rolled, which for a drop list is exactly what it always did; note that a tier rolling more
+  than once now repeats its command and reward grants too, so write per-pass amounts. The five
+  shipped rarity/variant files are re-authored onto it, and the content
+  audit now names a dangling `Loot.Lootables` table id alongside a dangling drop list.
 - Changed (HARD BREAK, schema): a world rule targets its worlds with the SHARED `Where` selector
   group, not a flat `Match` string. `WorldSettings.Where` decodes through `WorldSelector.CODEC`, so
   a rule authors `Names` (shared selector names), `Match` (world-name patterns, the same wildcard

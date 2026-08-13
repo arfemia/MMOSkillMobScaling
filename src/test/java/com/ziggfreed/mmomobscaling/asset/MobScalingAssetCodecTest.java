@@ -7,9 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +19,8 @@ import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
@@ -89,7 +93,8 @@ class MobScalingAssetCodecTest {
         assertEquals(25.0, r.minDifficulty(), 1e-9, "MinDifficulty");
         assertEquals(2, r.affixSlots(), "AffixSlots");
         assertEquals("Mmoscaling_Aura_Epic", r.auraEffectId(), "AuraEffectId");
-        assertEquals("Mmoscaling_Drops_Epic", r.bonusDropListId(), "BonusDropList");
+        assertEquals(List.of("Mmoscaling_Drops_Epic"), grantedDropLists(r.loot()),
+                "Loot grants the tier's native drop table");
         assertEquals("scaling.rarity.epic.name", r.displayNameKey(), "DisplayNameKey");
         assertTrue(r.allowsAffix("armored"), "wildcard AllowedAffixes allows any affix");
         assertEquals("#b388ff", r.nameColor(), "NameColor (the inspector HUD tint)");
@@ -109,7 +114,8 @@ class MobScalingAssetCodecTest {
         assertTrue(v.familyFilter().allowRoles().contains("Spider*"), "AllowRoles decoded");
         assertEquals("scaling.variant.horrific.name", v.displayNameKey(), "DisplayNameKey");
         assertEquals("Mmoscaling_Aura_Horrific", v.auraEffectId(), "AuraEffectId (fallback tint)");
-        assertEquals("Mmoscaling_Drops_Horrific", v.bonusDropListId(), "BonusDropList (stacks on rarity drops)");
+        assertEquals(List.of("Mmoscaling_Drops_Horrific"), grantedDropLists(v.loot()),
+                "the overlay's own Loot stacks on the base rarity's");
         assertTrue(v.allowsRarity("epic"), "AllowedRarities ['*'] overlays any base rarity");
         assertTrue(v.allowsRarity(""), "['*'] also overlays a plain-base mob");
     }
@@ -149,9 +155,69 @@ class MobScalingAssetCodecTest {
 
     @Test
     void rarityWithoutNameColorFallsBackToWhite() {
-        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, java.util.List.of("*"));
+        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 1, 1, 0, null, java.util.List.of("*"));
         assertEquals("", plain.nameColor(), "convenience constructor leaves NameColor empty");
         assertEquals(Rarity.DEFAULT_NAME_COLOR, plain.displayColor(), "empty NameColor renders white");
+    }
+
+    @Test
+    void rarityWithoutLootBlockFoldsToNothing() throws Exception {
+        // A tier that only changes stats is a legitimate shape: an absent (or empty) Loot block must fold
+        // to nothing rather than to an empty ref the death path would still walk.
+        RarityAsset none = decodeJson("{ \"Name\": \"fixture_lootless\", \"Roll\": { \"Weight\": 1 } }",
+                RarityAsset.CODEC);
+        assertNull(none.toRarity().loot(), "no Loot key -> nothing to roll");
+
+        RarityAsset empty = decodeJson(
+                "{ \"Name\": \"fixture_emptyloot\", \"Roll\": { \"Weight\": 1 }, \"Loot\": {} }",
+                RarityAsset.CODEC);
+        assertNull(empty.toRarity().loot(), "an empty Loot block reads the same as an absent one");
+    }
+
+    @Test
+    void rarityLootTakesTheWholeSharedVocabulary() throws Exception {
+        // FIXTURE asset: pins that the shared loot vocabulary decodes here in full, so a tier can write a
+        // gated, chance-scaled roll granting several kinds of thing at once.
+        //
+        // The sibling Lootables leaf (shared tables by id) is deliberately NOT exercised here: its codec
+        // refuses to decode outside a live AssetStore, so the in-game pass is the only place that can
+        // cover it. Everything below is the half a bare JVM can genuinely check.
+        RarityAsset asset = decodeJson("""
+                { "Name": "fixture_loot",
+                  "Loot": {
+                    "Rolls": [
+                      { "Chance": { "Base": 5 },
+                        "Conditions": [ { "Factor": "fixture:flag", "Min": 1 } ],
+                        "Grants": { "Items": [ { "Item": "Fixture_Gem", "Count": 2 } ],
+                                    "Commands": ["/say {player} got lucky"] } }
+                    ] } }
+                """, RarityAsset.CODEC);
+        LootRef loot = asset.toRarity().loot();
+        assertNotNull(loot, "the Loot block decodes");
+        assertNotNull(loot.getRolls(), "the inline roll decodes");
+        assertEquals(1, loot.getRolls().length, "one inline roll");
+        Roll roll = loot.getRolls()[0];
+        assertNotNull(roll.getChance(), "Chance decodes as the shared formula");
+        assertNotNull(roll.getConditions(), "Conditions decode as shared factor gates");
+        assertNotNull(roll.getGrants(), "Grants decode");
+        assertEquals(1, roll.getGrants().itemsOrEmpty().size(), "an exact item grant decodes");
+        assertNotNull(roll.getGrants().getCommands(), "a command grant decodes");
+    }
+
+    /** Every native drop-table id an authored loot block's inline rolls grant, in authored order. */
+    @Nonnull
+    private static List<String> grantedDropLists(@Nullable LootRef loot) {
+        List<String> out = new java.util.ArrayList<>();
+        if (loot == null || loot.getRolls() == null) {
+            return out;
+        }
+        for (Roll roll : loot.getRolls()) {
+            if (roll == null || roll.getGrants() == null || roll.getGrants().getDropLists() == null) {
+                continue;
+            }
+            out.addAll(java.util.List.of(roll.getGrants().getDropLists()));
+        }
+        return out;
     }
 
     @Test
@@ -349,7 +415,7 @@ class MobScalingAssetCodecTest {
     @Test
     void keyedConfigFoldIsCaseInsensitive() {
         RarityConfig cfg = RarityConfig.getInstance();
-        Rarity epic = new Rarity("Epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", null, java.util.List.of("*"));
+        Rarity epic = new Rarity("Epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", java.util.List.of("*"));
         cfg.mergePackLayer(Map.of("Epic", epic));
         assertNotNull(cfg.resolve("epic"), "ids are lower-cased by the fold");
         assertEquals(2.2, cfg.resolve("EPIC").hpMult(), 1e-9, "resolve is case-insensitive");

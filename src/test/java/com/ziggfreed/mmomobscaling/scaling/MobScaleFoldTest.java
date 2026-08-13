@@ -16,7 +16,7 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
 class MobScaleFoldTest {
 
     private static Rarity rarity(double hp, double out, double in, double loot, double xp) {
-        return new Rarity("epic", "", 25, 25, hp, out, in, loot, xp, 2, "aura", null, List.of("*"));
+        return new Rarity("epic", "", 25, 25, hp, out, in, loot, xp, 2, "aura", List.of("*"));
     }
 
     private static Variant variant(double hp, double out, double in, double loot, double xp) {

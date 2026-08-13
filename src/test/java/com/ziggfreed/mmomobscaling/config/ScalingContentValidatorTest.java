@@ -18,6 +18,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.loot.LootGrants;
+import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
@@ -31,8 +34,8 @@ class ScalingContentValidatorTest {
 
     @Test
     void cleanShippedShapesPass() {
-        Rarity epic = new Rarity("epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", "drops", List.of("*"));
-        Rarity boss = new Rarity("boss", "", 0, 0, 4.0, 2.2, 0.6, 3.0, 2.0, 2, "aura", "drops", List.of("*"));
+        Rarity epic = new Rarity("epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", List.of("*"));
+        Rarity boss = new Rarity("boss", "", 0, 0, 4.0, 2.2, 0.6, 3.0, 2.0, 2, "aura", List.of("*"));
         assertTrue(ScalingContentValidator.validateRarities(List.of(epic, boss)).isEmpty(),
                 "the shipped ladder shapes (incl. the weight-0 force-only boss) are clean");
 
@@ -44,7 +47,7 @@ class ScalingContentValidatorTest {
 
     @Test
     void badRarityValuesAreFlagged() {
-        Rarity bad = new Rarity("bad", "", -1, -5, 0.0, 0.0, 0.0, -1, -1, -1, null, null, List.of("*"));
+        Rarity bad = new Rarity("bad", "", -1, -5, 0.0, 0.0, 0.0, -1, -1, -1, null, List.of("*"));
         List<String> findings = ScalingContentValidator.validateRarities(List.of(bad));
         assertEquals(6, findings.size(), "weight, minDifficulty, hp, damage, loot/xp, slots all flagged: " + findings);
     }
@@ -52,16 +55,16 @@ class ScalingContentValidatorTest {
     @Test
     void familyFilterSelfContradictionsAreFlagged() {
         // A deny "*" nukes everything -> the tier can never roll.
-        Rarity denyAll = new Rarity("denyall", "", 25, 25, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+        Rarity denyAll = new Rarity("denyall", "", 25, 25, 1, 1, 1, 1, 1, 0, null, List.of("*"), "",
                 new FamilyFilter(List.of(), List.of(), List.of(), List.of("*")));
         // Same id in AllowGroups + DenyGroups -> deny wins, the allow entry is dead.
-        Rarity dead = new Rarity("dead", "", 25, 25, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+        Rarity dead = new Rarity("dead", "", 25, 25, 1, 1, 1, 1, 1, 0, null, List.of("*"), "",
                 new FamilyFilter(List.of("Spiders"), List.of("Spiders"), List.of(), List.of()));
         // A weight-0 (force-only) tier with the same contradiction is NOT flagged (it never rolls anyway).
-        Rarity forced = new Rarity("forced", "", 0, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+        Rarity forced = new Rarity("forced", "", 0, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"), "",
                 new FamilyFilter(List.of(), List.of(), List.of(), List.of("*")));
         // A legitimate spider-only filter is clean.
-        Rarity ok = new Rarity("ok", "", 25, 25, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+        Rarity ok = new Rarity("ok", "", 25, 25, 1, 1, 1, 1, 1, 0, null, List.of("*"), "",
                 new FamilyFilter(List.of("Spiders"), List.of(), List.of("Spider*"), List.of()));
         List<String> findings = ScalingContentValidator.validateRarities(List.of(denyAll, dead, forced, ok));
         assertEquals(2, findings.size(), "deny-all + dead-allow flagged; weight-0 + valid gate clean: " + findings);
@@ -71,14 +74,14 @@ class ScalingContentValidatorTest {
     void forceListContradictionsAreFlagged() {
         // A force-only tier (weight 0) is now REACHABLE content, so its filter is validated: an id present
         // in both ForceGroups and DenyGroups is a dead deny entry (force wins).
-        Rarity contradiction = new Rarity("contradiction", "", 0, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+        Rarity contradiction = new Rarity("contradiction", "", 0, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"), "",
                 new FamilyFilter(List.of(), List.of("Bosses"), List.of(), List.of("Dragon_*"),
                         List.of("Bosses"), List.of("Dragon_*")));
         List<String> findings = ScalingContentValidator.validateRarities(List.of(contradiction));
         assertEquals(2, findings.size(), "both the group and the role contradiction are flagged: " + findings);
 
         // A deny-ALL is not dead content when the tier forces itself onto a family (force outranks deny).
-        Rarity forcedDespiteDenyAll = new Rarity("forced", "", 0, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "",
+        Rarity forcedDespiteDenyAll = new Rarity("forced", "", 0, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"), "",
                 new FamilyFilter(List.of(), List.of(), List.of(), List.of("*"), List.of("Bosses"), List.of()));
         assertTrue(ScalingContentValidator.validateRarities(List.of(forcedDespiteDenyAll)).isEmpty(),
                 "a force-only tier that denies the normal roll outright is a legitimate shape");
@@ -86,10 +89,10 @@ class ScalingContentValidatorTest {
 
     @Test
     void malformedNameColorIsFlagged() {
-        Rarity noHash = new Rarity("nohash", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "b388ff");
-        Rarity word = new Rarity("word", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "purple");
-        Rarity good = new Rarity("good", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"), "#B388FF");
-        Rarity absent = new Rarity("absent", "", 1, 0, 1, 1, 1, 1, 1, 0, null, null, List.of("*"));
+        Rarity noHash = new Rarity("nohash", "", 1, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"), "b388ff");
+        Rarity word = new Rarity("word", "", 1, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"), "purple");
+        Rarity good = new Rarity("good", "", 1, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"), "#B388FF");
+        Rarity absent = new Rarity("absent", "", 1, 0, 1, 1, 1, 1, 1, 0, null, List.of("*"));
         List<String> findings = ScalingContentValidator.validateRarities(List.of(noHash, word, good, absent));
         assertEquals(2, findings.size(), "missing '#' and a colour word flagged; #rrggbb and absent clean: " + findings);
     }
@@ -122,7 +125,7 @@ class ScalingContentValidatorTest {
     void variantEmptyAllowedRaritiesFlagged() {
         // A rollable variant whose AllowedRarities is an explicit [] can never overlay any base -> dead.
         Variant dead = new Variant("dead", "", 0.15, 0, 1, 1, 1, 1, 1, 0, List.of("*"),
-                List.of(), null, null, "", FamilyFilter.ALLOW_ALL);
+                List.of(), null, "", FamilyFilter.ALLOW_ALL);
         List<String> findings = ScalingContentValidator.validateVariants(List.of(dead));
         assertEquals(1, findings.size(), "empty AllowedRarities flagged: " + findings);
         assertTrue(findings.get(0).contains("AllowedRarities"), findings.toString());
@@ -330,7 +333,13 @@ class ScalingContentValidatorTest {
     private static ScalingContentValidator.ReferenceResolvers rejecting(String... missing) {
         Set<String> gone = new HashSet<>(List.of(missing));
         Predicate<String> p = id -> !gone.contains(id);
-        return new ScalingContentValidator.ReferenceResolvers(p, p, p, p, p);
+        return new ScalingContentValidator.ReferenceResolvers(p, p, p, p, p, p);
+    }
+
+    /** A fixture loot block granting one native drop table, the shape the shipped tiers author. */
+    private static LootRef dropListLoot(String dropListId) {
+        return LootRef.of(null,
+                new Roll[] {Roll.of(null, null, null, null, LootGrants.ofDropList(dropListId), null)});
     }
 
     @Test
@@ -352,7 +361,7 @@ class ScalingContentValidatorTest {
                 0, 0, 0, 0, Affix.KIND_BEHAVIORAL, "vampiric", false);
         // The effectless affix must stay clean even against a resolver that rejects everything.
         Predicate<String> no = id -> false;
-        var strict = new ScalingContentValidator.ReferenceResolvers(no, no, no, no, no);
+        var strict = new ScalingContentValidator.ReferenceResolvers(no, no, no, no, no, no);
         assertTrue(ScalingContentValidator.validateAffixReferences(
                 List.of(resolvable), rejecting("SomethingElse")).isEmpty(), "a resolvable EffectId is clean");
         assertTrue(ScalingContentValidator.validateAffixReferences(List.of(effectless), strict).isEmpty(),
@@ -361,17 +370,42 @@ class ScalingContentValidatorTest {
 
     @Test
     void danglingRarityAuraDropListAndGroupAreFlagged() {
-        Rarity broken = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, "NoSuchAura", "NoSuchDrops",
-                List.of("*"), "", new FamilyFilter(List.of("NoSuchGroup"), List.of(), List.of(), List.of()));
+        Rarity broken = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, "NoSuchAura",
+                List.of("*"), "", new FamilyFilter(List.of("NoSuchGroup"), List.of(), List.of(), List.of()),
+                dropListLoot("NoSuchDrops"));
         List<String> findings = ScalingContentValidator.validateRarityReferences(
                 List.of(broken), rejecting("NoSuchAura", "NoSuchDrops", "NoSuchGroup"));
         assertEquals(3, findings.size(), "aura, drop list and Families group all flagged: " + findings);
     }
 
     @Test
+    void danglingLootTableReferenceIsFlagged() {
+        // A shared table named by id is the other half of the Loot block, and a typo there is just as
+        // silent as a bad drop list: the tier still rolls and simply hands over nothing.
+        Rarity broken = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, null, List.of("*"), "",
+                FamilyFilter.ALLOW_ALL, LootRef.of(new String[] {"nosuchtable"}, null));
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(broken), rejecting("nosuchtable"));
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).contains("Loot.Lootables"), findings.toString());
+        assertTrue(findings.get(0).contains("nosuchtable"), findings.toString());
+    }
+
+    @Test
+    void lootlessTierIsNeverADanglingReference() {
+        // No Loot block at all is a legitimate shape (a tier that only changes stats), so it must stay
+        // clean even against a resolver that rejects every id.
+        Predicate<String> no = id -> false;
+        var strict = new ScalingContentValidator.ReferenceResolvers(no, no, no, no, no, no);
+        Rarity statsOnly = new Rarity("statsonly", "", 25, 25, 1, 1, 1, 1, 1, 0, null, List.of("*"));
+        assertTrue(ScalingContentValidator.validateRarityReferences(List.of(statsOnly), strict).isEmpty(),
+                "a tier with no Loot block has nothing to dangle");
+    }
+
+    @Test
     void danglingForceGroupAndForceRoleAreFlagged() {
         // The force lists are the boss-tier targeting surface, so a typo there silently un-forces the tier.
-        Rarity boss = new Rarity("boss", "", 0, 0, 1, 1, 1, 1, 1, 2, null, null, List.of("*"), "",
+        Rarity boss = new Rarity("boss", "", 0, 0, 1, 1, 1, 1, 1, 2, null, List.of("*"), "",
                 new FamilyFilter(List.of(), List.of(), List.of(), List.of(),
                         List.of("Mmoscaling_Bosses"), List.of("Baron", "Cult_*_Miniboss")));
         List<String> findings = ScalingContentValidator.validateRarityReferences(
@@ -384,8 +418,9 @@ class ScalingContentValidatorTest {
 
     @Test
     void permissiveResolversNeverFlagAnything() {
-        Rarity r = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, "Aura", "Drops", List.of("*"), "",
-                new FamilyFilter(List.of("Group"), List.of(), List.of("Role"), List.of()));
+        Rarity r = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, "Aura", List.of("*"), "",
+                new FamilyFilter(List.of("Group"), List.of(), List.of("Role"), List.of()),
+                dropListLoot("Drops"));
         assertTrue(ScalingContentValidator.validateRarityReferences(
                 List.of(r), ScalingContentValidator.ReferenceResolvers.permissive()).isEmpty(),
                 "an engine-absent resolver set must degrade to silence, never to false warnings");
@@ -394,7 +429,7 @@ class ScalingContentValidatorTest {
     @Test
     void danglingVariantReferencesAreFlagged() {
         Variant v = new Variant("horrific", "", 0.15, 0, 1, 1, 1, 1, 1, 1, List.of("*"), List.of("*"),
-                "NoSuchAura", "NoSuchDrops", "", FamilyFilter.ALLOW_ALL);
+                "NoSuchAura", "", FamilyFilter.ALLOW_ALL, dropListLoot("NoSuchDrops"));
         List<String> findings = ScalingContentValidator.validateVariantReferences(
                 List.of(v), rejecting("NoSuchAura", "NoSuchDrops"));
         assertEquals(2, findings.size(), findings.toString());

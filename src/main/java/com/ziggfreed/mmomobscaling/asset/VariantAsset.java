@@ -12,7 +12,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.ziggfreed.common.instance.reward.LootEntry;
+import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 
@@ -22,9 +22,9 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * guarded by {@code AssetCodecInitTest}), mirroring {@link RarityAsset} but with two deliberate differences:
  * the roll gate is an ABSOLUTE {@code Chance} (not a relative {@code Weight}, since a variant is an
  * independent yes/no overlay rolled separately from the rarity ladder - see
- * {@link com.ziggfreed.mmomobscaling.variant.VariantRoster}), and there is NO {@code AuraEffectId}/
- * {@code BonusDropList} (the rarity owns the single body-tint + bonus-drop channels; a variant's identity is
- * its name decoration + its granted affix(es) + its multiplier stack).
+ * {@link com.ziggfreed.mmomobscaling.variant.VariantRoster}), and its {@code AuraEffectId} is only a
+ * FALLBACK tint (the rarity owns the single body-tint channel), so a variant's identity is mostly its name
+ * decoration + its granted affix(es) + its multiplier stack.
  *
  * <p><b>Cohesive field groups are NESTED sub-objects</b> (the schema rule): {@code Roll} (chance + band +
  * family... no, family is its own group), {@code Multipliers}, {@code Affixes}, {@code Families} - each its
@@ -38,7 +38,7 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  *   "Multipliers": { "Hp": 1.5, "OutDamage": 1.4, "InDamage": 0.9, "Loot": 1.3, "Xp": 1.2 },
  *   "Affixes": { "Slots": 1, "Allowed": ["venomous"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"] },
- *   "BonusRewards": ["xp COMBAT 250"] }
+ *   "Loot": { "Rolls": [ { "Grants": { "DropLists": ["Mmoscaling_Drops_Horrific"] } } ] } }
  * }</pre>
  */
 public final class VariantAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, VariantAsset>> {
@@ -53,8 +53,7 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private AffixPolicy affixes;
     @Nullable private Families families;
     @Nullable private String auraEffectId;
-    @Nullable private String bonusDropList;
-    @Nullable private String[] bonusRewards;
+    @Nullable private LootRef loot;
 
     public static final AssetBuilderCodec<String, VariantAsset> CODEC = AssetBuilderCodec.builder(
                     VariantAsset.class,
@@ -88,15 +87,14 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
             .append(new KeyedCodec<>("AuraEffectId", Codec.STRING, false),
                     (a, v) -> a.auraEffectId = v, a -> a.auraEffectId)
             .add()
-            // Optional native ItemDropList pulled on death IN ADDITION to the base rarity's bonus drops.
-            .append(new KeyedCodec<>("BonusDropList", Codec.STRING, false),
-                    (a, v) -> a.bonusDropList = v, a -> a.bonusDropList)
-            .add()
-            // The P4 ADDITIVE reward layer (mirrors RarityAsset.BonusRewards): ziggfreed-common LootEntry
-            // compact specs, stacked ON TOP of the base rarity's own additive layer and granted to the
-            // killer alongside both hosts' BonusDropList item loot. Absent = no additive layer.
-            .append(new KeyedCodec<>("BonusRewards", Codec.STRING_ARRAY, false),
-                    (a, v) -> a.bonusRewards = v, a -> a.bonusRewards)
+            .append(new KeyedCodec<>("Loot", LootRef.CODEC, false), (a, v) -> a.loot = v, a -> a.loot)
+            .documentation("This overlay's OWN death loot, rolled IN ADDITION to the base rarity's - so a"
+                    + " variant stacks its finds on top rather than replacing them. Same shared loot"
+                    + " vocabulary as a rarity's block: shared tables in Lootables, outcomes inline in"
+                    + " Rolls, and inside a roll's Grants native drop tables in DropLists, exact items in"
+                    + " Items, console lines in Commands, registered reward kinds in Rewards. The folded"
+                    + " loot multiplier (rarity times variant) decides how many times it is rolled. Absent"
+                    + " means the variant adds nothing to what the base tier already pays.")
             .add()
             .build();
 
@@ -112,8 +110,8 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
      * Build the runtime {@link Variant} (the map key is the id). Absent groups/leaves take the neutral
      * defaults (chance 0 = not rollable, no band gate, all multipliers 1.0, zero affix slots). An absent
      * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow none".
-     * An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL} (every mob eligible). Malformed
-     * {@code BonusRewards} specs are skipped ({@link LootEntry#parseAll}, never throws).
+     * An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL} (every mob eligible). An absent or
+     * empty {@code Loot} block folds to {@code null} (the variant adds nothing to the base tier's loot).
      */
     @Nonnull
     public Variant toVariant() {
@@ -122,7 +120,7 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         double hp = mult(multipliers != null ? multipliers.hp : null);
         double out = mult(multipliers != null ? multipliers.outDamage : null);
         double in = mult(multipliers != null ? multipliers.inDamage : null);
-        double loot = mult(multipliers != null ? multipliers.loot : null);
+        double lootMult = mult(multipliers != null ? multipliers.loot : null);
         double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
         List<String> allowed = affixes != null && affixes.allowed != null ? List.of(affixes.allowed) : List.of("*");
@@ -133,9 +131,9 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         String nameKey = displayNameKey != null ? displayNameKey : "";
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
-        List<LootEntry> rewards = LootEntry.parseAll(bonusRewards);
-        return new Variant(id, nameKey, chance, minDifficulty, hp, out, in, loot, xp, slots, allowed,
-                allowedRarities, auraEffectId, bonusDropList, color, filter, rewards);
+        LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
+        return new Variant(id, nameKey, chance, minDifficulty, hp, out, in, lootMult, xp, slots, allowed,
+                allowedRarities, auraEffectId, color, filter, deathLoot);
     }
 
     private static double mult(@Nullable Double v) {

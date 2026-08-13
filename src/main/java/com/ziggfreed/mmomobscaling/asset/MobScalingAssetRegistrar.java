@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Roo
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.asset.AssetStoreRegistrar;
+import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
@@ -351,9 +352,9 @@ public final class MobScalingAssetRegistrar {
      *   <li>{@link PackDependencyAudit} - names any content pack whose mob-scaling overrides are being
      *       silently shadowed by the mod's own defaults, and the manifest line that fixes it.</li>
      *   <li>{@link ScalingContentValidator} reference EXISTENCE - names every dangling
-     *       {@code AuraEffectId} / affix {@code EffectId} / {@code BonusDropList} / {@code Families}
-     *       group + role / caster {@code NativeChain}, at boot, instead of at whatever future spawn
-     *       first happens to touch it.</li>
+     *       {@code AuraEffectId} / affix {@code EffectId} / {@code Loot} table or drop list /
+     *       {@code Families} group + role / caster {@code NativeChain}, at boot, instead of at whatever
+     *       future spawn first happens to touch it.</li>
      * </ul>
      *
      * <p>Findings are WARNINGS only - a dangling reference degrades (the content still rolls, it just
@@ -393,7 +394,8 @@ public final class MobScalingAssetRegistrar {
                 id -> exists(() -> ItemDropList.getAssetMap().getAsset(id) != null),
                 id -> exists(() -> NPCGroup.getAssetMap().getIndex(id) != AssetMapWithIndexes.NOT_FOUND),
                 id -> exists(() -> NPCPlugin.get().getIndex(id) != AssetMapWithIndexes.NOT_FOUND),
-                id -> exists(() -> RootInteraction.getAssetMap().getAsset(id) != null));
+                id -> exists(() -> RootInteraction.getAssetMap().getAsset(id) != null),
+                id -> exists(() -> LootableConfig.getInstance().resolve(id) != null));
     }
 
     /** Evaluate one guarded existence lookup; an engine throw (store absent, unit JVM) means "cannot tell". */

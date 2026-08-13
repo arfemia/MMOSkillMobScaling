@@ -12,7 +12,7 @@ import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.ziggfreed.common.instance.reward.LootEntry;
+import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 
@@ -37,8 +37,8 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [],
  *                 "ForceGroups": [], "ForceRoles": [] },
- *   "AuraEffectId": "Mmoscaling_Aura_Epic", "BonusDropList": "Mmoscaling_Drops_Epic",
- *   "BonusRewards": ["xp MINING 500"] }
+ *   "AuraEffectId": "Mmoscaling_Aura_Epic",
+ *   "Loot": { "Rolls": [ { "Grants": { "DropLists": ["Mmoscaling_Drops_Epic"] } } ] } }
  * }</pre>
  */
 public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetMap<String, RarityAsset>> {
@@ -53,8 +53,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private AffixPolicy affixes;
     @Nullable private Families families;
     @Nullable private String auraEffectId;
-    @Nullable private String bonusDropList;
-    @Nullable private String[] bonusRewards;
+    @Nullable private LootRef loot;
 
     public static final AssetBuilderCodec<String, RarityAsset> CODEC = AssetBuilderCodec.builder(
                     RarityAsset.class,
@@ -93,14 +92,15 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
             .append(new KeyedCodec<>("AuraEffectId", Codec.STRING, false),
                     (a, v) -> a.auraEffectId = v, a -> a.auraEffectId)
             .add()
-            .append(new KeyedCodec<>("BonusDropList", Codec.STRING, false),
-                    (a, v) -> a.bonusDropList = v, a -> a.bonusDropList)
-            .add()
-            // The P4 ADDITIVE reward layer (currency/command/token entries a native ItemDropList cannot
-            // carry): ziggfreed-common LootEntry compact specs, granted to the killer alongside the item
-            // loot above. Absent = no additive layer for this tier (the pre-P4 behavior).
-            .append(new KeyedCodec<>("BonusRewards", Codec.STRING_ARRAY, false),
-                    (a, v) -> a.bonusRewards = v, a -> a.bonusRewards)
+            .append(new KeyedCodec<>("Loot", LootRef.CODEC, false), (a, v) -> a.loot = v, a -> a.loot)
+            .documentation("What a mob wearing this tier hands over on death, on TOP of whatever it already"
+                    + " drops. The shared loot vocabulary: name shared tables in Lootables, write outcomes"
+                    + " inline in Rolls, and inside a roll's Grants put native drop tables in DropLists,"
+                    + " exact items in Items, console lines in Commands, and registered reward kinds in"
+                    + " Rewards. A roll may gate itself on Conditions and scale its Chance with factors,"
+                    + " so 'only for a lucky player' or 'only in a dangerous region' needs no code. The"
+                    + " tier's Multipliers.Loot decides how many times the whole block is rolled. Absent"
+                    + " means this tier pays nothing extra.")
             .add()
             .build();
 
@@ -117,7 +117,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
      * defaults (weight 1, no band gate, all multipliers 1.0, zero affix slots). An absent
      * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow
      * none". An absent display key stays {@code ""} so the text util falls back to the convention key.
-     * Malformed {@code BonusRewards} specs are skipped ({@link LootEntry#parseAll}, never throws).
+     * An absent or empty {@code Loot} block folds to {@code null} (this tier pays nothing extra).
      */
     @Nonnull
     public Rarity toRarity() {
@@ -126,16 +126,16 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         double hp = mult(multipliers != null ? multipliers.hp : null);
         double out = mult(multipliers != null ? multipliers.outDamage : null);
         double in = mult(multipliers != null ? multipliers.inDamage : null);
-        double loot = mult(multipliers != null ? multipliers.loot : null);
+        double lootMult = mult(multipliers != null ? multipliers.loot : null);
         double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
         List<String> allowed = affixes != null && affixes.allowed != null ? List.of(affixes.allowed) : List.of("*");
         String nameKey = displayNameKey != null ? displayNameKey : "";
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
-        List<LootEntry> rewards = LootEntry.parseAll(bonusRewards);
+        LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
         return new Rarity(id, nameKey, weight, minDifficulty, hp, out, in,
-                loot, xp, slots, auraEffectId, bonusDropList, allowed, color, filter, rewards);
+                lootMult, xp, slots, auraEffectId, allowed, color, filter, deathLoot);
     }
 
     private static double mult(@Nullable Double v) {
