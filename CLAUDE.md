@@ -167,6 +167,13 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   `Affixes.ExtraSlots`). A body may carry a top-level `"Parent": "<file-id>"` resolved CROSS-LAYER by
   common's `codec/JsonParentResolver` (raw pre-merge, memoized, cycle-guarded; child overrides per leaf,
   arrays replace wholesale) - unset leaves fall through the chain THEN to the global effective settings.
+  **`Where` under `Parent` REPLACES wholesale here too** (the fold passes `Set.of("Where")` as
+  `JsonParentResolver`'s replace-keys): a child authoring `"Where": {"GameplayConfig": [...]}` gets
+  exactly that selector, never the parent's `Match`/`ExcludeMatch` leaves merged underneath it -
+  the same rule the placement engine's native `Parent` decode applies to `WorldSelector`, so a
+  `Where` means one thing everywhere in the family (a per-leaf merge would silently broaden a
+  retargeted child to worlds nobody authored it for). A child that OMITS `Where` still inherits
+  the parent's selector whole; one that authors it and wants the parent's `ExcludeMatch` restates it.
   [`config/WorldSettingsConfig`](src/main/java/com/ziggfreed/mmomobscaling/config/WorldSettingsConfig.java)
   owns the pool + fold (pack layer cached from `LoadedAssetsEvent`, owner dir re-scanned per refold,
   replace-by-id across layers - layering is id-replace, inheritance is Parent's job) and the ONE-TIME

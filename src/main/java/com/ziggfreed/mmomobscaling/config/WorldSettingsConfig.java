@@ -249,8 +249,12 @@ public final class WorldSettingsConfig {
             }
         }
 
+        // "Where" replaces wholesale under Parent (never per-leaf): a child retargeting its
+        // selector must not inherit the parent's Match underneath its own GameplayConfig, or it
+        // silently applies in worlds nobody authored it for - the same rule the placement
+        // engine's native decode applies to WorldSelector, so a Where means one thing everywhere.
         Map<String, JsonObject> resolved = JsonParentResolver.resolve(
-                pool, pool.keySet(), PARENT_KEY, WorldSettingsConfig::warn);
+                pool, pool.keySet(), PARENT_KEY, WorldSettingsConfig::warn, Set.of("Where"));
 
         LinkedHashMap<String, WorldSettings> newById = new LinkedHashMap<>();
         List<WorldSettings> newRules = new ArrayList<>();
