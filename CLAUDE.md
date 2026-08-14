@@ -88,7 +88,7 @@ breaks class identity):
 
 - **ZiggfreedCommon >= 1.3.0** (`compileOnly files(ziggfreedCommonJar)`, pin
   `ziggfreedCommonVersion`; 1.3.0's `world/WorldNameMatcher` carries the suffix/contains match forms
-  a `*KweebecNightmare_*` per-world selector needs to catch the `instance-`-prefixed worlds) - the shared
+  a `*KweebecNightmare_*` per-world pattern needs to catch the `instance-`-prefixed worlds) - the shared
   primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
@@ -156,7 +156,7 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   pack-style `Payload` wrapper is peeled). The body's ONE schema authority is
   [`asset/WorldSettings`](src/main/java/com/ziggfreed/mmomobscaling/asset/WorldSettings.java)
   (`BuilderCodec`, nullable leaves): **`Where`** - the SHARED `world/WorldSelector` group
-  (`Names`/`Match`/`GameplayConfig`/`ExcludeNames`), the same spelling an NPC placement and an MMO
+  (`Match`/`GameplayConfig`/`ExcludeMatch`), the same spelling an NPC placement and an MMO
   world rule use, so this mod holds no matcher and no pattern parser of its own; absent or empty
   (tested with `WorldSelector.isBlank()`, so `"Where": {}` reads the same as omitting it) = a
   pool-only BASE, never matched - per-world

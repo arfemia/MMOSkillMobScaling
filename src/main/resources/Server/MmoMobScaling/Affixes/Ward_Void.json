@@ -1,6 +1,6 @@
 {
   "$Comment": "The Void DamageCause is authored by the MMO Skill Tree jar's elemental damage-school roster (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Void.json, Mmoscaling_Ward_Void.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply until that asset is present.",
-  "Name": "ward_void",
+  "Name": "Ward_Void",
   "DisplayNameKey": "scaling.affix.ward_void.name",
   "DescriptionKey": "scaling.affix.ward_void.desc",
   "EffectId": "Mmoscaling_Ward_Void",

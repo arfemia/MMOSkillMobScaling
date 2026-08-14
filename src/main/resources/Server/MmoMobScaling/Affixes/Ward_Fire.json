@@ -1,5 +1,5 @@
 {
-  "Name": "ward_fire",
+  "Name": "Ward_Fire",
   "DisplayNameKey": "scaling.affix.ward_fire.name",
   "DescriptionKey": "scaling.affix.ward_fire.desc",
   "EffectId": "Mmoscaling_Ward_Fire",

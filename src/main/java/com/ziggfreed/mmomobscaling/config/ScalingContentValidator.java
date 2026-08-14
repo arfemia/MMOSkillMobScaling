@@ -18,8 +18,8 @@ import com.ziggfreed.common.match.NamePattern.Kind;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.MatchRank;
 import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
+import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.world.WorldSelector;
-import com.ziggfreed.common.world.WorldSelectorValidator;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
@@ -589,11 +589,11 @@ public final class ScalingContentValidator {
         return out;
     }
 
-    /** The shared selector audit, flattened into this validator's string-finding shape. */
+    /** The shared Where audit, flattened into this validator's string-finding shape. */
     @Nonnull
     private static List<String> selectorFindings(@Nonnull String at, @Nonnull WorldSelector where) {
         List<String> out = new ArrayList<>();
-        for (Finding finding : WorldSelectorValidator.validateSelector(where, at + " Where")) {
+        for (Finding finding : WhereValidator.validateSelector(where, at + " Where")) {
             out.add(at + ": " + finding.message());
         }
         return out;
@@ -627,7 +627,7 @@ public final class ScalingContentValidator {
     }
 
     /**
-     * Report the two ambiguities the shared selector ladder resolves SILENTLY.
+     * Report the two ambiguities the shared match ladder resolves SILENTLY.
      *
      * <ol>
      *   <li><b>Shadowing.</b> A wildcard rule whose literal core is strictly contained in a longer rule's

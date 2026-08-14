@@ -31,8 +31,6 @@ import com.ziggfreed.common.codec.JsonParentResolver;
 import com.ziggfreed.common.util.JsonOverrideWriter;
 import com.ziggfreed.common.util.JsonTreeUtil;
 import com.ziggfreed.common.world.MatchRank;
-import com.ziggfreed.common.world.WorldIdentity;
-import com.ziggfreed.common.world.WorldNameIndex;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 
@@ -58,7 +56,7 @@ import com.ziggfreed.mmomobscaling.asset.WorldSettings;
  * pool-only BASE). A malformed file warns and is skipped, never poisoning the fold. Every refold
  * invalidates {@link MobScalingConfig}'s per-world view cache.
  *
- * <p>Selection is the shared world-identity ladder: each rule's {@code Where} is scored by
+ * <p>Selection is the shared world-targeting ladder: each rule's {@code Where} is scored by
  * {@link WorldSelector} into a {@link MatchRank} and the most specific wins, with the FIRST of two
  * equally specific rules keeping the world. That is the same ordering an NPC placement and a world
  * rule sort by, so an author who has learned it once has learned it everywhere - and it is why
@@ -100,9 +98,8 @@ public final class WorldSettingsConfig {
                                     "*Contains*", or "*" for every world
                   "GameplayConfig": exact matches on a world's own config key - the only stable
                                     handle on an instance world, whose name carries a fresh uuid
-                  "Names":          shared selector names from
-                                    Server/ZiggfreedCommon/WorldSelectors
-                  "ExcludeNames":   a filter that drops worlds carrying a listed name
+                  "ExcludeMatch":   name patterns, same grammar as "Match", that drop a world even
+                                    when a positive axis matched
                 The most specific match wins: an exact GameplayConfig, then an exact name, then the
                 longest literal pattern core, then a bare "*". Leave "Where" out entirely to make
                 the file a pool-only base that other files inherit from but that never matches a
@@ -284,8 +281,8 @@ public final class WorldSettingsConfig {
 
     /**
      * The best-matching resolved settings for {@code world}, or {@code null} (use the global). This
-     * is the ENGINE-facing form: it can score all three selector axes, including the
-     * {@code GameplayConfig} key that is the only stable handle on an instance world.
+     * is the ENGINE-facing form: it can score both axes, including the {@code GameplayConfig} key
+     * that is the only stable handle on an instance world.
      */
     @Nullable
     public WorldSettings resolve(@Nullable World world) {
@@ -293,8 +290,7 @@ public final class WorldSettingsConfig {
             return null;
         }
         try {
-            return resolve(world.getName(), world.getWorldConfig().getGameplayConfig(),
-                    WorldIdentity.indexFor(world));
+            return resolve(world.getName(), world.getWorldConfig().getGameplayConfig());
         } catch (Throwable t) {
             warn("could not read world identity for a per-world settings lookup: " + t.getMessage());
             return null;
@@ -302,14 +298,14 @@ public final class WorldSettingsConfig {
     }
 
     /**
-     * The best-matching settings for a world known only by NAME. The {@code Names} and
-     * {@code GameplayConfig} axes cannot resolve without the world itself, so a rule written on
-     * either of them will not match here - use {@link #resolve(World)} wherever the world is in
-     * hand, and treat this as the pure, testable core.
+     * The best-matching settings for a world known only by NAME. The {@code GameplayConfig} axis
+     * cannot resolve without the world itself, so a rule written on it will not match here - use
+     * {@link #resolve(World)} wherever the world is in hand, and treat this as the pure, testable
+     * core.
      */
     @Nullable
     public WorldSettings resolve(@Nullable String worldName) {
-        return resolve(worldName, null, WorldNameIndex.EMPTY);
+        return resolve(worldName, null);
     }
 
     /**
@@ -317,12 +313,11 @@ public final class WorldSettingsConfig {
      * specific ones so authoring order decides a genuine tie rather than map iteration order.
      */
     @Nullable
-    public WorldSettings resolve(@Nullable String worldName, @Nullable String gameplayConfig,
-            @Nonnull WorldNameIndex index) {
+    public WorldSettings resolve(@Nullable String worldName, @Nullable String gameplayConfig) {
         MatchRank best = null;
         WorldSettings winner = null;
         for (WorldSettings rule : this.rules) {
-            MatchRank rank = rule.selector().match(worldName, gameplayConfig, index);
+            MatchRank rank = rule.selector().match(worldName, gameplayConfig);
             if (rank != null && rank.isMoreSpecificThan(best)) {
                 best = rank;
                 winner = rule;

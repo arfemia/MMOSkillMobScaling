@@ -44,11 +44,11 @@ refusing to load the whole mod - see CasterFeatureState.
   than once now repeats its command and reward grants too, so write per-pass amounts. The five
   shipped rarity/variant files are re-authored onto it, and the content
   audit now names a dangling `Loot.Lootables` table id alongside a dangling drop list.
-- Changed (HARD BREAK, schema): a world rule targets its worlds with the SHARED `Where` selector
+- Changed (HARD BREAK, schema): a world rule targets its worlds with the SHARED `Where`
   group, not a flat `Match` string. `WorldSettings.Where` decodes through `WorldSelector.CODEC`, so
-  a rule authors `Names` (shared selector names), `Match` (world-name patterns, the same wildcard
+  a rule authors `Match` (world-name patterns, the same wildcard
   grammar as the old flat field), `GameplayConfig` (exact config keys, the sturdy axis for an
-  instance world whose NAME carries a fresh uuid) and `ExcludeNames` - one vocabulary shared with
+  instance world whose NAME carries a fresh uuid) and `ExcludeMatch` - one vocabulary shared with
   NPC placements, dialogue world conditions and MMO world rules, scored on one specificity ladder.
   Rewrite `"Match": "*dungeon_*"` as `"Where": { "Match": ["*dungeon_*"] }`. Base-versus-rule
   semantics are preserved and made explicit: `"Where": {}` reads the same as omitting the group

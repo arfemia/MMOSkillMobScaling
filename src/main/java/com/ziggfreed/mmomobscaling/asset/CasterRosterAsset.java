@@ -32,7 +32,7 @@ import com.ziggfreed.mmomobscaling.caster.CasterRoster;
  *
  * <p>Pack JSON shape:
  * <pre>{@code
- * { "Name": "demo_boss_caster",
+ * { "Name": "Demo_Boss_Caster",
  *   "Role": { "Id": "Dragon_Fire" },
  *   "Abilities": [
  *     { "AbilityId": "fireball", "MinDifficulty": 20, "Scope": "BOSS",

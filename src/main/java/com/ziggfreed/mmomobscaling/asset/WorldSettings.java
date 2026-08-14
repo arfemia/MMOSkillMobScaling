@@ -23,8 +23,8 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
  *
  * <p>Fields ({@code Parent} is stripped pre-decode by the resolver, never declared here):
  * <ul>
- *   <li>{@code Where} - which worlds this rule applies to, in the SHARED selector vocabulary
- *       ({@code Names} / {@code Match} / {@code GameplayConfig} / {@code ExcludeNames}), scored by
+ *   <li>{@code Where} - which worlds this rule applies to, in the SHARED world-targeting
+ *       vocabulary ({@code Match} / {@code GameplayConfig} / {@code ExcludeMatch}), scored by
  *       {@code WorldSelector} on the one specificity ladder: an exact {@code GameplayConfig} beats
  *       an exact name, which beats the longest literal pattern core, which beats a bare {@code *}.
  *       An instance world is the reason {@code GameplayConfig} matters here - its NAME carries a
@@ -54,14 +54,14 @@ public final class WorldSettings {
 
     public static final BuilderCodec<WorldSettings> CODEC = BuilderCodec
             .builder(WorldSettings.class, WorldSettings::new)
-            // Which worlds this rule applies to, in the shared selector vocabulary. Absent (or an
+            // Which worlds this rule applies to, in the shared Where vocabulary. Absent (or an
             // empty group) = a pool-only BASE other world files inherit from via Parent.
             .append(new KeyedCodec<>("Where", WorldSelector.CODEC, false),
                     (w, v) -> w.where = v, w -> w.where)
-            .documentation("Which worlds this rule applies to: Names (shared selector names), Match "
-                    + "(world-name patterns), GameplayConfig (exact config keys) and ExcludeNames. "
-                    + "The most specific match wins. Leave the whole group out to make the file a "
-                    + "pool-only base that other files inherit from through Parent.")
+            .documentation("Which worlds this rule applies to: Match (world-name patterns), "
+                    + "GameplayConfig (exact config keys) and ExcludeMatch. The most specific match "
+                    + "wins. Leave the whole group out to make the file a pool-only base that other "
+                    + "files inherit from through Parent.")
             .add()
             // Per-world kill-switch: false = no mob scaling in matching worlds (residue is stripped).
             .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
@@ -138,7 +138,7 @@ public final class WorldSettings {
     @Nonnull
     public WorldSelector selector() {
         WorldSelector authored = where;
-        return authored == null ? WorldSelector.of(null, null, null, null) : authored;
+        return authored == null ? WorldSelector.of(null, null, null) : authored;
     }
 
     /**
@@ -154,8 +154,9 @@ public final class WorldSettings {
 
     /**
      * A short, literal one-line rendering of {@code Where} for a listing: the first authored value
-     * from whichever axes are present, each labelled by its axis so a name is never mistaken for a
-     * pattern. {@code null} for a pool-only base, which a caller renders in its own words.
+     * from whichever axes are present, each labelled by its axis so a config key is never mistaken
+     * for a name pattern. {@code null} for a pool-only base, which a caller renders in its own
+     * words.
      */
     @Nullable
     public String whereSummary() {
@@ -165,9 +166,8 @@ public final class WorldSettings {
         }
         StringBuilder sb = new StringBuilder();
         appendAxis(sb, "config", first(selector.getGameplayConfig()));
-        appendAxis(sb, "name", first(selector.getNames()));
         appendAxis(sb, null, first(selector.getMatch()));
-        appendAxis(sb, "not", first(selector.getExcludeNames()));
+        appendAxis(sb, "not", first(selector.getExcludeMatch()));
         return sb.length() == 0 ? null : sb.toString();
     }
 

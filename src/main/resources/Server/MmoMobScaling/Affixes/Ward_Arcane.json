@@ -1,6 +1,6 @@
 {
   "$Comment": "The Arcane DamageCause is authored by the MMO Skill Tree jar's elemental damage-school roster (unprefixed, under Elemental), NOT by this mod. Without that jar (or a pack) shipping Server/Entity/Damage/Arcane.json, Mmoscaling_Ward_Arcane.json fails EntityEffect asset validation at load and this affix logs a warn-once at apply until that asset is present.",
-  "Name": "ward_arcane",
+  "Name": "Ward_Arcane",
   "DisplayNameKey": "scaling.affix.ward_arcane.name",
   "DescriptionKey": "scaling.affix.ward_arcane.desc",
   "EffectId": "Mmoscaling_Ward_Arcane",

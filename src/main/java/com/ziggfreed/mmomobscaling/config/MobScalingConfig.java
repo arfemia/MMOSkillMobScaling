@@ -181,8 +181,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // match). The rules themselves live in WorldSettingsConfig (Worlds/*.json, Parent-merged); this cache
     // is cleared on any refold (global OR worlds), on setIntensityRuntime, and by invalidateWorldViews().
     @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> worldViewCache = new ConcurrentHashMap<>();
-    // The same cache for a lookup made from a world NAME alone, which can score fewer selector axes
-    // (no Names, no GameplayConfig) and so must never share an entry with the full-world lookup.
+    // The same cache for a lookup made from a world NAME alone, which can score fewer axes (no
+    // GameplayConfig) and so must never share an entry with the full-world lookup.
     @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> nameOnlyViewCache = new ConcurrentHashMap<>();
 
     private MobScalingConfig() {
@@ -810,9 +810,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
      * worlds refold ({@link #invalidateWorldViews}), and on {@link #setIntensityRuntime}, so a
      * reload / preset swap / owner-file edit / intensity change takes effect on the next spawn.
      *
-     * <p>Prefer this form wherever the world is in hand: it scores all three selector axes, so a
-     * rule written on a selector name or on the world's {@code GameplayConfig} key applies. The
-     * name-only form below cannot see either.
+     * <p>Prefer this form wherever the world is in hand: it scores BOTH axes, so a rule written on
+     * the world's {@code GameplayConfig} key applies. The name-only form below cannot see it.
      */
     @Nonnull
     public SpawnScalingSettings spawnSettingsFor(@Nullable World world) {
@@ -829,9 +828,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
 
     /**
      * The effective spawn-time settings for a world known only by NAME - the pure form, used where
-     * no {@code World} handle exists. A rule written on a selector name or a {@code GameplayConfig}
-     * key cannot match here, so it is kept in its OWN cache: one world must never end up serving a
-     * view resolved from fewer axes than the caller with the real world would have got.
+     * no {@code World} handle exists. A rule written on a {@code GameplayConfig} key cannot match
+     * here, so it is kept in its OWN cache: one world must never end up serving a view resolved from
+     * fewer axes than the caller with the real world would have got.
      */
     @Nonnull
     public SpawnScalingSettings spawnSettingsFor(@Nullable String worldName) {

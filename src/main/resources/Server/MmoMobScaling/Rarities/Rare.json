@@ -1,6 +1,6 @@
 {
   "$Comment": "The entry tier: common, cheap, and the first thing a new player meets. Loot is the shared loot vocabulary every mod on this server speaks, so what a rare mob drops is authored the same way a chest or a station's rare find is. This tier keeps it to one unconditional roll granting the native Mmoscaling_Drops_Rare table (edit Server/Drops/MmoMobScaling/Mmoscaling_Drops_Rare.json to change WHAT falls out). To make a drop conditional or lucky, add Conditions and a Chance to a roll: Chance is a percentage built from a Base plus weighted factor readings, so { \"Base\": 5, \"Factors\": [ { \"Factor\": \"hytale:stat\", \"Param\": \"MMO_Luck\", \"Weight\": 0.2 } ] } is 'five percent plus a fifth of the killer's luck'. Multipliers.Loot decides how many times this whole block is rolled, so write per-roll amounts and let the multiplier do the scaling.",
-  "Name": "rare",
+  "Name": "Rare",
   "DisplayNameKey": "scaling.rarity.rare.name",
   "NameColor": "#4fc3f7",
   "Roll": { "Weight": 70, "MinDifficulty": 5 },

@@ -1,5 +1,5 @@
 {
-  "Name": "vampiric",
+  "Name": "Vampiric",
   "DisplayNameKey": "scaling.affix.vampiric.name",
   "DescriptionKey": "scaling.affix.vampiric.desc",
   "Roll": { "Weight": 1.0, "MinDifficulty": 25, "AllowedRarities": ["epic", "legendary"] },
