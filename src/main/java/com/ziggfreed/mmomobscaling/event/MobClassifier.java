@@ -5,7 +5,9 @@ import javax.annotation.Nullable;
 
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.asset.type.attitude.Attitude;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.role.Role;
 import com.hypixel.hytale.server.npc.role.support.WorldSupport;
@@ -46,11 +48,15 @@ final class MobClassifier {
     }
 
     /**
+     * @param holder the pre-add {@code Holder} the caller is building the entity on (this runs inside a
+     *               {@code HolderSystem.onEntityAdd}, before any {@code Ref} exists) - {@code WorldSupport}
+     *               is a plain ECS component now, put onto this same holder by {@code RoleBuilderSystem}
+     *               before this system runs, so it is read directly off {@code holder} rather than a Ref.
      * @return the scope byte ({@link MobScaleResult#SCOPE_HOSTILE} / {@link MobScaleResult#SCOPE_BOSS}) for
      *         a scalable mob, or {@code null} to EXCLUDE (friendly/neutral/excluded-group/unbuilt role).
      */
     @Nullable
-    static Byte classify(@Nonnull NPCEntity npc) {
+    static Byte classify(@Nonnull NPCEntity npc, @Nonnull Holder<EntityStore> holder) {
         Role role = npc.getRole();
         if (role == null) {
             return null; // role not built (should not happen post RoleBuilderSystem) -> exclude
@@ -68,7 +74,7 @@ final class MobClassifier {
         // the Neutral-attitude check below (Template_Animal_Neutral defaults its attitude to Neutral), so the
         // attitude test alone is the correct, narrower gate. (Neutral-authored AGGRESSIVE families -
         // Scarak/Feran combat mobs - are a separate follow-up via an Mmoscaling_Included NPCGroup tagset.)
-        WorldSupport ws = role.getWorldSupport();
+        WorldSupport ws = holder.getComponent(WorldSupport.getComponentType());
         if (ws == null) {
             return null;
         }

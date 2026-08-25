@@ -6,8 +6,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
 
+import com.hypixel.hytale.component.ComponentAccessor;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
-import com.hypixel.hytale.server.npc.role.Role;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.role.support.CombatSupport;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 
@@ -47,11 +49,13 @@ public final class NativeChainAttacker {
     }
 
     /**
-     * Arm {@code role}'s next native attack to (also) draw from {@code chainId}. Returns {@code false}
-     * (and warns once) when {@code chainId}'s {@code RootInteraction} asset is not {@code Attack}-tagged
-     * - {@code ActionAttack} would reject it every cycle, so arming it would only stall the mob's attacks.
+     * Arm the NPC at {@code npcRef}'s next native attack to (also) draw from {@code chainId}. Returns
+     * {@code false} (and warns once) when {@code chainId}'s {@code RootInteraction} asset is not
+     * {@code Attack}-tagged - {@code ActionAttack} would reject it every cycle, so arming it would only
+     * stall the mob's attacks.
      */
-    public static boolean arm(@Nonnull Role role, @Nonnull String chainId) {
+    public static boolean arm(@Nonnull Ref<EntityStore> npcRef, @Nonnull ComponentAccessor<EntityStore> accessor,
+            @Nonnull String chainId) {
         if (!isAttackTagged(chainId)) {
             if (WARNED_UNTAGGED.add(chainId.toLowerCase(Locale.ROOT))) {
                 safeWarn("NativeChain '" + chainId + "' is not tagged 'Attack' on its RootInteraction asset "
@@ -59,7 +63,11 @@ public final class NativeChainAttacker {
             }
             return false;
         }
-        role.getCombatSupport().addAttackOverride(chainId);
+        CombatSupport combatSupport = CombatSupport.get(npcRef, accessor);
+        if (combatSupport == null) {
+            return false; // no combat support on this entity (bare getComponent; assert is a no-op in prod)
+        }
+        combatSupport.addAttackOverride(chainId);
         return true;
     }
 

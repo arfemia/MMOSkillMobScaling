@@ -16,7 +16,6 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
-import com.hypixel.hytale.server.npc.role.Role;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
@@ -96,7 +95,6 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
             }
 
             MobScaleResult result = comp.result();
-            Role role = npc.getRole();
             long now = System.currentTimeMillis();
             List<CasterKitComponent.Armed> armed = new ArrayList<>();
             for (CasterEntry entry : roster.abilities()) {
@@ -104,9 +102,7 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
                     continue;
                 }
                 if (entry.kind() == CasterEntry.Kind.NATIVE_CHAIN) {
-                    if (role != null) {
-                        NativeChainAttacker.arm(role, entry.nativeChain());
-                    }
+                    NativeChainAttacker.arm(ref, cb, entry.nativeChain());
                     // Armed once, right here, at spawn - NEVER added to the kit's armed/tick list.
                     // MobScalingCasterTickSystem never schedules or re-arms a NATIVE_CHAIN entry (see
                     // its NATIVE_CHAIN case for why re-arming would starve other chains).

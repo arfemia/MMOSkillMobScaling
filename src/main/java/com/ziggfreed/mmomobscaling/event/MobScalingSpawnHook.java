@@ -132,7 +132,7 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
             if (roleName != null) {
                 failRole = roleName;
             }
-            Byte scope = MobClassifier.classify(npc);
+            Byte scope = MobClassifier.classify(npc, holder);
             if (scope == null) {
                 cleanupResidue(holder); // now EXCLUDED (e.g. a role added to the exclude set): strip stale scaling
                 return;
