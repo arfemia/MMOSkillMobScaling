@@ -1,6 +1,7 @@
 {
   "ApplicationEffects": {
-    "HorizontalSpeedMultiplier": 1.3
+    "HorizontalSpeedMultiplier": 1.3,
+    "MovementEffects": { "SpeedMultiplier": 1.3 }
   },
   "OverlapBehavior": "Extend",
   "Infinite": true

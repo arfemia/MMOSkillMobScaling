@@ -245,8 +245,11 @@ phases:
 - **Affixes / auras / movement = pure-data `EntityEffect` fields self-applied via the asset-authoritative
   `EntityEffectService.apply`, zero Java:** Armored (`DamageResistance`), **Stalwart (`KnockbackMultiplier: 0.0`
   = knockback immunity; its +15% HP is `HpDelta` folded into `hpMult`, applied via `HealthUtil`, NOT an
-  effect)**, **Swift (`ApplicationEffects.HorizontalSpeedMultiplier` 1.3)**, aura tints/ModelVFX. Swift is NOT
-  deferred: there IS a native movement-speed EFFECT field, folded into real NPC walk speed every tick.
+  effect)**, **Swift (`ApplicationEffects.HorizontalSpeedMultiplier` 1.3 + the same value on
+  `MovementEffects.SpeedMultiplier`)**, aura tints/ModelVFX. Swift is NOT deferred: there IS a native
+  movement-speed EFFECT field, folded into real NPC walk speed every tick. Speed effects author BOTH
+  leaves in lockstep: `HorizontalSpeedMultiplier` moves NPCs, `MovementEffects.SpeedMultiplier` (Update 6)
+  is what a PLAYER target applies - so the victim-applied Freezing slow carries both at 0.7.
   **The RARITY AURA owns the body-tint channel (blue=rare, purple=epic, gold=legendary); affix effects carry
   NO body tint** (they would fight the aura with no arbitration) - affix identity is the mechanic + (follow-up)
   the name stamp / a particle telegraph. The Freezing slow is VICTIM-applied and keeps its frost tint.

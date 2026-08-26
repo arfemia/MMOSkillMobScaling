@@ -30,6 +30,11 @@ refusing to load the whole mod - see CasterFeatureState.
   since the claim is made inside the enabled branch - nothing answers the ids, so a gate on one stays
   shut and a formula term on one adds zero, and one authored file is correct everywhere. A boot line
   lists what was published.
+- Fixed: the Freezing affix's slow actually slows the player it hits. The slow effect authored only
+  the NPC movement leaf (`ApplicationEffects.HorizontalSpeedMultiplier`), which a player's client
+  never applies, so a frozen player saw the frost tint and snow overlay at full running speed. The
+  effect now also authors the player leaf (`MovementEffects.SpeedMultiplier`, Update 6) at the same
+  0.7, and the Swift affix carries the matching 1.3 pair so its haste holds on any carrier.
 - Changed (HARD BREAK, schema): a rarity or variant authors its death loot in ONE `Loot` block, the
   shared loot vocabulary the rest of the ecosystem already speaks, replacing the `BonusDropList`
   string and the `BonusRewards` compact-spec array. Rewrite `"BonusDropList": "Mmoscaling_Drops_Epic"`
