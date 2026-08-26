@@ -209,7 +209,7 @@ public final class MobInspectorHud extends ScalingHud {
         cmd.set("#MmoscalingInspectLevel.Visible", target.scaled());
         if (target.scaled()) {
             cmd.set("#MmoscalingInspectLevel.TextSpans",
-                    Message.translation("scaling.hud.inspect.difficulty")
+                    Message.translation("mmomobscaling.hud.inspect.difficulty")
                             .param("value", Math.round(target.difficulty())));
         }
 
@@ -219,7 +219,7 @@ public final class MobInspectorHud extends ScalingHud {
         cmd.setObject("#MmoscalingInspectHpFill.Anchor",
                 hpFillAnchor((int) Math.round(pct * HP_BAR_INNER_WIDTH_PX)));
         cmd.set("#MmoscalingInspectHp.TextSpans",
-                Message.translation("scaling.hud.inspect.hp")
+                Message.translation("mmomobscaling.hud.inspect.hp")
                         .param("current", Math.max(0, Math.round(target.hp())))
                         .param("max", Math.round(max)));
 

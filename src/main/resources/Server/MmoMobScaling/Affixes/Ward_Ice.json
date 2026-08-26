@@ -1,7 +1,7 @@
 {
   "Name": "Ward_Ice",
-  "DisplayNameKey": "scaling.affix.ward_ice.name",
-  "DescriptionKey": "scaling.affix.ward_ice.desc",
+  "DisplayNameKey": "mmomobscaling.affix.ward_ice.name",
+  "DescriptionKey": "mmomobscaling.affix.ward_ice.desc",
   "EffectId": "Mmoscaling_Ward_Ice",
   "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
   "Kind": "STAT",

@@ -17,7 +17,7 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 
 /**
- * Enforces the two lang invariants for this mod's {@code scaling.lang}: affix {@code .desc} values are
+ * Enforces the two lang invariants for this mod's {@code mmomobscaling.lang}: affix {@code .desc} values are
  * QUALITATIVE (no digits - magnitudes live in the EntityEffect assets) and there are no em-dashes. Also
  * covers {@link MobScalingTextUtil}'s explicit-else-convention key resolution (the C-loc1 fix).
  */
@@ -53,7 +53,7 @@ class ScalingLangTest {
                 "hud.zone.tier.hard", "hud.zone.tier.deadly",
                 "hud.inspect.difficulty", "hud.inspect.hp",
                 "command.hud.usage", "command.hud.persist_hint")) {
-            assertTrue(lang.containsKey(key), "en-US scaling.lang must carry " + key);
+            assertTrue(lang.containsKey(key), "en-US mmomobscaling.lang must carry " + key);
         }
         // The frame keys must keep their placeholders (the HUD substitutes them client-side).
         assertTrue(lang.get("hud.zone.power").contains("{power}"), "hud.zone.power keeps {power}");
@@ -64,13 +64,13 @@ class ScalingLangTest {
     @Test
     void textUtilFallsBackToConventionKey() {
         Rarity noKey = rarity("rare", "");
-        assertEquals("scaling.rarity.rare.name", MobScalingTextUtil.rarityNameKey(noKey), "convention fallback");
+        assertEquals("mmomobscaling.rarity.rare.name", MobScalingTextUtil.rarityNameKey(noKey), "convention fallback");
         Rarity explicit = rarity("rare", "custom.rarity.key");
         assertEquals("custom.rarity.key", MobScalingTextUtil.rarityNameKey(explicit), "explicit key wins");
 
         Affix affix = new Affix("armored", "", "", null, 1, 1, List.of("*"), 0, 0, 0, 0, Affix.KIND_STAT, null, true);
-        assertEquals("scaling.affix.armored.name", MobScalingTextUtil.affixNameKey(affix));
-        assertEquals("scaling.affix.armored.desc", MobScalingTextUtil.affixDescKey(affix));
+        assertEquals("mmomobscaling.affix.armored.name", MobScalingTextUtil.affixNameKey(affix));
+        assertEquals("mmomobscaling.affix.armored.desc", MobScalingTextUtil.affixDescKey(affix));
     }
 
     private static Rarity rarity(String id, String nameKey) {
@@ -79,8 +79,8 @@ class ScalingLangTest {
 
     private static Map<String, String> loadLang() throws Exception {
         Map<String, String> out = new LinkedHashMap<>();
-        try (InputStream in = ScalingLangTest.class.getResourceAsStream("/Server/Languages/en-US/scaling.lang")) {
-            assertNotNull(in, "scaling.lang must be on the classpath");
+        try (InputStream in = ScalingLangTest.class.getResourceAsStream("/Server/Languages/en-US/mmomobscaling.lang")) {
+            assertNotNull(in, "mmomobscaling.lang must be on the classpath");
             for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R")) {
                 String s = line.strip();
                 if (s.isEmpty() || s.startsWith("#")) {

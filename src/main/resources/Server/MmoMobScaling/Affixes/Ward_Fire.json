@@ -1,7 +1,7 @@
 {
   "Name": "Ward_Fire",
-  "DisplayNameKey": "scaling.affix.ward_fire.name",
-  "DescriptionKey": "scaling.affix.ward_fire.desc",
+  "DisplayNameKey": "mmomobscaling.affix.ward_fire.name",
+  "DescriptionKey": "mmomobscaling.affix.ward_fire.desc",
   "EffectId": "Mmoscaling_Ward_Fire",
   "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
   "Kind": "STAT",

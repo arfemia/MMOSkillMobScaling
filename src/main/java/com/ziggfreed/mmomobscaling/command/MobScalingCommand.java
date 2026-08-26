@@ -97,17 +97,17 @@ public final class MobScalingCommand extends CommandBase {
 
     public MobScalingCommand() {
         // The engine resolves the command + arg descriptions as localization keys.
-        super("mobscaling", "scaling.command.desc");
+        super("mobscaling", "mmomobscaling.command.desc");
         this.setPermissionGroups(HytalePermissionsProvider.GROUP_ADMIN);
         // Required so it binds POSITIONALLY (the Hytale parser binds OPTIONAL args by name, not
         // position - an optional sub would never bind "/mobscaling hud" and always fall through).
-        this.subArg = withRequiredArg("sub", "scaling.command.arg.sub", ArgTypes.STRING);
-        this.hudTargetArg = withOptionalArg("hudTarget", "scaling.command.arg.hud_target", ArgTypes.STRING);
-        this.hudValueArg = withOptionalArg("hudValue", "scaling.command.arg.hud_value", ArgTypes.STRING);
-        this.hudOffsetXArg = withOptionalArg("hudOffsetX", "scaling.command.arg.hud_offset_x", ArgTypes.STRING);
-        this.hudOffsetYArg = withOptionalArg("hudOffsetY", "scaling.command.arg.hud_offset_y", ArgTypes.STRING);
-        this.presetNameArg = withOptionalArg("presetName", "scaling.command.arg.preset_name", ArgTypes.STRING);
-        this.intensityArg = withOptionalArg("intensity", "scaling.command.arg.intensity", ArgTypes.STRING);
+        this.subArg = withRequiredArg("sub", "mmomobscaling.command.arg.sub", ArgTypes.STRING);
+        this.hudTargetArg = withOptionalArg("hudTarget", "mmomobscaling.command.arg.hud_target", ArgTypes.STRING);
+        this.hudValueArg = withOptionalArg("hudValue", "mmomobscaling.command.arg.hud_value", ArgTypes.STRING);
+        this.hudOffsetXArg = withOptionalArg("hudOffsetX", "mmomobscaling.command.arg.hud_offset_x", ArgTypes.STRING);
+        this.hudOffsetYArg = withOptionalArg("hudOffsetY", "mmomobscaling.command.arg.hud_offset_y", ArgTypes.STRING);
+        this.presetNameArg = withOptionalArg("presetName", "mmomobscaling.command.arg.preset_name", ArgTypes.STRING);
+        this.intensityArg = withOptionalArg("intensity", "mmomobscaling.command.arg.intensity", ArgTypes.STRING);
     }
 
     @Override
@@ -122,14 +122,14 @@ public final class MobScalingCommand extends CommandBase {
             case "intensity" -> intensity(ctx);
             case "worlds" -> worlds(ctx);
             case "ui" -> openUi(ctx);
-            default -> ctx.sendMessage(Message.translation("scaling.command.usage"));
+            default -> ctx.sendMessage(Message.translation("mmomobscaling.command.usage"));
         }
     }
 
     /** Open the in-game admin config page ({@code /mobscaling ui}); the whole page is admin-gated here. */
     private void openUi(@Nonnull CommandContext ctx) {
         if (!(ctx.sender() instanceof PlayerRef player)) {
-            ctx.sendMessage(Message.translation("scaling.command.players_only"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.players_only"));
             return;
         }
         World world = Universe.get().getWorld(player.getWorldUuid());
@@ -159,16 +159,16 @@ public final class MobScalingCommand extends CommandBase {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         if (!ctx.provided(presetNameArg)) {
             List<String> available = cfg.availablePresetNames();
-            ctx.sendMessage(Message.translation("scaling.command.preset.active")
+            ctx.sendMessage(Message.translation("mmomobscaling.command.preset.active")
                     .param("0", cfg.getActivePreset()));
-            ctx.sendMessage(Message.translation("scaling.command.preset.available")
+            ctx.sendMessage(Message.translation("mmomobscaling.command.preset.available")
                     .param("0", String.join(", ", available)));
             return;
         }
         String name = presetNameArg.get(ctx);
         List<String> available = cfg.availablePresetNames();
         if (!cfg.swapActivePreset(name)) {
-            ctx.sendMessage(Message.translation("scaling.command.preset.unknown")
+            ctx.sendMessage(Message.translation("mmomobscaling.command.preset.unknown")
                     .param("0", name)
                     .param("1", String.join(", ", available)));
             return;
@@ -185,8 +185,8 @@ public final class MobScalingCommand extends CommandBase {
             MobInspectorHud.refreshPositionForAllOnline(inspectorPos);
         }
         MobScalingOwnerWriter.saveActivePreset(cfg.getActivePreset());
-        ctx.sendMessage(Message.translation("scaling.command.preset.swapped").param("0", cfg.getActivePreset()));
-        ctx.sendMessage(Message.translation("scaling.command.preset.saved"));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.preset.swapped").param("0", cfg.getActivePreset()));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.preset.saved"));
     }
 
     /**
@@ -199,7 +199,7 @@ public final class MobScalingCommand extends CommandBase {
     private void intensity(@Nonnull CommandContext ctx) {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         if (!ctx.provided(intensityArg)) {
-            ctx.sendMessage(Message.translation("scaling.command.intensity.current")
+            ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.current")
                     .param("value", cfg.getIntensity()));
             return;
         }
@@ -207,33 +207,33 @@ public final class MobScalingCommand extends CommandBase {
         try {
             value = Double.parseDouble(intensityArg.get(ctx).trim());
         } catch (NumberFormatException e) {
-            ctx.sendMessage(Message.translation("scaling.command.intensity.usage"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.usage"));
             return;
         }
         if (Double.isNaN(value) || value < 0.0) {
-            ctx.sendMessage(Message.translation("scaling.command.intensity.usage"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.usage"));
             return;
         }
         MobScalingOwnerWriter.saveIntensity(value);
-        ctx.sendMessage(Message.translation("scaling.command.intensity.set").param("value", cfg.getIntensity()));
-        ctx.sendMessage(Message.translation("scaling.command.intensity.saved"));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.set").param("value", cfg.getIntensity()));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.saved"));
     }
 
     /** Live-tune one HUD overlay: on/off for everyone, or a named-corner reposition (runtime only). */
     private void hud(@Nonnull CommandContext ctx) {
         if (!ctx.provided(hudTargetArg) || !ctx.provided(hudValueArg)) {
-            ctx.sendMessage(Message.translation("scaling.command.hud.usage"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.hud.usage"));
             return;
         }
         String target = hudTargetArg.get(ctx).toLowerCase(Locale.ROOT);
         boolean zone = "zone".equals(target);
         if (!zone && !"inspector".equals(target)) {
-            ctx.sendMessage(Message.translation("scaling.command.hud.usage"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.hud.usage"));
             return;
         }
         Message targetName = Message.translation(zone
-                ? "scaling.command.hud.target.zone"
-                : "scaling.command.hud.target.inspector");
+                ? "mmomobscaling.command.hud.target.zone"
+                : "mmomobscaling.command.hud.target.inspector");
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         String value = hudValueArg.get(ctx).toLowerCase(Locale.ROOT);
 
@@ -247,9 +247,9 @@ public final class MobScalingCommand extends CommandBase {
                 MobInspectorHud.setEnabledForAllOnline(enabled);
             }
             ctx.sendMessage(Message.translation(enabled
-                    ? "scaling.command.hud.enabled"
-                    : "scaling.command.hud.disabled").param("target", targetName));
-            ctx.sendMessage(Message.translation("scaling.command.hud.saved"));
+                    ? "mmomobscaling.command.hud.enabled"
+                    : "mmomobscaling.command.hud.disabled").param("target", targetName));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.hud.saved"));
             return;
         }
 
@@ -265,12 +265,12 @@ public final class MobScalingCommand extends CommandBase {
                 offsetY = Integer.parseInt(hudOffsetYArg.get(ctx).trim());
             }
         } catch (NumberFormatException e) {
-            ctx.sendMessage(Message.translation("scaling.command.hud.usage"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.hud.usage"));
             return;
         }
         HudPosition position = HudPosition.parse(preset, offsetX, offsetY);
         if (position == null) {
-            ctx.sendMessage(Message.translation("scaling.command.hud.usage"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.hud.usage"));
             return;
         }
         if (zone) {
@@ -280,12 +280,12 @@ public final class MobScalingCommand extends CommandBase {
             MobScalingOwnerWriter.saveInspectorHudPosition(preset, offsetX, offsetY);
             MobInspectorHud.refreshPositionForAllOnline(position);
         }
-        ctx.sendMessage(Message.translation("scaling.command.hud.moved")
+        ctx.sendMessage(Message.translation("mmomobscaling.command.hud.moved")
                 .param("target", targetName)
                 .param("position", preset)
                 .param("x", offsetX)
                 .param("y", offsetY));
-        ctx.sendMessage(Message.translation("scaling.command.hud.saved"));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.hud.saved"));
     }
 
     /**
@@ -297,21 +297,21 @@ public final class MobScalingCommand extends CommandBase {
         WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
         var view = worlds.foldedView();
         if (view.isEmpty()) {
-            ctx.sendMessage(Message.translation("scaling.command.worlds.empty"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.worlds.empty"));
             return;
         }
-        ctx.sendMessage(Message.translation("scaling.command.worlds.header").param("count", view.size()));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.worlds.header").param("count", view.size()));
         for (var e : view.entrySet()) {
             String id = e.getKey();
             WorldSettings ws = e.getValue();
             String parent = worlds.parentOf(id);
             Message match = ws.isMatchable()
                     ? Message.raw(ws.whereSummary())
-                    : Message.translation("scaling.command.worlds.base");
+                    : Message.translation("mmomobscaling.command.worlds.base");
             Message origin = Message.translation(worlds.ownerAuthoredIds().contains(id)
-                    ? "scaling.command.worlds.origin_owner"
-                    : "scaling.command.worlds.origin_shipped");
-            ctx.sendMessage(Message.translation("scaling.command.worlds.entry")
+                    ? "mmomobscaling.command.worlds.origin_owner"
+                    : "mmomobscaling.command.worlds.origin_shipped");
+            ctx.sendMessage(Message.translation("mmomobscaling.command.worlds.entry")
                     .param("id", id)
                     .param("match", match)
                     .param("parent", parent != null ? parent : "-")
@@ -323,14 +323,14 @@ public final class MobScalingCommand extends CommandBase {
     /** Strip HP-modifier + infinite-effect residue off every loaded NPC in the caller's world. */
     private void purge(@Nonnull CommandContext ctx) {
         if (!(ctx.sender() instanceof PlayerRef player)) {
-            ctx.sendMessage(Message.translation("scaling.command.players_only"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.players_only"));
             return;
         }
         World world = Universe.get().getWorld(player.getWorldUuid());
         if (world == null) {
             return;
         }
-        ctx.sendMessage(Message.translation("scaling.command.purge.start"));
+        ctx.sendMessage(Message.translation("mmomobscaling.command.purge.start"));
         world.execute(() -> {
             int purged = 0;
             try {
@@ -357,14 +357,14 @@ public final class MobScalingCommand extends CommandBase {
             } catch (Throwable t) {
                 safeWarn("purge sweep failed: " + t);
             }
-            player.sendMessage(Message.translation("scaling.command.purge.done").param("count", purged));
+            player.sendMessage(Message.translation("mmomobscaling.command.purge.done").param("count", purged));
         });
     }
 
     /** Report the difficulty inputs at the caller's position (the tuning diagnostic). */
     private void inspect(@Nonnull CommandContext ctx) {
         if (!(ctx.sender() instanceof PlayerRef player)) {
-            ctx.sendMessage(Message.translation("scaling.command.players_only"));
+            ctx.sendMessage(Message.translation("mmomobscaling.command.players_only"));
             return;
         }
         World world = Universe.get().getWorld(player.getWorldUuid());
@@ -391,42 +391,42 @@ public final class MobScalingCommand extends CommandBase {
                 MobScalingSpawnHook.SpawnScaling scaling =
                         MobScalingSpawnHook.resolveSpawnScaling(world, chunkX, chunkZ, spawn);
 
-                player.sendMessage(Message.translation("scaling.command.inspect.header"));
-                player.sendMessage(Message.translation("scaling.command.inspect.power")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.header"));
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.power")
                         .param("power", MMOSkillTreeAPI.getPowerLevel(store, ref)));
-                player.sendMessage(Message.translation("scaling.command.inspect.world")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.world")
                         .param("floor", spawn.getDifficultyFloor())
                         .param("enabled", cfg.isEnabled() && spawn.isWorldScalingEnabled()));
                 // The layered floor breakdown: native zone (or the no-zone grid fallback), the
                 // mapping-layer base, and the distance-from-spawn escalation riding on it.
-                player.sendMessage(Message.translation("scaling.command.inspect.zone")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.zone")
                         .param("zone", scaling.zoneName().isEmpty() ? "-" : scaling.zoneName())
                         .param("base", scaling.baseFloor())
                         .param("bonus", scaling.escalationBonus())
                         .param("floor", scaling.effectiveFloor()));
-                player.sendMessage(Message.translation("scaling.command.inspect.region")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.region")
                         .param("power", scaling.regionPower())
                         .param("mode", MobScalingPresenceSystem.mode(spawn).name())
                         .param("tracked", RegionPowerTracker.get().trackedPlayers()));
                 // WHY the group delta did or did not apply: without this a zero delta is ambiguous between
                 // "no players tracked", "player scaling off in this world", and "inside the protected ring".
-                player.sendMessage(Message.translation("scaling.command.inspect.player_scaling")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.player_scaling")
                         .param("applied", scaling.playerScalingApplied())
                         .param("enabled", spawn.isPlayerScalingEnabled())
                         .param("ring", spawn.getPlayerScalingStartRingBlocks())
                         .param("inRing", scaling.insideStartRing())
                         .param("distance", scaling.distanceFromSpawn()));
-                player.sendMessage(Message.translation("scaling.command.inspect.difficulty")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.difficulty")
                         .param("difficulty", scaling.difficulty()));
                 // What a PLAIN (non-rarity, non-affix) hostile mob's HP / damage / tankiness curve
                 // resolves to at this difficulty, so an admin can confirm plain mobs now scale.
                 MobScaleResult plainCurve =
                         MobScaleFold.plain(scaling.difficulty(), MobScaleResult.SCOPE_HOSTILE, spawn.statCurveModel());
-                player.sendMessage(Message.translation("scaling.command.inspect.curve")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.curve")
                         .param("hp", plainCurve.hpMult())
                         .param("out", plainCurve.outDmgMult())
                         .param("in", plainCurve.inDmgMult()));
-                player.sendMessage(Message.translation("scaling.command.inspect.chance")
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.chance")
                         .param("chance", scaling.raritySpawnChance()));
             } catch (Throwable t) {
                 safeWarn("inspect failed: " + t);

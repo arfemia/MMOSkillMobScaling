@@ -33,7 +33,7 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "Horrific", "DisplayNameKey": "scaling.variant.horrific.name", "NameColor": "#7cb342",
+ * { "Name": "Horrific", "DisplayNameKey": "mmomobscaling.variant.horrific.name", "NameColor": "#7cb342",
  *   "Roll": { "Chance": 0.15, "MinDifficulty": 20 },
  *   "Multipliers": { "Hp": 1.5, "OutDamage": 1.4, "InDamage": 0.9, "Loot": 1.3, "Xp": 1.2 },
  *   "Affixes": { "Slots": 1, "Allowed": ["venomous"] },

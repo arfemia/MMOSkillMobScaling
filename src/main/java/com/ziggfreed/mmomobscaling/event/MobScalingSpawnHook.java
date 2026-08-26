@@ -274,8 +274,8 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * Stamp the rarity/variant-decorated display name (surfaces in DEATH MESSAGES / kill feed / logs - the
      * engine does not render {@code DisplayNameComponent} as an overhead nameplate). Composes localized FRAME
      * keys with NESTED client-resolved {@code Message} params - never a joined/raw English-order string - so
-     * every locale reorders the frame its own way: the rarity frame {@code scaling.name.decorated}
-     * ({@code {rarity} {base}}) wraps the base, then the variant frame {@code scaling.name.variant_decorated}
+     * every locale reorders the frame its own way: the rarity frame {@code mmomobscaling.name.decorated}
+     * ({@code {rarity} {base}}) wraps the base, then the variant frame {@code mmomobscaling.name.variant_decorated}
      * ({@code {variant} {inner}}) wraps THAT (so "Horrific Epic Spider"). Either host may be absent (a
      * variant-only mob is "Horrific Spider"; caller guarantees at least one is present). Reads the base name
      * RoleBuilderSystem already stamped this same add cycle (we order AFTER it), so a reload never
@@ -294,12 +294,12 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         }
         Message decorated = base;
         if (rarity != null) {
-            decorated = Message.translation("scaling.name.decorated")
+            decorated = Message.translation("mmomobscaling.name.decorated")
                     .param("rarity", Message.translation(MobScalingTextUtil.rarityNameKey(rarity)))
                     .param("base", decorated);
         }
         if (variant != null) {
-            decorated = Message.translation("scaling.name.variant_decorated")
+            decorated = Message.translation("mmomobscaling.name.variant_decorated")
                     .param("variant", Message.translation(MobScalingTextUtil.variantNameKey(variant)))
                     .param("inner", decorated);
         }

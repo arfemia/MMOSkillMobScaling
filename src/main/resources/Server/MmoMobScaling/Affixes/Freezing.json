@@ -1,7 +1,7 @@
 {
   "Name": "Freezing",
-  "DisplayNameKey": "scaling.affix.freezing.name",
-  "DescriptionKey": "scaling.affix.freezing.desc",
+  "DisplayNameKey": "mmomobscaling.affix.freezing.name",
+  "DescriptionKey": "mmomobscaling.affix.freezing.desc",
   "EffectId": "Mmoscaling_Affix_Freezing_Slow",
   "Roll": { "Weight": 0.5, "MinDifficulty": 40, "AllowedRarities": ["legendary"] },
   "Kind": "HYBRID",

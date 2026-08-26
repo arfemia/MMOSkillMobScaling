@@ -154,6 +154,16 @@ Community bug-fix wave (2026-08-04 Discord scan):
   Filter-group) - SystemDependency resolves by class across the whole graph regardless of group, so
   the old dependency was not actually broken by the move, just redundant and pointed at a system no
   longer in this phase; retargeting removes that latent fragility.
+- Changed (HARD BREAK, upgraders): the lang file is renamed `scaling.lang` -> `mmomobscaling.lang` in
+  all nine locales, so the namespace the engine derives from the filename becomes `mmomobscaling.`
+  instead of the bare `scaling.` this mod shipped in 1.0.0 and 1.0.1. Every authored key stays the
+  same (`rarity.rare.name`, `command.usage`, `ui.title`, and so on) - only the file's own basename
+  and the fully-resolved prefix change, so `scaling.rarity.rare.name` reads as
+  `mmomobscaling.rarity.rare.name` from this version on. This brings the mod in line with every
+  other mod in the family, each of which namespaces its lang file by its own mod id rather than a
+  bare English word a second mod could equally claim. A server owner with a translation overlay or
+  a third-party pack authoring against the old `scaling.*` ids needs to re-point them at
+  `mmomobscaling.*`.
 
 ## 1.0.2 (unreleased, in-game-validation pending)
 

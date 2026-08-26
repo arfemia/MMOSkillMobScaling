@@ -19,7 +19,7 @@ import com.ziggfreed.mmomobscaling.i18n.LocationNameResolver;
  * Driven by {@code MobScalingHudSystem} on a coarse throttle; hidden whenever mob scaling is off
  * for the world (the numbers would be meaningless).
  *
- * <p>All display text is client-resolved {@code Message}s over {@code scaling.hud.*} lang keys,
+ * <p>All display text is client-resolved {@code Message}s over {@code mmomobscaling.hud.*} lang keys,
  * pushed on {@code .TextSpans} (never {@code .Text} - a Message on a String sink crashes the
  * client render). Layout constants MUST stay in sync with {@code Hud/MmoscalingZoneHud.ui}.
  */
@@ -100,7 +100,7 @@ public final class ZoneDifficultyHud extends ScalingHud {
      * Push the zone readout. {@code visible} false (mob scaling off for this world, or the HUD
      * admin-disabled) hides the whole card; {@code groupPower <= 0} (cold region) hides the group
      * row. {@code zoneName}/{@code biomeName} are blank to hide the location row entirely (the
-     * {@code scaling.hud.zone.showLocationName} toggle off, or the caller has nothing to show);
+     * {@code mmomobscaling.hud.zone.showLocationName} toggle off, or the caller has nothing to show);
      * an empty {@code zoneName} with a non-blank pair still renders (falls back to
      * {@value #NO_LOCATION_PLACEHOLDER} for the missing half) rather than a blank label. Skips the
      * packet when nothing changed since the last push.
@@ -132,14 +132,14 @@ public final class ZoneDifficultyHud extends ScalingHud {
             cmd.set("#MmoscalingZoneTier.TextSpans", Message.translation(tier.langKey()));
             cmd.set("#MmoscalingZoneTier.Style.TextColor", tier.colorHex());
             cmd.set("#MmoscalingZoneValue.TextSpans",
-                    Message.translation("scaling.hud.zone.difficulty").param("value", diffRounded));
+                    Message.translation("mmomobscaling.hud.zone.difficulty").param("value", diffRounded));
             cmd.set("#MmoscalingZonePower.TextSpans",
-                    Message.translation("scaling.hud.zone.power").param("power", powerRounded));
+                    Message.translation("mmomobscaling.hud.zone.power").param("power", powerRounded));
             boolean hasGroup = groupPower > 0.0;
             cmd.set("#MmoscalingZoneGroup.Visible", hasGroup);
             if (hasGroup) {
                 cmd.set("#MmoscalingZoneGroup.TextSpans",
-                        Message.translation("scaling.hud.zone.group").param("power", groupRounded));
+                        Message.translation("mmomobscaling.hud.zone.group").param("power", groupRounded));
             }
             // The ZONE name is the panel TITLE (the redundant static "ZONE DIFFICULTY" header is gone); the
             // BIOME is the sub-line below it. Both resolve to CLIENT-resolved friendly names (nested
@@ -149,8 +149,8 @@ public final class ZoneDifficultyHud extends ScalingHud {
             boolean hasZone = showLocation && !zoneName.isBlank();
             boolean hasBiome = showLocation && !biomeName.isBlank();
             Message zoneTitle = hasZone
-                    ? LocationNameResolver.displayName(zoneName, zonePrefix, Message.translation("scaling.hud.zone.title"))
-                    : Message.translation("scaling.hud.zone.title");
+                    ? LocationNameResolver.displayName(zoneName, zonePrefix, Message.translation("mmomobscaling.hud.zone.title"))
+                    : Message.translation("mmomobscaling.hud.zone.title");
             cmd.set("#MmoscalingZoneTitle.TextSpans", zoneTitle);
             cmd.set("#MmoscalingZoneName.Visible", hasBiome);
             if (hasBiome) {

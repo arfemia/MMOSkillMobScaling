@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
  * unit-testable; the thresholds are deliberately coarse - the HUD is a feel readout, not a
  * balance authority.
  *
- * <p>Each tier carries its display lang key ({@code scaling.hud.zone.tier.<id>}) and the
+ * <p>Each tier carries its display lang key ({@code mmomobscaling.hud.zone.tier.<id>}) and the
  * {@code TextColor} hex the HUD pushes with it.
  */
 public enum ZoneTier {
@@ -57,10 +57,10 @@ public enum ZoneTier {
         return DEADLY;
     }
 
-    /** The lang key for this tier's display word ({@code scaling.hud.zone.tier.<id>}). */
+    /** The lang key for this tier's display word ({@code mmomobscaling.hud.zone.tier.<id>}). */
     @Nonnull
     public String langKey() {
-        return "scaling.hud.zone.tier." + id;
+        return "mmomobscaling.hud.zone.tier." + id;
     }
 
     /** The {@code TextColor} hex pushed alongside the tier word. */

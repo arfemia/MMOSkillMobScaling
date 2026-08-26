@@ -27,8 +27,8 @@ import com.ziggfreed.mmomobscaling.affix.Affix;
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "Armored", "DisplayNameKey": "scaling.affix.armored.name",
- *   "DescriptionKey": "scaling.affix.armored.desc",
+ * { "Name": "Armored", "DisplayNameKey": "mmomobscaling.affix.armored.name",
+ *   "DescriptionKey": "mmomobscaling.affix.armored.desc",
  *   "EffectId": "Mmoscaling_Affix_Armored",
  *   "Roll": { "Weight": 3.0, "MinDifficulty": 5, "AllowedRarities": ["*"] },
  *   "FoldDeltas": { "Hp": 0.15, "OutDamage": 0.0, "InDamage": 0.0, "LootBonus": 0.0 },

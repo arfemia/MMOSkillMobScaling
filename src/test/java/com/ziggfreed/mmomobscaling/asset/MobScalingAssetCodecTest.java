@@ -95,7 +95,7 @@ class MobScalingAssetCodecTest {
         assertEquals("Mmoscaling_Aura_Epic", r.auraEffectId(), "AuraEffectId");
         assertEquals(List.of("Mmoscaling_Drops_Epic"), grantedDropLists(r.loot()),
                 "Loot grants the tier's native drop table");
-        assertEquals("scaling.rarity.epic.name", r.displayNameKey(), "DisplayNameKey");
+        assertEquals("mmomobscaling.rarity.epic.name", r.displayNameKey(), "DisplayNameKey");
         assertTrue(r.allowsAffix("armored"), "wildcard AllowedAffixes allows any affix");
         assertEquals("#b388ff", r.nameColor(), "NameColor (the inspector HUD tint)");
         assertEquals("#b388ff", r.displayColor(), "displayColor passes an authored colour through");
@@ -112,7 +112,7 @@ class MobScalingAssetCodecTest {
         assertTrue(!v.familyFilter().isUnrestricted(), "the Families block makes it restricted");
         assertTrue(v.familyFilter().allowGroups().contains("Spiders"), "AllowGroups decoded");
         assertTrue(v.familyFilter().allowRoles().contains("Spider*"), "AllowRoles decoded");
-        assertEquals("scaling.variant.horrific.name", v.displayNameKey(), "DisplayNameKey");
+        assertEquals("mmomobscaling.variant.horrific.name", v.displayNameKey(), "DisplayNameKey");
         assertEquals("Mmoscaling_Aura_Horrific", v.auraEffectId(), "AuraEffectId (fallback tint)");
         assertEquals(List.of("Mmoscaling_Drops_Horrific"), grantedDropLists(v.loot()),
                 "the overlay's own Loot stacks on the base rarity's");

@@ -1,7 +1,7 @@
 {
   "Name": "Stalwart",
-  "DisplayNameKey": "scaling.affix.stalwart.name",
-  "DescriptionKey": "scaling.affix.stalwart.desc",
+  "DisplayNameKey": "mmomobscaling.affix.stalwart.name",
+  "DescriptionKey": "mmomobscaling.affix.stalwart.desc",
   "EffectId": "Mmoscaling_Affix_Stalwart",
   "Roll": { "Weight": 3.0, "MinDifficulty": 5, "AllowedRarities": ["*"] },
   "FoldDeltas": { "Hp": 0.15 },

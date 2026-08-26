@@ -11,9 +11,9 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
  * Resolves the localization KEY for a rarity/affix display string: the asset's explicit {@code DisplayNameKey}
- * / {@code DescriptionKey} when authored, else the convention key {@code scaling.<type>.<id>.<field>} (so an
+ * / {@code DescriptionKey} when authored, else the convention key {@code mmomobscaling.<type>.<id>.<field>} (so an
  * omitted key never renders {@code ""}, the C-loc1 fix). Pure String logic - the render site (Phase 5) wraps
- * the returned key in a Hytale {@code Message} the client resolves against the mod's own {@code scaling.lang}.
+ * the returned key in a Hytale {@code Message} the client resolves against the mod's own {@code mmomobscaling.lang}.
  * Keeping resolution here (not a threaded locale) keeps display text client-side.
  */
 public final class MobScalingTextUtil {
@@ -21,28 +21,28 @@ public final class MobScalingTextUtil {
     private MobScalingTextUtil() {
     }
 
-    /** The key for a rarity's display name: explicit {@code DisplayNameKey}, else {@code scaling.rarity.<id>.name}. */
+    /** The key for a rarity's display name: explicit {@code DisplayNameKey}, else {@code mmomobscaling.rarity.<id>.name}. */
     @Nonnull
     public static String rarityNameKey(@Nonnull Rarity rarity) {
-        return keyOr(rarity.displayNameKey(), "scaling.rarity." + lower(rarity.id()) + ".name");
+        return keyOr(rarity.displayNameKey(), "mmomobscaling.rarity." + lower(rarity.id()) + ".name");
     }
 
-    /** The key for a variant's display name: explicit {@code DisplayNameKey}, else {@code scaling.variant.<id>.name}. */
+    /** The key for a variant's display name: explicit {@code DisplayNameKey}, else {@code mmomobscaling.variant.<id>.name}. */
     @Nonnull
     public static String variantNameKey(@Nonnull Variant variant) {
-        return keyOr(variant.displayNameKey(), "scaling.variant." + lower(variant.id()) + ".name");
+        return keyOr(variant.displayNameKey(), "mmomobscaling.variant." + lower(variant.id()) + ".name");
     }
 
-    /** The key for an affix's display name: explicit {@code DisplayNameKey}, else {@code scaling.affix.<id>.name}. */
+    /** The key for an affix's display name: explicit {@code DisplayNameKey}, else {@code mmomobscaling.affix.<id>.name}. */
     @Nonnull
     public static String affixNameKey(@Nonnull Affix affix) {
-        return keyOr(affix.displayNameKey(), "scaling.affix." + lower(affix.id()) + ".name");
+        return keyOr(affix.displayNameKey(), "mmomobscaling.affix." + lower(affix.id()) + ".name");
     }
 
-    /** The key for an affix's qualitative description: explicit {@code DescriptionKey}, else {@code scaling.affix.<id>.desc}. */
+    /** The key for an affix's qualitative description: explicit {@code DescriptionKey}, else {@code mmomobscaling.affix.<id>.desc}. */
     @Nonnull
     public static String affixDescKey(@Nonnull Affix affix) {
-        return keyOr(affix.descriptionKey(), "scaling.affix." + lower(affix.id()) + ".desc");
+        return keyOr(affix.descriptionKey(), "mmomobscaling.affix." + lower(affix.id()) + ".desc");
     }
 
     @Nonnull

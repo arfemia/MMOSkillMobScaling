@@ -1,7 +1,7 @@
 {
   "$Comment": "The mid tier. Its Loot block grants the native Mmoscaling_Drops_Epic table unconditionally; Multipliers.Loot 1.5 means the block is rolled twice about half the time. Add a second roll with its own Conditions for something only an epic kill under particular circumstances should pay, or point Loot.Lootables at a shared table if several tiers should draw the same one.",
   "Name": "Epic",
-  "DisplayNameKey": "scaling.rarity.epic.name",
+  "DisplayNameKey": "mmomobscaling.rarity.epic.name",
   "NameColor": "#b388ff",
   "Roll": { "Weight": 25, "MinDifficulty": 25 },
   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },

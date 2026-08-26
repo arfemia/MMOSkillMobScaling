@@ -1,7 +1,7 @@
 {
   "$Comment": "Example FAMILY-GATED VARIANT overlay: 'horrific' stacks on TOP of a base rarity (so you get 'Horrific Epic Spider' = epic base * horrific overlay), and rolls ONLY on the spider family (native 'Spiders' NPCGroup, or any role matching 'Spider*' as a fallback). It grants the spider-exclusive 'venomous' affix. Delete this file (and Affixes/Venomous.json) to remove the example. Roll.Chance is this variant's ABSOLUTE spawn probability on an eligible mob (keep the chances of co-occurring variants summing to <= 1). Roll.AllowedRarities gates which BASE rarities it may overlay ('*' = any incl. a plain mob; e.g. ['epic','legendary'] = only on epic+). Multipliers stack MULTIPLICATIVELY on the base rarity, so keep them modest. AuraEffectId is a fallback body-tint applied ONLY when the base rarity has no aura (a plain-base horrific spider); a rarity-backed one keeps the rarity aura. Loot is the overlay's OWN death loot, rolled IN ADDITION to whatever the base rarity pays, so this venom table lands on top of the base tier's drops rather than replacing them.",
   "Name": "Horrific",
-  "DisplayNameKey": "scaling.variant.horrific.name",
+  "DisplayNameKey": "mmomobscaling.variant.horrific.name",
   "NameColor": "#7cb342",
   "Roll": { "Chance": 0.15, "MinDifficulty": 20, "AllowedRarities": ["*"] },
   "Multipliers": {

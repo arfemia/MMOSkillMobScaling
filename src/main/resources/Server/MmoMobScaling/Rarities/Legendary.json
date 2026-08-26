@@ -1,7 +1,7 @@
 {
   "$Comment": "The top rollable tier: rare enough that a kill should feel like an event. Multipliers.Loot 2.0 rolls the Loot block twice, so the native Mmoscaling_Drops_Legendary table pays out twice per kill. A good place for a headline extra: add a roll with a low Chance and its own Grants (an exact item in Items, a console line in Commands, or a registered reward kind in Rewards) for the once-in-a-while prize on top of the table.",
   "Name": "Legendary",
-  "DisplayNameKey": "scaling.rarity.legendary.name",
+  "DisplayNameKey": "mmomobscaling.rarity.legendary.name",
   "NameColor": "#ffd54f",
   "Roll": { "Weight": 5, "MinDifficulty": 50 },
   "Multipliers": { "Hp": 3.8, "OutDamage": 2.6, "InDamage": 0.55, "Loot": 2.0, "Xp": 1.6 },

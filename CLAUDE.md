@@ -27,7 +27,7 @@ the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
 `boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|worlds|ui` (1.0.2 adds `worlds`, the read-only
 listing of the folded per-world rules, and `ui`, the in-game admin
-config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `scaling.lang`, and TWO
+config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `mmomobscaling.lang`, and TWO
 player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
 crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
 concerns pass ADDED: the NATIVE-ZONE floor resolver (`world/ZoneDifficultyResolver`: authored

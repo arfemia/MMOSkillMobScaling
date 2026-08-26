@@ -1,7 +1,7 @@
 {
   "$Comment": "The off-ladder BOSS tier. Roll.Weight 0 keeps it out of the normal weighted roll; it is granted exclusively through Families.ForceGroups, which claims every role in the Mmoscaling_Bosses NPCGroup tagset. Add roles to that tagset (or role-name globs to Families.ForceRoles here) to hand them this tier. Force bypasses the weight, the difficulty band, the rarity spawn chance, and the allow/deny gate, but it is a FLOOR: a normal roll that lands on a stronger tier still wins. A per-world Pool.Rarities deny for 'boss' still suppresses it in that world. Its Loot borrows the legendary drop table and, at Multipliers.Loot 3.0, rolls it three times per kill; give a boss its own table or its own extra rolls here when you want a distinct prize.",
   "Name": "Boss",
-  "DisplayNameKey": "scaling.rarity.boss.name",
+  "DisplayNameKey": "mmomobscaling.rarity.boss.name",
   "NameColor": "#ff5252",
   "Roll": { "Weight": 0, "MinDifficulty": 0 },
   "Multipliers": { "Hp": 4.0, "OutDamage": 2.2, "InDamage": 0.6, "Loot": 3.0, "Xp": 2.0 },

@@ -1,7 +1,7 @@
 {
   "Name": "Swift",
-  "DisplayNameKey": "scaling.affix.swift.name",
-  "DescriptionKey": "scaling.affix.swift.desc",
+  "DisplayNameKey": "mmomobscaling.affix.swift.name",
+  "DescriptionKey": "mmomobscaling.affix.swift.desc",
   "EffectId": "Mmoscaling_Affix_Swift",
   "Roll": { "Weight": 2.0, "MinDifficulty": 5, "AllowedRarities": ["*"] },
   "Kind": "STAT",

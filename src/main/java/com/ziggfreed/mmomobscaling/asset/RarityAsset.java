@@ -31,7 +31,7 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
- * { "Name": "Epic", "DisplayNameKey": "scaling.rarity.epic.name", "NameColor": "#b388ff",
+ * { "Name": "Epic", "DisplayNameKey": "mmomobscaling.rarity.epic.name", "NameColor": "#b388ff",
  *   "Roll": { "Weight": 25, "MinDifficulty": 25 },
  *   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },
  *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
