@@ -25,7 +25,8 @@ asking the same question always agree. The continuous kill-XP multiplier (`MobSc
 separate path, untouched by this),
 the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
-`boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|ui` (1.0.2 adds `ui`, the in-game admin
+`boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|worlds|ui` (1.0.2 adds `worlds`, the read-only
+listing of the folded per-world rules, and `ui`, the in-game admin
 config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `scaling.lang`, and TWO
 player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
 crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
@@ -86,9 +87,9 @@ Both dependencies are provided at runtime (loaded first) and referenced `compile
 NEVER bundled (bundling double-loads engine-touching classes under two classloaders and
 breaks class identity):
 
-- **ZiggfreedCommon >= 1.3.0** (`compileOnly files(ziggfreedCommonJar)`, pin
-  `ziggfreedCommonVersion`; 1.3.0's `world/WorldNameMatcher` carries the suffix/contains match forms
-  a `*KweebecNightmare_*` per-world pattern needs to catch the `instance-`-prefixed worlds) - the shared
+- **ZiggfreedCommon >= 2.0.0** (`compileOnly files(ziggfreedCommonJar)`, pin
+  `ziggfreedCommonVersion=2.0.0`; the Update 6 pre-release line, and the same floor the manifest
+  `Dependencies` declares) - the shared
   primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
@@ -131,16 +132,24 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   knob lands INSIDE its group) and it does not read as a schema. Nesting composes with the partial
   overlay: every nesting level uses NULLABLE wrapper fields and the fold walks per LEAF.
 - **[`asset/MobScalingSettingsAsset`](src/main/java/com/ziggfreed/mmomobscaling/asset/MobScalingSettingsAsset.java)**
-  is the ONE schema authority: an `AssetBuilderCodec` with PascalCase keys, top-level `Enabled` /
-  `PresetMode` (verified UNCONSUMED - nothing reads `getPresetMode()` outside the schema/config fold;
-  deliberately NOT exposed on the admin-page UI, round-2 hardening) / `Intensity` / `RaritySpawnChance`
-  plus the NESTED groups `OpenWorld`
+  is the ONE schema authority: an `AssetBuilderCodec` with PascalCase keys, top-level `Name` (an
+  optional human-readable echo of the asset key; its setter is a no-op, the filename is authoritative)
+  / `ActivePreset` (which `Settings/<name>.json` folds between the owner file and the jar `Default`,
+  resolved owner-over-jar in `config/MobScalingConfig`; the persistent authority behind `/mobscaling
+  preset` via `MobScalingOwnerWriter.saveActivePreset`, with `Casual`/`Hardcore`/`Playtest` shipped
+  beside `Default`) / `Enabled` / `PresetMode` (verified UNCONSUMED - nothing reads `getPresetMode()`
+  outside the schema/config fold; deliberately NOT exposed on the admin-page UI, round-2 hardening) /
+  `Intensity` / `RaritySpawnChance` plus the NESTED groups `OpenWorld`
   (`AggregationMode`/`RegionSizeChunks`/`GroupDeltaBandWidth`/`AllowDifficultyIncreaseOnPartyJoin`/
-  `LateArrivalBumpFactor`/`CompositionEnabled`), `Difficulty` (`MinCap`/`MaxCap` + nested
+  `LateArrivalBumpFactor`/`CompositionEnabled`/`OnlyRaiseDifficulty`/`PlayerScalingEnabled`/
+  `PlayerScalingStartRingBlocks`), `Difficulty` (`Floor`/`MinCap`/`MaxCap` + nested
   `DistanceEscalation` `Enabled`/`StartDistanceBlocks`/`BlocksPerPoint`/`MaxBonus`/
-  `RarityChancePerPoint`), `ZoneHud` and `InspectorHud` (`Enabled`/`Position`/`OffsetX`/`OffsetY`
-  (+`RangeBlocks` on the inspector); positions are named corner presets parsed by
-  `hud/HudPosition.parse`). Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
+  `RarityChancePerPoint` and nested `StatCurve` `HpPerPoint`/`OutDamagePerPoint`/
+  `InDamageReductionPerPoint`/`MaxHpMult`/`MaxOutDamageMult`/`MinInDamageMult`), `ZoneHud`
+  (`Enabled`/`Position`/`OffsetX`/`OffsetY`/`ShowLocationName`/`ZoneNameKeyPrefix`/
+  `BiomeNameKeyPrefix`) and `InspectorHud` (the same leaves plus `RangeBlocks`/`PortraitEnabled`;
+  positions are named corner presets parsed by `ziggfreed-common`'s `ui/hud/HudPosition.parse`).
+  Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
   partially-filled group) stays `null`, which is what makes the per-leaf partial owner overlay work.
   **1.0.1**: `Intensity` is a NUMERIC multiplier (default 1.0, was a dead string) applied to the
   `StatCurve` slopes in `config/MobScalingConfig.statCurveModel()` (runtime-tunable via `/mobscaling
@@ -228,7 +237,9 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   + `AllowedVariants`/`FoldDeltas`, fold `AffixConfig`), and
   `Difficulty/*.json` (`TargetType` Zone|Biome + `TargetId` native name or `*` + `Floor`, fold
   `DifficultyConfig` with a derived O(1) name index, consumed by `world/ZoneDifficultyResolver`; the
-  jar ships the Zone0..Zone4 starter gradient + the zone wildcard + an Ocean1 biome example).
+  jar ships the Zone1..Zone4 starter gradient with its per-tier entries (`Zone1_Spawn`,
+  `Zone1_Tier1..3`, `Zone2_Tier1..3`, `Zone3_Tier1..3`, `Zone4_Tier4/5`), the `*` zone wildcard
+  (`ZoneAny.json`) and an `Ocean1` biome example (`OceanBiome.json`)).
 
 ## Paradigm - NATIVE-ASSET-FIRST (prefer native systems + author our own assets into them)
 
@@ -253,11 +264,20 @@ phases:
   **The RARITY AURA owns the body-tint channel (blue=rare, purple=epic, gold=legendary); affix effects carry
   NO body tint** (they would fight the aura with no arbitration) - affix identity is the mechanic + (follow-up)
   the name stamp / a particle telegraph. The Freezing slow is VICTIM-applied and keeps its frost tint.
+  The six ELEMENT WARD affixes (`Ward_Arcane`/`Fire`/`Ice`/`Lightning`/`Void`/`Water`) are the purest case:
+  each is `Kind: STAT` + `ResistanceBearing: true` and does nothing but name its own `Mmoscaling_Ward_*`
+  effect, a bare per-cause `DamageResistance` block (Percent 0.4, `Infinite`) with zero mod-side Java.
+  Being resistance-bearing is what puts them, and `Armored`, under the single-resistance cap in
+  `AffixRoster.pick`, so a mob never wears two resistance-bearing affixes at once.
 - **Classification via authored `NPCGroup` tagset assets** (`Mmoscaling_Bosses` / `Mmoscaling_Excluded`,
   queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry. The **per-family
   rarity gate** (1.0.0) reuses the SAME native mechanism: a rarity's nested `Families` block
   (`AllowGroups`/`DenyGroups` native `NPCGroup` ids + `AllowRoles`/`DenyRoles` role-name globs, deny wins,
-  absent = allow-all) narrows which tiers may roll on a given mob. The matcher lives in the axis-neutral
+  absent = allow-all) narrows which tiers may roll on a given mob, and the same block's third pair,
+  `ForceGroups`/`ForceRoles` (evaluated force > deny > allow), hands a tier to a family outright, bypassing
+  the weight, the difficulty band, the spawn chance AND the allow/deny gate - it is a FLOOR, so a normal
+  roll landing on a stronger tier still wins. The shipped `Rarities/Boss.json` (`Roll.Weight` 0) points
+  `ForceGroups` at the `Mmoscaling_Bosses` tagset, and that is what grants the boss tier. The matcher lives in the axis-neutral
   `family/` package (pure `FamilyFilter`/`FamilyGlob` - the glob lifts native `StringUtil.isGlobMatching`,
   case-folded - plus the engine `MobFamilyMatcher`, which mirrors `MobClassifier`'s lazy group-index cache
   and warns once on an unknown group id). It is a pure `Predicate<Rarity>` threaded into `RarityRoster.pick`
