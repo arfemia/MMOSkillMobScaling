@@ -10,7 +10,11 @@ reconciles HP, stamps the rarity-decorated `DisplayNameComponent`, resolves floo
 delta), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura / affix
 effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
 lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
-provider), the death loot (`MobScalingLootDropSystem`: a rarity and a variant each author ONE `Loot`
+provider) + the kill-rarity attribution (`event/MobScalingRarityAttribution`, a
+`registerKillRarityProvider` provider handing a scaled kill's rarity id to the MMO as the kill
+qualifier, which its engines match tier-authored KILL_ENTITY criteria on (First_Legend_Kill and
+friends) and its mob-drop command `{tier}` placeholder resolves; registration is
+LinkageError-guarded for older MMO jars), the death loot (`MobScalingLootDropSystem`: a rarity and a variant each author ONE `Loot`
 block in ziggfreed-common's shared loot vocabulary - `Lootables` by id and/or inline `Rolls` whose
 `Grants` carry `DropLists` (the per-rarity native `Server/Drops/*` tables), `Items`, `Commands` and
 registered `Rewards` kinds, each roll gateable on `Conditions` and scaled by a factor-driven `Chance`.
@@ -101,7 +105,10 @@ breaks class identity):
 - **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
   `MMOSkillTree-1.6.0.jar` dev jar (pin `mmoSkillTreeVersion=1.6.0`), which carries the frozen 1.5.0 API
   the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /
-  `getCombatLevel` (power reads) plus `registerMobKillXpMultiplier` (the kill-XP reward hook). The
+  `getCombatLevel` (power reads) plus `registerMobKillXpMultiplier` (the kill-XP reward hook) and
+  `registerKillRarityProvider` (the kill-rarity attribution hook, additive on the 1.6.0-cycle jar;
+  its registration is LinkageError-guarded so an older runtime jar degrades to unqualified kills
+  with one warning). The
   settings fold cross-checks `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift
   (guarded: an older jar without the getters validates clean). The 1.1.0 caster-roster feature's
   `ABILITY` entries ALSO call the MMO's `castNpcAbility(Store, Ref, String)` API (present starting in
@@ -331,8 +338,8 @@ The plugin's `setup()` loads `MobScalingConfig` (codec decode, above) then appli
 `MobScalingGate` (kept OFF the `JavaPlugin`-extending plugin class so it is loadable in a unit-test
 JVM - loading `MobScalingPlugin` there fails via the `PluginBase` -> `MetricsRegistry` static-init
 chain). When the config is disabled the plugin registers NOTHING and returns, so the mod carries no
-per-tick cost at all. The scaling systems + the kill-XP reward provider register only inside the
-enabled branch.
+per-tick cost at all. The scaling systems + the kill-XP reward and kill-rarity attribution
+providers register only inside the enabled branch.
 
 ## Conventions
 

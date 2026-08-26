@@ -30,6 +30,15 @@ refusing to load the whole mod - see CasterFeatureState.
   since the claim is made inside the enabled branch - nothing answers the ids, so a gate on one stays
   shut and a formula term on one adds zero, and one authored file is correct everywhere. A boot line
   lists what was published.
+- New: attributes each kill's rolled rarity to the MMO's kill-rarity seam
+  (MMOSkillTreeAPI.registerKillRarityProvider, additive on the MMO's 1.6.0-cycle jar): a scaled
+  kill carries its rarity id (Rare / Epic / Legendary / Boss) as the kill moment's qualifier, so
+  quest and achievement criteria authoring a rarity word match scaled kills - the MMO's tier
+  achievements (First_Legend_Kill, Legendary_Slayer, Rare_Hunter, Elite_Slayer) progress on them -
+  and a mob-drop command's {tier} placeholder resolves to the same answer; a plain floor mob
+  attributes nothing, and an ordinary kill criterion still counts every kill exactly once. On
+  an older MMO jar the registration degrades with one warning (the same graceful-degradation
+  story as the caster ABILITY entries) and everything else is unaffected.
 - Fixed: the Freezing affix's slow actually slows the player it hits. The slow effect authored only
   the NPC movement leaf (`ApplicationEffects.HorizontalSpeedMultiplier`), which a player's client
   never applies, so a frozen player saw the frost tint and snow overlay at full running speed. The

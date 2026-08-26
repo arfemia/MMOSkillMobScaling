@@ -17,7 +17,8 @@ import com.ziggfreed.common.util.SplitMix64;
  * The affix pool, prepared once at asset load and rolled at spawn. Built from the folded {@link Affix} set
  * (dropping non-rollable {@code SpawnWeight <= 0}), sorted ascending by {@code minDifficulty}. A spawn picks
  * up to {@code slots} DISTINCT affixes by difficulty-gated, rarity-gated, weighted pick WITHOUT replacement,
- * enforcing at most one resistance-bearing affix per mob (the {@code MAX_DEFENSE_REDUCTION} convention).
+ * enforcing at most one resistance-bearing affix per mob (the MMO's 90% damage-reduction cap convention,
+ * authored as its reserved {@code ModifierClamps/DefenseReduction.json} bound).
  *
  * <p>Deterministic for a given {@link SplitMix64} seed. The pool is small, so the per-slot pass is cheap; the
  * per-pick working buffers are modest and the whole roll is off the per-tick path (spawn-only).

@@ -26,6 +26,7 @@ import com.ziggfreed.mmomobscaling.event.MobScalingHudSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingLootDropSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingRarityAttribution;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
 import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
 import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
@@ -166,6 +167,18 @@ public class MobScalingPlugin extends JavaPlugin {
 
         // Reward: register the kill-XP multiplier so a rarity kill pays more through the MMO's own kill path.
         MMOSkillTreeAPI.registerMobKillXpMultiplier(new MobScalingXpReward());
+
+        // Attribution: hand the victim's rolled rarity to the MMO's kill path as the kill
+        // qualifier, so a mob-drop command's {tier} placeholder resolves to it. The provider seam
+        // is additive on the MMO's 1.6.0-cycle jar; an older runtime jar lacks it, so the
+        // LinkageError degrades to unqualified kills with one warning (the CasterFeatureState
+        // pattern) instead of refusing to load the mod.
+        try {
+            MMOSkillTreeAPI.registerKillRarityProvider(new MobScalingRarityAttribution());
+        } catch (LinkageError e) {
+            safeWarn("MMOSkillTreeAPI.registerKillRarityProvider is unavailable on this MMO jar "
+                    + "(needs the 1.6.0-cycle build); kills carry no rarity qualifier. Cause: " + e);
+        }
 
         // Publish what this mod knows about a mob (rarity, affixes, difficulty, region power) as ordinary
         // factor readings, so ANY mod's authored content can gate and scale on them with no dependency in
