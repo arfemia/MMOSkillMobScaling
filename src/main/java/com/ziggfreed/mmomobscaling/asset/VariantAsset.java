@@ -11,6 +11,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.mmomobscaling.family.FamilyFilter;
@@ -171,16 +172,21 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         public static final BuilderCodec<Multipliers> CODEC = BuilderCodec
                 .builder(Multipliers.class, Multipliers::new)
                 .append(new KeyedCodec<>("Hp", Codec.DOUBLE, false), (m, v) -> m.hp = v, m -> m.hp)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .add()
                 .append(new KeyedCodec<>("OutDamage", Codec.DOUBLE, false),
                         (m, v) -> m.outDamage = v, m -> m.outDamage)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .add()
                 .append(new KeyedCodec<>("InDamage", Codec.DOUBLE, false),
                         (m, v) -> m.inDamage = v, m -> m.inDamage)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .add()
                 .append(new KeyedCodec<>("Loot", Codec.DOUBLE, false), (m, v) -> m.loot = v, m -> m.loot)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .add()
                 .append(new KeyedCodec<>("Xp", Codec.DOUBLE, false), (m, v) -> m.xp = v, m -> m.xp)
+                .metadata(EditorSchema.defaultValue(1.0))
                 .add()
                 .build();
 

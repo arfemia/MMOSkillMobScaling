@@ -1,5 +1,6 @@
 package com.ziggfreed.mmomobscaling.asset;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -18,6 +19,10 @@ import org.junit.jupiter.api.Test;
 import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
 import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.NumberSchema;
+import com.hypixel.hytale.codec.schema.config.ObjectSchema;
+import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.Roll;
@@ -437,5 +442,19 @@ class MobScalingAssetCodecTest {
     private static <T extends JsonAsset<String>> T decodeJson(String json, AssetBuilderCodec<String, T> codec)
             throws Exception {
         return codec.decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
+    }
+
+    @Test
+    void schemaDeclaresTheNeutralMultiplierDefaultAndTheClosedPresetModes() {
+        ObjectSchema multipliers = RarityAsset.Multipliers.CODEC.toSchema(new SchemaContext());
+        NumberSchema hp = (NumberSchema) multipliers.getProperties().get("Hp");
+        assertEquals(Double.valueOf(1.0), hp.getDefault(),
+                "an absent multiplier leaf is the plain 1.0 baseline, and the exported schema must "
+                        + "say so or the editor renders 0 and lies about the effective value");
+
+        ObjectSchema settings = MobScalingSettingsAsset.CODEC.toSchema(new SchemaContext());
+        StringSchema presetMode = (StringSchema) settings.getProperties().get("PresetMode");
+        assertArrayEquals(new String[] {"SIMPLE", "TUNED", "ADVANCED"}, presetMode.getEnum(),
+                "the three customization tiers are the whole vocabulary, so the editor may offer a dropdown");
     }
 }

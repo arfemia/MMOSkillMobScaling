@@ -8,6 +8,7 @@ import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.assetstore.map.JsonAssetWithMap;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 
 /**
@@ -80,6 +81,10 @@ public final class MobScalingSettingsAsset
             // Customization tier: "SIMPLE" | "TUNED" | "ADVANCED".
             .append(new KeyedCodec<>("PresetMode", Codec.STRING, false),
                     (a, v) -> a.presetMode = v, a -> a.presetMode)
+            .metadata(EditorSchema.oneOfDocumented(
+                    "SIMPLE", "The preset as shipped, minimal knobs",
+                    "TUNED", "The preset plus the common tuning knobs",
+                    "ADVANCED", "Every knob open"))
             .add()
             // Intensity dial (1.0.1): a numeric multiplier (default 1.0) on the difficulty->stat curve
             // SLOPES (how tanky mobs are + how hard they hit). 1.0 neutral; 0 = no difficulty-based stat
@@ -133,6 +138,12 @@ public final class MobScalingSettingsAsset
                 // How a region's participant powers fold: SOLO | AVERAGE | PEAK | WEIGHTED | DISABLED.
                 .append(new KeyedCodec<>("AggregationMode", Codec.STRING, false),
                         (o, v) -> o.aggregationMode = v, o -> o.aggregationMode)
+                .metadata(EditorSchema.oneOfDocumented(
+                        "SOLO", "Each player's own power only",
+                        "AVERAGE", "The mean of nearby participants",
+                        "PEAK", "The strongest nearby participant",
+                        "WEIGHTED", "A proximity-weighted fold",
+                        "DISABLED", "No group aggregation"))
                 .add()
                 // Proximity sub-grid size (chunks per side) WITHIN a native zone; also the whole
                 // region key in a world without zone data (the chunk-grid fallback).

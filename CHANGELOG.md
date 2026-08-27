@@ -4,6 +4,8 @@ All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
 ## 1.1.0 (unreleased, in-game-validation pending)
 
+- **The Asset Editor shows the real multiplier baselines and offers dropdowns on the closed vocabularies.** A rarity's and a variant's `Multipliers` leaves declare their neutral 1.0 default in the exported schema (an unauthored leaf renders 1.0, not 0), and the settings `PresetMode` (SIMPLE/TUNED/ADVANCED) and open-world `AggregationMode` (SOLO/AVERAGE/PEAK/WEIGHTED/DISABLED) export their closed value sets as dropdowns with a one-line meaning per value. Decode is unchanged.
+
 NPC caster rosters: a Pattern-A asset (Server/MmoMobScaling/CasterRosters/*.json) binding a Role
 selector (exact Id XOR glob) to a list of abilities a matching, gate-eligible mob arms at spawn and
 fires on its own cadence+jitter. Each entry is AbilityId (cast via the MMO's new
