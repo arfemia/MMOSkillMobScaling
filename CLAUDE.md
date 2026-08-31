@@ -4,7 +4,7 @@ A **standalone open-world mob difficulty-scaling** companion to the MMO Skill Tr
 scales open-world mobs to the players around them (a high-power group meets tougher, rarer
 enemies; a lone newcomer is not overwhelmed). It is a supplemental mod under the **hyMMO
 monorepo**'s `additional-mods/` (a git submodule; developed from the hyMMO root).
-**Status: the scaling system is LANDED** (in-game-validation pending). The zero-cost registration
+**Status: v1.1.0 (released 2026-08-31; 1.0.1 and 1.0.2 were folded into it and never shipped on their own).** The zero-cost registration
 toggle + codec `MobScalingConfig`, plus the spawn-lock (`MobScalingSpawnHook`: rolls rarity/affixes,
 reconciles HP, stamps the rarity-decorated `DisplayNameComponent`, resolves floor + region-power group
 delta), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura / affix

@@ -2,7 +2,7 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
-## 1.1.0 (unreleased, in-game-validation pending)
+## 1.1.0 - 2026-08-31
 
 - **The Asset Editor shows the real multiplier baselines and offers dropdowns on the closed vocabularies.** A rarity's and a variant's `Multipliers` leaves declare their neutral 1.0 default in the exported schema (an unauthored leaf renders 1.0, not 0), and the settings `PresetMode` (SIMPLE/TUNED/ADVANCED) and open-world `AggregationMode` (SOLO/AVERAGE/PEAK/WEIGHTED/DISABLED) export their closed value sets as dropdowns with a one-line meaning per value. Decode is unchanged.
 
@@ -176,7 +176,7 @@ Community bug-fix wave (2026-08-04 Discord scan):
   a third-party pack authoring against the old `scaling.*` ids needs to re-point them at
   `mmomobscaling.*`.
 
-## 1.0.2 (unreleased, in-game-validation pending)
+## 1.0.2 (superseded by 1.1.0)
 
 An in-game admin config UI (`/mobscaling ui`) with full persistence for every runtime tuning path,
 plus per-world config reworked onto its own files with inheritance and more per-world knobs. Requires
