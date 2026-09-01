@@ -15,7 +15,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
@@ -81,13 +81,9 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
             if (rosters.isEmpty()) {
                 return; // no CasterRoster content loaded at all: cheapest possible no-op
             }
-            NPCEntity npc = cb.getComponent(ref, NPCEntity.getComponentType());
-            if (npc == null) {
-                return;
-            }
-            String roleName = npc.getRoleName();
+            String roleName = EntityIdentifierUtil.roleName(cb, ref);
             if (roleName == null) {
-                return;
+                return; // nothing role-driven spawned it, so no roster can name it
             }
             CasterRoster roster = CasterRosterMatcher.match(roleName, rosters);
             if (roster == null || roster.abilities().isEmpty()) {

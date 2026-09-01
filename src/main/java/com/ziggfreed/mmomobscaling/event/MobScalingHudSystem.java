@@ -26,7 +26,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
-import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
@@ -227,11 +227,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         // The NPC role name doubles as the generated-portrait key (Icons/ModelsGenerated/<role>.png), the
         // same string the native Memories page uses. Null for a non-NPC living entity (the card then shows
         // no portrait). Read here on the world thread; the HUD only builds the path + toggles visibility.
-        String modelRole = null;
-        NPCEntity npc = store.getComponent(target, NPCEntity.getComponentType());
-        if (npc != null) {
-            modelRole = npc.getRoleName();
-        }
+        String modelRole = EntityIdentifierUtil.roleName(store, target);
 
         Rarity rarity = null;
         Variant variant = null;
