@@ -24,7 +24,7 @@ extra off the per-mob seed), the corpse drop position, and the killer resolution
 spill on the ground through `instance.reward.NativeLootService` whatever killed the mob; commands and
 reward kinds need a player and are wired only when the killer resolves to one, off the corpse's
 still-resident `DeathComponent.getDeathInfo()` (mirrors the MMO jar's
-`MobKillEventSystem.resolveAttackerRef`). ONE `FactorSnapshot` covers the whole death, so two rolls
+`event/MmoMomentReactions.resolveAttackerRef`). ONE `FactorSnapshot` covers the whole death, so two rolls
 asking the same question always agree. The continuous kill-XP multiplier (`MobScalingXpReward`) is a
 separate path, untouched by this),
 the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
@@ -92,8 +92,8 @@ NEVER bundled (bundling double-loads engine-touching classes under two classload
 breaks class identity):
 
 - **ZiggfreedCommon >= 2.0.0** (`compileOnly files(ziggfreedCommonJar)`, pin
-  `ziggfreedCommonVersion=2.0.0`; the Update 6 pre-release line, and the same floor the manifest
-  `Dependencies` declares) - the shared
+  `ziggfreedCommonVersion=2.0.1`; the manifest `Dependencies` floor stays `>=2.0.0`, the Update 6
+  pre-release line, so the dev pin sits one patch ahead of the runtime floor) - the shared
   primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
@@ -154,7 +154,8 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   `RarityChancePerPoint` and nested `StatCurve` `HpPerPoint`/`OutDamagePerPoint`/
   `InDamageReductionPerPoint`/`MaxHpMult`/`MaxOutDamageMult`/`MinInDamageMult`), `ZoneHud`
   (`Enabled`/`Position`/`OffsetX`/`OffsetY`/`ShowLocationName`/`ZoneNameKeyPrefix`/
-  `BiomeNameKeyPrefix`) and `InspectorHud` (the same leaves plus `RangeBlocks`/`PortraitEnabled`;
+  `BiomeNameKeyPrefix`) and `InspectorHud` (the four anchor leaves `Enabled`/`Position`/`OffsetX`/`OffsetY`
+  plus `RangeBlocks`/`PortraitEnabled`, the three location-name leaves being `ZoneHud`-only;
   positions are named corner presets parsed by `ziggfreed-common`'s `ui/hud/HudPosition.parse`).
   Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
   partially-filled group) stays `null`, which is what makes the per-leaf partial owner overlay work.
@@ -337,9 +338,13 @@ The plugin's `setup()` loads `MobScalingConfig` (codec decode, above) then appli
 `MobScalingPlugin.shouldRegisterSystems(cfg)`, which delegates to the pure predicate in
 `MobScalingGate` (kept OFF the `JavaPlugin`-extending plugin class so it is loadable in a unit-test
 JVM - loading `MobScalingPlugin` there fails via the `PluginBase` -> `MetricsRegistry` static-init
-chain). When the config is disabled the plugin registers NOTHING and returns, so the mod carries no
-per-tick cost at all. The scaling systems + the kill-XP reward and kill-rarity attribution
-providers register only inside the enabled branch.
+chain). When the config is disabled the plugin registers no SYSTEMS and returns, so the mod carries no
+per-tick cost at all. Two things register BEFORE the gate on purpose, because neither costs a tick:
+the `/mobscaling` admin command (so `purge` still works on the uninstall path) and a `BootEvent`
+listener running `MobScalingAssetRegistrar.runBootAudit()` - the log-only boot content audit,
+`asset/PackDependencyAudit` for pack load-order shadowing plus a dangling-asset-reference sweep over
+every folded store, so a disabled mod can still explain itself. The scaling systems + the kill-XP
+reward and kill-rarity attribution providers register only inside the enabled branch.
 
 ## Conventions
 
