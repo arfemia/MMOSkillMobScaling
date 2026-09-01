@@ -14,6 +14,8 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 
+import com.ziggfreed.common.icon.IconSpec;
+
 /**
  * A pack-authorable mob AFFIX, loaded from {@code Server/MmoMobScaling/Affixes/*.json}. Pattern A - the
  * {@link #CODEC} decodes directly into typed fields (PascalCase keys, guarded by the mod's

@@ -34,6 +34,7 @@ import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
+import com.ziggfreed.common.icon.IconSpec;
 
 /**
  * Guards the Rarity/Affix codecs: static-init succeeds (a lower-case-first PascalCase key would throw here),

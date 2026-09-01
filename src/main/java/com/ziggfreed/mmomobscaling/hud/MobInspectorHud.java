@@ -11,7 +11,9 @@ import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.ui.hud.HudPosition;
+import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
@@ -24,7 +26,7 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * (already rarity-decorated by the spawn hook for scaled mobs), a coloured rarity tag
  * ({@code Rarity.NameColor}, pack-authorable), the frozen scaled difficulty, a live HP bar (fill width +
  * {@code current / max} text), and the rolled affixes as separate icon CHIPS (a codec-driven
- * {@link com.ziggfreed.mmomobscaling.asset.IconSpec} icon + the localized name, never a joined string - no
+ * {@link com.ziggfreed.common.icon.IconSpec} icon + the localized name, never a joined string - no
  * English grammar in params). Unscaled targets still get portrait + name + HP (a plain inspector); the
  * rarity/difficulty/affix rows hide. Driven by {@code MobScalingHudSystem}, which resolves the target via
  * the engine's own {@code TargetUtil.getTargetEntity} crosshair raycast.
@@ -168,16 +170,17 @@ public final class MobInspectorHud extends ScalingHud {
 
         cmd.set("#MmoscalingInspectPanel.Visible", true);
 
-        // Portrait: the target mob's generated model icon (Icons/ModelsGenerated/<role>.png), the same
-        // pre-rendered still the native Memories page shows. A live 3D preview is not server-drivable;
-        // a static portrait is. Hidden when disabled or the entity has no NPC role (the AssetImage's
-        // FallbackTexturePath covers a role whose portrait was never generated).
+        // Portrait: the target mob's generated model icon, the same pre-rendered still the native
+        // Memories page shows, addressed through the shared Portraits path so every screen showing a
+        // creature looks in one place. A live 3D preview is not server-drivable; a static portrait is.
+        // Hidden when disabled or the entity has no NPC role (the AssetImage's FallbackTexturePath
+        // covers a role whose portrait was never generated).
         boolean hasPortrait = MobScalingConfig.getInstance().isInspectorPortraitEnabled()
                 && target.modelRole() != null && !target.modelRole().isBlank();
         cmd.set("#MmoscalingInspectPortrait.Visible", hasPortrait);
         cmd.set("#MmoscalingInspectPortraitGap.Visible", hasPortrait); // collapse the column gap too
         if (hasPortrait) {
-            cmd.set("#MmoscalingInspectPortrait.AssetPath", "Icons/ModelsGenerated/" + target.modelRole() + ".png");
+            cmd.set("#MmoscalingInspectPortrait.AssetPath", Portraits.pathFor(target.modelRole()));
         }
 
         // Name (already rarity-decorated for scaled mobs by the spawn hook's DisplayNameComponent stamp).

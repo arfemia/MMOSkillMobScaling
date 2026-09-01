@@ -92,7 +92,7 @@ Group {
 
       // Affix chips wrap onto a second line. Each chip is a fixed-width icon + name so the wrap is
       // predictable (two 100-wide chips fit the 214 info column); the two sibling icon widgets
-      // (#IcoItem / #IcoTex) are toggled by hud/IconRenderer.
+      // (#IcoItem / #IcoTex) are toggled by the shared ui/icon/IconRenderer.
       Group #MmoscalingInspectAffixRow {
         Anchor: (Height: 40);
         LayoutMode: LeftCenterWrap;
