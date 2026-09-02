@@ -5,17 +5,19 @@ affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
 world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
 
-> **v1.0.0 - first release.** The full scaling system is in. It is still in active in-game
-> tuning, so numbers may shift between builds. Everything is data-driven, so you can retune any of it.
+> **v1.1.0.** The full scaling system, plus signature moves: a scaled boss or rare mob can cast
+> real MMO Skill Tree abilities and fire native attack moves on a schedule, with wind-up
+> animations that telegraph the hit. Numbers are still being tuned in-game and may shift between
+> builds; everything is data-driven, so you can retune any of it.
 
 ## Requirements
 
 Both load before this mod (drop all three jars in your server `Mods/` folder):
 
-- **MMO Skill Tree >= 1.5.0** - supplies the player-power / combat-level API the scaling reads.
-- **Ziggfreed's CommonLib >= 1.2.0** - the shared primitive library this mod builds on.
+- **MMO Skill Tree >= 1.5.0** - supplies the player-power / combat-level API the scaling reads. Ability-casting mobs need 1.6.0 or newer; on an older jar they fall back to native attack moves.
+- **Ziggfreed's CommonLib >= 2.0.0** - the shared library this mod builds on.
 
-Targets Hytale server `0.5.x` (Update 5). Zero client install: everything is server-side.
+Targets Hytale server `0.6.x` (Update 6). Zero client install: everything is server-side.
 
 ## What it does
 
@@ -41,12 +43,15 @@ punching above your weight) and pulls extra loot from a per-rarity drop table.
 - **Affixes** on native Hytale effects (no client mod): **Armored** (damage resistance), **Stalwart**
   (knockback immunity + extra health), **Swift** (faster movement), **Vampiric** (life-steal on hit),
   and **Freezing** (a chilling on-hit slow). Author your own in a content pack.
-- **Deterministic rolls.** A mob's rarity and affixes are seeded from its identity, so the same mob
-  reproduces identically across chunk reloads (no reroll churn).
-- **Native-first everywhere.** Difficulty rides Hytale's own worldgen zones, effects, NPC-group
+- **Signature moves.** A boss or rare mob can cast real MMO Skill Tree abilities, or fire native
+  attack moves, on its own schedule - each with an optional wind-up animation so the hit
+  telegraphs. Authored per role in a small file; a content pack can arm any mob the same way.
+- Deterministic rolls: a mob's rarity and affixes are seeded from its identity, so the same mob
+  reproduces identically across chunk reloads with no reroll churn.
+- Native-first everywhere: difficulty rides Hytale's own worldgen zones, effects, NPC-group
   tagsets, and item-drop lists, so your existing world and other mods keep working.
-- **Two player HUD overlays** (see below).
-- **Presets + full data control.** Ship-ready presets and per-file tuning for everything.
+- Two player HUD overlays (see below).
+- Ready-made presets, and per-file tuning for everything.
 
 ## HUD overlays
 
@@ -135,7 +140,7 @@ skipped entirely):
   "Group": "YourName",
   "Name": "YourPack",
   "Version": "1.0.0",
-  "ServerVersion": ">=0.5.0-pre.0 <0.6.0",
+  "ServerVersion": ">=0.6.0-pre.13 <0.7.0",
   "IncludesAssetPack": true,
   "Dependencies": { "Ziggfreed:MmoMobScaling": ">=1.1.0" }
 }
@@ -185,7 +190,7 @@ remove the jar.
 
 ## Installation
 
-1. Install **MMO Skill Tree >= 1.5.0** and **Ziggfreed's CommonLib >= 1.2.0**.
+1. Install **MMO Skill Tree >= 1.5.0** (1.6.0+ for ability-casting mobs) and **Ziggfreed's CommonLib >= 2.0.0**.
 2. Drop `MmoMobScaling-<version>.jar` in your server's `Mods/` folder.
 3. Start the server. Scaling is on by default with the balanced preset; tune from `mods/MmoMobScaling/`.
 
@@ -193,7 +198,7 @@ remove the jar.
 
 Native-asset-first by design: scaling rides Hytale's own worldgen, effects, NPC groups, and drop
 lists, so it coexists with other content mods. A world using a non-standard worldgen (flat/void/custom)
-simply falls back to a distance-and-proximity grid with the world's baseline floor.
+falls back to a distance-and-proximity grid with the world's baseline floor.
 
 **Third-party nameplate mods.** The rarity and variant decoration is written to a mob's display name,
 the value Hytale uses for logs and kill feeds, as a localized message so each player reads it in their
