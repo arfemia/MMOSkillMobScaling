@@ -106,12 +106,24 @@ public final class RegionPowerTracker {
      * tracked (the cold-miss zero delta). O(1) - two map reads + a volatile read.
      */
     public double scalarFor(@Nonnull String worldKey, @Nonnull RegionKey regionKey) {
+        Double tracked = scalarIfTracked(worldKey, regionKey);
+        return tracked == null ? 0.0 : tracked;
+    }
+
+    /**
+     * The cached aggregated power of the players in this world+region, or {@code null} when NO
+     * player is tracked there: the read for a caller that must tell "nobody is here" apart from
+     * "the people here fold to zero". An empty bucket is dropped on its last member's removal, so a
+     * present bucket always holds at least one tracked player. O(1), like {@link #scalarFor}.
+     */
+    @Nullable
+    public Double scalarIfTracked(@Nonnull String worldKey, @Nonnull RegionKey regionKey) {
         ConcurrentHashMap<RegionKey, Bucket> regions = worlds.get(worldKey);
         if (regions == null) {
-            return 0.0;
+            return null;
         }
         Bucket bucket = regions.get(regionKey);
-        return bucket == null ? 0.0 : bucket.scalar;
+        return bucket == null ? null : bucket.scalar;
     }
 
     /** Tracked-player count (diagnostics / tests). */

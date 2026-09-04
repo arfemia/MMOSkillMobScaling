@@ -5,17 +5,20 @@ affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
 world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
 
-> **v1.1.0.** The full scaling system, plus signature moves: a scaled boss or rare mob can cast
-> real MMO Skill Tree abilities and fire native attack moves on a schedule, with wind-up
-> animations that telegraph the hit. Numbers are still being tuned in-game and may shift between
-> builds; everything is data-driven, so you can retune any of it.
+> **v1.2.0.** Plays alongside the boss fights Ziggfreed's CommonLib runs: a boss an encounter
+> script raises is the fight's own, so this mod leaves it and its adds alone, and a bound fight
+> can harden with the power of the region it stands in. Everything else is the full scaling
+> system and the signature moves of 1.1.0. Numbers are still being tuned in-game and may shift
+> between builds; everything is data-driven, so you can retune any of it.
 
 ## Requirements
 
 Both load before this mod (drop all three jars in your server `Mods/` folder):
 
-- **MMO Skill Tree >= 1.5.0** - supplies the player-power / combat-level API the scaling reads. Ability-casting mobs need 1.6.0 or newer; on an older jar they fall back to native attack moves.
-- **Ziggfreed's CommonLib >= 2.0.0** - the shared library this mod builds on.
+- **MMO Skill Tree >= 1.6.1** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
+- **Ziggfreed's CommonLib >= 2.1.0** - the shared library this mod builds on, including the encounter framework it now reads.
+
+The three ship together; update them together.
 
 Targets Hytale server `0.6.x` (Update 6). Zero client install: everything is server-side.
 
@@ -190,7 +193,7 @@ remove the jar.
 
 ## Installation
 
-1. Install **MMO Skill Tree >= 1.5.0** (1.6.0+ for ability-casting mobs) and **Ziggfreed's CommonLib >= 2.0.0**.
+1. Install **MMO Skill Tree >= 1.6.1** and **Ziggfreed's CommonLib >= 2.1.0**.
 2. Drop `MmoMobScaling-<version>.jar` in your server's `Mods/` folder.
 3. Start the server. Scaling is on by default with the balanced preset; tune from `mods/MmoMobScaling/`.
 
@@ -199,6 +202,14 @@ remove the jar.
 Native-asset-first by design: scaling rides Hytale's own worldgen, effects, NPC groups, and drop
 lists, so it coexists with other content mods. A world using a non-standard worldgen (flat/void/custom)
 falls back to a distance-and-proximity grid with the world's baseline floor.
+
+**Scripted boss fights.** A boss (and its adds) raised by a Hytale encounter script, or bound to a
+live encounter through Ziggfreed's CommonLib, is left alone: no rarity, no affixes, no health
+modifier from this mod. The fight owns its own health, scaled per party member and per power point by
+the encounter framework, and this mod feeds that framework the power of the region the boss stands
+in. The `Mmoscaling_Bosses` group is for the world's own roaming bosses; an encounter boss listed
+there changes nothing. A freshly spawned mob is rolled on the first tick after it appears, so it stands
+at its base health for that one tick before its scaled maximum lands.
 
 **Third-party nameplate mods.** The rarity and variant decoration is written to a mob's display name,
 the value Hytale uses for logs and kill feeds, as a localized message so each player reads it in their

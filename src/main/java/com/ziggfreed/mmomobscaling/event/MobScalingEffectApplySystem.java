@@ -79,19 +79,29 @@ public final class MobScalingEffectApplySystem extends RefSystem<EntityStore> {
             if (comp == null) {
                 return;
             }
-            MobScaleResult r = comp.result();
-            EffectControllerComponent ctrl = cb.getComponent(ref, EffectControllerComponent.getComponentType());
-            if (ctrl == null) {
-                return;
-            }
-
-            Set<String> desired = desiredEffectIds(r);
-            sweepStale(ref, ctrl, cb, desired); // remove stale Mmoscaling_* infinite effects BEFORE re-applying
-            for (String effectId : desired) {
-                apply(ref, cb, effectId);
-            }
+            reconcile(ref, comp.result(), cb);
         } catch (Throwable t) {
             safeWarn("effect apply failed: " + t);
+        }
+    }
+
+    /**
+     * Reconcile the live entity's {@code Mmoscaling_*} effects to {@code result}: the sweep of any
+     * stale infinite one, then the apply of each desired one. The body behind {@link #onEntityAdded},
+     * and the call {@code MobScalingRollSystem} makes directly when it stamps a roll onto a LIVE
+     * entity one tick after spawn (a component added to a live entity moves it between archetype
+     * chunks without re-adding it, so no {@code RefSystem} sees that stamp).
+     */
+    public static void reconcile(@Nonnull Ref<EntityStore> ref, @Nonnull MobScaleResult result,
+            @Nonnull CommandBuffer<EntityStore> cb) {
+        EffectControllerComponent ctrl = cb.getComponent(ref, EffectControllerComponent.getComponentType());
+        if (ctrl == null) {
+            return;
+        }
+        Set<String> desired = desiredEffectIds(result);
+        sweepStale(ref, ctrl, cb, desired); // remove stale Mmoscaling_* infinite effects BEFORE re-applying
+        for (String effectId : desired) {
+            apply(ref, cb, effectId);
         }
     }
 

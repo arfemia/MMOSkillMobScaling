@@ -299,14 +299,15 @@ class MobScalingConfigTest {
         MobScalingConfig cfg = freshDefaults();
         loadJarWorlds(); // the jar Worlds/*.json files (flat, self-contained; no shared Parent)
 
-        // Dungeon of Fear I and II simply turn open-world scaling OFF in their instances.
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isWorldScalingEnabled(),
+        // Dungeon of Fear I and II simply turn open-world scaling OFF in their instances. The world names
+        // are the engine's own instance format, instance-<name>-<uuid>, which the shipped patterns target.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i-9f3a").isWorldScalingEnabled(),
                 "Dungeon of Fear I turns scaling off");
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii").isWorldScalingEnabled(),
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii-9f3a").isWorldScalingEnabled(),
                 "Dungeon of Fear II turns scaling off");
 
         // Dungeon of Fear III keeps scaling ON (player scaling on, global default) but with distance escalation off.
-        SpawnScalingSettings iii = cfg.spawnSettingsFor("instance-dungeon_of_fear_iii");
+        SpawnScalingSettings iii = cfg.spawnSettingsFor("instance-dungeon_of_fear_iii-9f3a");
         assertTrue(iii.isWorldScalingEnabled(), "Dungeon of Fear III keeps scaling on");
         assertTrue(iii.isPlayerScalingEnabled(), "Dungeon of Fear III keeps player scaling on (global default)");
         assertFalse(iii.isDistanceEscalationEnabled(), "Dungeon of Fear III turns distance escalation off");
@@ -323,17 +324,23 @@ class MobScalingConfigTest {
     }
 
     @Test
-    void longestPrefixDisambiguatesTheThreeDungeons() {
+    void theDelimitedCoresKeepTheThreeDungeonsApart() {
         MobScalingConfig cfg = freshDefaults();
         loadJarWorlds();
-        // A suffixed instance world of each tier resolves to its OWN entry, never a shorter-prefix sibling.
-        // I and II turn scaling off; III keeps it on, so a _iii mis-resolved to _i*/_ii* would read scaling OFF.
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i_ab12").isWorldScalingEnabled(),
-                "suffixed _i matches the _i* entry (scaling off)");
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii_ab12").isWorldScalingEnabled(),
-                "suffixed _ii matches the _ii* entry (scaling off)");
-        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii_ab12").isWorldScalingEnabled(),
-                "suffixed _iii matches the _iii* entry (scaling ON), not the shorter _i*/_ii*");
+        // Each tier's instance world (instance-<name>-<uuid>) resolves to its OWN entry and to nothing else:
+        // the '-' the engine puts after the instance name closes each core, so the _i rule's core is not the
+        // start of the _ii rule's core and no rule shadows another. I and II turn scaling off; III keeps it on,
+        // so a _iii mis-resolved to the _i or _ii rule would read scaling OFF.
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i-ab12").isWorldScalingEnabled(),
+                "the _i instance matches the _i entry (scaling off)");
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_ii-ab12").isWorldScalingEnabled(),
+                "the _ii instance matches the _ii entry (scaling off)");
+        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii-ab12").isWorldScalingEnabled(),
+                "the _iii instance matches the _iii entry (scaling ON), not the shorter _i / _ii");
+        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iii-ab12") != cfg.spawnSettingsFor("instance-dungeon_of_fear_i-ab12"),
+                "the three rules resolve to three distinct views");
+        assertTrue(cfg.spawnSettingsFor("instance-dungeon_of_fear_iv-ab12") == cfg,
+                "a name that only begins like a rule's core matches no rule at all (the global config answers)");
     }
 
     @Test
@@ -393,7 +400,7 @@ class MobScalingConfigTest {
         // Owner's new world takes effect.
         assertFalse(cfg.spawnSettingsFor("myworld_1").isPlayerScalingEnabled(), "owner's new world file applies");
         // The shipped dungeon files NOT touched by the owner still resolve.
-        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i").isWorldScalingEnabled(),
+        assertFalse(cfg.spawnSettingsFor("instance-dungeon_of_fear_i-9f3a").isWorldScalingEnabled(),
                 "shipped _i file survives an owner adding other files (still scaling-off)");
         // Owner's same-id file REPLACES the shipped _iii wholesale: player scaling now off there, and the
         // shipped file's escalation-off policy is GONE because the owner body does not carry it.

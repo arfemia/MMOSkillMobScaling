@@ -4,11 +4,18 @@ A **standalone open-world mob difficulty-scaling** companion to the MMO Skill Tr
 scales open-world mobs to the players around them (a high-power group meets tougher, rarer
 enemies; a lone newcomer is not overwhelmed). It is a supplemental mod under the **hyMMO
 monorepo**'s `additional-mods/` (a git submodule; developed from the hyMMO root).
-**Status: v1.1.0 (released 2026-08-31; 1.0.1 and 1.0.2 were folded into it and never shipped on their own).** The zero-cost registration
-toggle + codec `MobScalingConfig`, plus the spawn-lock (`MobScalingSpawnHook`: rolls rarity/affixes,
-reconciles HP, stamps the rarity-decorated `DisplayNameComponent`, resolves floor + region-power group
-delta), the effect reconcile (`MobScalingEffectApplySystem`: applies + sweeps native aura / affix
-effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
+**Status: v1.2.0 (in development beside ziggfreed-common 2.1.0 and MMO Skill Tree 1.6.1, the family it ships with; 1.1.0 released 2026-08-31).** The zero-cost registration
+toggle + codec `MobScalingConfig`, plus the spawn-lock in two halves: `MobScalingSpawnHook` (the
+pre-add `HolderSystem`: the mod and per-world switches, the classification, the residue cleanup, and
+a one-tick `PendingRollComponent` stamp; a holder already carrying `ScaledMobComponent` is left as
+it is, so an in-place role change re-adding a boss through every holder system never re-rolls it)
+and `MobScalingRollSystem` (the tick after the add, on a valid `Ref`: SKIPS a `ManualTrigger`
+spawn-marker spawn (a scripted boss or its adds) and an encounter's bound subject
+(`event/EncounterBinding`, a `LinkageError`-guarded `EncounterRuntime.isBoundSubject`), else rolls
+rarity/affixes/variant from the stable seed, stamps the result, decorates the display name,
+reconciles HP and calls the effect + caster-arm bodies directly, since a stamp onto a live entity
+fires no `RefSystem`; one INFO per boot per path), the effect reconcile
+(`MobScalingEffectApplySystem`: applies + sweeps native aura / affix effects), the damage-multiply filter, the inspect-group on-hit reactions (`MobScalingOnHitSystem`:
 lifesteal + Freezing slow), the kill-XP reward (a `MMOSkillTreeAPI.registerMobKillXpMultiplier`
 provider) + the kill-rarity attribution (`event/MobScalingRarityAttribution`, a
 `registerKillRarityProvider` provider handing a scaled kill's rarity id to the MMO as the kill
@@ -29,7 +36,12 @@ asking the same question always agree. The continuous kill-XP multiplier (`MobSc
 separate path, untouched by this),
 the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
-`boss` tier), `/mobscaling purge|inspect|hud|preset|intensity|worlds|ui` (1.0.2 adds `worlds`, the read-only
+`boss` tier; `Mmoscaling_Bosses` is the AMBIENT world-boss scope, a boss nobody scripted, since a
+scripted or encounter-bound boss is skipped before the classifier's answer matters), the fill of
+ziggfreed-common's `EncounterPowerSource` seam (`factor/EncounterPowerFill`: a bound fight's power is
+the tracked region power at its SUBJECT's own world and chunk, null on a cold miss, never zero;
+`RegionPowerTracker.scalarIfTracked` beside the zero-delta `scalarFor`; `world/RegionKeys` composes
+the key for the presence tick, the factor and the fill alike), `/mobscaling purge|inspect|hud|preset|intensity|worlds|ui` (1.0.2 adds `worlds`, the read-only
 listing of the folded per-world rules, and `ui`, the in-game admin
 config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `mmomobscaling.lang`, and TWO
 player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
@@ -91,9 +103,17 @@ Both dependencies are provided at runtime (loaded first) and referenced `compile
 NEVER bundled (bundling double-loads engine-touching classes under two classloaders and
 breaks class identity):
 
-- **ZiggfreedCommon >= 2.0.0** (`compileOnly files(ziggfreedCommonJar)`, pin
-  `ziggfreedCommonVersion=2.0.1`; the manifest `Dependencies` floor stays `>=2.0.0`, the Update 6
-  pre-release line, so the dev pin sits one patch ahead of the runtime floor) - the shared
+**THE LOCKSTEP RULE (maintainer, 2026-09-04):** this mod ships together with the ziggfreed-common
+and MMO Skill Tree versions it is built against, and its manifest floors ARE those versions. A pin
+in `gradle.properties` and the matching `>=` floor in `manifest.json` move together, in the same
+change, whenever either dependency ships. The `LinkageError` guards around the newer seams
+(`registerKillRarityProvider`, `EncounterRuntime`, the encounter power seam) keep a mis-installed
+server from failing to load the mod; they never make an older jar a supported one.
+
+- **ZiggfreedCommon >= 2.1.0** (`compileOnly files(ziggfreedCommonJar)`, pin
+  `ziggfreedCommonVersion=2.1.0`, the manifest floor `>=2.1.0`: the boss framework, whose
+  `EncounterRuntime.isBoundSubject` the deferred roll reads and whose `EncounterPowerSource` seam
+  this mod fills, neither of which exists in 2.0.x) - the shared
   primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
@@ -102,20 +122,16 @@ breaks class identity):
   per-world HUD group beyond `Enabled`, `RegionSizeChunks` - decode but deliberately apply globally, so
   the per-world form does not expose them; see `pages/CLAUDE.md`). The mod's own `hud/HudPosition` copy
   was retired for the lifted common one.
-- **MMOSkillTree >= 1.5.0** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
-  `MMOSkillTree-1.6.0.jar` dev jar (pin `mmoSkillTreeVersion=1.6.0`), which carries the frozen 1.5.0 API
-  the mod uses: `getPowerLevel` / `getPowerLevelMin` / `getPowerLevelMax` / `statRewardSum` /
-  `getCombatLevel` (power reads) plus `registerMobKillXpMultiplier` (the kill-XP reward hook) and
-  `registerKillRarityProvider` (the kill-rarity attribution hook, additive on the 1.6.0-cycle jar;
-  its registration is LinkageError-guarded so an older runtime jar degrades to unqualified kills
-  with one warning). The
-  settings fold cross-checks `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift
-  (guarded: an older jar without the getters validates clean). The 1.1.0 caster-roster feature's
-  `ABILITY` entries ALSO call the MMO's `castNpcAbility(Store, Ref, String)` API (present starting in
-  MMO 1.6.0, which is why the dev-jar pin is ahead of the ">=1.5.0" runtime-manifest floor above, kept
-  deliberately lenient for graceful degradation on an older jar); `MobScalingCasterTickSystem` latches
-  ability casting off for the whole session with one warning when that method is missing on an older
-  jar. See the comment block in `build.gradle`.
+- **MMOSkillTree >= 1.6.1** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
+  `MMOSkillTree-1.6.1.jar` dev jar (pin `mmoSkillTreeVersion=1.6.1`), the release this mod ships
+  beside, which carries the frozen API the mod uses: `getPowerLevel` / `getPowerLevelMin` /
+  `getPowerLevelMax` / `statRewardSum` / `getCombatLevel` (power reads), `registerMobKillXpMultiplier`
+  (the kill-XP reward hook), `registerKillRarityProvider` (the kill-rarity attribution hook; its
+  registration is LinkageError-guarded) and `castNpcAbility(Store, Ref, String)` (the caster
+  roster's `ABILITY` entries; `MobScalingCasterTickSystem` latches ability casting off for the
+  whole session with one warning when the method is missing). The settings fold cross-checks
+  `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift (guarded: a jar without
+  the getters validates clean). See the comment blocks in `gradle.properties` and `build.gradle`.
 
 jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
 config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.
@@ -278,7 +294,12 @@ phases:
   Being resistance-bearing is what puts them, and `Armored`, under the single-resistance cap in
   `AffixRoster.pick`, so a mob never wears two resistance-bearing affixes at once.
 - **Classification via authored `NPCGroup` tagset assets** (`Mmoscaling_Bosses` / `Mmoscaling_Excluded`,
-  queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry. The **per-family
+  queried by `hasTagInGroup(roleIndex)`), owner-editable, NOT a Java-side boss registry.
+  **`Mmoscaling_Bosses` names AMBIENT world bosses only**, the ones the world spawns where they roam:
+  a boss an encounter script raises (a `ManualTrigger` spawn-marker spawn) or a live encounter has
+  bound is skipped by the deferred roll before any group is consulted, because the encounter already
+  owns its stats (ziggfreed-common's `EncounterScaling` keys its own `HealthUtil` modifier), so listing
+  such a role in the tagset changes nothing. The **per-family
   rarity gate** (1.0.0) reuses the SAME native mechanism: a rarity's nested `Families` block
   (`AllowGroups`/`DenyGroups` native `NPCGroup` ids + `AllowRoles`/`DenyRoles` role-name globs, deny wins,
   absent = allow-all) narrows which tiers may roll on a given mob, and the same block's third pair,
@@ -343,8 +364,10 @@ per-tick cost at all. Two things register BEFORE the gate on purpose, because ne
 the `/mobscaling` admin command (so `purge` still works on the uninstall path) and a `BootEvent`
 listener running `MobScalingAssetRegistrar.runBootAudit()` - the log-only boot content audit,
 `asset/PackDependencyAudit` for pack load-order shadowing plus a dangling-asset-reference sweep over
-every folded store, so a disabled mod can still explain itself. The scaling systems + the kill-XP
-reward and kill-rarity attribution providers register only inside the enabled branch.
+every folded store, so a disabled mod can still explain itself. The scaling systems, the kill-XP
+reward and kill-rarity attribution providers, the factor contributions and the encounter power seam
+fill register only inside the enabled branch (a switched-off mod tracks no power, so the seam keeps
+its own unfilled posture rather than a fill that answers nothing).
 
 ## Conventions
 

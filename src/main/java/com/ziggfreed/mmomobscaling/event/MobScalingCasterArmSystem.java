@@ -77,45 +77,56 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
             if (comp == null) {
                 return;
             }
-            List<CasterRoster> rosters = Rosters.casterRosters();
-            if (rosters.isEmpty()) {
-                return; // no CasterRoster content loaded at all: cheapest possible no-op
-            }
-            String roleName = EntityIdentifierUtil.roleName(cb, ref);
-            if (roleName == null) {
-                return; // nothing role-driven spawned it, so no roster can name it
-            }
-            CasterRoster roster = CasterRosterMatcher.match(roleName, rosters);
-            if (roster == null || roster.abilities().isEmpty()) {
-                return;
-            }
-
-            MobScaleResult result = comp.result();
-            long now = System.currentTimeMillis();
-            List<CasterKitComponent.Armed> armed = new ArrayList<>();
-            for (CasterEntry entry : roster.abilities()) {
-                if (!entry.isEligible(result.difficulty(), result.rarityId(), result.scope())) {
-                    continue;
-                }
-                if (entry.kind() == CasterEntry.Kind.NATIVE_CHAIN) {
-                    NativeChainAttacker.arm(ref, cb, entry.nativeChain());
-                    // Armed once, right here, at spawn - NEVER added to the kit's armed/tick list.
-                    // MobScalingCasterTickSystem never schedules or re-arms a NATIVE_CHAIN entry (see
-                    // its NATIVE_CHAIN case for why re-arming would starve other chains).
-                    continue;
-                }
-                long dueAt = CasterCadence.nextDueAt(now, entry.cadenceMs(), entry.jitterMs());
-                armed.add(new CasterKitComponent.Armed(entry, dueAt));
-            }
-            if (armed.isEmpty()) {
-                return;
-            }
-            // IDEMPOTENT (putComponent, never addComponent): a re-added entity may already carry a kit, and
-            // addComponent throws on a present component type. A re-arm REPLACES the kit with the fresh roll.
-            cb.putComponent(ref, CasterKitComponent.getComponentType(), new CasterKitComponent(armed));
+            arm(ref, comp.result(), cb);
         } catch (Throwable t) {
             safeWarn("caster arm failed: " + t);
         }
+    }
+
+    /**
+     * Arm the live entity's caster kit from {@code result}: the roster matched by role, each entry
+     * gated on the frozen result, native chains armed on the spot and abilities scheduled. The body
+     * behind {@link #onEntityAdded}, and the call {@code MobScalingRollSystem} makes directly when it
+     * stamps a roll onto a LIVE entity one tick after spawn (a component added to a live entity moves
+     * it between archetype chunks without re-adding it, so no {@code RefSystem} sees that stamp).
+     */
+    public static void arm(@Nonnull Ref<EntityStore> ref, @Nonnull MobScaleResult result,
+            @Nonnull CommandBuffer<EntityStore> cb) {
+        List<CasterRoster> rosters = Rosters.casterRosters();
+        if (rosters.isEmpty()) {
+            return; // no CasterRoster content loaded at all: cheapest possible no-op
+        }
+        String roleName = EntityIdentifierUtil.roleName(cb, ref);
+        if (roleName == null) {
+            return; // nothing role-driven spawned it, so no roster can name it
+        }
+        CasterRoster roster = CasterRosterMatcher.match(roleName, rosters);
+        if (roster == null || roster.abilities().isEmpty()) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        List<CasterKitComponent.Armed> armed = new ArrayList<>();
+        for (CasterEntry entry : roster.abilities()) {
+            if (!entry.isEligible(result.difficulty(), result.rarityId(), result.scope())) {
+                continue;
+            }
+            if (entry.kind() == CasterEntry.Kind.NATIVE_CHAIN) {
+                NativeChainAttacker.arm(ref, cb, entry.nativeChain());
+                // Armed once, right here, at spawn - NEVER added to the kit's armed/tick list.
+                // MobScalingCasterTickSystem never schedules or re-arms a NATIVE_CHAIN entry (see
+                // its NATIVE_CHAIN case for why re-arming would starve other chains).
+                continue;
+            }
+            long dueAt = CasterCadence.nextDueAt(now, entry.cadenceMs(), entry.jitterMs());
+            armed.add(new CasterKitComponent.Armed(entry, dueAt));
+        }
+        if (armed.isEmpty()) {
+            return;
+        }
+        // IDEMPOTENT (putComponent, never addComponent): a re-added entity may already carry a kit, and
+        // addComponent throws on a present component type. A re-arm REPLACES the kit with the fresh roll.
+        cb.putComponent(ref, CasterKitComponent.getComponentType(), new CasterKitComponent(armed));
     }
 
     @Override

@@ -8,8 +8,6 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.factor.FactorContext;
@@ -23,7 +21,7 @@ import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
-import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
+import com.ziggfreed.mmomobscaling.world.RegionKeys;
 
 /**
  * What this mod knows about a mob, published as ordinary factor readings any other mod's content can
@@ -202,16 +200,11 @@ public final class MobScalingFactors {
             if (world == null) {
                 return null;
             }
-            TransformComponent transform = store.getComponent(at, TransformComponent.getComponentType());
-            if (transform == null) {
+            RegionPowerTracker.RegionKey key = RegionKeys.of(store, at, world,
+                    MobScalingConfig.getInstance().getRegionSizeChunks());
+            if (key == null) {
                 return null;
             }
-            int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
-            int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
-            RegionPowerTracker.RegionKey key = new RegionPowerTracker.RegionKey(
-                    ZoneDifficultyResolver.get().zoneKey(world, chunkX, chunkZ),
-                    RegionPowerTracker.gridKey(chunkX, chunkZ,
-                            MobScalingConfig.getInstance().getRegionSizeChunks()));
             return RegionPowerTracker.get().scalarFor(world.getName(), key);
         } catch (Throwable t) {
             return null;

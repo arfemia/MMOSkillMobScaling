@@ -26,12 +26,12 @@ import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
-import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
+import com.ziggfreed.mmomobscaling.world.RegionKeys;
 
 /**
  * The player-move bookkeeping behind {@link RegionPowerTracker}: ticks every player, computes their
- * ZONE + PROXIMITY hybrid region key (the native worldgen zone via the memoized
- * {@link ZoneDifficultyResolver}, plus the chunk sub-grid cell within it), and ONLY on a region/world
+ * ZONE + PROXIMITY hybrid region key (the native worldgen zone plus the chunk sub-grid cell within
+ * it, composed by {@link RegionKeys} exactly as every reader composes it), and ONLY on a region/world
  * cross (or first sight) reads the player's power off the frozen {@code MMOSkillTreeAPI} and moves
  * their tracked presence (which re-folds the affected region buckets). The per-tick steady-state cost
  * per player is two map reads + a key compare (the zone read hits the per-chunk memo) - the plan's
@@ -76,11 +76,9 @@ public final class MobScalingPresenceSystem extends EntityTickingSystem<EntitySt
                 return;
             }
             MobScalingConfig cfg = MobScalingConfig.getInstance();
-            int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
-            int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
-            RegionPowerTracker.RegionKey regionKey = new RegionPowerTracker.RegionKey(
-                    ZoneDifficultyResolver.get().zoneKey(world, chunkX, chunkZ),
-                    RegionPowerTracker.gridKey(chunkX, chunkZ, cfg.getRegionSizeChunks()));
+            RegionPowerTracker.RegionKey regionKey = RegionKeys.at(world,
+                    ChunkUtil.chunkCoordinate(transform.getPosition().x),
+                    ChunkUtil.chunkCoordinate(transform.getPosition().z), cfg.getRegionSizeChunks());
             String worldKey = world.getName();
             if (RegionPowerTracker.get().isCurrent(playerId, worldKey, regionKey)) {
                 return; // steady state: no cross, nothing to do

@@ -13,7 +13,9 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.command.MobScalingCommand;
+import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
+import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
@@ -27,8 +29,10 @@ import com.ziggfreed.mmomobscaling.event.MobScalingLootDropSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingRarityAttribution;
+import com.ziggfreed.mmomobscaling.event.MobScalingRollSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
 import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
+import com.ziggfreed.mmomobscaling.factor.EncounterPowerFill;
 import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
 
 /**
@@ -38,7 +42,9 @@ import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
  * <p>It loads {@link MobScalingConfig} and applies the ZERO-COST registration gate: when the
  * config is disabled, NO systems are registered, so the mod carries no per-tick cost at all.
  * When enabled it registers the scaling systems - the spawn-lock {@code MobScalingSpawnHook}
- * (rolls rarity/affixes + reconciles HP), the effect-reconcile {@code MobScalingEffectApplySystem}
+ * (the gates and the classification at the pre-add holder) with its roll one tick later,
+ * {@code MobScalingRollSystem} (rarity/affixes + the HP reconcile on the live ref, skipping a
+ * scripted spawn and an encounter's bound boss), the effect-reconcile {@code MobScalingEffectApplySystem}
  * (applies + sweeps the native aura / affix effects), the {@code MobScalingDamageFilter}
  * (the damage-multiply, pinned before armor + the MMO combat-XP read), and the
  * {@code MobScalingOnHitSystem} (lifesteal + the Freezing on-hit slow, in the inspect group), and
@@ -47,14 +53,15 @@ import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
  * {@code MobScalingCasterTickSystem} (casts an {@code ABILITY} entry via
  * {@code MMOSkillTreeAPI.castNpcAbility} or re-arms a {@code NATIVE_CHAIN} entry's native attack
  * override, both on the roster's own cadence) - plus a kill-XP reward multiplier registered on the
- * frozen {@code MMOSkillTreeAPI}.
+ * frozen {@code MMOSkillTreeAPI}, and the fill of ziggfreed-common's encounter power seam (a bound
+ * fight reads the tracked power of the region its boss stands in).
  *
- * <p>Version story: this mod compiles against the local MMOSkillTree dev jar (which
- * already carries the frozen 1.5.0 API) while its manifest pins the runtime
- * requirement at MMOSkillTree {@code >=1.5.0}. See build.gradle for the rationale. The 1.1.0 caster
- * roster's {@code ABILITY} entries additionally need the MMO's 1.6.0-cycle jar (which adds
- * {@code castNpcAbility}); running against an older jar degrades gracefully (see
- * {@code caster/CasterFeatureState}) rather than crashing or spamming the log.
+ * <p>Version story: the family moves in lockstep. The manifest floors are the versions this mod is
+ * built and tested against (ZiggfreedCommon {@code >=2.1.0}, MMOSkillTree {@code >=1.6.1}), and the
+ * compile pins in {@code gradle.properties} name the same jars; see build.gradle. The
+ * {@link LinkageError} guards around the newer seams (`registerKillRarityProvider`, the encounter
+ * runtime and power seam) are a safety net for a mis-installed server, not advertised
+ * compatibility with an older jar.
  */
 public class MobScalingPlugin extends JavaPlugin {
 
@@ -67,6 +74,9 @@ public class MobScalingPlugin extends JavaPlugin {
 
     /** The registered transient {@code CasterKitComponent} type (set in {@link #setup()} when enabled). */
     private ComponentType<EntityStore, CasterKitComponent> casterKitComponentType;
+
+    /** The registered transient {@code PendingRollComponent} type (set in {@link #setup()} when enabled). */
+    private ComponentType<EntityStore, PendingRollComponent> pendingRollComponentType;
 
     @Nonnull
     public static MobScalingPlugin getInstance() {
@@ -81,6 +91,11 @@ public class MobScalingPlugin extends JavaPlugin {
     /** The frozen caster-kit component type; {@code null} until {@code setup()} registers it (mod enabled). */
     public ComponentType<EntityStore, CasterKitComponent> getCasterKitComponentType() {
         return casterKitComponentType;
+    }
+
+    /** The one-tick roll marker's component type; {@code null} until {@code setup()} registers it (mod enabled). */
+    public ComponentType<EntityStore, PendingRollComponent> getPendingRollComponentType() {
+        return pendingRollComponentType;
     }
 
     public MobScalingPlugin(@Nonnull JavaPluginInit init) {
@@ -134,15 +149,20 @@ public class MobScalingPlugin extends JavaPlugin {
                 ScaledMobComponent.class, ScaledMobComponent::new);
         casterKitComponentType = getEntityStoreRegistry().registerComponent(
                 CasterKitComponent.class, CasterKitComponent::new);
+        pendingRollComponentType = getEntityStoreRegistry().registerComponent(
+                PendingRollComponent.class, PendingRollComponent::new);
 
         // Register the settings + rarity/affix asset stores + their LoadedAssetsEvent folds (real claimed
         // assets, pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
         MobScalingAssetRegistrar.registerAll(this);
 
-        // Scaling systems: the spawn-lock (HolderSystem) + effect reconcile (RefSystem) + the damage-multiply
-        // filter + the on-hit behavioral reactions (inspect group, after ApplyDamage) + the death bonus loot
-        // (native ItemDropList pulls inside the corpse window).
+        // Scaling systems: the spawn-lock (HolderSystem, the gates at the pre-add holder) + its roll one
+        // tick later (EntityTickingSystem over the pending marker, where the ref is valid and a scripted
+        // spawn or an encounter's bound boss can be recognised and left alone) + effect reconcile
+        // (RefSystem) + the damage-multiply filter + the on-hit behavioral reactions (inspect group, after
+        // ApplyDamage) + the death bonus loot (native ItemDropList pulls inside the corpse window).
         getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());
+        getEntityStoreRegistry().registerSystem(new MobScalingRollSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingEffectApplySystem());
         getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
         getEntityStoreRegistry().registerSystem(new MobScalingOnHitSystem());
@@ -186,6 +206,20 @@ public class MobScalingPlugin extends JavaPlugin {
         // so content written against these ids fails closed exactly as it does where the mod is absent.
         MobScalingFactors.contribute();
         MobScalingFactors.logContributed();
+
+        // Hand the boss framework the one number it cannot know for itself: a bound fight's power is
+        // the tracked power of the region its boss stands in. Inside the enabled branch on purpose (a
+        // switched-off mod tracks nothing, so the seam keeps its own unfilled posture rather than a
+        // fill that answers nothing), and guarded the way the rarity seam above is: a ziggfreed-common
+        // jar older than the framework has no seam to fill, and the LinkageError degrades to a fight
+        // that reads zero power with one warning instead of refusing to load the mod.
+        try {
+            EncounterSeams.fillPowerSource(new EncounterPowerFill());
+            safeInfo("Encounter power seam filled: a bound fight reads the tracked region power at its boss.");
+        } catch (LinkageError e) {
+            safeWarn("ziggfreed-common's encounter power seam is unavailable on this jar (needs 2.1.0 or "
+                    + "newer); a bound fight reads zero power. Cause: " + e);
+        }
 
         safeInfo("Mob scaling enabled; systems registered.");
     }

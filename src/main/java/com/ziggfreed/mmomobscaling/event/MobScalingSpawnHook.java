@@ -1,12 +1,8 @@
 package com.ziggfreed.mmomobscaling.event;
 
-import java.util.List;
 import java.util.Set;
-import java.util.UUID;
-import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Archetype;
@@ -19,16 +15,8 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.HolderSystem;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.UUIDComponent;
-import com.hypixel.hytale.server.core.modules.entity.component.DisplayNameComponent;
-import com.hypixel.hytale.server.core.modules.entity.component.PersistentDisplayName;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
-import com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatsSystems;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
@@ -37,44 +25,47 @@ import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.scaling.ScalingContext;
 import com.ziggfreed.common.scaling.ScalingEngine;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
-import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
-import com.ziggfreed.mmomobscaling.family.MobFamilyMatcher;
-import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
-import com.ziggfreed.mmomobscaling.pages.RoleBaseHealthResolver;
-import com.ziggfreed.mmomobscaling.rarity.Rarity;
-import com.ziggfreed.mmomobscaling.rarity.RarityRoster;
-import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
-import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
-import com.ziggfreed.common.util.SplitMix64;
 
 /**
  * The spawn-lock: a {@link HolderSystem} over the structural {@code Archetype.of(NPCEntity, EntityStatMap)}
  * query (copied from {@code BalancingInitialisationSystem}), ordered {@code AFTER RoleBuilderSystem +
- * EntityStatsSystems.Setup} so the role + stat map are built. It resolves a mob's difficulty ONCE at add,
- * rolls rarity + affixes deterministically, folds the frozen {@link ScaledMobComponent} onto the pre-add
- * holder, and scales HP via the ref-less {@code HealthUtil.scaleMaxHealth} (maximized). Zero per-tick cost.
+ * EntityStatsSystems.Setup} so the role + stat map are built. It runs BEFORE the entity has a
+ * {@code Ref}, so it decides only what a pre-add holder can answer: the mod and per-world kill
+ * switches, the classification (excluded / hostile / ambient boss), and the residue cleanup for a
+ * mob that must NOT be scaled on this load. A scalable mob gets a {@link PendingRollComponent}
+ * stamped on the holder and nothing else; {@link MobScalingRollSystem} rolls it on the first tick,
+ * with a valid ref, where the two skips a scripted spawn and an encounter-bound boss need are
+ * readable (the engine attaches a mob's {@code SpawnMarkerReference} in a post-spawn step that runs
+ * AFTER the store's add, and the encounter framework indexes a bound subject on its own tick).
  *
- * <p>Native-asset-first: the aura + affix EFFECTS are applied post-add by {@code MobScalingEffectApplySystem}
- * (a companion {@code RefSystem}); this pre-add step only stamps data + scales HP (ref-less, maximized).
+ * <p><b>Rolled at most once per entity per life.</b> An in-place role change is a remove and a
+ * re-add: the engine's {@code RoleChangeSystem} hands the holder back with its components and adds
+ * it again through every registered {@code HolderSystem} with a fresh {@code Ref}, at every phase
+ * swap of a multi-phase boss. A holder that already carries a {@link ScaledMobComponent} was decided
+ * in an earlier life of this same holder and is left as it is, so a boss is never re-rolled or
+ * re-scaled mid-fight. (A chunk reload is a different case: the component is transient, so a reloaded
+ * mob carries none and is rolled again from its stable seed to the identical result, which is what
+ * reconciles a retune onto a saved mob.) The residue cleanup runs BEFORE that guard, so a mod- or
+ * world-disabled mob and a newly excluded one are still stripped on every load.
  *
  * <p><b>Difficulty scope:</b> {@code effDifficulty} = the LAYERED floor (native zone &gt; biome &gt;
  * the per-world/global {@code Difficulty.Floor} baseline, via {@link ZoneDifficultyResolver}) plus the
  * distance-from-spawn escalation, plus the band-clamped open-world GROUP DELTA off the cached
  * per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker} + ziggfreed-common's
- * {@code ScalingEngine}; see {@link #resolveSpawnScaling}). The escalation also boosts the rarity
- * spawn chance, so the deep frontier is denser with scaled mobs, not just higher-band.
+ * {@code ScalingEngine}; see {@link #resolveSpawnScaling}), resolved by the roll system on its tick.
  * The whole body is one defensive try/catch so a throw never breaks chunk loading.
  */
 public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
 
-    /** Mod-prefixed HP-modifier key (the {@code scaleMaxHealth} idempotency handle; the purge command strips it too). */
+    /** Mod-prefixed HP-modifier key (the {@code reconcileMaxHealth} idempotency handle; the purge command strips it too). */
     public static final String HP_KEY = "mmoscaling_hp";
 
     @Nonnull private final ComponentType<EntityStore, NPCEntity> npcType = NPCEntity.getComponentType();
@@ -137,74 +128,11 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
                 cleanupResidue(holder); // now EXCLUDED (e.g. a role added to the exclude set): strip stale scaling
                 return;
             }
-
-            SpawnScaling scaling = resolveSpawnScaling(world, holder, spawn);
-            double effDifficulty = scaling.difficulty();
-
-            SplitMix64 rng = new SplitMix64(seedFor(npc, world, holder));
-
-            // The per-mob family gate: narrows which rarity tiers / variant overlays may apply to THIS mob (an
-            // authored Families allow/deny block resolved against the mob's role name + native NPCGroup
-            // membership), ANDed with the per-world Pool allow/deny gate (1.0.2). Both are pure functions of
-            // stable identity/config, so they consume no RNG and keep the roll deterministic. Unrestricted
-            // tiers short-circuit cheaply (the common case).
-            Predicate<Rarity> rarityFamilyEligible = r -> spawn.isRarityAllowed(r.id())
-                    && MobFamilyMatcher.get().eligible(r.familyFilter(), npc);
-            Predicate<Variant> variantFamilyEligible = v -> spawn.isVariantAllowed(v.id())
-                    && MobFamilyMatcher.get().eligible(v.familyFilter(), npc);
-
-            // FORCED tier resolution (config-driven, no Java-side special case): a rarity whose authored
-            // Families.ForceGroups / Families.ForceRoles match this mob is granted regardless of weight,
-            // difficulty band, or spawn chance - the mechanism the shipped Rarities/Boss.json uses to claim
-            // the Mmoscaling_Bosses NPCGroup. It consumes no RNG, so the roll below stays deterministic, and
-            // it is a FLOOR: a normal roll landing on a stronger tier still wins.
-            // (Force test first: it short-circuits on the tiers that author no force list at all, which is
-            // every tier in the common case, before the per-world pool set lookup.)
-            Rarity forced = Rosters.rarity().forced(r -> MobFamilyMatcher.get().forces(r.familyFilter(), npc)
-                    && spawn.isRarityAllowed(r.id()));
-            Rarity rolled = Rosters.rarity()
-                    .pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
-            Rarity rarity = RarityRoster.strongerOf(rolled, forced);
-            // The SECOND axis: an independent family-gated variant OVERLAY (at most one), rolled after the base
-            // rarity. Draws exactly once (VariantRoster) so the seed->result mapping stays stable. The base
-            // rarity id (or "" for a plain mob) feeds the variant's requires-rarity gate.
-            String baseRarityId = rarity != null ? rarity.id() : "";
-            Variant variant = Rosters.variant().pick(effDifficulty, baseRarityId,
-                    spawn.getVariantChanceMultiplier(), rng, variantFamilyEligible);
-
-            // Affixes come from BOTH hosts (rarity slots + variant slots) plus the per-world extra slots,
-            // one combined distinct roll that shares the used-set + single-resistance cap; the per-world
-            // Pool.Affixes allow/deny gates every draw (1.0.2).
-            List<Affix> affixes = Rosters.affix().pick(effDifficulty, rarity, variant,
-                    spawn.getExtraAffixSlots(), a -> spawn.isAffixAllowed(a.id()), rng);
-
-            // The base difficulty->stat curve scales plain + rare mobs alike; rarity/affix mults stack on top,
-            // then the variant multiplier stacks multiplicatively over that.
-            MobScaleFold.DifficultyStatCurve curve = spawn.statCurveModel();
-            MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, effDifficulty, scope, curve);
-            // IDEMPOTENT stamp (putComponent, never addComponent): a holder can reach onEntityAdd already
-            // carrying the component (a re-add of a live holder - world transfer, a reload of a still-resident
-            // holder, an entity clone routed back through the add pipeline). addComponent THROWS on a present
-            // component type, and the whole-body catch below would then also skip the HP reconcile.
-            holder.putComponent(ScaledMobComponent.getComponentType(), new ScaledMobComponent(result));
-
-            if (rarity != null || variant != null) {
-                decorateDisplayName(holder, rarity, variant);
+            if (holder.getComponent(ScaledMobComponent.getComponentType()) != null) {
+                return; // decided in an earlier life of this holder (an in-place role change re-adds it): rolled once
             }
-
-            // Observed-spawn ground truth for the admin-page preview (round-3 hardening): the CURRENT
-            // Health-stat max, read BEFORE we touch it below - the balanced base PLUS whatever any
-            // earlier-ordered mod's modifier already stacked on, never our OWN mmoscaling_hp modifier
-            // (this system is what applies that one, and only after this read). Best-effort; never
-            // allowed to disturb the actual HP scaling that follows.
-            recordObservedBaseHealth(npc, holder);
-
-            // HP: NATIVE EntityStats - a multiplicative MAX StaticModifier on the EntityStatMap, ref-less on
-            // the pre-add holder. RECONCILE (not add-only): converge the mmoscaling_hp modifier to the fresh
-            // hpMult, so a retune / floor / rarity change on chunk reload never strands a stale inflated max
-            // (hpMult==1 removes any prior modifier; a shrink auto-clamps current HP; the first apply heals).
-            // The companion effect system sweeps stale Mmoscaling_* auras the same add cycle.
-            HealthUtil.reconcileMaxHealth(holder, result.hpMult(), HP_KEY);
+            // The roll itself waits for the first tick, where a valid Ref makes the two skips readable.
+            holder.putComponent(PendingRollComponent.getComponentType(), new PendingRollComponent(scope));
         } catch (Throwable t) {
             safeWarn("spawn scale failed for role " + failRole + ": " + t);
         }
@@ -235,78 +163,6 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     }
 
     /**
-     * Feed {@link RoleBaseHealthResolver} a ground-truth base-health reading for this role (round-3
-     * hardening): the {@code Health} stat's CURRENT max, read via the cached {@link #statType} component
-     * type right before {@link HealthUtil#reconcileMaxHealth} applies the {@code mmoscaling_hp}
-     * modifier - so it is the native-balanced base PLUS whatever any earlier-ordered mod's own modifier
-     * already stacked on, never this system's own key (applied only after this read). The admin page's
-     * skeleton preview prefers this live reading over {@link RoleBaseHealthResolver}'s reflective
-     * template read. Allocation-free, O(1); fully try-guarded so a failure here can never skip the actual
-     * HP scaling below (a display-only diagnostic must never gate gameplay).
-     */
-    private void recordObservedBaseHealth(@Nonnull NPCEntity npc, @Nonnull Holder<EntityStore> holder) {
-        try {
-            String roleName = npc.getRoleName();
-            if (roleName == null) {
-                return;
-            }
-            EntityStatMap stats = holder.getComponent(statType);
-            if (stats == null) {
-                return;
-            }
-            EntityStatValue health = stats.get(DefaultEntityStatTypes.getHealth());
-            if (health == null) {
-                return;
-            }
-            // A RELOADED already-scaled mob still carries the persisted mmoscaling_hp modifier at this
-            // point (reconcile below is what converges it) - its max is post-scale, NOT base. Skip it;
-            // fresh spawns supply the true base reading.
-            if (health.getModifier(HP_KEY) != null) {
-                return;
-            }
-            RoleBaseHealthResolver.recordObserved(roleName, Math.round(health.getMax()));
-        } catch (Throwable ignored) {
-            // best-effort: the preview simply falls back to RoleBaseHealthResolver's template read
-        }
-    }
-
-    /**
-     * Stamp the rarity/variant-decorated display name (surfaces in DEATH MESSAGES / kill feed / logs - the
-     * engine does not render {@code DisplayNameComponent} as an overhead nameplate). Composes localized FRAME
-     * keys with NESTED client-resolved {@code Message} params - never a joined/raw English-order string - so
-     * every locale reorders the frame its own way: the rarity frame {@code mmomobscaling.name.decorated}
-     * ({@code {rarity} {base}}) wraps the base, then the variant frame {@code mmomobscaling.name.variant_decorated}
-     * ({@code {variant} {inner}}) wraps THAT (so "Horrific Epic Spider"). Either host may be absent (a
-     * variant-only mob is "Horrific Spider"; caller guarantees at least one is present). Reads the base name
-     * RoleBuilderSystem already stamped this same add cycle (we order AFTER it), so a reload never
-     * double-decorates. SKIPS a mob carrying {@code PersistentDisplayName} (a player-authored custom name must
-     * never be overwritten) - the same guard RoleBuilderSystem itself uses.
-     */
-    private static void decorateDisplayName(@Nonnull Holder<EntityStore> holder, @Nullable Rarity rarity,
-            @Nullable Variant variant) {
-        if (holder.getComponent(PersistentDisplayName.getComponentType()) != null) {
-            return;
-        }
-        DisplayNameComponent existing = holder.getComponent(DisplayNameComponent.getComponentType());
-        Message base = existing != null ? existing.getDisplayName() : null;
-        if (base == null) {
-            return; // no base name to decorate (nameless archetype)
-        }
-        Message decorated = base;
-        if (rarity != null) {
-            decorated = Message.translation("mmomobscaling.name.decorated")
-                    .param("rarity", Message.translation(MobScalingTextUtil.rarityNameKey(rarity)))
-                    .param("base", decorated);
-        }
-        if (variant != null) {
-            decorated = Message.translation("mmomobscaling.name.variant_decorated")
-                    .param("variant", Message.translation(MobScalingTextUtil.variantNameKey(variant)))
-                    .param("inner", decorated);
-        }
-        holder.putComponent(DisplayNameComponent.getComponentType(), new DisplayNameComponent(decorated));
-    }
-
-    /**
      * One fully-resolved spawn-scaling read: the effective difficulty (floor + escalation + group
      * delta), the escalation-boosted rarity spawn chance, and the diagnostic breakdown
      * ({@code /mobscaling inspect} prints every field so owners can see exactly which layer produced
@@ -323,27 +179,9 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     }
 
     /**
-     * The holder form of the spawn-scaling resolve. A missing pre-add {@code TransformComponent}
-     * degrades to the world baseline floor + the un-boosted chance (no position = no zone, no
-     * escalation, no group delta).
-     */
-    private static SpawnScaling resolveSpawnScaling(@Nonnull World world,
-            @Nonnull Holder<EntityStore> holder, @Nonnull SpawnScalingSettings settings) {
-        TransformComponent transform = holder.getComponent(TransformComponent.getComponentType());
-        if (transform == null) {
-            double floor = settings.getDifficultyFloor();
-            return new SpawnScaling(floor, settings.getRaritySpawnChance(), ZoneDifficultyResolver.NO_ZONE,
-                    floor, 0.0, floor, 0.0, ZoneDifficultyResolver.NO_ZONE, false, false, 0.0);
-        }
-        return resolveSpawnScaling(world,
-                ChunkUtil.chunkCoordinate(transform.getPosition().x),
-                ChunkUtil.chunkCoordinate(transform.getPosition().z), settings);
-    }
-
-    /**
-     * The chunk-coordinate form of the spawn-scaling resolve, shared with the HUD and the
-     * {@code /mobscaling inspect} diagnostic so both report EXACTLY what a spawn at that spot would
-     * resolve. Pipeline: {@link ZoneDifficultyResolver} produces the layered floor (native zone &gt;
+     * The chunk-coordinate form of the spawn-scaling resolve, shared by the roll system, the HUD and the
+     * {@code /mobscaling inspect} diagnostic so all three report EXACTLY what a spawn at that spot
+     * resolves. Pipeline: {@link ZoneDifficultyResolver} produces the layered floor (native zone &gt;
      * biome &gt; world baseline) plus the distance escalation (which also boosts the rarity chance);
      * then the cached per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker}, O(1),
      * maintained on player region-cross, NEVER a per-spawn scan) rides on top through
@@ -366,9 +204,8 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         // LOCATION drives difficulty (the escalated floor). Player/group power only ever RAISES it above
         // that floor (never lowers it, when OnlyRaiseDifficulty is set), and is fully OFF inside the
         // PROTECTED RING near world spawn (OpenWorld.PlayerScalingStartRingBlocks, 0 = no ring), so an
-        // owner who wants a safe newcomer home area opts into one.
-        // 1.0.1: a world with PlayerScalingEnabled=false (e.g. a fixed-difficulty dungeon) skips the group
-        // delta entirely and stays at the escalated floor regardless of nearby player power.
+        // owner who wants a safe newcomer home area opts into one. A world with PlayerScalingEnabled=false
+        // (e.g. a fixed-difficulty dungeon) skips the group delta entirely and stays at the escalated floor.
         double difficulty = floor.effectiveFloor();
         boolean playerScalingApplied =
                 settings.isPlayerScalingEnabled() && regionPower > 0.0 && !floor.insideStartRing();
@@ -381,29 +218,6 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         return new SpawnScaling(difficulty, floor.raritySpawnChance(), floor.zoneName(),
                 floor.baseFloor(), floor.escalationBonus(), floor.effectiveFloor(), regionPower,
                 floor.biomeName(), floor.insideStartRing(), playerScalingApplied, floor.distanceFromSpawn());
-    }
-
-    /**
-     * A restart-STABLE, per-ENTITY deterministic seed: the entity's UUID folded with the world seed. The UUID
-     * is persisted with the entity and restored UNCHANGED on chunk reload / restart (unlike a drifting
-     * position, which re-rolls a moved mob differently, or the restart-unstable {@code roleIndex}), so the
-     * SAME mob re-rolls the SAME rarity/affixes/mults every time - the fix for the reload re-roll drift.
-     * Falls back to a stable per-role seed ({@code roleName} is restart-stable, NOT position) only if the
-     * UUID is somehow absent pre-add.
-     */
-    private static long seedFor(@Nonnull NPCEntity npc, @Nonnull World world, @Nonnull Holder<EntityStore> holder) {
-        long worldSeed = world.getWorldConfig().getSeed();
-        UUIDComponent uuidComp = holder.getComponent(UUIDComponent.getComponentType());
-        if (uuidComp != null) {
-            UUID uuid = uuidComp.getUuid();
-            if (uuid != null) {
-                long entitySeed = SplitMix64.mix(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits());
-                return SplitMix64.mix(entitySeed, worldSeed);
-            }
-        }
-        String roleName = npc.getRoleName();
-        long roleHash = roleName != null ? roleName.hashCode() : npc.getRoleIndex();
-        return SplitMix64.mix(roleHash, worldSeed);
     }
 
     private static void safeWarn(@Nonnull String message) {

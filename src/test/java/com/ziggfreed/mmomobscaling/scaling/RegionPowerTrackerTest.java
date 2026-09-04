@@ -2,6 +2,7 @@ package com.ziggfreed.mmomobscaling.scaling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
@@ -67,6 +68,21 @@ class RegionPowerTrackerTest {
         t.updatePresence(P1, "flatworld", gridOnly, 40.0, AggregationMode.AVERAGE);
         assertEquals(40.0, t.scalarFor("flatworld", gridOnly), 1e-9,
                 "a zoneless world tracks on the pure chunk grid");
+    }
+
+    @Test
+    void scalarIfTrackedTellsAColdRegionFromAZeroFold() {
+        RegionPowerTracker t = RegionPowerTracker.get();
+        RegionKey region = zone1(0, 0);
+        assertNull(t.scalarIfTracked("orbis", region), "nobody tracked anywhere in the world reads unknown");
+        t.updatePresence(P1, "orbis", region, 0.0, AggregationMode.AVERAGE);
+        assertEquals(0.0, t.scalarIfTracked("orbis", region), 1e-9,
+                "a tracked player folding to zero is a real zero, not an unknown");
+        assertNull(t.scalarIfTracked("orbis", zone1(30, 30)), "a cold region in a tracked world reads unknown");
+        assertNull(t.scalarIfTracked("otherworld", region), "worlds are isolated");
+        t.removePresence(P1, AggregationMode.AVERAGE);
+        assertNull(t.scalarIfTracked("orbis", region), "the last member leaving drops the bucket back to unknown");
+        assertEquals(0.0, t.scalarFor("orbis", region), 1e-9, "the zero-delta read still answers 0 for the same miss");
     }
 
     @Test

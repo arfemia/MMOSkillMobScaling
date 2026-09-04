@@ -3,5 +3,7 @@ build/
 .idea/
 *.iml
 out/
-run/
+# The dev-server working dir at the repo root only: an unanchored run/ would also swallow
+# any source package named run under src/.
+/run/
 local.properties

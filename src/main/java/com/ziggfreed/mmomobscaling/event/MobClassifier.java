@@ -21,7 +21,11 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  *       empty, an owner opt-out list). Wins over everything.</li>
  *   <li>{@code Server/NPC/Groups/Mmoscaling_Bosses.json} membership -> {@link MobScaleResult#SCOPE_BOSS}
  *       (the scope stamped on the spawn result; caster-roster entries gate on it via {@code Scope: BOSS}).
- *       The boss RARITY tier is a separate, purely config-driven concern: the shipped
+ *       The tagset is the elite scope for an AMBIENT boss: a world boss nobody scripted, met where it
+ *       roams. A boss an encounter runs declares itself by being bound to that encounter, and this mod
+ *       never classifies it at all: the roll skips a scripted spawn and a bound subject before any
+ *       group is consulted (see {@code MobScalingRollSystem}), because the encounter already owns its
+ *       stats. The boss RARITY tier is a separate, purely config-driven concern: the shipped
  *       {@code Rarities/Boss.json} names this same group in its {@code Families.ForceGroups}, so any tier
  *       may claim any group without a Java-side special case.</li>
  *   <li>Else the native role {@link Attitude}: {@code HOSTILE} scales ({@link MobScaleResult#SCOPE_HOSTILE});
@@ -33,7 +37,11 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  */
 final class MobClassifier {
 
-    /** The authored boss tagset id ({@code Server/NPC/Groups/Mmoscaling_Bosses.json}). */
+    /**
+     * The authored boss tagset id ({@code Server/NPC/Groups/Mmoscaling_Bosses.json}): the AMBIENT world
+     * bosses this mod scales. A scripted encounter boss is never listed here; it is skipped before the
+     * classifier is asked.
+     */
     static final String BOSS_GROUP_ID = "Mmoscaling_Bosses";
     /** The authored owner-exclusion tagset id ({@code Server/NPC/Groups/Mmoscaling_Excluded.json}). */
     static final String EXCLUDED_GROUP_ID = "Mmoscaling_Excluded";

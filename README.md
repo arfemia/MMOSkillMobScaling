@@ -22,8 +22,8 @@ data-driven, so any of it is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.m
 Drop the built jar in your server's `Mods/` folder alongside its dependencies. Both are
 loaded before this mod:
 
-- **ZiggfreedCommon >= 1.2.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on).
-- **MMOSkillTree >= 1.5.0** - the MMO Skill Tree mod (supplies the player-power / combat-level API).
+- **ZiggfreedCommon >= 2.1.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
+- **MMOSkillTree >= 1.6.1** - the MMO Skill Tree mod (supplies the player-power / combat-level API and the ability-casting API).
 
 ## Configuration
 
@@ -46,11 +46,12 @@ exactly which line to add. Full authoring notes and troubleshooting: [CURSEFORGE
 
 ## Version story
 
-This mod is compiled against the LOCAL `MMOSkillTree-1.5.0.jar` dev jar, which carries the
-frozen 1.5.0 API this mod reads (`getPowerLevel` / `statRewardSum` / `getCombatLevel` +
-the `registerMobKillXpMultiplier` reward hook). Its manifest pins the RUNTIME requirement at
-MMOSkillTree `>=1.5.0` and ZiggfreedCommon `>=1.2.0`; both are loaded before this mod and
-referenced `compileOnly`, never bundled. See the comment block in `build.gradle`.
+The family moves in lockstep. This mod is compiled against the LOCAL `MMOSkillTree-1.6.1.jar`
+and `ZiggfreedCommon-2.1.0.jar` dev jars (the pins in `gradle.properties`), and its manifest's
+RUNTIME floors are those same versions: MMOSkillTree `>=1.6.1` and ZiggfreedCommon `>=2.1.0`. When
+either dependency ships, the pin and the floor move together. Both jars are loaded before this mod
+and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.properties` and
+`build.gradle`.
 
 ## Build
 

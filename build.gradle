@@ -20,26 +20,21 @@ repositories {
 }
 
 // ============================================================================
-// VERSION STORY (intentional, do not "fix"):
-//   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar
-//   (1.6.0), which carries the frozen 1.5.0 API surface the scaling systems call
-//   (getPowerLevel / getPowerLevelMin / getPowerLevelMax / statRewardSum / getCombatLevel,
-//   plus the registerMobKillXpMultiplier reward hook) PLUS (1.1.0) castNpcAbility(Store,
-//   Ref, String), the API the caster roster's ABILITY entries call. Its manifest,
-//   however, pins the RUNTIME requirement at "Ziggfreed:MMOSkillTree": ">=1.5.0", not
-//   1.6.0. So: compile against the 1.6.0 dev jar, require only 1.5.0 at runtime. This is
-//   deliberate: only the ABILITY caster entries need castNpcAbility, and they degrade
-//   gracefully (one session warning via caster/CasterFeatureState) rather than crashing
-//   when the runtime jar is older than the dev jar this compiled against - see that
-//   class's javadoc. HP scaling, rarities/affixes/variants, the HUD, and NativeChain
-//   caster entries all still work unchanged on a plain 1.5.0 runtime jar.
+// VERSION STORY (the lockstep rule; the full statement is in gradle.properties):
+//   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar and
+//   ZiggfreedCommon-<ziggfreedCommonVersion>.jar, and its manifest's RUNTIME floors are
+//   those same versions. The family ships together: when either dependency ships, the
+//   pin and the floor move in the same change. The LinkageError guards around the newer
+//   seams (registerKillRarityProvider, the encounter runtime, the encounter power seam)
+//   keep a mis-installed server from failing to load the mod; they do not make an older
+//   jar a supported one.
 // ============================================================================
 
 // Compile against the SAME jar the server runs (path in gradle.properties).
 def hytaleServerJar  = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
 // The shared primitive lib (sibling submodule), local jar until a remote gitlink exists.
 def ziggfreedCommonJar = new File("${rootDir}/../ziggfreed-common/build/libs/ZiggfreedCommon-${ziggfreedCommonVersion}.jar")
-// The hyMMO mod jar (the umbrella repo's build/libs), the dev jar with the frozen 1.5.0 API.
+// The hyMMO mod jar (the umbrella repo's build/libs), the release this mod ships beside.
 def mmoSkillTreeJar    = new File("${rootDir}/../../build/libs/MMOSkillTree-${mmoSkillTreeVersion}.jar")
 
 dependencies {
