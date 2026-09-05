@@ -48,7 +48,9 @@ player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-dif
 crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
 concerns pass ADDED: the NATIVE-ZONE floor resolver (`world/ZoneDifficultyResolver`: authored
 `Difficulty/*.json` mappings over the engine's own `Zone.name()`/`Biome.getName()`, precedence zone
-exact > zone `*` > biome exact > biome `*` > `WorldRules` baseline, one memoized zone read per chunk)
+exact > zone segment-prefix > biome exact > biome segment-prefix > zone `*` > biome `*` > the
+world-baseline `Difficulty.Floor` (per-world, else global), so a named biome floor beats the
+`ZoneAny` wildcard, one memoized zone read per chunk)
 PLUS a configurable DISTANCE ESCALATION (additive difficulty + rarity-chance bonus with distance from
 world spawn, so the deep frontier is deadly in every zone); the ZONE + PROXIMITY HYBRID region buckets
 (`RegionPowerTracker.RegionKey` = native zone name + chunk sub-grid cell; zoneless worlds fall back to
@@ -279,7 +281,7 @@ Confirmed by the native-leverage audit (hyMMO monorepo: `.claude/research/1-5-0-
 phases:
 - **Affixes / auras / movement = pure-data `EntityEffect` fields self-applied via the asset-authoritative
   `EntityEffectService.apply`, zero Java:** Armored (`DamageResistance`), **Stalwart (`KnockbackMultiplier: 0.0`
-  = knockback immunity; its +15% HP is `HpDelta` folded into `hpMult`, applied via `HealthUtil`, NOT an
+  = knockback immunity; its +15% HP is the affix's `FoldDeltas.Hp` leaf folded into `hpMult`, applied via `HealthUtil`, NOT an
   effect)**, **Swift (`ApplicationEffects.HorizontalSpeedMultiplier` 1.3 + the same value on
   `MovementEffects.SpeedMultiplier`)**, aura tints/ModelVFX. Swift is NOT deferred: there IS a native
   movement-speed EFFECT field, folded into real NPC walk speed every tick. Speed effects author BOTH
@@ -337,8 +339,8 @@ phases:
 HP / mults stay on the transient `ScaledMobComponent` (a custom `EntityStatType` registers but NO native
 system reads a non-default stat index, so it is pure per-tick cost); the general `inDmgMult` stays a frozen
 pipeline multiply (native `DamageResistance` is per-cause, no wildcard, changes stacking); the rarity HP
-MULTIPLIER **and the Stalwart affix HpDelta** stay on `HealthUtil` (the effect path lacks `maximizeStatValue`,
-and an effect-based +maxHP would spawn the mob damaged + double-apply with the HpDelta fold) - but the LOAD path
+MULTIPLIER **and the Stalwart affix `FoldDeltas.Hp`** stay on `HealthUtil` (the effect path lacks `maximizeStatValue`,
+and an effect-based +maxHP would spawn the mob damaged + double-apply with the `FoldDeltas.Hp` fold) - but the LOAD path
 now uses the RECONCILE variant `HealthUtil.reconcileMaxHealth` (converges the keyed modifier to the fresh roll,
 so a retune / floor / rarity change never strands a stale inflated max); Vampiric per-hit lifesteal stays
 mod-side in `MobScalingOnHitSystem` (no native on-hit-DEALT sensor). Full ranked evidence lives in the hyMMO
