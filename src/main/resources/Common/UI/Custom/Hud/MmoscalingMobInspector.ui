@@ -1,6 +1,11 @@
+$Z = "../Common/ZigButtons.ui";
+
 // Styled to MATCH the native Hytale objective HUD (client ObjectivePanel + ObjectiveCommon): the
 // ObjectivePanelContainer frame plus the bold + LetterSpacing 1 family and the gray/gold palette. The
 // frame texture is copied alongside this file so the server-shipped Custom UI can resolve it by name.
+// The affix chips' item icons take their ItemGrid Style from Ziggfreed Common's shared ZigButtons.ui
+// ladder (Common/ and Hud/ are siblings under Custom/, so "../Common/" reaches it); an ItemGrid with
+// no Style lays out its width and draws nothing in it.
 
 @InspectNameStyle = (FontSize: 14, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
 
@@ -92,7 +97,8 @@ Group {
 
       // Affix chips wrap onto a second line. Each chip is a fixed-width icon + name so the wrap is
       // predictable (two 100-wide chips fit the 214 info column); the two sibling icon widgets
-      // (#IcoItem / #IcoTex) are toggled by the shared ui/icon/IconRenderer.
+      // (#IcoItem, a one-slot ItemGrid for an item id, and #IcoTex, an AssetImage for a texture
+      // path) are toggled by the shared ui/icon/IconRenderer, exactly one of them ever visible.
       Group #MmoscalingInspectAffixRow {
         Anchor: (Height: 40);
         LayoutMode: LeftCenterWrap;
@@ -100,8 +106,8 @@ Group {
         Group #Affix0 {
           Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
           Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
@@ -109,8 +115,8 @@ Group {
         Group #Affix1 {
           Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
           Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
@@ -118,8 +124,8 @@ Group {
         Group #Affix2 {
           Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
           Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
@@ -127,8 +133,8 @@ Group {
         Group #Affix3 {
           Anchor: (Width: 100, Height: 18);
           LayoutMode: Left;
-          ItemIcon #IcoItem { Visible: false; Anchor: (Width: 16, Height: 16); }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 16, Height: 16); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
           Group #IcoGap { Anchor: (Width: 4); }
           Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
         }
