@@ -1,11 +1,11 @@
 $Z = "../Common/ZigButtons.ui";
 
 // Styled to MATCH the native Hytale objective HUD (client ObjectivePanel + ObjectiveCommon): the
-// ObjectivePanelContainer frame plus the bold + LetterSpacing 1 family and the gray/gold palette. The
-// frame texture is copied alongside this file so the server-shipped Custom UI can resolve it by name.
-// The affix chips' item icons take their ItemGrid Style from Ziggfreed Common's shared ZigButtons.ui
-// ladder (Common/ and Hud/ are siblings under Custom/, so "../Common/" reaches it); an ItemGrid with
-// no Style lays out its width and draws nothing in it.
+// ObjectivePanelContainer frame plus the bold + LetterSpacing 1 family and the gray/gold palette. Both
+// that frame texture and the affix chips' ItemGrid Style ladder come from Ziggfreed Common, which this
+// mod requires: every pack merges into ONE Custom UI namespace, so the bare "ObjectivePanelContainer.png"
+// below finds the copy the library ships into this same Hud/ folder, and "../Common/ZigButtons.ui"
+// reaches its sibling Common/ folder. An ItemGrid with no Style lays out its width and draws nothing.
 
 @InspectNameStyle = (FontSize: 14, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
 
@@ -16,6 +16,15 @@ $Z = "../Common/ZigButtons.ui";
 @InspectHpTextStyle = (FontSize: 11, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
 
 @InspectAffixStyle = (FontSize: 13, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+
+// Bar dressing that makes the fill read as a real bar rather than a coloured rectangle, all colour-agnostic
+// so it works over any mob health bar colour. A dark well behind the fill, a highlight across its top, and
+// a shade along its bottom.
+@TrackWell = #05080c(0.72);
+@Gloss = #ffffff(0.22);
+@BaseShade = #000000(0.22);
+@GlossAnchor = (Left: 0, Right: 0, Top: 0, Height: 3);
+@BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);
 
 Group {
   Group #MmoscalingInspectPanel {
@@ -81,11 +90,13 @@ Group {
       Group #MmoscalingInspectHpBg {
         Anchor: (Width: 214, Height: 14);
         Padding: (Full: 1);
-        Background: #000000(0.6);
+        Background: @TrackWell;
 
         Group #MmoscalingInspectHpFill {
           Anchor: (Left: 0, Top: 0, Bottom: 0, Width: 0);
           Background: #c94f4f;
+          Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
+          Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
         }
 
         Label #MmoscalingInspectHp {

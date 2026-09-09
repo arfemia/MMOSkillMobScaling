@@ -1,7 +1,8 @@
 // Styled to MATCH the native Hytale objective HUD (client ObjectivePanel + ObjectiveCommon): the
 // ObjectivePanelContainer frame, an uppercase-gray heading, gold emphasis values, gray body lines, and
-// the bold + LetterSpacing 1 FontSize-15 family. The frame texture is copied alongside this file so the
-// server-shipped Custom UI can resolve it by name.
+// the bold + LetterSpacing 1 FontSize-15 family. The frame texture sits in this same Hud/ folder of the
+// merged Custom UI namespace, shipped there by Ziggfreed Common (which this mod requires), so the bare
+// filename below resolves to it.
 
 @ZoneTitleStyle = (FontSize: 15, TextColor: #b7b8b9, RenderBold: true, RenderUppercase: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
