@@ -2,7 +2,7 @@
 
 All notable changes to MMO Mob Scaling. Newest first. No em-dashes.
 
-## 1.2.0 - unreleased
+## 1.2.0 - 2026-09-12
 
 Requires Ziggfreed Common 2.1.0 and MMO Skill Tree 1.6.1 or newer; the three ship together.
 

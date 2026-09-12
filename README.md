@@ -9,7 +9,7 @@ tougher, rarer enemies while a lone newcomer is not overwhelmed.
 
 ## Status
 
-**v1.2.0 is built and held for release; 1.1.0 is the last public build.** The full scaling system is in:
+**v1.2.0 is the current public build, released 2026-09-12.** The full scaling system is in:
 layered native zone/biome difficulty floors + a distance-from-spawn escalation + a group-power
 delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix catalog on native
 `EntityEffect` assets, deterministic per-UUID rolls, bonus kill-XP + native drop-list loot, the
