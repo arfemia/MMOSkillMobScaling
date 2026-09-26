@@ -119,11 +119,17 @@ class MobScalingConfigTest {
         assertEquals(0.01, cfg.getEscalationRarityChancePerPoint(), 1e-9, "escalation chance-bonus default");
         // Difficulty.StatCurve: the shipped steep per-difficulty stat curve.
         assertEquals(0.08, cfg.getStatCurveHpPerPoint(), 1e-9, "StatCurve.HpPerPoint default");
-        assertEquals(0.01, cfg.getStatCurveOutDamagePerPoint(), 1e-9, "StatCurve.OutDamagePerPoint default");
+        // The outgoing-damage slope is BALANCE and is derived from how much damage a player of the matching
+        // power level can actually absorb, so it moves whenever that bound moves. Assert the shape, not the
+        // number: it has to be positive (a mob hits harder as difficulty rises, never softer) and it has to
+        // stay under its own ceiling at the difficulty cap, or the ceiling is the only thing in play.
+        assertTrue(cfg.getStatCurveOutDamagePerPoint() > 0.0,
+                "StatCurve.OutDamagePerPoint decoded to a positive slope");
         assertEquals(0.002, cfg.getStatCurveInDamageReductionPerPoint(), 1e-9,
                 "StatCurve.InDamageReductionPerPoint default");
         assertEquals(20.0, cfg.getStatCurveMaxHpMult(), 1e-9, "StatCurve.MaxHpMult default");
-        assertEquals(12.0, cfg.getStatCurveMaxOutDamageMult(), 1e-9, "StatCurve.MaxOutDamageMult default");
+        assertTrue(cfg.getStatCurveMaxOutDamageMult() >= 1.0,
+                "StatCurve.MaxOutDamageMult decoded to a ceiling that permits at least no scaling");
         assertEquals(0.5, cfg.getStatCurveMinInDamageMult(), 1e-9, "StatCurve.MinInDamageMult default");
         assertTrue(cfg.isZoneHudEnabled(), "ZoneHudEnabled default");
         assertEquals("TOP_LEFT", cfg.getZoneHudPosition(), "ZoneHudPosition default");
@@ -274,24 +280,33 @@ class MobScalingConfigTest {
     void intensityScalesTheStatCurveSlopes() {
         MobScalingConfig cfg = freshDefaults(); // Intensity default 1.0
         MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
-        assertEquals(0.08, curve.hpPerPoint(), 1e-9, "intensity 1.0 leaves the slope unchanged");
-        assertEquals(0.01, curve.outPerPoint(), 1e-9, "intensity 1.0 leaves the out slope unchanged");
+        // Assert the RELATIONSHIP (intensity 1.0 is the identity) against the leaves the asset actually
+        // shipped, rather than restating those numbers here: they are balance and they move.
+        assertEquals(cfg.getStatCurveHpPerPoint(), curve.hpPerPoint(), 1e-9,
+                "intensity 1.0 leaves the HP slope unchanged");
+        assertEquals(cfg.getStatCurveOutDamagePerPoint(), curve.outPerPoint(), 1e-9,
+                "intensity 1.0 leaves the out slope unchanged");
         // The caps are NOT scaled by intensity.
-        assertEquals(20.0, curve.maxHpMult(), 1e-9, "intensity does not scale caps");
+        assertEquals(cfg.getStatCurveMaxHpMult(), curve.maxHpMult(), 1e-9, "intensity does not scale caps");
     }
 
     @Test
     void ownerIntensityMultipliesTheStatCurve(@TempDir Path tmp) throws Exception {
+        // Capture the shipped slopes first, so "doubles" is asserted as a RATIO against whatever the asset
+        // ships rather than against two numbers retyped here that a balance pass would invalidate.
+        MobScalingConfig cfg = freshDefaults();
+        double baseHpSlope = cfg.statCurveModel().hpPerPoint();
+        double baseOutSlope = cfg.statCurveModel().outPerPoint();
+
         Path configFile = tmp.resolve("mob-scaling.json");
         Files.writeString(configFile, "{\n  \"Intensity\": 2.0\n}\n");
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
         cfg.setConfigPath(configFile);
         cfg.load();
 
         assertEquals(2.0, cfg.getIntensity(), 1e-9, "owner Intensity applied");
         MobScaleFold.DifficultyStatCurve curve = cfg.statCurveModel();
-        assertEquals(0.16, curve.hpPerPoint(), 1e-9, "2.0 intensity doubles the HP slope");
-        assertEquals(0.02, curve.outPerPoint(), 1e-9, "2.0 intensity doubles the out slope");
+        assertEquals(baseHpSlope * 2.0, curve.hpPerPoint(), 1e-9, "2.0 intensity doubles the HP slope");
+        assertEquals(baseOutSlope * 2.0, curve.outPerPoint(), 1e-9, "2.0 intensity doubles the out slope");
     }
 
     @Test

@@ -12,10 +12,10 @@
     },
     "StatCurve": {
       "HpPerPoint": 0.05,
-      "OutDamagePerPoint": 0.0025,
+      "OutDamagePerPoint": 0.12,
       "InDamageReductionPerPoint": 0.0015,
       "MaxHpMult": 12.0,
-      "MaxOutDamageMult": 9.0,
+      "MaxOutDamageMult": 30.0,
       "MinInDamageMult": 0.6
     }
   }
