@@ -98,6 +98,7 @@ hud.zone.tier.deadly = Ölümcül
 
 hud.inspect.difficulty = Zorluk {value}
 hud.inspect.hp = {current} / {max}
+hud.inspect.mults = Sağlık {hp}%, alır {taken}%, verir {dealt}%
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.

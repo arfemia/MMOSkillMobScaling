@@ -107,7 +107,13 @@ class MobScalingConfigTest {
         assertEquals(1.0, cfg.getDifficultyMinCap(), 1e-9, "Difficulty.MinCap default");
         assertEquals(200.0, cfg.getDifficultyMaxCap(), 1e-9, "Difficulty.MaxCap default");
         assertTrue(cfg.isDistanceEscalationEnabled(), "Difficulty.DistanceEscalation.Enabled default");
-        assertEquals(15000.0, cfg.getEscalationStartDistanceBlocks(), 1e-9, "escalation start default");
+        // The escalation start is BALANCE, so this asserts the leaf decoded to something usable rather than
+        // restating the shipped number (a retune must never need a test edit). It has to be positive, or
+        // escalation would begin at the world spawn, and it has to sit inside the range players reach, or
+        // escalation never engages at all - which is the failure a server owner actually reports.
+        assertTrue(cfg.getEscalationStartDistanceBlocks() > 0.0
+                        && cfg.getEscalationStartDistanceBlocks() < 100_000.0,
+                "escalation start decoded to a reachable positive distance");
         assertEquals(500.0, cfg.getEscalationBlocksPerPoint(), 1e-9, "escalation slope default");
         assertEquals(199.0, cfg.getEscalationMaxBonus(), 1e-9, "escalation cap default");
         assertEquals(0.01, cfg.getEscalationRarityChancePerPoint(), 1e-9, "escalation chance-bonus default");
@@ -174,6 +180,14 @@ class MobScalingConfigTest {
                 """);
 
         MobScalingConfig cfg = MobScalingConfig.getInstance();
+        // Read the shipped escalation start from a defaults-only load FIRST, so the "sibling leaf keeps its
+        // default" assertion below compares against whatever the asset actually ships rather than restating
+        // the number here. Restating it makes a balance retune look like a test failure, which is exactly
+        // what this file must not do.
+        cfg.setConfigPath(tmp.resolve("absent.json"));
+        cfg.load();
+        double shippedEscalationStart = cfg.getEscalationStartDistanceBlocks();
+
         cfg.setConfigPath(configFile);
         cfg.load();
 
@@ -183,7 +197,7 @@ class MobScalingConfigTest {
         assertEquals(150.0, cfg.getDifficultyMaxCap(), 1e-9, "owner nested cap applied");
         assertEquals(1.0, cfg.getDifficultyMinCap(), 1e-9, "sibling cap stays default");
         assertEquals(40.0, cfg.getEscalationMaxBonus(), 1e-9, "doubly-nested owner leaf applied");
-        assertEquals(15000.0, cfg.getEscalationStartDistanceBlocks(), 1e-9,
+        assertEquals(shippedEscalationStart, cfg.getEscalationStartDistanceBlocks(), 1e-9,
                 "doubly-nested sibling leaf stays default");
         // Doubly-nested StatCurve: the owner sets only HpPerPoint; sibling leaves keep the Default.
         assertEquals(0.2, cfg.getStatCurveHpPerPoint(), 1e-9, "doubly-nested StatCurve owner leaf applied");

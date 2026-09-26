@@ -463,10 +463,19 @@ public final class ScalingContentValidator {
     public static List<String> validateDifficultyCaps(double difficultyMinCap, double difficultyMaxCap,
                                                       @Nullable Double powerMin, @Nullable Double powerMax) {
         List<String> findings = new ArrayList<>();
-        if (powerMax != null && Math.abs(difficultyMaxCap - powerMax) > 1e-9) {
-            findings.add("Difficulty.MaxCap (" + difficultyMaxCap + ") != MMO PowerLevel Clamp.MaxPower ("
-                    + powerMax + "): the power-minus-difficulty group delta miscalibrates;"
-                    + " align mob-scaling.json Difficulty.MaxCap with the MMO's power-level.json Clamp.MaxPower");
+        // Only a maximum BELOW the MMO's power ceiling is a miscalibration: region power can then exceed
+        // the cap the group delta is clamped to, so the strongest groups all land on the same difficulty
+        // and the delta stops distinguishing them. A maximum ABOVE it is a deliberate, supported choice -
+        // it is how an owner lets the zone floor and the distance escalation carry difficulty past
+        // anything a player's power reaches, which is the only way for mobs to out-scale a fully-geared
+        // group. Warning on that was telling owners to undo the thing they wanted.
+        if (powerMax != null && difficultyMaxCap < powerMax - 1e-9) {
+            findings.add("Difficulty.MaxCap (" + difficultyMaxCap + ") is BELOW the MMO PowerLevel"
+                    + " Clamp.MaxPower (" + powerMax + "): player power can exceed the cap the group delta"
+                    + " is clamped to, so every strong group resolves to the same difficulty and the delta"
+                    + " stops telling them apart. Raise mob-scaling.json Difficulty.MaxCap to at least the"
+                    + " MMO's power-level.json Clamp.MaxPower. Setting it HIGHER is fine and is how the zone"
+                    + " floor and distance escalation reach difficulties no player's power can");
         }
         if (powerMin != null && Math.abs(difficultyMinCap - powerMin) > 1e-9) {
             findings.add("Difficulty.MinCap (" + difficultyMinCap + ") != MMO PowerLevel Clamp.MinPower ("

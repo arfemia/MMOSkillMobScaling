@@ -100,6 +100,7 @@ hud.zone.tier.deadly = Letale
 
 hud.inspect.difficulty = Difficoltà {value}
 hud.inspect.hp = {current} / {max}
+hud.inspect.mults = Salute {hp}%, subisce {taken}%, infligge {dealt}%
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -320,17 +321,36 @@ public final class MobScalingCommand extends CommandBase {
         }
     }
 
-    /** Strip HP-modifier + infinite-effect residue off every loaded NPC in the caller's world. */
+    /**
+     * Strip HP-modifier + infinite-effect residue off loaded NPCs.
+     *
+     * <p>A player sweeps the world they are standing in and gets the count back in chat. The CONSOLE
+     * sweeps every loaded world and gets the count in the log, because this is the command an operator
+     * runs while taking the mod off a server, and needing to be logged in to run it is exactly the
+     * moment that is awkward.
+     */
     private void purge(@Nonnull CommandContext ctx) {
-        if (!(ctx.sender() instanceof PlayerRef player)) {
-            ctx.sendMessage(Message.translation("mmomobscaling.command.players_only"));
-            return;
-        }
-        World world = Universe.get().getWorld(player.getWorldUuid());
-        if (world == null) {
+        if (ctx.sender() instanceof PlayerRef player) {
+            World world = Universe.get().getWorld(player.getWorldUuid());
+            if (world == null) {
+                return;
+            }
+            ctx.sendMessage(Message.translation("mmomobscaling.command.purge.start"));
+            purgeWorld(world, player);
             return;
         }
         ctx.sendMessage(Message.translation("mmomobscaling.command.purge.start"));
+        for (World world : Universe.get().getWorlds().values()) {
+            purgeWorld(world, null);
+        }
+    }
+
+    /**
+     * The sweep itself, over one world, on that world's own thread. Reports to {@code player} when a
+     * player asked, and to the log when the console did (a {@code CommandContext} is not held across
+     * the hop onto the world thread).
+     */
+    private void purgeWorld(@Nonnull World world, @Nullable PlayerRef player) {
         world.execute(() -> {
             int purged = 0;
             try {
@@ -357,7 +377,12 @@ public final class MobScalingCommand extends CommandBase {
             } catch (Throwable t) {
                 safeWarn("purge sweep failed: " + t);
             }
-            player.sendMessage(Message.translation("mmomobscaling.command.purge.done").param("count", purged));
+            if (player != null) {
+                player.sendMessage(Message.translation("mmomobscaling.command.purge.done").param("count", purged));
+            } else {
+                safeInfo("Purged scaling residue from " + purged + " loaded mobs in world "
+                        + world.getName() + ".");
+            }
         });
     }
 
@@ -432,6 +457,14 @@ public final class MobScalingCommand extends CommandBase {
                 safeWarn("inspect failed: " + t);
             }
         });
+    }
+
+    private static void safeInfo(@Nonnull String message) {
+        try {
+            MobScalingPlugin.LOGGER.atInfo().log(message);
+        } catch (Throwable ignored) {
+            // log-manager-less JVMs
+        }
     }
 
     private static void safeWarn(@Nonnull String message) {

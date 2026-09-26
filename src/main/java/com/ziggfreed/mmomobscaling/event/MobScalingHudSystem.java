@@ -234,11 +234,18 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         List<Affix> affixes = List.of();
         double difficulty = 0.0;
         boolean scaled = false;
+        // Neutral until a roll says otherwise, so an unscaled mob reads as 100% on every axis.
+        float hpMult = 1f;
+        float inDmgMult = 1f;
+        float outDmgMult = 1f;
         ScaledMobComponent scaledMob = store.getComponent(target, ScaledMobComponent.getComponentType());
         if (scaledMob != null) {
             MobScaleResult result = scaledMob.result();
             scaled = true;
             difficulty = result.difficulty();
+            hpMult = result.hpMult();
+            inDmgMult = result.inDmgMult();
+            outDmgMult = result.outDmgMult();
             if (result.hasRarity()) {
                 rarity = RarityConfig.getInstance().resolve(result.rarityId());
             }
@@ -259,7 +266,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
 
         return new MobInspectorHud.TargetSnapshot(
                 targetKey(store, target), name, rarity, variant, affixes, difficulty, scaled,
-                health.get(), health.getMax(), modelRole);
+                health.get(), health.getMax(), hpMult, inDmgMult, outDmgMult, modelRole);
     }
 
     /** A stable identity string for the skip-if-unchanged cache (UUID when present). */

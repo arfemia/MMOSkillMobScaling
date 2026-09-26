@@ -85,7 +85,29 @@ public final class MobInspectorHud extends ScalingHud {
             boolean scaled,
             float hp,
             float hpMax,
+            float hpMult,
+            float inDmgMult,
+            float outDmgMult,
             @Nullable String modelRole) {
+
+        /** The health multiplier as a whole percentage, the form the readout shows. */
+        public int hpPercent() {
+            return percent(hpMult);
+        }
+
+        /** How much of an incoming hit this mob actually takes, as a whole percentage. */
+        public int damageTakenPercent() {
+            return percent(inDmgMult);
+        }
+
+        /** How hard this mob hits compared with an unscaled one, as a whole percentage. */
+        public int damageDealtPercent() {
+            return percent(outDmgMult);
+        }
+
+        private static int percent(float mult) {
+            return Math.round(mult * 100f);
+        }
     }
 
     public MobInspectorHud(@Nonnull PlayerRef playerRef) {
@@ -216,6 +238,18 @@ public final class MobInspectorHud extends ScalingHud {
                             .param("value", Math.round(target.difficulty())));
         }
 
+        // What the scaling actually did to this mob, as whole percentages: the health it carries, how
+        // much of a hit it takes, and how hard it hits back. Without this a tough mob and a mob nothing
+        // can hurt look identical on screen.
+        cmd.set("#MmoscalingInspectMults.Visible", target.scaled());
+        if (target.scaled()) {
+            cmd.set("#MmoscalingInspectMults.TextSpans",
+                    Message.translation("mmomobscaling.hud.inspect.mults")
+                            .param("hp", target.hpPercent())
+                            .param("taken", target.damageTakenPercent())
+                            .param("dealt", target.damageDealtPercent()));
+        }
+
         // HP bar fill + numeric readout.
         float max = Math.max(1f, target.hpMax());
         float pct = Math.max(0f, Math.min(1f, target.hp() / max));
@@ -265,6 +299,11 @@ public final class MobInspectorHud extends ScalingHud {
                 .append('|').append(t.scaled() ? Math.round(t.difficulty()) : -1)
                 .append('|').append(Math.round(t.hp()))
                 .append('/').append(Math.round(t.hpMax()))
+                // The multiplier readout, at the precision it is rendered: a retune that moves a
+                // percentage must repaint, one that moves a mult below rounding need not.
+                .append('|').append(t.hpPercent())
+                .append('/').append(t.damageTakenPercent())
+                .append('/').append(t.damageDealtPercent())
                 // Portrait role + the live portrait toggle (a config reload that flips it must repaint).
                 .append('|').append(t.modelRole() != null ? t.modelRole() : "")
                 .append('|').append(MobScalingConfig.getInstance().isInspectorPortraitEnabled());

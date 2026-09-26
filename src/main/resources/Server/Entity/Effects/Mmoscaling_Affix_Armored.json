@@ -1,6 +1,19 @@
 {
+  "$Comment": "The Armored affix's mitigation: the mob takes 15% less damage from melee and arrows. Amount is a fraction, so 0.15 is fifteen percent and 1.0 would be outright immunity to that cause. Resistance is matched on the EXACT damage cause of the hit and a family name does not stand in for its members, so every cause the affix should cover is listed here by name: Physical is what a few weapons and a bare hand deal, most swings arrive as Bludgeoning or Slashing, and arrows arrive as Projectile. Leave a cause out and the affix simply does nothing against it. Only name a cause the server actually has, because a DamageResistance key naming an unknown cause fails this asset's validation and takes the whole mod down at boot; the safe way to add one is to confirm it exists under Server/Entity/Damage first. Percent resistances from an affix, from the mob's armor and from any other active effect are added together, and a total of 1.0 makes the mob unkillable by that cause, so keep the sum well under it when adding causes or raising the number.",
   "DamageResistance": {
     "Physical": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.15
+      }
+    ],
+    "Bludgeoning": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.15
+      }
+    ],
+    "Slashing": [
       {
         "CalculationType": "Percent",
         "Amount": 0.15

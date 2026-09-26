@@ -97,6 +97,7 @@ hud.zone.tier.deadly = Halálos
 
 hud.inspect.difficulty = Nehézség {value}
 hud.inspect.hp = {current} / {max}
+hud.inspect.mults = Életerő {hp}%, kap {taken}%, oszt {dealt}%
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.

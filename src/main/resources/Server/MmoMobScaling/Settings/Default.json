@@ -1,5 +1,5 @@
 {
-  "$Comment": "Authoritative DEFAULT mob-scaling settings (the SIMPLE preset), decoded via MobScalingSettingsAsset.CODEC (Pattern A, PascalCase, NESTED sub-objects). This is the schema-authority default, read synchronously at plugin setup() so the zero-cost registration gate can see Enabled. Owners override any key in mods/MmoMobScaling/mob-scaling.json (same PascalCase codec shape, partial allowed - a nested group may be partially filled). Do NOT reintroduce Java-baked config defaults, loose camelCase JSON, or flat prefixed keys where a nested group exists.",
+  "$Comment": "Authoritative DEFAULT mob-scaling settings (the SIMPLE preset), decoded via MobScalingSettingsAsset.CODEC (Pattern A, PascalCase, NESTED sub-objects). This is the schema-authority default, read synchronously at plugin setup() so the zero-cost registration gate can see Enabled. Owners override any key in mods/MmoMobScaling/mob-scaling.json (same PascalCase codec shape, partial allowed - a nested group may be partially filled). Do NOT reintroduce Java-baked config defaults, loose camelCase JSON, or flat prefixed keys where a nested group exists. TWO things about the numbers below are worth reading before tuning. Difficulty comes from a spot's zone or biome floor (the Difficulty/*.json mappings, which already rise outward from Zone1 to Zone4) PLUS the DistanceEscalation bonus on top of it, and if StartDistanceBlocks sits beyond the range your players actually travel then escalation never engages and the far zones stay at whatever their mapping says; it is 5000 here to match the protected ring, so outside that ring both player scaling and the distance ramp begin together. Stand where you want the ramp to start and read the distance off /mobscaling inspect rather than guessing, and note that the reading comes from the spawning chunk's centre, so it is in blocks but steps 32 at a time. Difficulty.MaxCap is the ceiling on the whole thing, and setting it ABOVE the MMO's own player-power ceiling is both allowed and the only way for mobs to out-scale a fully geared group, since player power cannot push past its own maximum; StatCurve.MaxOutDamageMult is then what limits how hard those mobs actually hit.",
   "ActivePreset": "Default",
   "Enabled": true,
   "PresetMode": "SIMPLE",
@@ -21,7 +21,7 @@
     "MaxCap": 200.0,
     "DistanceEscalation": {
       "Enabled": true,
-      "StartDistanceBlocks": 15000.0,
+      "StartDistanceBlocks": 5000.0,
       "BlocksPerPoint": 500.0,
       "MaxBonus": 199.0,
       "RarityChancePerPoint": 0.01

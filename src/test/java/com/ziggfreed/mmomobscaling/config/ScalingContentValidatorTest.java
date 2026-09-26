@@ -139,8 +139,17 @@ class ScalingContentValidatorTest {
         // Unreadable MMO clamp (null bounds) validates as clean - advisory only.
         assertTrue(ScalingContentValidator.validateDifficultyCaps(1.0, 200.0, null, null).isEmpty(),
                 "null power bounds are clean");
-        // A drifted max (MMO retuned to 120 without touching the mod) is flagged; so is a drifted min.
-        assertEquals(1, ScalingContentValidator.validateDifficultyCaps(1.0, 200.0, 1.0, 120.0).size());
+        // A max ABOVE the power ceiling is a supported choice, not a finding: it is how the zone floor and
+        // the distance escalation reach difficulties no player's power can, so mobs can out-scale a fully
+        // geared group. Warning on it told owners to undo what they wanted.
+        assertTrue(ScalingContentValidator.validateDifficultyCaps(1.0, 400.0, 1.0, 200.0).isEmpty(),
+                "a difficulty ceiling above the MMO power ceiling is intentional and clean");
+        assertTrue(ScalingContentValidator.validateDifficultyCaps(1.0, 200.0, 1.0, 120.0).isEmpty(),
+                "still clean when the MMO's own ceiling is the lower of the two");
+        // A max BELOW it IS a miscalibration: power can exceed the cap the group delta is clamped to.
+        assertEquals(1, ScalingContentValidator.validateDifficultyCaps(1.0, 120.0, 1.0, 200.0).size(),
+                "a difficulty ceiling below the MMO power ceiling flattens the group delta");
+        // A drifted min is flagged in either direction (the two scales should share a floor).
         assertEquals(1, ScalingContentValidator.validateDifficultyCaps(5.0, 200.0, 1.0, 200.0).size());
         assertEquals(2, ScalingContentValidator.validateDifficultyCaps(5.0, 150.0, 1.0, 200.0).size());
     }

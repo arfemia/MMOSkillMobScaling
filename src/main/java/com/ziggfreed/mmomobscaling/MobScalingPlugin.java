@@ -164,7 +164,20 @@ public class MobScalingPlugin extends JavaPlugin {
         getEntityStoreRegistry().registerSystem(new MobScalingSpawnHook());
         getEntityStoreRegistry().registerSystem(new MobScalingRollSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingEffectApplySystem());
-        getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
+        // The damage filter is the one system that names OTHER jars' classes to order itself against
+        // (the MMO's combat damage system and the engine's armor reduction). If either name is gone,
+        // constructing or registering it throws, and an unguarded throw here would fail the whole
+        // plugin - taking /mobscaling purge down with it, which is the command a server owner needs
+        // most at exactly that moment. So it is registered on its own: scaled mobs then keep their
+        // health, loot and abilities and simply stop scaling damage, and the log says so.
+        try {
+            getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
+        } catch (Throwable t) {
+            safeSevere("Mob scaling could not install its damage filter, so scaled mobs deal and take "
+                    + "ORDINARY damage this session; everything else about them still works. This means a "
+                    + "system it orders itself against is missing, so check that the MMO Skill Tree jar is "
+                    + "installed and is at least the version this mod's manifest asks for. Cause: " + t);
+        }
         getEntityStoreRegistry().registerSystem(new MobScalingOnHitSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingLootDropSystem());
 
@@ -255,6 +268,14 @@ public class MobScalingPlugin extends JavaPlugin {
     private static void safeWarn(@Nonnull String message) {
         try {
             LOGGER.atWarning().log(message);
+        } catch (Throwable ignored) {
+            // logging must never take down the plugin
+        }
+    }
+
+    private static void safeSevere(@Nonnull String message) {
+        try {
+            LOGGER.atSevere().log(message);
         } catch (Throwable ignored) {
             // logging must never take down the plugin
         }

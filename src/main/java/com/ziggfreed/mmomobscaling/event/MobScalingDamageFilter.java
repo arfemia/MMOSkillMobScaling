@@ -32,8 +32,13 @@ import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
  * <p><b>Ordering ({@link #getDependencies}):</b> pinned {@code BEFORE} the MMO's
  * {@code CombatDamageEventSystem} (crit multiplier + defense reduction - the other FILTER-GROUP damage
  * MODIFIER) so our scaling multiply lands before that math, and {@code BEFORE} the vanilla
- * {@code ArmorDamageReduction} so the multiply lands before armor's flat subtraction (multiplying
- * post-armor would make flat armor disproportionately strong against scaled mobs).
+ * {@code ArmorDamageReduction} so the scalar applies to the hit as the attacker rolled it rather than to
+ * an already-mitigated number.
+ *
+ * <p>Running first has one consequence worth knowing when tuning: armor subtracts its flat amount after
+ * the multiply, so flat resistance weighs more heavily against a scaled mob than it would if the multiply
+ * came last (a raw 10 against flat 2 at a 0.45 scalar leaves 2.5 this way and 3.6 the other way), and this
+ * is the order in which a small hit can be driven to nothing - see {@link #keepLandingHitsLanding}.
  *
  * <p><b>1.1.0 retarget (was {@code CombatXpEventSystem}):</b> the MMO moved {@code CombatXpEventSystem}
  * out of the Filter group into the INSPECT group (a passive XP-read, not a damage modifier - it now
@@ -60,7 +65,7 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
             // Filter-phase peer ordering: our scaling multiply lands before the MMO's own crit/defense math.
             new SystemDependency<>(Order.BEFORE, CombatDamageEventSystem.class),
-            // Multiply BEFORE armor's flat subtraction (verifier: post-armor multiply over-weights flat armor).
+            // Scale the hit as rolled, before armor subtracts from it (see the class javadoc on what that costs).
             new SystemDependency<>(Order.BEFORE, DamageSystems.ArmorDamageReduction.class));
 
     @Nonnull
@@ -116,12 +121,38 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
             if (victimComp != null) {
                 scaled *= victimComp.result().inDmgMult(); // mob taking damage (tankiness)
             }
+            scaled = keepLandingHitsLanding(amount, scaled);
             if (scaled != amount) {
-                damage.setAmount(Math.max(0f, scaled));
+                damage.setAmount(scaled);
             }
         } catch (Throwable t) {
             safeWarn("damage filter failed: " + t);
         }
+    }
+
+    /**
+     * Keep a hit that was landing from being scaled into nothing.
+     *
+     * <p>Damage reaches the health stat as {@code Math.round(amount)}, so anything under half a point
+     * arrives as exactly zero while the swing itself still counts as a completed hit. A mob that takes
+     * reduced damage can therefore end up immune to an entire weapon rather than merely tough: one
+     * player kills it in the usual number of hits, another swings at it forever, the health bar never
+     * moves, and nothing anywhere says why. So when the hit arriving here was already worth at least a
+     * point, the hit leaving here is too.
+     *
+     * <p>This is a floor on what THIS mod's own multiply may do. The mob's armor and its resistance
+     * effects are subtracted afterwards by the engine and can still take a hit to zero, which is
+     * ordinary armor behaviour and is readable from the mob's own resistances.
+     *
+     * <p>The single point is the engine's rounding granularity rather than a balance figure, which is
+     * why it is not a setting. To make a scaled mob take more or less damage, author
+     * {@code Difficulty.StatCurve.MinInDamageMult}.
+     */
+    private static float keepLandingHitsLanding(float incoming, float scaled) {
+        if (incoming >= 1f && scaled < 1f) {
+            return 1f;
+        }
+        return Math.max(0f, scaled);
     }
 
     @Nullable

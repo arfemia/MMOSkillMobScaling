@@ -254,6 +254,20 @@ public final class MobScalingSettingsAsset
      * zone/biome floor, up to {@code MaxBonus}. The SAME bonus also raises the rarity spawn chance by
      * {@code RarityChancePerPoint} per point (clamped to 1.0), so the deep frontier is not just
      * higher-band - it is DENSER with scaled mobs. Far enough out, every zone is deadly.
+     *
+     * <p><b>Both distances are in BLOCKS, measured in 32-block steps.</b> The distance is taken from the
+     * centre of the chunk the mob spawned in, not from the mob itself, so every mob in one chunk reads the
+     * same distance and the reading moves a chunk at a time. That is immaterial at realistic thresholds
+     * (thousands of blocks) and it is what keeps the zone read memoizable per chunk; it is worth knowing
+     * only if you are testing at close range and wondering why the number steps.
+     *
+     * <p><b>These are a SECOND radial ramp on top of the zone gradient.</b> The shipped
+     * {@code Difficulty/*.json} mappings already rise outward (Zone1 at 1 to Zone4_Tier5 at 28), and this
+     * bonus adds to whichever floor they resolved. Set {@code StartDistanceBlocks} beyond the range your
+     * players actually travel and escalation never engages at all, which reads as "the far zones are
+     * still low level". {@code /mobscaling inspect} reports the distance from spawn at your feet along
+     * with the base floor and the bonus, so stand where you want the ramp to begin and read the number
+     * off that rather than guessing.
      */
     public static final class DistanceEscalation {
         public static final BuilderCodec<DistanceEscalation> CODEC = BuilderCodec

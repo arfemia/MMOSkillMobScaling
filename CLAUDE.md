@@ -4,7 +4,14 @@ A **standalone open-world mob difficulty-scaling** companion to the MMO Skill Tr
 scales open-world mobs to the players around them (a high-power group meets tougher, rarer
 enemies; a lone newcomer is not overwhelmed). It is a supplemental mod under the **hyMMO
 monorepo**'s `additional-mods/` (a git submodule; developed from the hyMMO root).
-**Status: v1.2.0 (in development beside ziggfreed-common 2.1.0 and MMO Skill Tree 1.6.1, the family it ships with; 1.1.0 released 2026-08-31).** The zero-cost registration
+**Status: v1.2.1 (a hotfix in development beside ziggfreed-common 2.1.1 and MMO Skill Tree 1.6.3, the family it ships with; 1.2.0 released 2026-09-12).** 1.2.1 stops the mod's damage
+reduction from scaling a landing hit to nothing (the engine rounds damage to a whole number, so a
+sufficiently mitigated hit reached the health stat as zero and a mob read as immune to a whole weapon
+rather than merely tough), gives the `Armored` affix the `Bludgeoning`/`Crush`/`Slashing` cause keys it
+was missing (inbound resistance is matched on the exact leaf cause, so the affix did nothing against
+most melee), shows the resolved health / damage-taken / damage-dealt percentages on the crosshair
+inspector, makes `/mobscaling purge` runnable from the console, and stops a missing ordering dependency
+from failing the whole plugin and taking `purge` down with it. The zero-cost registration
 toggle + codec `MobScalingConfig`, plus the spawn-lock in two halves: `MobScalingSpawnHook` (the
 pre-add `HolderSystem`: the mod and per-world switches, the classification, the residue cleanup, and
 a one-tick `PendingRollComponent` stamp; a holder already carrying `ScaledMobComponent` is left as
@@ -346,14 +353,30 @@ so a retune / floor / rarity change never strands a stale inflated max); Vampiri
 mod-side in `MobScalingOnHitSystem` (no native on-hit-DEALT sensor). Full ranked evidence lives in the hyMMO
 plan's "NATIVE-LEVERAGE AUDIT RESOLUTIONS" block (`.claude/plans/1-5-0-mob-scaling-system.md`).
 
-**Disable / uninstall caveat (persisted residue):** the `mmoscaling_hp` MAX modifier + the `Mmoscaling_*`
-infinite auras persist WITH a saved mob. While the mod is ENABLED, the spawn hook reconciles them on every
-load (retunes self-heal, and an excluded / world-disabled mob is stripped). But a FULLY disabled / uninstalled
-mod registers nothing and cannot self-heal, so its residue lingers on saved scaled mobs until each dies.
-Recommendation: run once with the mod enabled after a big retune so the reconcile sweeps saved mobs; for a
-FULL uninstall, run `/mobscaling purge` per world first (the command registers even when scaling is
-disabled, precisely for this flow) - it strips the HP modifier + all `Mmoscaling_*` infinite effects off
-loaded mobs.
+**Disable / uninstall caveat (persisted residue):** the `mmoscaling_hp` MAX modifier persists WITH a saved
+mob - it is a keyed `StaticModifier` on the Health stat, and `EntityStatValue.CODEC` serializes the whole
+modifier map with the entity. While the mod is ENABLED, the spawn hook reconciles it on every load (retunes
+converge, and an excluded / world-disabled mob is stripped). A fully disabled or uninstalled mod registers
+nothing and cannot self-heal, so that modifier is what lingers.
+
+The `Mmoscaling_*` infinite AURAS are a different story and the old advice here was wrong about them:
+`ActiveEntityEffect` persists the effect's **id as a string**, and on load `EffectControllerComponent`
+re-resolves the index and DROPS any effect whose id no longer resolves. The effects ship inside this jar's
+own asset pack, so REMOVING the jar removes the assets and every saved aura disappears by itself on its
+next chunk load. What still needs the purge is the config-DISABLED-but-installed case, where the ids do
+still resolve and the auras do linger.
+
+So: after a big retune, one run with the mod enabled lets the reconcile sweep saved mobs. Before a full
+uninstall, run `/mobscaling purge` (it registers even when scaling is disabled, precisely for this flow) -
+a player sweeps the world they are in, the CONSOLE sweeps every loaded world and reports per world in the
+log.
+
+**Disabling costs a scaled mob its absolute health, and re-enabling gives it back full.** Stripping the
+modifier lets the engine's recalculate clamp current HP to the un-scaled max, so a 20x mob sitting at
+1900/2000 becomes 100/100; re-enabling takes the first-apply branch, which maximizes, so it returns at full.
+A fraction-preserving reconcile is the fix (capture `EntityStatValue.asPercentage()`, write the modifier,
+restore the fraction through `EntityStatMap.processStatChanges(..., Percent, Set)`), and it belongs in
+ziggfreed-common's `HealthUtil` beside the existing reconcile rather than here.
 
 ## Paradigm - the zero-cost registration gate
 
