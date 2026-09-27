@@ -23,7 +23,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * inside {@code OpenWorld} instead of growing a flat 25-key soup). The nested classes each carry
  * their own {@link BuilderCodec} (the {@code QuestGiverAsset.Offset}/{@code Match} pattern):
  * {@link OpenWorld} (group-power aggregation), {@link Difficulty} (caps + the nested
- * {@link DistanceEscalation}), {@link Hud} ({@code ZoneHud}) and {@link InspectorHud}.
+ * {@link DistanceEscalation}, {@link StatCurve} and {@link Clamps}), {@link Hud} ({@code ZoneHud})
+ * and {@link InspectorHud}.
  *
  * <p><b>Fields are NULLABLE wrappers on purpose, at every nesting level.</b> {@code decodeJson}
  * calls a field's setter ONLY for a key present in the JSON, so decoding the jar Default.json
@@ -36,9 +37,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * {@code WorldRulesConfig.decodeOwnerRule} pattern), so the zero-cost registration gate can read
  * {@code Enabled} before {@code LoadedAssetsEvent} would populate an async asset store.
  *
- * <p>Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT
- * here: their canonical home is the per-type keyed assets ({@code Rarities/*.json},
- * {@code Difficulty/*.json}).
+ * <p>Map-shaped content (the rarity ladder, the zone and biome floors) is deliberately NOT here:
+ * its canonical home is the per-type keyed assets ({@code Rarities/*.json}, {@code Difficulty/*.json}).
  */
 public final class MobScalingSettingsAsset
         implements JsonAssetWithMap<String, DefaultAssetMap<String, MobScalingSettingsAsset>> {
@@ -48,8 +48,6 @@ public final class MobScalingSettingsAsset
 
     @Nullable private String activePreset;
     @Nullable private Boolean enabled;
-    @Nullable private String presetMode;
-    @Nullable private Double intensity;
     @Nullable private Double raritySpawnChance;
     @Nullable private OpenWorld openWorld;
     @Nullable private Difficulty difficulty;
@@ -78,29 +76,15 @@ public final class MobScalingSettingsAsset
             .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (a, v) -> a.enabled = v, a -> a.enabled)
             .add()
-            // Customization tier: "SIMPLE" | "TUNED" | "ADVANCED".
-            .append(new KeyedCodec<>("PresetMode", Codec.STRING, false),
-                    (a, v) -> a.presetMode = v, a -> a.presetMode)
-            .metadata(EditorSchema.oneOfDocumented(
-                    "SIMPLE", "The preset as shipped, minimal knobs",
-                    "TUNED", "The preset plus the common tuning knobs",
-                    "ADVANCED", "Every knob open"))
-            .add()
-            // Intensity dial (1.0.1): a numeric multiplier (default 1.0) on the difficulty->stat curve
-            // SLOPES (how tanky mobs are + how hard they hit). 1.0 neutral; 0 = no difficulty-based stat
-            // boost. Bounded by the curve's own per-factor caps. Runtime-tunable via /mobscaling intensity.
-            .append(new KeyedCodec<>("Intensity", Codec.DOUBLE, false),
-                    (a, v) -> a.intensity = v, a -> a.intensity)
-            .add()
             // Chance a hostile mob rolls a non-plain rarity (before the distance-escalation bonus).
             .append(new KeyedCodec<>("RaritySpawnChance", Codec.DOUBLE, false),
                     (a, v) -> a.raritySpawnChance = v, a -> a.raritySpawnChance)
             .add()
-            // Open-world group-power aggregation (region buckets, fold mode, late-arrival policy).
+            // Open-world group-power aggregation (region buckets, fold mode, band, the protected ring).
             .append(new KeyedCodec<>("OpenWorld", OpenWorld.CODEC, false),
                     (a, v) -> a.openWorld = v, a -> a.openWorld)
             .add()
-            // Effective-difficulty clamps + the distance-from-spawn escalation curve.
+            // Effective-difficulty clamps + the distance-from-spawn escalation curve + the stat curve.
             .append(new KeyedCodec<>("Difficulty", Difficulty.CODEC, false),
                     (a, v) -> a.difficulty = v, a -> a.difficulty)
             .add()
@@ -124,8 +108,6 @@ public final class MobScalingSettingsAsset
 
     @Nullable public String getActivePreset() { return activePreset; }
     @Nullable public Boolean getEnabled() { return enabled; }
-    @Nullable public String getPresetMode() { return presetMode; }
-    @Nullable public Double getIntensity() { return intensity; }
     @Nullable public Double getRaritySpawnChance() { return raritySpawnChance; }
     @Nullable public OpenWorld getOpenWorld() { return openWorld; }
     @Nullable public Difficulty getDifficulty() { return difficulty; }
@@ -146,7 +128,8 @@ public final class MobScalingSettingsAsset
                         "DISABLED", "No group aggregation"))
                 .add()
                 // Proximity sub-grid size (chunks per side) WITHIN a native zone; also the whole
-                // region key in a world without zone data (the chunk-grid fallback).
+                // region key in a world without zone data (the chunk-grid fallback). A world file may
+                // set its own: a region bucket is keyed by world, so the grid only has to agree within one.
                 .append(new KeyedCodec<>("RegionSizeChunks", Codec.INTEGER, false),
                         (o, v) -> o.regionSizeChunks = v, o -> o.regionSizeChunks)
                 .add()
@@ -154,26 +137,14 @@ public final class MobScalingSettingsAsset
                 .append(new KeyedCodec<>("GroupDeltaBandWidth", Codec.DOUBLE, false),
                         (o, v) -> o.groupDeltaBandWidth = v, o -> o.groupDeltaBandWidth)
                 .add()
-                // One-shot additive difficulty bump when a stronger player/party arrives in a region.
-                .append(new KeyedCodec<>("AllowDifficultyIncreaseOnPartyJoin", Codec.BOOLEAN, false),
-                        (o, v) -> o.allowDifficultyIncreaseOnPartyJoin = v, o -> o.allowDifficultyIncreaseOnPartyJoin)
-                .add()
-                // Size (flat additive difficulty) of the late-arrival bump.
-                .append(new KeyedCodec<>("LateArrivalBumpFactor", Codec.DOUBLE, false),
-                        (o, v) -> o.lateArrivalBumpFactor = v, o -> o.lateArrivalBumpFactor)
-                .add()
-                // Open-world density/composition scaling toggle (gated at registration).
-                .append(new KeyedCodec<>("CompositionEnabled", Codec.BOOLEAN, false),
-                        (o, v) -> o.compositionEnabled = v, o -> o.compositionEnabled)
-                .add()
                 // When true, the group-power delta may only RAISE a region's difficulty over the floor,
                 // never lower it (a weak lone arrival never softens a zone below its authored baseline).
                 .append(new KeyedCodec<>("OnlyRaiseDifficulty", Codec.BOOLEAN, false),
                         (o, v) -> o.onlyRaiseDifficulty = v, o -> o.onlyRaiseDifficulty)
                 .add()
-                // Whether player/group-based scaling (the region-power group delta) applies at all (1.0.1;
-                // default true). false pins difficulty to the escalated floor regardless of nearby player
-                // power - the per-world toggle a fixed-difficulty authored dungeon overrides to false.
+                // Whether player/group-based scaling (the region-power group delta) applies at all.
+                // false pins difficulty to the escalated floor regardless of nearby player power - the
+                // per-world toggle a fixed-difficulty authored dungeon overrides to false.
                 .append(new KeyedCodec<>("PlayerScalingEnabled", Codec.BOOLEAN, false),
                         (o, v) -> o.playerScalingEnabled = v, o -> o.playerScalingEnabled)
                 .add()
@@ -190,9 +161,6 @@ public final class MobScalingSettingsAsset
         @Nullable private String aggregationMode;
         @Nullable private Integer regionSizeChunks;
         @Nullable private Double groupDeltaBandWidth;
-        @Nullable private Boolean allowDifficultyIncreaseOnPartyJoin;
-        @Nullable private Double lateArrivalBumpFactor;
-        @Nullable private Boolean compositionEnabled;
         @Nullable private Boolean onlyRaiseDifficulty;
         @Nullable private Boolean playerScalingEnabled;
         @Nullable private Double playerScalingStartRingBlocks;
@@ -200,19 +168,18 @@ public final class MobScalingSettingsAsset
         @Nullable public String getAggregationMode() { return aggregationMode; }
         @Nullable public Integer getRegionSizeChunks() { return regionSizeChunks; }
         @Nullable public Double getGroupDeltaBandWidth() { return groupDeltaBandWidth; }
-        @Nullable public Boolean getAllowDifficultyIncreaseOnPartyJoin() { return allowDifficultyIncreaseOnPartyJoin; }
-        @Nullable public Double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
-        @Nullable public Boolean getCompositionEnabled() { return compositionEnabled; }
         @Nullable public Boolean getOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
         @Nullable public Boolean getPlayerScalingEnabled() { return playerScalingEnabled; }
         @Nullable public Double getPlayerScalingStartRingBlocks() { return playerScalingStartRingBlocks; }
     }
 
-    /** Effective-difficulty clamps + the world-baseline floor + the nested distance-from-spawn escalation curve. */
+    /**
+     * Effective-difficulty clamps + the world-baseline floor + the nested distance-from-spawn escalation,
+     * the difficulty-to-stat curve and the safety clamps under it.
+     */
     public static final class Difficulty {
         public static final BuilderCodec<Difficulty> CODEC = BuilderCodec.builder(Difficulty.class, Difficulty::new)
-                // The WORLD-BASELINE difficulty floor (1.0.2; absorbs the removed hyMMO
-                // WorldRules.MobScaling.DifficultyFloor): the LOWEST-precedence floor under the authored
+                // The WORLD-BASELINE difficulty floor: the LOWEST-precedence floor under the authored
                 // zone/biome Difficulty/*.json mappings - used only when no mapping matches. 0.0 = none.
                 .append(new KeyedCodec<>("Floor", Codec.DOUBLE, false),
                         (d, v) -> d.floor = v, d -> d.floor)
@@ -229,9 +196,13 @@ public final class MobScalingSettingsAsset
                 .append(new KeyedCodec<>("DistanceEscalation", DistanceEscalation.CODEC, false),
                         (d, v) -> d.distanceEscalation = v, d -> d.distanceEscalation)
                 .add()
-                // The base difficulty -> stat curve (per-point HP/out-damage growth + incoming reduction).
+                // The difficulty -> stat curve: the slopes and the two ceilings that are the curve's range.
                 .append(new KeyedCodec<>("StatCurve", StatCurve.CODEC, false),
                         (d, v) -> d.statCurve = v, d -> d.statCurve)
+                .add()
+                // The safety rails that are not the curve's shape: per-axis floors and ceilings.
+                .append(new KeyedCodec<>("Clamps", Clamps.CODEC, false),
+                        (d, v) -> d.clamps = v, d -> d.clamps)
                 .add()
                 .build();
 
@@ -240,12 +211,14 @@ public final class MobScalingSettingsAsset
         @Nullable private Double maxCap;
         @Nullable private DistanceEscalation distanceEscalation;
         @Nullable private StatCurve statCurve;
+        @Nullable private Clamps clamps;
 
         @Nullable public Double getFloor() { return floor; }
         @Nullable public Double getMinCap() { return minCap; }
         @Nullable public Double getMaxCap() { return maxCap; }
         @Nullable public DistanceEscalation getDistanceEscalation() { return distanceEscalation; }
         @Nullable public StatCurve getStatCurve() { return statCurve; }
+        @Nullable public Clamps getClamps() { return clamps; }
     }
 
     /**
@@ -307,55 +280,134 @@ public final class MobScalingSettingsAsset
     }
 
     /**
-     * The base difficulty -> stat curve applied to every hostile mob: per-point HP and out-damage
-     * growth plus a per-point incoming-damage reduction, each with a safety cap ({@code MaxHpMult},
-     * {@code MaxOutDamageMult}, {@code MinInDamageMult}). Fed to {@code MobScaleFold.DifficultyStatCurve}
-     * so a mob's stats rise smoothly with its effective difficulty (floor + escalation + group delta).
+     * The difficulty -> stat curve applied to every hostile mob, evaluated at the mob's difficulty times
+     * its rarity's and variant's {@code DifficultyMultiplier}: ONE effective-HP slope
+     * ({@code EffectiveHpPerPoint}) whose result is split between the visible health bar and the invisible
+     * incoming-damage multiplier by {@code VisibleHpShare} ({@code hp = ehp ^ share},
+     * {@code in = ehp ^ (share - 1)}, so {@code hp / in} is exactly {@code ehp}), the outgoing-damage curve
+     * ({@code out = 1 + OutDamageScale * (d - 1) ^ OutDamageShape}: a shape of 1.0 is a straight line whose
+     * scale is a plain per-point slope, a shape above 1.0 bends it upward), and the two ceilings that are the
+     * curve's own range ({@code MaxEffectiveHpMult}, the composite rail on {@code hp / in};
+     * {@code MaxOutDamageMult}). Fed to {@code MobScaleFold.DifficultyStatCurve}.
      *
      * <p>Every leaf is a NULLABLE wrapper so a preset overlay may partially fill the group (an
      * unset leaf folds through to the jar Default).
      */
     public static final class StatCurve {
         public static final BuilderCodec<StatCurve> CODEC = BuilderCodec.builder(StatCurve.class, StatCurve::new)
-                // HP multiplier gained per difficulty point above 1 (before the MaxHpMult cap).
-                .append(new KeyedCodec<>("HpPerPoint", Codec.DOUBLE, false),
-                        (c, v) -> c.hpPerPoint = v, c -> c.hpPerPoint)
+                // Effective-HP multiplier gained per difficulty point above 1 (the one tank slope).
+                .append(new KeyedCodec<>("EffectiveHpPerPoint", Codec.DOUBLE, false),
+                        (c, v) -> c.effectiveHpPerPoint = v, c -> c.effectiveHpPerPoint)
+                .documentation("How much longer a mob takes to kill for each difficulty point above 1, as a"
+                        + " fraction: 0.05 means a mob at difficulty 21 takes twice as long as one at 1. It is"
+                        + " the whole tank axis; the share below decides how much of it shows on the health"
+                        + " bar and how much is silent damage reduction.")
                 .add()
-                // Outgoing-damage multiplier gained per difficulty point above 1 (before MaxOutDamageMult).
-                .append(new KeyedCodec<>("OutDamagePerPoint", Codec.DOUBLE, false),
-                        (c, v) -> c.outDamagePerPoint = v, c -> c.outDamagePerPoint)
+                // The exponent share of the effective HP that shows on the health bar, in [0, 1].
+                .append(new KeyedCodec<>("VisibleHpShare", Codec.DOUBLE, false),
+                        (c, v) -> c.visibleHpShare = v, c -> c.visibleHpShare)
+                .documentation("Which part of the toughness is visible health and which is quiet damage"
+                        + " reduction, from 0 to 1. At 1.0 the whole toughness is on the health bar and every"
+                        + " hit lands for full damage; at 0.5 the bar shows the square root and the mob shrugs"
+                        + " off the rest per hit. The two always multiply back to the same time to kill.")
                 .add()
-                // Incoming-damage reduction gained per difficulty point above 1 (floored at MinInDamageMult).
-                .append(new KeyedCodec<>("InDamageReductionPerPoint", Codec.DOUBLE, false),
-                        (c, v) -> c.inDamageReductionPerPoint = v, c -> c.inDamageReductionPerPoint)
+                // The coefficient of the outgoing-damage curve, 1 + Scale * (d - 1) ^ Shape (before MaxOutDamageMult).
+                .append(new KeyedCodec<>("OutDamageScale", Codec.DOUBLE, false),
+                        (c, v) -> c.outDamageScale = v, c -> c.outDamageScale)
+                .documentation("How fast a mob's hit grows with difficulty: the extra fraction of its base hit"
+                        + " gained per unit of the shaped distance above difficulty 1. With OutDamageShape at 1.0"
+                        + " it is a plain per-point slope, so 0.25 means a mob at difficulty 5 hits for twice its"
+                        + " base; with a shape above 1.0 the same scale buys less early and more late.")
                 .add()
-                // Safety cap on the HP multiplier the curve may reach.
-                .append(new KeyedCodec<>("MaxHpMult", Codec.DOUBLE, false),
-                        (c, v) -> c.maxHpMult = v, c -> c.maxHpMult)
+                // The exponent of the outgoing-damage curve: 1.0 is a straight line.
+                .append(new KeyedCodec<>("OutDamageShape", Codec.DOUBLE, false),
+                        (c, v) -> c.outDamageShape = v, c -> c.outDamageShape)
+                .documentation("How the outgoing-damage curve bends. 1.0 is a straight line: every difficulty"
+                        + " point adds the same amount. Above 1.0 the curve starts gently and steepens, so a"
+                        + " low-difficulty mob hits a little harder than a plain one while a high-difficulty mob"
+                        + " hits a great deal harder; below 1.0 the reverse. It does not touch the tank axis.")
+                .add()
+                // The composite rail on hp / in (and the curve's own effective-HP ceiling).
+                .append(new KeyedCodec<>("MaxEffectiveHpMult", Codec.DOUBLE, false),
+                        (c, v) -> c.maxEffectiveHpMult = v, c -> c.maxEffectiveHpMult)
+                .documentation("The most times longer than a plain mob at difficulty 1 that any mob may take"
+                        + " to kill, health, damage reduction and a resistance affix all counted together."
+                        + " When an affix pushes past it the damage reduction gives way, never the visible"
+                        + " health. Keep it well above where the curve alone lands at your highest"
+                        + " difficulty, or every tier ends up identical there.")
                 .add()
                 // Safety cap on the outgoing-damage multiplier the curve may reach.
                 .append(new KeyedCodec<>("MaxOutDamageMult", Codec.DOUBLE, false),
                         (c, v) -> c.maxOutDamageMult = v, c -> c.maxOutDamageMult)
-                .add()
-                // Safety floor on the incoming-damage multiplier (the most a mob can shrug off).
-                .append(new KeyedCodec<>("MinInDamageMult", Codec.DOUBLE, false),
-                        (c, v) -> c.minInDamageMult = v, c -> c.minInDamageMult)
+                .documentation("The most times its base hit any mob may deal. The same advice: keep it well"
+                        + " above the curve's own top so the rarity ladder still means something there.")
                 .add()
                 .build();
 
-        @Nullable private Double hpPerPoint;
-        @Nullable private Double outDamagePerPoint;
-        @Nullable private Double inDamageReductionPerPoint;
-        @Nullable private Double maxHpMult;
+        @Nullable private Double effectiveHpPerPoint;
+        @Nullable private Double visibleHpShare;
+        @Nullable private Double outDamageScale;
+        @Nullable private Double outDamageShape;
+        @Nullable private Double maxEffectiveHpMult;
         @Nullable private Double maxOutDamageMult;
-        @Nullable private Double minInDamageMult;
 
-        @Nullable public Double getHpPerPoint() { return hpPerPoint; }
-        @Nullable public Double getOutDamagePerPoint() { return outDamagePerPoint; }
-        @Nullable public Double getInDamageReductionPerPoint() { return inDamageReductionPerPoint; }
-        @Nullable public Double getMaxHpMult() { return maxHpMult; }
+        @Nullable public Double getEffectiveHpPerPoint() { return effectiveHpPerPoint; }
+        @Nullable public Double getVisibleHpShare() { return visibleHpShare; }
+        @Nullable public Double getOutDamageScale() { return outDamageScale; }
+        @Nullable public Double getOutDamageShape() { return outDamageShape; }
+
+        @Nullable public Double getMaxEffectiveHpMult() { return maxEffectiveHpMult; }
         @Nullable public Double getMaxOutDamageMult() { return maxOutDamageMult; }
-        @Nullable public Double getMinInDamageMult() { return minInDamageMult; }
+    }
+
+    /**
+     * The safety rails that are NOT the curve's shape: the floor under the visible health multiplier, the
+     * ceiling on the incoming-damage multiplier, the floor under the outgoing multiplier, and the band the
+     * loot pass count stays in. Applied per axis after the affix deltas; the curve's own
+     * {@code MaxEffectiveHpMult} is enforced after them. Fed to {@code MobScaleFold.Clamps}. Every leaf is
+     * a NULLABLE wrapper so a preset overlay may partially fill the group.
+     */
+    public static final class Clamps {
+        public static final BuilderCodec<Clamps> CODEC = BuilderCodec.builder(Clamps.class, Clamps::new)
+                .append(new KeyedCodec<>("MinHpMult", Codec.DOUBLE, false),
+                        (c, v) -> c.minHpMult = v, c -> c.minHpMult)
+                .documentation("The least a mob's health may be scaled to, as a multiple of its base. Only an"
+                        + " affix with a negative health fraction can pull below 1.0, and never below this.")
+                .add()
+                .append(new KeyedCodec<>("MaxInDamageMult", Codec.DOUBLE, false),
+                        (c, v) -> c.maxInDamageMult = v, c -> c.maxInDamageMult)
+                .documentation("The most damage a mob may be made to TAKE per hit, as a multiple of normal."
+                        + " 1.0 means scaling never makes a mob softer than a plain one; above 1.0 allows a"
+                        + " glass-cannon affix.")
+                .add()
+                .append(new KeyedCodec<>("MinOutDamageMult", Codec.DOUBLE, false),
+                        (c, v) -> c.minOutDamageMult = v, c -> c.minOutDamageMult)
+                .documentation("The least a mob's hit may be scaled to, as a multiple of its base hit.")
+                .add()
+                .append(new KeyedCodec<>("MinLootMult", Codec.DOUBLE, false),
+                        (c, v) -> c.minLootMult = v, c -> c.minLootMult)
+                .documentation("The fewest passes any death-loot block is rolled; a fraction is that chance of"
+                        + " one pass.")
+                .add()
+                .append(new KeyedCodec<>("MaxLootMult", Codec.DOUBLE, false),
+                        (c, v) -> c.maxLootMult = v, c -> c.maxLootMult)
+                .documentation("The most passes any death-loot block is rolled, whatever the rarity, variant"
+                        + " and affix multipliers come to. Raise it when a stacked tier should pay out more;"
+                        + " a boss carrying an overlay reaches the product of both loot multipliers.")
+                .add()
+                .build();
+
+        @Nullable private Double minHpMult;
+        @Nullable private Double maxInDamageMult;
+        @Nullable private Double minOutDamageMult;
+        @Nullable private Double minLootMult;
+        @Nullable private Double maxLootMult;
+
+        @Nullable public Double getMinHpMult() { return minHpMult; }
+        @Nullable public Double getMaxInDamageMult() { return maxInDamageMult; }
+        @Nullable public Double getMinOutDamageMult() { return minOutDamageMult; }
+        @Nullable public Double getMinLootMult() { return minLootMult; }
+        @Nullable public Double getMaxLootMult() { return maxLootMult; }
     }
 
     /**

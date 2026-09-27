@@ -1,5 +1,5 @@
 {
-  "$Comment": "HARDCORE preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; omitted leaves fall through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Hardcore\" (owner file or /mobscaling preset Hardcore). A harsher curve: hard intensity, dense specials, a wider group swing, an early near-max distance escalation, and a steeper StatCurve (faster HP/damage growth, higher caps).",
+  "$Comment": "HARDCORE preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; omitted leaves fall through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Hardcore\" (owner file or /mobscaling preset Hardcore). Harsher than an even fight: the toughness slope and the damage scale are 1.4 times Default's (the damage shape is inherited, so the curve keeps its bend), so a plain mob at a player's own power is already a step ahead of them and a Rare is a real threat, and the two rails sit just past a Boss at this preset's own top of the scale (the same rule Default uses). Dense specials, a wider group swing, and a distance escalation that begins close to spawn and runs to the full cap, which sits about 17,000 blocks out from the highest shipped zone floor.",
   "Name": "Hardcore",
   "RaritySpawnChance": 0.2,
   "OpenWorld": {
@@ -11,12 +11,10 @@
       "MaxBonus": 199.0
     },
     "StatCurve": {
-      "HpPerPoint": 0.12,
-      "OutDamagePerPoint": 0.26,
-      "InDamageReductionPerPoint": 0.0025,
-      "MaxHpMult": 30.0,
-      "MaxOutDamageMult": 56.0,
-      "MinInDamageMult": 0.45
+      "EffectiveHpPerPoint": 0.0735,
+      "OutDamageScale": 0.0479,
+      "MaxEffectiveHpMult": 46.9,
+      "MaxOutDamageMult": 378.0
     }
   }
 }

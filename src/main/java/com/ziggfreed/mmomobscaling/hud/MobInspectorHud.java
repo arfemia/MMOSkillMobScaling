@@ -15,7 +15,7 @@ import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.icon.IconRenderer;
 import com.ziggfreed.mmomobscaling.affix.Affix;
-import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.variant.Variant;
@@ -29,7 +29,10 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * {@link com.ziggfreed.common.icon.IconSpec} icon + the localized name, never a joined string - no
  * English grammar in params). Unscaled targets still get portrait + name + HP (a plain inspector); the
  * rarity/difficulty/affix rows hide. Driven by {@code MobScalingHudSystem}, which resolves the target via
- * the engine's own {@code TargetUtil.getTargetEntity} crosshair raycast.
+ * the engine's own {@code TargetUtil.getTargetEntity} crosshair raycast at the reach the player's world
+ * configures, and which leaves {@code modelRole} null when that world's {@code InspectorHud.PortraitEnabled}
+ * is off - so this card reads no config of its own: the corner comes off the per-world view through
+ * {@link #positionFrom}, everything else arrives in the snapshot.
  *
  * <p>All text lands on {@code .TextSpans} (never {@code .Text}); the HP fill is an {@code Anchor}
  * width push, the exact pattern the MMO's {@code AbilityCooldownHud} pip fill ships on. Layout
@@ -73,7 +76,9 @@ public final class MobInspectorHud extends ScalingHud {
      * skip-if-unchanged cache); {@code rarity} is null for a plain/unscaled target; {@code name}
      * is the target's client-resolved display name, null when the entity carries none;
      * {@code modelRole} is the target's NPC role name (the {@code Icons/ModelsGenerated/<role>.png}
-     * portrait key), null when the entity is not an NPC or the portrait is disabled.
+     * portrait key), null when the entity is not an NPC or the world's portrait toggle is off - the
+     * ONE signal the card reads for the portrait column, so a flipped toggle repaints through the
+     * skip-cache like any other changed field.
      */
     public record TargetSnapshot(
             @Nonnull String targetKey,
@@ -121,12 +126,12 @@ public final class MobInspectorHud extends ScalingHud {
         return new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.LEFT, 16, 216);
     }
 
-    /** The configured position: the settings preset when valid, else {@link #defaultPosition()}. */
+    /** The position {@code settings} authors: its corner preset when valid, else {@link #defaultPosition()}. */
     @Nonnull
-    public static HudPosition configuredPositionFromSettings() {
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
-        HudPosition parsed = HudPosition.parse(
-                cfg.getInspectorHudPosition(), cfg.getInspectorHudOffsetX(), cfg.getInspectorHudOffsetY());
+    @Override
+    protected HudPosition positionFrom(@Nonnull SpawnScalingSettings settings) {
+        HudPosition parsed = HudPosition.parse(settings.getInspectorHudPosition(),
+                settings.getInspectorHudOffsetX(), settings.getInspectorHudOffsetY());
         return parsed != null ? parsed : defaultPosition();
     }
 
@@ -149,12 +154,6 @@ public final class MobInspectorHud extends ScalingHud {
     @Override
     protected long updateIntervalMs() {
         return UPDATE_INTERVAL_MS;
-    }
-
-    @Nonnull
-    @Override
-    protected HudPosition configuredPosition() {
-        return configuredPositionFromSettings();
     }
 
     @Override
@@ -195,10 +194,10 @@ public final class MobInspectorHud extends ScalingHud {
         // Portrait: the target mob's generated model icon, the same pre-rendered still the native
         // Memories page shows, addressed through the shared Portraits path so every screen showing a
         // creature looks in one place. A live 3D preview is not server-drivable; a static portrait is.
-        // Hidden when disabled or the entity has no NPC role (the AssetImage's FallbackTexturePath
-        // covers a role whose portrait was never generated).
-        boolean hasPortrait = MobScalingConfig.getInstance().isInspectorPortraitEnabled()
-                && target.modelRole() != null && !target.modelRole().isBlank();
+        // Hidden when the entity has no NPC role or the world's portrait toggle is off (the system
+        // hands a null role for both; the AssetImage's FallbackTexturePath covers a role whose portrait
+        // was never generated).
+        boolean hasPortrait = target.modelRole() != null && !target.modelRole().isBlank();
         cmd.set("#MmoscalingInspectPortrait.Visible", hasPortrait);
         cmd.set("#MmoscalingInspectPortraitGap.Visible", hasPortrait); // collapse the column gap too
         if (hasPortrait) {
@@ -304,9 +303,8 @@ public final class MobInspectorHud extends ScalingHud {
                 .append('|').append(t.hpPercent())
                 .append('/').append(t.damageTakenPercent())
                 .append('/').append(t.damageDealtPercent())
-                // Portrait role + the live portrait toggle (a config reload that flips it must repaint).
-                .append('|').append(t.modelRole() != null ? t.modelRole() : "")
-                .append('|').append(MobScalingConfig.getInstance().isInspectorPortraitEnabled());
+                // Portrait role (null when the world's portrait toggle is off, so a flip repaints).
+                .append('|').append(t.modelRole() != null ? t.modelRole() : "");
         for (Affix affix : t.affixes()) {
             // id + icon leaves: a hot content reload may fold a new icon under an unchanged affix id.
             sb.append('+').append(affix.id())
@@ -332,9 +330,9 @@ public final class MobInspectorHud extends ScalingHud {
         return ScalingHud.get(player, HUD_KEY, MobInspectorHud.class);
     }
 
-    /** Re-anchor every online player's inspector HUD live (the admin reposition). */
-    public static void refreshPositionForAllOnline(@Nonnull HudPosition position) {
-        ScalingHud.refreshPositionForAllOnline(HUD_KEY, position);
+    /** Re-anchor every online player's inspector HUD live, each to its own world's corner (the admin reposition). */
+    public static void refreshPositionForAllOnline() {
+        ScalingHud.refreshPositionForAllOnline(HUD_KEY);
     }
 
     /**

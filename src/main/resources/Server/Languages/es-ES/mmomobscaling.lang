@@ -36,9 +36,8 @@ name.decorated = {base} {rarity}
 name.variant_decorated = {variant} {inner}
 
 command.desc = Herramientas de administración del escalado de criaturas: purgar residuos, inspeccionar la dificultad local, ajustar las superposiciones del HUD.
-command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; intensity ajusta el multiplicador de dificultad; worlds lista los archivos de configuración por mundo; ui abre la página de configuración del administrador.
-command.usage = Uso: /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>
-command.arg.intensity = El multiplicador de intensidad (>= 0; 1.0 neutral, más alto = criaturas más difíciles). Omite para ver el valor actual.
+command.arg.sub = Subcomando: purge elimina los residuos de escalado de las criaturas cargadas; inspect muestra los valores de dificultad en tu posición; hud ajusta las superposiciones; preset cambia el preset activo; worlds lista los archivos de configuración por mundo; ui abre la página de configuración del administrador.
+command.usage = Uso: /mobscaling <purge|inspect|hud|preset|worlds|ui>
 command.players_only = Este comando solo puede ejecutarlo un jugador.
 command.purge.start = Eliminando residuos de escalado de las criaturas cargadas en este mundo...
 command.purge.done = Residuos de escalado eliminados de {count} criaturas cargadas.
@@ -67,11 +66,6 @@ command.worlds.base = (solo base, nunca coincide)
 command.worlds.origin_owner = archivo del propietario
 command.worlds.origin_shipped = incluido
 
-command.intensity.current = Multiplicador de intensidad actual: {value}
-command.intensity.set = Multiplicador de intensidad establecido en {value}.
-command.intensity.usage = Uso: /mobscaling intensity [multiplicador]. Un número >= 0 (1.0 = neutral, más alto = criaturas más difíciles).
-command.intensity.persist_hint = Solo cambio en vivo: para conservarlo entre reinicios, configura la clave Intensity en mods/MmoMobScaling/mob-scaling.json.
-command.intensity.saved = Guardado: el multiplicador de intensidad ahora persiste entre reinicios.
 
 command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Posiciones: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD activado para todos los jugadores: {target}
@@ -123,7 +117,6 @@ ui.button.remove = Eliminar
 ui.global.enabled = Escalado habilitado
 ui.global.enabled_note = Entra en efecto al reiniciar (el mod registra sus sistemas al iniciarse).
 ui.global.preset = Preset activo
-ui.global.intensity = Multiplicador de intensidad
 ui.global.rarity = Probabilidad de rareza al aparecer
 ui.global.open_world_header = Escalado del mundo abierto
 ui.global.player_scaling = Escalado de jugador/grupo
@@ -132,9 +125,6 @@ ui.global.aggregation = Agregación del poder grupal
 ui.global.region_size = Tamaño de región (bloques)
 ui.global.band_width = Ancho de banda del poder grupal
 ui.global.only_raise = Solo aumentar dificultad
-ui.global.party_join = Aumentar al unirse al grupo
-ui.global.late_arrival = Aumento de llegada tardía
-ui.global.composition = Escalado de composición
 ui.global.difficulty_header = Dificultad
 ui.global.floor = Piso de dificultad base
 ui.global.min_cap = Dificultad mínima
@@ -146,20 +136,26 @@ ui.global.esc_blocks = Bloques por punto
 ui.global.esc_max_bonus = Bonificación máxima
 ui.global.esc_rarity = Rareza por punto
 ui.global.stat_curve_header = Curva de estadísticas de dificultad
+ui.global.clamps_header = Límites de seguridad
 
 # Panel de vista previa de esqueleto (pestaña Global, columna derecha). {diff}/{hp}/{out}/{in} son DATOS, no prosa traducida.
 ui.global.preview_title = Vista previa: Esqueleto
-ui.global.preview_note = Una criatura común ejecutada solo a través de la curva de estadísticas de dificultad anterior. Los multiplicadores de rareza y variante se apilan sobre estos números al aparecer.
+ui.global.preview_note = Una criatura común pasada por la curva de estadísticas de dificultad de arriba. Una rareza o variante lee la misma curva más adelante, a esta dificultad multiplicada por su propio multiplicador.
 ui.global.preview_row = D{diff}   HP {hp}   Daño {out}   Recibido {in}
 ui.global.preview_custom = Prueba una dificultad
 
 # Valores de curva de estadísticas de dificultad (compartidos por la pestaña Global y el editor por mundo).
-ui.curve.hp_per_point = HP por punto
-ui.curve.out_per_point = Daño infligido por punto
-ui.curve.in_reduction = Reducción de daño recibido por punto
-ui.curve.max_hp = Multiplicador de HP máximo
+ui.curve.ehp_per_point = Dureza por punto
+ui.curve.hp_share = Parte visible de la salud
+ui.curve.out_scale = Escala del daño infligido
+ui.curve.out_shape = Forma del daño infligido
+ui.curve.max_ehp = Multiplicador de dureza máximo
 ui.curve.max_out = Multiplicador de daño infligido máximo
-ui.curve.min_in = Multiplicador de daño recibido mínimo
+ui.clamps.min_hp = Multiplicador de salud mínimo
+ui.clamps.max_in = Multiplicador de daño recibido máximo
+ui.clamps.min_out = Multiplicador de daño infligido mínimo
+ui.clamps.min_loot = Pasadas de botín mínimas
+ui.clamps.max_loot = Pasadas de botín máximas
 
 # Filas de pestaña HUD compartidas.
 ui.hud.position = Posición
@@ -189,7 +185,6 @@ ui.world.parent = Archivo padre
 ui.world.enabled = Escalado en este mundo
 ui.world.tuning_header = Ajuste
 ui.world.floor = Dificultad mínima base
-ui.world.intensity = Intensidad
 ui.world.rarity = Probabilidad de rareza
 ui.world.player_scaling = Escalado de jugador
 ui.world.pool_header = Grupo de aparición
@@ -201,10 +196,9 @@ ui.world.pool_variant_chance = Multiplicador de probabilidad de variante
 ui.world.pool_affixes_allow = Affixes permitidos
 ui.world.pool_affixes_deny = Affixes denegados
 ui.world.pool_extra_slots = Espacios de affix adicionales
-ui.world.hud_header = Visibilidad del HUD
-ui.world.zone_hud = HUD de Zona
-ui.world.inspector_hud = HUD de Inspector
-ui.world.hint = Cada configuración aquí es editable: ajuste, escalación de distancia, escalado del mundo abierto, la curva de estadísticas de dificultad, el grupo de aparición y la visibilidad del HUD. Un campo en blanco o Heredar recurre al archivo padre y después al valor global. Las listas permitidas/denegadas son ids separadas por comas; denegado gana.
+ui.world.zone_hud_header = HUD de Zona
+ui.world.inspector_hud_header = HUD de Inspector
+ui.world.hint = Cada configuración aquí es editable: ajuste, escalación de distancia, escalado del mundo abierto, la curva de estadísticas de dificultad, el grupo de aparición y ambas superposiciones del HUD. Un campo en blanco o Heredar recurre al archivo padre y después al valor global. Las listas permitidas/denegadas son ids separadas por comas; denegado gana.
 # Se añade a la sugerencia de un campo en blanco/Heredar (una línea calculada, {value} es DATOS); muestra lo que actualmente
 # se resuelve en (el archivo padre, luego el ajuste global) para que un campo en blanco nunca sea un misterio.
 ui.world.inherits = Hereda: {value}
@@ -234,13 +228,17 @@ ui.hint.enabled = Interruptor maestro del sistema de escalado de criaturas. Desa
 ui.hint.floor = La dificultad más baja a la que cae un mundo antes de que se apliquen bonificaciones de zona, bioma o distancia.
 ui.hint.min_cap = La dificultad efectiva más baja a la que una criatura puede resolverse, después de agregar todos los bonificadores.
 ui.hint.max_cap = La dificultad efectiva más alta a la que una criatura puede resolverse, después de agregar todos los bonificadores.
-ui.hint.intensity = Escala qué tan empinada crece la curva de dificultad; más alto hace que las criaturas escaladas sean más duras y golpeen más fuerte.
-ui.hint.hp_per_point = Cuánto aumenta la resistencia de salud de una criatura por cada punto de dificultad por encima de la línea base.
-ui.hint.out_per_point = Cuánto más fuerte golpea una criatura por cada punto de dificultad por encima de la línea base.
-ui.hint.in_reduction = Cuánto daño entrante se evita por cada punto de dificultad por encima de la línea base.
-ui.hint.max_hp = El techo más duro al que la curva de dificultad puede empujar el multiplicador de salud de una criatura.
+ui.hint.ehp_per_point = Cuánto más tarda en morir una criatura por cada punto de dificultad por encima de la línea base, salud y reducción de daño juntas.
+ui.hint.hp_share = Qué parte de esa dureza se muestra como salud en la barra; el resto es reducción de daño silenciosa, y el tiempo hasta morir es el mismo de cualquier modo.
+ui.hint.out_scale = A qué velocidad crece el golpe de una criatura con la dificultad; con la forma en 1.0 es el daño extra por cada punto de dificultad por encima de la línea base.
+ui.hint.out_shape = Cómo se curva el daño: 1.0 es una línea recta; por encima, las dificultades bajas golpean solo un poco más fuerte y las altas mucho más.
+ui.hint.max_ehp = Cuántas veces más que una criatura base puede tardar en morir cualquier criatura, contando la resistencia de un afijo; déjalo muy por encima del tope de la curva o todos los niveles acaban iguales ahí.
 ui.hint.max_out = El techo más duro al que la curva de dificultad puede empujar el multiplicador de daño infligido de una criatura.
-ui.hint.min_in = La reducción de daño entrante máxima que la curva de dificultad puede conceder a una criatura.
+ui.hint.clamp_min_hp = Lo mínimo a lo que puede reducirse la salud de una criatura, como fracción de su base.
+ui.hint.clamp_max_in = El máximo de daño que se puede hacer recibir a una criatura por golpe, como múltiplo de lo normal; por encima de uno permite un afijo de cañón de cristal.
+ui.hint.clamp_min_out = Lo mínimo a lo que puede reducirse el golpe de una criatura, como fracción de su golpe base.
+ui.hint.clamp_min_loot = Las menos pasadas con las que se tira cualquier bloque de botín de muerte.
+ui.hint.clamp_max_loot = Las más pasadas con las que se tira cualquier bloque de botín de muerte, sea cual sea el resultado de los multiplicadores de rareza, variante y afijos.
 ui.hint.rarity = La probabilidad de que una criatura hostil aparezca con un nivel raro o superior en lugar de simple.
 ui.hint.esc_enabled = Si la dificultad aumenta cuanto más lejos se aleja un jugador del punto de aparición del mundo.
 ui.hint.esc_start = La distancia desde la aparición que un jugador puede viajar antes de que la escalación de distancia comience a añadir dificultad.
@@ -253,9 +251,6 @@ ui.hint.aggregation = Cómo el poder de múltiples jugadores cercanos se pliega 
 ui.hint.region_size = El tamaño de la cuadrícula de proximidad utilizada para agrupar jugadores en una lectura de región compartida.
 ui.hint.band_width = Lo máximo que la dificultad de una región puede variar por encima de su línea base por el poder de jugadores cercanos.
 ui.hint.only_raise = Cuando está activado, el poder de los jugadores cercanos solo puede aumentar la dificultad de una región, nunca reducirla por debajo de la línea base.
-ui.hint.party_join = Si un jugador más fuerte o un grupo que se une a una región aumenta su dificultad inmediatamente.
-ui.hint.late_arrival = El tamaño del aumento de dificultad único aplicado cuando una llegada más fuerte se une a una región.
-ui.hint.composition = Si la composición de jugadores cercanos, no solo su poder bruto, influye en el escalado.
 
 # Pestaña HUD de Zona (hud_position/hud_offset_x/hud_offset_y se comparten con la pestaña HUD del Inspector a continuación).
 ui.hint.zone_enabled = Si la superposición de dificultad de zona se muestra en pantalla.
@@ -279,8 +274,6 @@ ui.hint.w_enabled = Si el escalado de criaturas se ejecuta en este mundo en abso
 ui.hint.w_esc_enabled = Si la escalación de distancia se aplica en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_player_scaling = Si los jugadores cercanos aumentan la dificultad en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_only_raise = Si el poder de los jugadores cercanos solo puede aumentar, nunca reducir, la dificultad aquí. Heredar sigue el archivo padre, luego el ajuste global.
-ui.hint.w_party_join = Si una llegada más fuerte aumenta la dificultad aquí inmediatamente. Heredar sigue el archivo padre, luego el ajuste global.
-ui.hint.w_composition = Si la composición del jugador influye en el escalado aquí. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.pool_rarities_allow = Niveles de rareza permitidos para tirar aquí; dejar en blanco para permitir todos los niveles.
 ui.hint.pool_rarities_deny = Niveles de rareza prohibidos para tirar aquí; la denegación siempre prevalece sobre la permitida.
 ui.hint.pool_variants_allow = Superposiciones variantes permitidas para tirar aquí; dejar en blanco para permitir cada variante.
@@ -291,3 +284,5 @@ ui.hint.pool_affixes_deny = Affixes prohibidos para tirar aquí; la denegación 
 ui.hint.pool_extra_slots = Espacios de affix adicionales otorgados además de lo que la rareza y variante ya permiten.
 ui.hint.w_zone_hud = Si se permite que la superposición de dificultad de zona se muestre en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_inspector_hud = Si se permite que la superposición del inspector de criaturas se muestre en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
+ui.hint.w_zone_show_location = Si la superposición también muestra el nombre de la zona y bioma actual en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
+ui.hint.w_insp_portrait = Si la tarjeta del inspector muestra el retrato del objetivo en este mundo. Heredar sigue el archivo padre, luego el ajuste global.

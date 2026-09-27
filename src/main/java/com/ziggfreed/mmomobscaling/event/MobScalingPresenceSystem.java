@@ -38,11 +38,21 @@ import com.ziggfreed.mmomobscaling.world.RegionKeys;
  * "refreshed on player chunk-cross" cadence, never a per-spawn scan. Crossing a ZONE border re-keys
  * immediately even inside the same grid cell, so a bucket never straddles two zones.
  *
+ * <p><b>The tick reads the PER-WORLD settings view</b> ({@code MobScalingConfig.spawnSettingsFor(world)},
+ * scored on every axis the world has) and DECLARES the world's fold to the tracker before it reads
+ * or writes anything ({@link RegionPowerTracker#adoptWorldFold}): the grid size the region key is
+ * composed with and the {@code AggregationMode} the world's buckets fold under. That is what makes
+ * a per-world {@code OpenWorld.AggregationMode} and {@code OpenWorld.RegionSizeChunks} real: the
+ * cached scalar a spawn reads was folded under the world's own mode over keys composed at the
+ * world's own size, and a live change to either is picked up on the next tick (a mode change refolds
+ * in place, a size change purges the world's presence so every key is rebuilt).
+ *
  * <p>The nested {@link Removal} {@code RefSystem} drops a player's presence when their entity leaves
- * the store (disconnect / world switch-out / unload), so a bucket never holds a ghost. On a world
- * SWITCH the next presence tick in the new world re-registers them; power is also re-read on every
- * cross, so a leveling player's contribution tracks their growth region by region. Whole bodies
- * try-guarded.
+ * the store (disconnect / world switch-out / unload), so a bucket never holds a ghost. It resolves no
+ * settings at all: the bucket it empties refolds under the mode its world declared, so the removal
+ * hook never needs the world it has no handle on. On a world SWITCH the next presence tick in the new
+ * world re-registers them; power is also re-read on every cross, so a leveling player's contribution
+ * tracks their growth region by region. Whole bodies try-guarded.
  */
 public final class MobScalingPresenceSystem extends EntityTickingSystem<EntityStore> {
 
@@ -75,16 +85,21 @@ public final class MobScalingPresenceSystem extends EntityTickingSystem<EntitySt
             if (transform == null) {
                 return;
             }
-            MobScalingConfig cfg = MobScalingConfig.getInstance();
+            // The per-world view (the global config when no Worlds/*.json rule matches): the grid size
+            // and the fold mode are this world's own, so declare them before reading or writing a bucket.
+            SpawnScalingSettings spawn = MobScalingConfig.getInstance().spawnSettingsFor(world);
+            RegionPowerTracker tracker = RegionPowerTracker.get();
+            String worldKey = world.getName();
+            int regionSize = spawn.getRegionSizeChunks();
+            tracker.adoptWorldFold(worldKey, regionSize, mode(spawn));
             RegionPowerTracker.RegionKey regionKey = RegionKeys.at(world,
                     ChunkUtil.chunkCoordinate(transform.getPosition().x),
-                    ChunkUtil.chunkCoordinate(transform.getPosition().z), cfg.getRegionSizeChunks());
-            String worldKey = world.getName();
-            if (RegionPowerTracker.get().isCurrent(playerId, worldKey, regionKey)) {
+                    ChunkUtil.chunkCoordinate(transform.getPosition().z), regionSize);
+            if (tracker.isCurrent(playerId, worldKey, regionKey)) {
                 return; // steady state: no cross, nothing to do
             }
             double power = MMOSkillTreeAPI.getPowerLevel(store, archetypeChunk.getReferenceTo(index));
-            RegionPowerTracker.get().updatePresence(playerId, worldKey, regionKey, power, mode(cfg));
+            tracker.updatePresence(playerId, worldKey, regionKey, power);
         } catch (Throwable t) {
             safeWarn("presence tick failed: " + t);
         }
@@ -121,7 +136,7 @@ public final class MobScalingPresenceSystem extends EntityTickingSystem<EntitySt
                 UUIDComponent uuidComp = store.getComponent(ref, UUIDComponent.getComponentType());
                 UUID playerId = uuidComp != null ? uuidComp.getUuid() : null;
                 if (playerId != null) {
-                    RegionPowerTracker.get().removePresence(playerId, mode(MobScalingConfig.getInstance()));
+                    RegionPowerTracker.get().removePresence(playerId);
                 }
             } catch (Throwable t) {
                 safeWarn("presence removal failed: " + t);

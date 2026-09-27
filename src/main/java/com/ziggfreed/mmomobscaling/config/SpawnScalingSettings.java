@@ -16,9 +16,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
  * <p>This is the ONLY seam the per-world overlay flows through: the resolver + hook take a
  * {@code SpawnScalingSettings} rather than the {@code MobScalingConfig} singleton, so an authored
  * world file tunes a dungeon's kill-switch / baseline floor / rarity chance / difficulty caps /
- * stat curve / intensity / open-world behavior / HUD visibility / rarity-variant-affix pool
- * without touching the global config. The ONE field that stays global by design is
- * {@code RegionSizeChunks} (region-grid consistency) - see the router.
+ * stat curve and clamps / open-world behavior / HUD placement and visibility /
+ * rarity-variant-affix pool without touching the global config.
  */
 public interface SpawnScalingSettings {
 
@@ -60,7 +59,12 @@ public interface SpawnScalingSettings {
     /** Upper clamp on the resolved effective difficulty. */
     double getDifficultyMaxCap();
 
-    /** Proximity sub-grid size (chunks per side) for the region-power bucket. GLOBAL (grid consistency). */
+    /**
+     * Proximity sub-grid size (chunks per side) for the region-power bucket. A region bucket is keyed
+     * by world, so the size only has to agree within one world; {@code RegionPowerTracker} purges a
+     * world's tracked presence when its size changes, since every key composed under the old size
+     * is stale.
+     */
     int getRegionSizeChunks();
 
     /** Max absolute difficulty swing the region-power group delta may add over the floor. */
@@ -88,15 +92,6 @@ public interface SpawnScalingSettings {
     @Nonnull
     String getOpenWorldAggregationMode();
 
-    /** One-shot additive difficulty bump allowed when a stronger player/party arrives (per-world, 1.0.2). */
-    boolean isAllowDifficultyIncreaseOnPartyJoin();
-
-    /** Size (flat additive difficulty) of the late-arrival bump (per-world, 1.0.2). */
-    double getLateArrivalBumpFactor();
-
-    /** Open-world density/composition scaling toggle (per-world, 1.0.2). */
-    boolean isCompositionEnabled();
-
     /**
      * Whether the zone-difficulty HUD shows in this world (1.0.2). A per-world {@code false} HIDES the
      * HUD where the global is on; a per-world {@code true} cannot re-enable a globally-off HUD (the
@@ -106,6 +101,46 @@ public interface SpawnScalingSettings {
 
     /** Whether the mob-inspector HUD shows in this world (1.0.2; same hide-only semantics as the zone HUD). */
     boolean isInspectorHudEnabled();
+
+    /**
+     * The zone-difficulty HUD's corner preset name in this world ({@code HudPosition.parse} vocabulary;
+     * a blank or unknown name falls back to the HUD's own default corner).
+     */
+    @Nonnull
+    String getZoneHudPosition();
+
+    /** Pixel offset of the zone-difficulty HUD from its anchored horizontal edge in this world. */
+    int getZoneHudOffsetX();
+
+    /** Pixel offset of the zone-difficulty HUD from its anchored vertical edge in this world. */
+    int getZoneHudOffsetY();
+
+    /** Whether the zone-difficulty HUD names the current zone and biome in this world. */
+    boolean isZoneShowLocationName();
+
+    /** Lang-key prefix the zone name is looked up under in this world (blank = prettify the raw id). */
+    @Nonnull
+    String getZoneNameKeyPrefix();
+
+    /** Lang-key prefix the biome name is looked up under in this world (blank = prettify the raw id). */
+    @Nonnull
+    String getBiomeNameKeyPrefix();
+
+    /** The mob-inspector HUD's corner preset name in this world (same vocabulary and fallback as the zone card). */
+    @Nonnull
+    String getInspectorHudPosition();
+
+    /** Pixel offset of the mob-inspector HUD from its anchored horizontal edge in this world. */
+    int getInspectorHudOffsetX();
+
+    /** Pixel offset of the mob-inspector HUD from its anchored vertical edge in this world. */
+    int getInspectorHudOffsetY();
+
+    /** Crosshair-target search radius in blocks for the inspector raycast in this world (kept to a sane band). */
+    double getInspectorRangeBlocks();
+
+    /** Whether the inspector card shows the target's generated portrait in this world. */
+    boolean isInspectorPortraitEnabled();
 
     /** Whether a rarity tier may roll in this world ({@code Pool.Rarities} allow/deny; deny wins). */
     boolean isRarityAllowed(@Nonnull String rarityId);
@@ -123,10 +158,17 @@ public interface SpawnScalingSettings {
     int getExtraAffixSlots();
 
     /**
-     * The difficulty -> stat curve for this world, with the effective {@code Intensity} multiplier
-     * ALREADY applied to the three slopes (1.0.1). The single production {@code MobScaleFold.fold} +
-     * the inspect preview read this, so intensity + per-world stat-curve overrides flow through here.
+     * The difficulty -> stat curve for this world ({@code Difficulty.StatCurve}, every leaf per world).
+     * The single production {@code MobScaleFold.fold} + the inspect preview read this, so a per-world
+     * stat-curve override flows through here.
      */
     @Nonnull
     MobScaleFold.DifficultyStatCurve statCurveModel();
+
+    /**
+     * The safety rails for this world ({@code Difficulty.Clamps}, every leaf per world): the per-axis
+     * floors and ceilings {@code MobScaleFold.fold} applies after the affix deltas.
+     */
+    @Nonnull
+    MobScaleFold.Clamps clampsModel();
 }

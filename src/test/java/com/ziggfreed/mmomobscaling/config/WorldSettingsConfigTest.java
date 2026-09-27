@@ -21,9 +21,9 @@ import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 /**
  * Unit tests for {@link WorldSettingsConfig}: the owner-dir scan (bare body canonical, a pack-style
  * {@code Payload} wrapper peeled, a malformed file skipped without poisoning the fold), the
- * cross-layer {@code Parent} chain (an owner file inheriting a pack base), owner-replaces-pack by id,
- * and the filename sanitizer. The end-to-end fold + migration are exercised in
- * {@link MobScalingConfigTest}.
+ * cross-layer {@code Parent} chain (an owner file inheriting a pack base) and owner-replaces-pack by
+ * id. The shared folder mechanics (the filename sanitizer, the scan, the scaffold) are exercised in
+ * {@link OwnerFilesTest}; the end-to-end fold + migration in {@link MobScalingConfigTest}.
  */
 class WorldSettingsConfigTest {
 
@@ -43,12 +43,12 @@ class WorldSettingsConfigTest {
 
     @Test
     void bareAndPayloadWrappedOwnerFilesBothScan(@TempDir Path tmp) throws Exception {
-        Files.writeString(tmp.resolve("bare.json"), "{ \"Where\": { \"Match\": [\"bare_*\"] }, \"Intensity\": 2.0 }");
+        Files.writeString(tmp.resolve("bare.json"), "{ \"Where\": { \"Match\": [\"bare_*\"] }, \"RaritySpawnChance\": 0.2 }");
         Files.writeString(tmp.resolve("wrapped.json"),
                 "{ \"Name\": \"copy-pasted from a pack\", \"Payload\": { \"Where\": { \"Match\": [\"wrapped_*\"] } } }");
         WorldSettingsConfig worlds = scan(tmp);
 
-        assertEquals(2.0, worlds.effectiveById("bare").getIntensity(), 1e-9, "bare body is canonical");
+        assertEquals(0.2, worlds.effectiveById("bare").getRaritySpawnChance(), 1e-9, "bare body is canonical");
         assertNotNull(worlds.resolve("wrapped_7"), "a pack-style Payload wrapper is peeled");
         assertTrue(worlds.ownerAuthoredIds().containsAll(java.util.Set.of("bare", "wrapped")));
     }
@@ -70,22 +70,22 @@ class WorldSettingsConfigTest {
                 "Shared_Base", JsonParser.parseString(
                         "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject(),
                 "Shipped", JsonParser.parseString(
-                        "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Intensity\": 5.0 }").getAsJsonObject()));
+                        "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"RaritySpawnChance\": 0.5 }").getAsJsonObject()));
         Files.writeString(tmp.resolve("mine.json"),
-                "{ \"Where\": { \"Match\": [\"mine_*\"] }, \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
+                "{ \"Where\": { \"Match\": [\"mine_*\"] }, \"Parent\": \"Shared_Base\", \"RaritySpawnChance\": 0.2 }",
                 StandardCharsets.UTF_8);
-        Files.writeString(tmp.resolve("shipped.json"), "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Intensity\": 1.5 }");
+        Files.writeString(tmp.resolve("shipped.json"), "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"RaritySpawnChance\": 0.15 }");
         worlds.setOwnerDir(tmp);
         worlds.refold();
 
         // Cross-layer Parent: the OWNER file inherits the PACK base's escalation-off leaf.
         WorldSettings mine = worlds.effectiveById("mine");
-        assertEquals(2.0, mine.getIntensity(), 1e-9);
+        assertEquals(0.2, mine.getRaritySpawnChance(), 1e-9);
         assertEquals(Boolean.FALSE, mine.getDifficulty().getDistanceEscalation().getEnabled(),
                 "the pack base's leaf is inherited across layers");
         assertEquals("Shared_Base", worlds.parentOf("mine"), "the authored Parent is exposed for the UI");
         // Owner replaces pack wholesale by id.
-        assertEquals(1.5, worlds.effectiveById("shipped").getIntensity(), 1e-9,
+        assertEquals(0.15, worlds.effectiveById("shipped").getRaritySpawnChance(), 1e-9,
                 "the owner file replaces the same-id pack body wholesale");
         // A base with no Match is never emitted as a matcher entry.
         assertNull(worlds.resolve("shared_base"), "a pool-only base never matches a world");
@@ -98,14 +98,14 @@ class WorldSettingsConfigTest {
                 "Shared_Base", JsonParser.parseString(
                         "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject()));
         Files.writeString(tmp.resolve("mine.json"),
-                "{ \"Where\": { \"Match\": [\"mine_*\"] }, \"Parent\": \"Shared_Base\", \"Intensity\": 2.0 }",
+                "{ \"Where\": { \"Match\": [\"mine_*\"] }, \"Parent\": \"Shared_Base\", \"RaritySpawnChance\": 0.2 }",
                 StandardCharsets.UTF_8);
         worlds.setOwnerDir(tmp);
         worlds.refold();
 
         WorldSettings authored = worlds.authoredById("mine");
         assertNotNull(authored, "the child's own body decodes");
-        assertEquals(2.0, authored.getIntensity(), 1e-9, "the child's own leaf survives");
+        assertEquals(0.2, authored.getRaritySpawnChance(), 1e-9, "the child's own leaf survives");
         assertNull(authored.getDifficulty(), "the parent's leaf is NOT merged in (authored-only)");
 
         WorldSettings effective = worlds.effectiveById("mine");
@@ -132,13 +132,5 @@ class WorldSettingsConfigTest {
         assertEquals("hand edited", Files.readString(dir.resolve("README.txt"), StandardCharsets.UTF_8),
                 "an existing readme is never overwritten");
         assertTrue(worlds.foldedView().isEmpty(), "the readme is never loaded as a world rule");
-    }
-
-    @Test
-    void sanitizeFileIdDropsWildcardsAndSeparators() {
-        assertEquals("instance-dungeon_of_fear_i", WorldSettingsConfig.sanitizeFileId("instance-dungeon_of_fear_i*"));
-        assertEquals("arena", WorldSettingsConfig.sanitizeFileId(" Arena_* "));
-        assertEquals("a_b", WorldSettingsConfig.sanitizeFileId("a/b"));
-        assertEquals("world", WorldSettingsConfig.sanitizeFileId("***"));
     }
 }

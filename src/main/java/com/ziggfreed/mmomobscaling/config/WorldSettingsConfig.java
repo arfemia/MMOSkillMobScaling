@@ -1,11 +1,8 @@
 package com.ziggfreed.mmomobscaling.config;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -18,7 +15,6 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -49,7 +45,8 @@ import com.ziggfreed.mmomobscaling.asset.WorldSettings;
  *       inheritance is {@code Parent}'s job).</li>
  * </ol>
  *
- * <p>The fold: pool all bodies by lower-cased id, run the common {@code JsonParentResolver}
+ * <p>The fold: pool all bodies by id key ({@code OwnerFiles.idKey}), run the common {@code JsonParentResolver}
+
  * ({@code Parent} chains merge child-over-parent per leaf, cross-layer, cycle-guarded), decode
  * each resolved body through the ONE schema authority {@link WorldSettings#CODEC}, and publish
  * every body that says WHERE it applies as a matchable rule (a body with no {@code Where} is a
@@ -74,10 +71,7 @@ public final class WorldSettingsConfig {
     /** The top-level parent-reference key on a world body (stripped by the resolver pre-decode). */
     public static final String PARENT_KEY = "Parent";
 
-    /** Filename of the seeded owner-dir readme (deliberately not a {@code *.json}, so the scan skips it). */
-    static final String OWNER_DIR_README = "README.txt";
-
-    /** Body of the seeded owner-dir readme: what goes in this folder and how it layers. */
+    /** Body of the seeded owner-dir readme ({@link OwnerFiles#README}): what goes in this folder and how it layers. */
     private static final String OWNER_DIR_README_TEXT = """
             MMO Mob Scaling - per-world settings
             ====================================
@@ -153,6 +147,14 @@ public final class WorldSettingsConfig {
      */
     @Nonnull private volatile Map<String, JsonObject> rawBodies = Map.of();
 
+    /**
+     * The {@code Parent}-MERGED raw body per id key (every layer, chain walked, {@code Parent}
+     * stripped): the JSON {@link #byId} was decoded from. Backs {@link #mergedRawJsonById}, the read for a
+     * caller that must see a leaf the codec no longer declares as the fold once saw it, inherited leaves
+     * included.
+     */
+    @Nonnull private volatile Map<String, JsonObject> mergedBodies = Map.of();
+
     /** The AUTHORED (pre-strip) {@code Parent} reference per id, for display/editing. */
     @Nonnull private volatile Map<String, String> parentById = Map.of();
 
@@ -183,22 +185,13 @@ public final class WorldSettingsConfig {
 
     /**
      * Create the owner dir up front and seed a one-time {@code README.txt} explaining the one-file-per-world
-     * convention. The readme is NOT a {@code *.json}, so {@link #scanOwnerDirInto}'s directory filter never
-     * tries to load it. Fully guarded (a read-only mods dir only warns) and never clobbers an existing file.
+     * convention ({@link OwnerFiles#ensureDir}: the readme is not a {@code *.json}, so the scan never tries
+     * to load it; a read-only mods dir only warns; an existing readme is never clobbered).
      */
     private void ensureOwnerDir() {
         Path dir = this.ownerDir;
-        if (dir == null) {
-            return;
-        }
-        try {
-            Files.createDirectories(dir);
-            Path readme = dir.resolve(OWNER_DIR_README);
-            if (!Files.exists(readme)) {
-                Files.writeString(readme, OWNER_DIR_README_TEXT, StandardCharsets.UTF_8);
-            }
-        } catch (Exception e) {
-            warn("could not create the worlds owner dir " + dir + ": " + e.getMessage());
+        if (dir != null) {
+            OwnerFiles.ensureDir(dir, OWNER_DIR_README_TEXT, WorldSettingsConfig::warn);
         }
     }
 
@@ -207,11 +200,15 @@ public final class WorldSettingsConfig {
         return ownerDir;
     }
 
-    /** The owner-dir file a given world id maps to; {@code null} when no owner dir is set. */
+    /**
+     * The owner-dir file a given world id maps to: the file already there whose stem keys to the same
+     * {@link OwnerFiles#idKey id key} ({@link OwnerFiles#resolveFile}), else the canonical name a new one
+     * is created at; {@code null} when no owner dir is set.
+     */
     @Nullable
     public Path ownerFileFor(@Nonnull String id) {
         Path dir = this.ownerDir;
-        return dir == null ? null : dir.resolve(sanitizeFileId(id) + ".json");
+        return dir == null ? null : OwnerFiles.resolveFile(dir, id, WorldSettingsConfig::warn);
     }
 
     /**
@@ -223,7 +220,7 @@ public final class WorldSettingsConfig {
         Map<String, JsonObject> norm = new LinkedHashMap<>();
         for (Map.Entry<String, JsonObject> e : bodies.entrySet()) {
             if (e.getKey() != null && e.getValue() != null) {
-                norm.put(e.getKey().toLowerCase(Locale.ROOT), e.getValue());
+                norm.put(OwnerFiles.idKey(e.getKey()), e.getValue());
             }
         }
         this.packBodies = Collections.unmodifiableMap(norm);
@@ -241,11 +238,21 @@ public final class WorldSettingsConfig {
         LinkedHashSet<String> owners = new LinkedHashSet<>();
         scanOwnerDirInto(pool, owners);
 
+        // Every pool key is an id key (OwnerFiles.idKey), so a Parent reference has to be keyed the same
+        // way before the resolver looks it up: "Parent": "Arena Big" must reach the body filed under
+        // arena_big, exactly as a save for that id reaches its file.
         Map<String, String> parents = new LinkedHashMap<>();
         for (Map.Entry<String, JsonObject> e : pool.entrySet()) {
             JsonObject body = e.getValue();
             if (body.has(PARENT_KEY) && body.get(PARENT_KEY).isJsonPrimitive()) {
-                parents.put(e.getKey(), body.get(PARENT_KEY).getAsString());
+                String authored = body.get(PARENT_KEY).getAsString();
+                parents.put(e.getKey(), authored);
+                String keyed = OwnerFiles.idKey(authored);
+                if (!keyed.equals(authored.trim().toLowerCase(Locale.ROOT))) {
+                    JsonObject rekeyed = JsonTreeUtil.deepClone(body);
+                    rekeyed.addProperty(PARENT_KEY, keyed);
+                    e.setValue(rekeyed);
+                }
             }
         }
 
@@ -274,6 +281,7 @@ public final class WorldSettingsConfig {
         this.byId = Collections.unmodifiableMap(newById);
         this.rules = List.copyOf(newRules);
         this.rawBodies = Collections.unmodifiableMap(pool);
+        this.mergedBodies = Collections.unmodifiableMap(new LinkedHashMap<>(resolved));
         MobScalingConfig.getInstance().invalidateWorldViews();
     }
 
@@ -342,7 +350,7 @@ public final class WorldSettingsConfig {
         if (id == null || id.isBlank()) {
             return null;
         }
-        return byId.get(id.trim().toLowerCase(Locale.ROOT));
+        return byId.get(OwnerFiles.idKey(id));
     }
 
     /**
@@ -357,7 +365,7 @@ public final class WorldSettingsConfig {
         if (id == null || id.isBlank()) {
             return null;
         }
-        JsonObject raw = rawBodies.get(id.trim().toLowerCase(Locale.ROOT));
+        JsonObject raw = rawBodies.get(OwnerFiles.idKey(id));
         if (raw == null) {
             return null;
         }
@@ -381,8 +389,40 @@ public final class WorldSettingsConfig {
         if (id == null || id.isBlank()) {
             return null;
         }
-        JsonObject raw = rawBodies.get(id.trim().toLowerCase(Locale.ROOT));
+        JsonObject raw = rawBodies.get(OwnerFiles.idKey(id));
         return raw == null ? null : JsonTreeUtil.deepClone(raw);
+    }
+
+    /**
+     * The {@code Parent}-MERGED raw JSON body for a file id, a deep clone: the child's own leaves over
+     * every ancestor's, across layers, exactly what the fold decoded. Unlike {@link #effectiveById} it
+     * still carries a key the codec does not declare, so a retired leaf an ancestor authored is visible
+     * here. {@code null} when the id has no body at all.
+     */
+    @Nullable
+    public JsonObject mergedRawJsonById(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+        JsonObject merged = mergedBodies.get(OwnerFiles.idKey(id));
+        return merged == null ? null : JsonTreeUtil.deepClone(merged);
+    }
+
+    /**
+     * The lower-cased ids whose body the jar/pack layer contributes AND no owner file replaces (an owner
+     * file of the same id shadows the pack body wholesale, so the pack's is inert). These are the bodies
+     * nothing can write back into.
+     */
+    @Nonnull
+    public Set<String> packOnlyIds() {
+        Set<String> owners = this.ownerIds;
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        for (String id : this.packBodies.keySet()) {
+            if (!owners.contains(id)) {
+                out.add(id);
+            }
+        }
+        return Collections.unmodifiableSet(out);
     }
 
     /** The AUTHORED {@code Parent} reference of a file id (pre-strip), or {@code null} when none. */
@@ -391,7 +431,7 @@ public final class WorldSettingsConfig {
         if (id == null || id.isBlank()) {
             return null;
         }
-        return parentById.get(id.trim().toLowerCase(Locale.ROOT));
+        return parentById.get(OwnerFiles.idKey(id));
     }
 
     /** Ids whose body came from the owner dir this fold (lower-cased). */
@@ -465,7 +505,7 @@ public final class WorldSettingsConfig {
                     body.remove("PlayerScalingEnabled");
                     body.add("OpenWorld", ow);
                 }
-                Path target = dir.resolve(sanitizeFileId(match) + ".json");
+                Path target = OwnerFiles.resolveFile(dir, match, WorldSettingsConfig::warn);
                 if (Files.exists(target)) {
                     warn("legacy WorldOverrides entry '" + match + "' NOT migrated: " + target
                             + " already exists (kept as-is)");
@@ -484,88 +524,20 @@ public final class WorldSettingsConfig {
         return true;
     }
 
-    /**
-     * Sanitize a match pattern / display id into an owner-dir filename stem: lower-cased, the
-     * trailing {@code *} wildcard dropped, and every character outside {@code [a-z0-9._-]}
-     * replaced with {@code _}. Never empty (falls back to {@code "world"}).
-     */
-    @Nonnull
-    public static String sanitizeFileId(@Nonnull String raw) {
-        String s = raw.trim().toLowerCase(Locale.ROOT);
-        while (s.endsWith("*")) {
-            s = s.substring(0, s.length() - 1);
-        }
-        StringBuilder out = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            out.append((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_'
-                    ? c : '_');
-        }
-        String cleaned = out.toString();
-        while (cleaned.startsWith("_")) {
-            cleaned = cleaned.substring(1);
-        }
-        while (cleaned.endsWith("_")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 1);
-        }
-        return cleaned.isEmpty() ? "world" : cleaned;
-    }
-
-    /** Pretty-print a world body to a file atomically (temp + move); guarded, false on failure. */
+    /** Pretty-print a world body to a file atomically ({@link OwnerFiles#writeJson}); guarded, false on failure. */
     static boolean writeWorldFile(@Nonnull Path target, @Nonnull JsonObject body) {
-        try {
-            Path parent = target.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            String json = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(body);
-            Path tmp = target.resolveSibling(target.getFileName() + ".tmp");
-            Files.writeString(tmp, json + System.lineSeparator(), StandardCharsets.UTF_8);
-            try {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException atomicUnsupported) {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-            }
-            return true;
-        } catch (Exception e) {
-            warn("could not write world file " + target + ": " + e.getMessage());
-            return false;
-        }
+        return OwnerFiles.writeJson(target, body, WorldSettingsConfig::warn);
     }
 
     /** Scan the owner dir into the pool (bare body canonical; a {@code Payload} wrapper is peeled). */
     private void scanOwnerDirInto(@Nonnull Map<String, JsonObject> pool, @Nonnull Set<String> idsOut) {
         Path dir = this.ownerDir;
-        if (dir == null || !Files.isDirectory(dir)) {
+        if (dir == null) {
             return;
         }
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, "*.json")) {
-            for (Path file : files) {
-                String name = file.getFileName().toString();
-                String id = name.substring(0, name.length() - ".json".length())
-                        .trim().toLowerCase(Locale.ROOT);
-                if (id.isEmpty()) {
-                    continue;
-                }
-                try {
-                    JsonElement parsed = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
-                    if (!parsed.isJsonObject()) {
-                        warn("world file " + file + " is not a JSON object; skipped");
-                        continue;
-                    }
-                    JsonObject body = parsed.getAsJsonObject();
-                    if (body.has("Payload") && body.get("Payload").isJsonObject()) {
-                        body = body.getAsJsonObject("Payload"); // pack-style wrapper accepted
-                    }
-                    pool.put(id, body);
-                    idsOut.add(id);
-                } catch (Exception e) {
-                    warn("world file " + file + " is malformed and was skipped: " + e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            warn("could not scan the worlds owner dir " + dir + ": " + e.getMessage());
-        }
+        Map<String, JsonObject> bodies = OwnerFiles.scanJsonBodies(dir, WorldSettingsConfig::warn);
+        pool.putAll(bodies);
+        idsOut.addAll(bodies.keySet());
     }
 
     /** Decode one resolved body through the schema authority; warn + null on a malformed body. */

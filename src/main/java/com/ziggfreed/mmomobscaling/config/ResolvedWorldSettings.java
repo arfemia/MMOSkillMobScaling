@@ -7,25 +7,29 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 
 /**
- * A per-world overlay view over the global config (1.0.2, extracted from
- * {@code MobScalingConfig}'s old inner class): every EXPOSED leaf is
+ * A per-world overlay view over the global config: every EXPOSED leaf is
  * {@code world-file-leaf ?? global} (the world file is already {@code Parent}-merged by
- * {@code WorldSettingsConfig}, so the chain-then-global fall-through happens per leaf), and
- * {@link #statCurveModel()} multiplies the resolved slopes by the effective intensity.
- * {@code RegionSizeChunks} delegates straight to the global config (region-grid consistency).
+ * {@code WorldSettingsConfig}, so the chain-then-global fall-through happens per leaf). Every leaf
+ * overlays the same way, {@code RegionSizeChunks}, the two HUD groups, the stat curve and the clamps
+ * included: a region bucket is keyed by world, so the proximity grid only has to agree within one,
+ * and a HUD reads the view of the world its player stands in.
  *
  * <p>The {@code Pool} allow/deny lists are compiled ONCE at construction into lower-cased
- * {@code Set}s (this object is cached per world in {@code MobScalingConfig.worldViewCache}), so
- * the hot spawn path does a set-contains, never a list scan. Immutable + stateless beyond its
- * references, safe to cache + read cross-thread.
+ * {@code Set}s, and the curve and clamps records are built once too (this object is cached per world
+ * in {@code MobScalingConfig.worldViewCache}), so the hot spawn path does a set-contains and a field
+ * read, never a list scan or a rebuild. Immutable + stateless beyond its references, safe to cache +
+ * read cross-thread.
  */
 final class ResolvedWorldSettings implements SpawnScalingSettings {
 
@@ -41,6 +45,9 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
     @Nullable private final Set<String> denyAffixes;
     private final double variantChanceMultiplier;
     private final int extraAffixSlots;
+    // The per-world curve and rails, resolved once per leaf against the global.
+    @Nonnull private final MobScaleFold.DifficultyStatCurve statCurve;
+    @Nonnull private final MobScaleFold.Clamps clamps;
 
     ResolvedWorldSettings(@Nonnull MobScalingConfig g, @Nonnull WorldSettings ws) {
         this.g = g;
@@ -59,6 +66,23 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
         this.variantChanceMultiplier = mult != null ? Math.max(0.0, mult) : g.getVariantChanceMultiplier();
         Integer extra = affixes == null ? null : affixes.getExtraSlots();
         this.extraAffixSlots = extra != null ? Math.max(0, extra) : g.getExtraAffixSlots();
+
+        StatCurve c = ws.getDifficulty() == null ? null : ws.getDifficulty().getStatCurve();
+        this.statCurve = MobScalingConfig.buildCurve(
+                c != null && c.getEffectiveHpPerPoint() != null ? c.getEffectiveHpPerPoint() : g.getStatCurveEffectiveHpPerPoint(),
+                c != null && c.getVisibleHpShare() != null ? c.getVisibleHpShare() : g.getStatCurveVisibleHpShare(),
+                c != null && c.getOutDamageScale() != null ? c.getOutDamageScale() : g.getStatCurveOutDamageScale(),
+                c != null && c.getOutDamageShape() != null ? c.getOutDamageShape() : g.getStatCurveOutDamageShape(),
+
+                c != null && c.getMaxEffectiveHpMult() != null ? c.getMaxEffectiveHpMult() : g.getStatCurveMaxEffectiveHpMult(),
+                c != null && c.getMaxOutDamageMult() != null ? c.getMaxOutDamageMult() : g.getStatCurveMaxOutDamageMult());
+        Clamps k = ws.getDifficulty() == null ? null : ws.getDifficulty().getClamps();
+        this.clamps = MobScalingConfig.buildClamps(
+                k != null && k.getMinHpMult() != null ? k.getMinHpMult() : g.getClampMinHpMult(),
+                k != null && k.getMaxInDamageMult() != null ? k.getMaxInDamageMult() : g.getClampMaxInDamageMult(),
+                k != null && k.getMinOutDamageMult() != null ? k.getMinOutDamageMult() : g.getClampMinOutDamageMult(),
+                k != null && k.getMinLootMult() != null ? k.getMinLootMult() : g.getClampMinLootMult(),
+                k != null && k.getMaxLootMult() != null ? k.getMaxLootMult() : g.getClampMaxLootMult());
     }
 
     /** Lower-cased, blank-filtered gate set; {@code null} for an absent/empty authored list (no gate). */
@@ -149,8 +173,11 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
         return Math.max(min, max); // an inverted cap pair is a footgun
     }
 
-    /** GLOBAL always: the region grid must stay consistent across worlds/regions. */
-    @Override public int getRegionSizeChunks() { return g.getRegionSizeChunks(); }
+    @Override public int getRegionSizeChunks() {
+        OpenWorld o = ow();
+        return o != null && o.getRegionSizeChunks() != null
+                ? Math.max(1, o.getRegionSizeChunks()) : g.getRegionSizeChunks();
+    }
 
     @Override public double getGroupDeltaBandWidth() {
         OpenWorld o = ow();
@@ -182,32 +209,83 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
         return v != null && !v.isBlank() ? v : g.getOpenWorldAggregationMode();
     }
 
-    @Override public boolean isAllowDifficultyIncreaseOnPartyJoin() {
-        OpenWorld o = ow();
-        return o != null && o.getAllowDifficultyIncreaseOnPartyJoin() != null
-                ? o.getAllowDifficultyIncreaseOnPartyJoin() : g.isAllowDifficultyIncreaseOnPartyJoin();
+    @Nullable private Hud zoneHud() {
+        return ws.getZoneHud();
     }
 
-    @Override public double getLateArrivalBumpFactor() {
-        OpenWorld o = ow();
-        return o != null && o.getLateArrivalBumpFactor() != null
-                ? o.getLateArrivalBumpFactor() : g.getLateArrivalBumpFactor();
-    }
-
-    @Override public boolean isCompositionEnabled() {
-        OpenWorld o = ow();
-        return o != null && o.getCompositionEnabled() != null
-                ? o.getCompositionEnabled() : g.isCompositionEnabled();
+    @Nullable private InspectorHud inspectorHud() {
+        return ws.getInspectorHud();
     }
 
     @Override public boolean isZoneHudEnabled() {
-        Boolean v = ws.getZoneHud() == null ? null : ws.getZoneHud().getEnabled();
-        return v != null ? v : g.isZoneHudEnabled();
+        Hud h = zoneHud();
+        return h != null && h.getEnabled() != null ? h.getEnabled() : g.isZoneHudEnabled();
     }
 
     @Override public boolean isInspectorHudEnabled() {
-        Boolean v = ws.getInspectorHud() == null ? null : ws.getInspectorHud().getEnabled();
-        return v != null ? v : g.isInspectorHudEnabled();
+        InspectorHud h = inspectorHud();
+        return h != null && h.getEnabled() != null ? h.getEnabled() : g.isInspectorHudEnabled();
+    }
+
+    @Nonnull @Override public String getZoneHudPosition() {
+        Hud h = zoneHud();
+        String v = h == null ? null : h.getPosition();
+        return v != null && !v.isBlank() ? v : g.getZoneHudPosition();
+    }
+
+    @Override public int getZoneHudOffsetX() {
+        Hud h = zoneHud();
+        return h != null && h.getOffsetX() != null ? h.getOffsetX() : g.getZoneHudOffsetX();
+    }
+
+    @Override public int getZoneHudOffsetY() {
+        Hud h = zoneHud();
+        return h != null && h.getOffsetY() != null ? h.getOffsetY() : g.getZoneHudOffsetY();
+    }
+
+    @Override public boolean isZoneShowLocationName() {
+        Hud h = zoneHud();
+        return h != null && h.getShowLocationName() != null ? h.getShowLocationName() : g.isZoneShowLocationName();
+    }
+
+    // An EMPTY prefix is a real value (prettify the raw id), so only an absent leaf inherits.
+    @Nonnull @Override public String getZoneNameKeyPrefix() {
+        Hud h = zoneHud();
+        return h != null && h.getZoneNameKeyPrefix() != null ? h.getZoneNameKeyPrefix() : g.getZoneNameKeyPrefix();
+    }
+
+    @Nonnull @Override public String getBiomeNameKeyPrefix() {
+        Hud h = zoneHud();
+        return h != null && h.getBiomeNameKeyPrefix() != null ? h.getBiomeNameKeyPrefix() : g.getBiomeNameKeyPrefix();
+    }
+
+    @Nonnull @Override public String getInspectorHudPosition() {
+        InspectorHud h = inspectorHud();
+        String v = h == null ? null : h.getPosition();
+        return v != null && !v.isBlank() ? v : g.getInspectorHudPosition();
+    }
+
+    @Override public int getInspectorHudOffsetX() {
+        InspectorHud h = inspectorHud();
+        return h != null && h.getOffsetX() != null ? h.getOffsetX() : g.getInspectorHudOffsetX();
+    }
+
+    @Override public int getInspectorHudOffsetY() {
+        InspectorHud h = inspectorHud();
+        return h != null && h.getOffsetY() != null ? h.getOffsetY() : g.getInspectorHudOffsetY();
+    }
+
+    // The same sane raycast band the global fold applies, so a world file cannot author a zero or a
+    // whole-map reach.
+    @Override public double getInspectorRangeBlocks() {
+        InspectorHud h = inspectorHud();
+        return h != null && h.getRangeBlocks() != null
+                ? Math.max(2.0, Math.min(32.0, h.getRangeBlocks())) : g.getInspectorRangeBlocks();
+    }
+
+    @Override public boolean isInspectorPortraitEnabled() {
+        InspectorHud h = inspectorHud();
+        return h != null && h.getPortraitEnabled() != null ? h.getPortraitEnabled() : g.isInspectorPortraitEnabled();
     }
 
     @Override public boolean isRarityAllowed(@Nonnull String rarityId) {
@@ -233,20 +311,12 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
     @Nonnull
     @Override
     public MobScaleFold.DifficultyStatCurve statCurveModel() {
-        StatCurve c = ws.getDifficulty() == null ? null : ws.getDifficulty().getStatCurve();
-        double hp = c != null && c.getHpPerPoint() != null
-                ? Math.max(0.0, c.getHpPerPoint()) : g.getStatCurveHpPerPoint();
-        double out = c != null && c.getOutDamagePerPoint() != null
-                ? Math.max(0.0, c.getOutDamagePerPoint()) : g.getStatCurveOutDamagePerPoint();
-        double in = c != null && c.getInDamageReductionPerPoint() != null
-                ? Math.max(0.0, c.getInDamageReductionPerPoint()) : g.getStatCurveInDamageReductionPerPoint();
-        double maxHp = c != null && c.getMaxHpMult() != null
-                ? Math.max(1.0, c.getMaxHpMult()) : g.getStatCurveMaxHpMult();
-        double maxOut = c != null && c.getMaxOutDamageMult() != null
-                ? Math.max(1.0, c.getMaxOutDamageMult()) : g.getStatCurveMaxOutDamageMult();
-        double minIn = c != null && c.getMinInDamageMult() != null
-                ? Math.max(0.01, Math.min(1.0, c.getMinInDamageMult())) : g.getStatCurveMinInDamageMult();
-        double eff = ws.getIntensity() != null ? Math.max(0.0, ws.getIntensity()) : g.getIntensity();
-        return MobScalingConfig.buildCurve(hp, out, in, maxHp, maxOut, minIn, eff);
+        return statCurve;
+    }
+
+    @Nonnull
+    @Override
+    public MobScaleFold.Clamps clampsModel() {
+        return clamps;
     }
 }

@@ -42,7 +42,7 @@ punching above your weight) and pulls extra loot from a per-rarity drop table.
 ## Features
 
 - **Rarity ladder.** Rare, Epic, Legendary, plus a forced Boss tier for tagged mobs. Each tier is a
-  colored nameplate, a body-tint aura, stat multipliers, affix slots, bonus XP, and a bonus loot table.
+  colored nameplate, a body-tint aura, a difficulty multiplier, affix slots, bonus XP, and a bonus loot table.
 - **Affixes** on native Hytale effects (no client mod): **Armored** (damage resistance), **Stalwart**
   (knockback immunity + extra health), **Swift** (faster movement), **Vampiric** (life-steal on hit),
   and **Freezing** (a chilling on-hit slow). Author your own in a content pack.
@@ -77,13 +77,12 @@ subcommand comes first; any extra values are passed by NAME (e.g. `--hudTarget=z
 | --- | --- |
 | `inspect` | Report the difficulty inputs at your position (zone floor, distance bonus, effective difficulty, region power, rarity chance). |
 | `preset [--presetName=<name>]` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. With no value, report the active preset. |
-| `intensity [--intensity=<multiplier>]` | Show or live-set the global difficulty intensity multiplier (`1.0` = normal, higher = tougher mobs). |
 | `hud --hudTarget=<zone\|inspector> --hudValue=<on\|off\|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
 | `worlds` | List every loaded per-world settings file: its match pattern, parent, shipped-vs-owner origin, and on/off state. |
-| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and a two-panel editor over the per-world files - world list on the left, add/edit on the right). Every setting that applies per world is editable here now, including a world's spawn pool, difficulty stat curve, open-world scaling group, and whether it shows the zone/inspector HUD (a few knobs, like the HUD's on-screen position, only make sense globally and stay in the config file). The Global tab is difficulty-first and shows a live "Preview: Skeleton" panel beside your settings (a plain mob run through your current difficulty stat curve at five sample levels, updating as you type, with the skeleton's real health shown alongside the multiplier). Every field has a short help line, and a blank/Inherit field in the world editor tells you exactly what it is inheriting. World rows wrap instead of cutting off long names. Each edit is saved and applied live. |
+| `ui` | Open the in-game admin config page: every knob across four tabs (global settings, Zone HUD, Mob Inspector HUD, and a two-panel editor over the per-world files - world list on the left, add/edit on the right). Every setting that applies per world is editable here, including a world's spawn pool, difficulty stat curve, open-world scaling group (its region grid size too), and where each of the two HUD overlays sits in that world, or whether it shows at all. The Global tab is difficulty-first and shows a live "Preview: Skeleton" panel beside your settings (a plain mob run through your current difficulty stat curve at five sample levels, updating as you type, with the skeleton's real health shown alongside the multiplier). Every field has a short help line, and a blank/Inherit field in the world editor tells you exactly what it is inheriting. World rows wrap instead of cutting off long names. Each edit is saved and applied live. |
 | `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |
 
-Every change made in `/mobscaling ui` or via the `intensity` / `hud` / `preset` subcommands is now SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
+Every change made in `/mobscaling ui` or via the `hud` / `preset` subcommands is SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
 
 ## Configuration
 
@@ -94,18 +93,29 @@ and the mod's asset stores. You never edit Java.
   (gentler curve, rarer specials), `Hardcore` (harsher, denser), or `Playtest` (steep ramp from
   spawn, for testing). Presets are partial overlays; anything you do not set inherits the default.
 - **`mods/MmoMobScaling/mob-scaling.json`** overrides any settings key (master enable, rarity chance,
-  difficulty caps, the distance-escalation curve, the difficulty-to-stats curve, group-power
-  aggregation, and both HUD overlays incl. the zone/biome name-key prefixes and the inspector
-  portrait toggle). Only your changes are stored; a partial nested group inherits the rest.
+  difficulty caps, the distance-escalation curve, the difficulty-to-stats curve and its safety clamps,
+  group-power aggregation, and both HUD overlays incl. the zone/biome name-key prefixes and the
+  inspector portrait toggle). Only your changes are stored; a partial nested group inherits the rest.
+  The curve is a toughness slope, a damage curve and two ceilings: how much longer a mob takes to kill
+  per point of difficulty (and how much of that shows as health rather than quiet damage reduction), and
+  how much harder it hits as difficulty rises, as a scale and a shape (the shape bends the damage curve
+  so it climbs gently at low difficulty and steeply at high; 1.0 makes it a straight line), each axis
+  with a rail well above the top of the scale so the rarity ladder keeps its shape up there.
 - **Zone / biome floors** are one small file each under the mod's `Difficulty/` assets
-  (`TargetType` Zone or Biome, the native name or a `*` wildcard, and a `Floor`).
-- **Rarities and affixes** are one file each (roll weight, difficulty band, multipliers, affix slots,
-  the native effect, bonus drop table, display color, and the inspector icon).
+  (`TargetType` Zone or Biome, the native name or a `*` wildcard, and a `Floor`). To retune one on your
+  server, drop a file with the same name into `mods/MmoMobScaling/difficulty/` holding just the
+  `Floor` you want; it keeps the shipped target. A file with a new name needs all three keys. Delete
+  yours to get the shipped floor back.
+- **Rarities and affixes** are one file each (roll weight, difficulty band, the tier's difficulty
+  multiplier, loot and XP multipliers, affix slots, the native effect, bonus drop table, display color,
+  and the inspector icon). A tier's strength is one number: a Legendary is folded at its multiplier
+  times the spot's difficulty, so it stays the same step above a plain mob wherever it spawns.
 - **Per-world control: one file per world.** Drop a file in `mods/MmoMobScaling/worlds/` (or ship
   `Server/MmoMobScaling/Worlds/*.json` in a pack): a `Match` pattern (exact, a `Prefix_*`, or `*`, so
   suffixed instance worlds are caught) plus just the settings that world changes. A world can switch
-  scaling off entirely (`Enabled: false`), set its own baseline difficulty floor, intensity, rarity
-  chance, caps, escalation, stat curve, the whole group-scaling behavior, hide the HUD overlays, and
+  scaling off entirely (`Enabled: false`), set its own baseline difficulty floor, rarity
+  chance, caps, escalation, stat curve and clamps, the whole group-scaling behavior (how nearby players' power
+  folds and how big a region is), place or hide the two HUD overlays, and
   gate its spawn `Pool` (allow/deny rarities, variants, and affixes, scale variant chance, extra affix
   slots). A file may name a `"Parent"` file and inherit everything it does not set; anything still
   unset falls back to the global settings. A file in `worlds/` with the same name as a shipped one
@@ -128,6 +138,7 @@ find them.
 | `mods/MmoMobScaling/mob-scaling.json` | Your overrides. Starts empty; every key you do not set inherits the default. |
 | `mods/MmoMobScaling/_reference/defaults-mob-scaling.json` | The complete default settings, rewritten every start so it always matches your installed version. Read it, copy the keys you want into `mob-scaling.json`. Editing this file does nothing. |
 | `mods/MmoMobScaling/worlds/` | One file per world rule (see the per-world section above). Created empty on first start, with a `README.txt` describing the format. |
+| `mods/MmoMobScaling/difficulty/` | One file per zone or biome floor you retune (a file named after a shipped mapping with just a `Floor` in it is enough). Created empty on first start, with a `README.txt` describing the format. |
 
 ### Extension packs
 

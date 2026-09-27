@@ -32,21 +32,20 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
  *       pool-only BASE (a {@code Parent} target, never matched).</li>
  *   <li>{@code Enabled} - the per-world kill-switch (absorbs the removed hyMMO
  *       {@code WorldRules.MobScaling.Enabled}); {@code false} = no scaling in matching worlds.</li>
- *   <li>{@code Intensity} / {@code RaritySpawnChance} - the existing per-world dials.</li>
+ *   <li>{@code RaritySpawnChance} - the per-world rarity dial.</li>
  *   <li>{@code Difficulty} - REUSES the settings {@link Difficulty} codec: {@code Floor} (the
  *       world-baseline floor absorbing the removed {@code WorldRules.MobScaling.DifficultyFloor};
  *       lowest precedence under the zone/biome {@code Difficulty/*.json} mappings), caps,
- *       {@code DistanceEscalation}, {@code StatCurve}.</li>
+ *       {@code DistanceEscalation}, {@code StatCurve}, {@code Clamps}.</li>
  *   <li>{@code OpenWorld} - REUSES the settings {@link OpenWorld} codec so the whole group is
- *       per-world (1.0.2): {@code AggregationMode}, {@code GroupDeltaBandWidth},
- *       {@code OnlyRaiseDifficulty}, {@code AllowDifficultyIncreaseOnPartyJoin},
- *       {@code LateArrivalBumpFactor}, {@code CompositionEnabled}, {@code PlayerScalingEnabled},
- *       {@code PlayerScalingStartRingBlocks}.
- *       {@code RegionSizeChunks} DECODES but is IGNORED per-world (the region grid must stay
- *       globally consistent).</li>
- *   <li>{@code ZoneHud} / {@code InspectorHud} - REUSE the settings HUD codecs; this cycle only
- *       {@code Enabled} is consumed per-world (hide a HUD inside an instance); position and the
- *       other leaves decode schema-ready but apply globally.</li>
+ *       per-world: {@code AggregationMode}, {@code RegionSizeChunks} (a region bucket is keyed by
+ *       world, so the proximity grid only has to agree within one), {@code GroupDeltaBandWidth},
+ *       {@code OnlyRaiseDifficulty}, {@code PlayerScalingEnabled}, {@code PlayerScalingStartRingBlocks}.</li>
+ *   <li>{@code ZoneHud} / {@code InspectorHud} - REUSE the settings HUD codecs, every leaf
+ *       per-world: {@code Enabled} (hide a HUD inside an instance), {@code Position} /
+ *       {@code OffsetX} / {@code OffsetY}, the zone card's {@code ShowLocationName} and its two
+ *       name-key prefixes, the inspector's {@code RangeBlocks} and {@code PortraitEnabled}. A HUD
+ *       reads the view of the world its player stands in.</li>
  *   <li>{@code Pool} - the per-world rarity / variant / affix pool control (see {@link Pool}).</li>
  * </ul>
  */
@@ -67,10 +66,6 @@ public final class WorldSettings {
             .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                     (w, v) -> w.enabled = v, w -> w.enabled)
             .add()
-            // Per-world intensity multiplier on the stat-curve slopes (overrides the global).
-            .append(new KeyedCodec<>("Intensity", Codec.DOUBLE, false),
-                    (w, v) -> w.intensity = v, w -> w.intensity)
-            .add()
             // Per-world rarity spawn chance (overrides the global; clamped [0,1] at resolve).
             .append(new KeyedCodec<>("RaritySpawnChance", Codec.DOUBLE, false),
                     (w, v) -> w.raritySpawnChance = v, w -> w.raritySpawnChance)
@@ -79,15 +74,15 @@ public final class WorldSettings {
             .append(new KeyedCodec<>("Difficulty", Difficulty.CODEC, false),
                     (w, v) -> w.difficulty = v, w -> w.difficulty)
             .add()
-            // Per-world open-world group (RegionSizeChunks decodes but stays global).
+            // Per-world open-world group (every leaf, the proximity grid size included).
             .append(new KeyedCodec<>("OpenWorld", OpenWorld.CODEC, false),
                     (w, v) -> w.openWorld = v, w -> w.openWorld)
             .add()
-            // Per-world zone-difficulty HUD overlay (Enabled consumed per-world this cycle).
+            // Per-world zone-difficulty HUD overlay (every leaf).
             .append(new KeyedCodec<>("ZoneHud", Hud.CODEC, false),
                     (w, v) -> w.zoneHud = v, w -> w.zoneHud)
             .add()
-            // Per-world mob-inspector HUD overlay (Enabled consumed per-world this cycle).
+            // Per-world mob-inspector HUD overlay (every leaf).
             .append(new KeyedCodec<>("InspectorHud", InspectorHud.CODEC, false),
                     (w, v) -> w.inspectorHud = v, w -> w.inspectorHud)
             .add()
@@ -99,7 +94,6 @@ public final class WorldSettings {
 
     @Nullable private WorldSelector where;
     @Nullable private Boolean enabled;
-    @Nullable private Double intensity;
     @Nullable private Double raritySpawnChance;
     @Nullable private Difficulty difficulty;
     @Nullable private OpenWorld openWorld;
@@ -112,7 +106,6 @@ public final class WorldSettings {
 
     @Nullable public WorldSelector getWhere() { return where; }
     @Nullable public Boolean getEnabled() { return enabled; }
-    @Nullable public Double getIntensity() { return intensity; }
     @Nullable public Double getRaritySpawnChance() { return raritySpawnChance; }
     @Nullable public Difficulty getDifficulty() { return difficulty; }
     @Nullable public OpenWorld getOpenWorld() { return openWorld; }

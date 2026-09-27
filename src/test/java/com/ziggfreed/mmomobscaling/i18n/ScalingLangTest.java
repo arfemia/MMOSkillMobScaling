@@ -37,6 +37,8 @@ class ScalingLangTest {
         assertTrue(descCount >= 5, "expected the 5 shipped affix .desc keys, found " + descCount);
     }
 
+    // The em-dash literal below is DELIBERATE: this test is the guard that keeps the lang files free of
+    // em-dashes, so it must name the character it forbids. A repo-wide em-dash sweep leaves this one alone.
     @Test
     void noEmDashesInLang() throws Exception {
         for (Map.Entry<String, String> e : loadLang().entrySet()) {
@@ -74,7 +76,7 @@ class ScalingLangTest {
     }
 
     private static Rarity rarity(String id, String nameKey) {
-        return new Rarity(id, nameKey, 1, 1, 1, 1, 1, 1, 1, 0, null, List.of("*"));
+        return new Rarity(id, nameKey, 1, 1, 1, 1, 1, 0, null, List.of("*"));
     }
 
     private static Map<String, String> loadLang() throws Exception {

@@ -6,5 +6,6 @@
   "Roll": { "Weight": 1.5, "MinDifficulty": 10, "AllowedRarities": ["*"] },
   "Kind": "STAT",
   "ResistanceBearing": true,
+  "FoldDeltas": { "ResistancePercent": 0.4 },
   "Icon": { "ItemId": "Weapon_Staff_Crystal_Ice" }
 }

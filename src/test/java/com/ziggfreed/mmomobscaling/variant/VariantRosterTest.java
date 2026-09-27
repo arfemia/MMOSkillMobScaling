@@ -22,12 +22,12 @@ class VariantRosterTest {
     private static final String ANY_RARITY = "epic";
 
     private static Variant variant(String id, double chance, double minDiff) {
-        return new Variant(id, "", chance, minDiff, 1, 1, 1, 1, 1, 0, List.of("*"));
+        return new Variant(id, "", chance, minDiff, 1, 1, 1, 0, List.of("*"));
     }
 
     /** A variant with an explicit requires-rarity gate. */
     private static Variant gatedVariant(String id, double chance, List<String> allowedRarities) {
-        return new Variant(id, "", chance, 0, 1, 1, 1, 1, 1, 0, List.of("*"),
+        return new Variant(id, "", chance, 0, 1, 1, 1, 0, List.of("*"),
                 allowedRarities, null, "", FamilyFilter.ALLOW_ALL);
     }
 

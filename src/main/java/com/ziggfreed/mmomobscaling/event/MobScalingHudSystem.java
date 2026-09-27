@@ -141,7 +141,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         boolean visible = playerWantsVisible && cfg.isEnabled()
                 && spawn.isWorldScalingEnabled() && spawn.isZoneHudEnabled();
         if (!visible) {
-            hud.pushUpdate(0, 0, 0, false, "", "", false);
+            hud.pushUpdate(spawn, 0, 0, 0, false, "", "");
             return;
         }
         int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
@@ -151,12 +151,10 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         double playerPower = MMOSkillTreeAPI.getPowerLevel(store, ref);
         // scaling.regionPower() is the tracked (zone, sub-grid) aggregate - already folded into
         // scaling.difficulty(); shown only when it says something a lone player's own power does
-        // not (someone is tracked there - the same source the group delta reads).
-        boolean showLocation = cfg.isZoneShowLocationName();
-        String zoneName = showLocation ? scaling.zoneName() : "";
-        String biomeName = showLocation ? scaling.biomeName() : "";
-        hud.pushUpdate(scaling.difficulty(), playerPower, scaling.regionPower(), true,
-                zoneName, biomeName, showLocation);
+        // not (someone is tracked there - the same source the group delta reads). The location line
+        // and the name-key prefixes are the world's own (the per-world view decides both).
+        hud.pushUpdate(spawn, scaling.difficulty(), playerPower, scaling.regionPower(), true,
+                scaling.zoneName(), scaling.biomeName());
     }
 
     // ---------------------------------------------------------------------
@@ -186,26 +184,26 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         }
         // Per-world view (1.0.2): a world with scaling killed or InspectorHud.Enabled=false hides the
         // card there (a per-world true cannot re-enable a globally-off HUD - the tick() early-out stands).
+        // The reach and the portrait toggle are the world's own too.
         World world = store.getExternalData().getWorld();
-        if (world != null) {
-            SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
-            if (!spawn.isWorldScalingEnabled() || !spawn.isInspectorHudEnabled()) {
-                hud.pushTarget(null);
-                return;
-            }
+        SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
+        if (!spawn.isWorldScalingEnabled() || !spawn.isInspectorHudEnabled()) {
+            hud.pushTarget(null);
+            return;
         }
-        hud.pushTarget(resolveTarget(store, ref, cfg));
+        hud.pushTarget(resolveTarget(store, ref, spawn));
     }
 
     /**
      * Resolve the crosshair target into a render snapshot; {@code null} when the player is not
      * looking at an inspectable entity (nothing hit, the hit has no health stat, or it is another
-     * player - the inspector reads MOBS, not people).
+     * player - the inspector reads MOBS, not people). {@code settings} is the player's world's view:
+     * it sizes the raycast and decides whether the snapshot carries a portrait role at all.
      */
     @Nullable
     private static MobInspectorHud.TargetSnapshot resolveTarget(@Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref, @Nonnull MobScalingConfig cfg) {
-        Ref<EntityStore> target = TargetUtil.getTargetEntity(ref, (float) cfg.getInspectorRangeBlocks(), store);
+            @Nonnull Ref<EntityStore> ref, @Nonnull SpawnScalingSettings settings) {
+        Ref<EntityStore> target = TargetUtil.getTargetEntity(ref, (float) settings.getInspectorRangeBlocks(), store);
         if (target == null || !target.isValid()) {
             return null;
         }
@@ -225,9 +223,10 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         }
 
         // The NPC role name doubles as the generated-portrait key (Icons/ModelsGenerated/<role>.png), the
-        // same string the native Memories page uses. Null for a non-NPC living entity (the card then shows
-        // no portrait). Read here on the world thread; the HUD only builds the path + toggles visibility.
-        String modelRole = EntityIdentifierUtil.roleName(store, target);
+        // same string the native Memories page uses. Null for a non-NPC living entity, and null when this
+        // world's InspectorHud.PortraitEnabled is off (the card then shows no portrait either way). Read
+        // here on the world thread; the HUD only builds the path + toggles visibility.
+        String modelRole = settings.isInspectorPortraitEnabled() ? EntityIdentifierUtil.roleName(store, target) : null;
 
         Rarity rarity = null;
         Variant variant = null;

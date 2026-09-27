@@ -20,12 +20,12 @@ class AffixRosterTest {
 
     /** An affix gated to VARIANTS only (empty AllowedRarities = no rarity may grant it). */
     private static Affix variantAffix(String id, List<String> allowedVariants) {
-        return new Affix(id, "", "", null, 5, 5, List.of(), allowedVariants, 0, 0, 0, 0,
+        return new Affix(id, "", "", null, 5, 5, List.of(), allowedVariants, 0, 0, 0, 0, 0.0,
                 Affix.KIND_STAT, null, false, null, null);
     }
 
     private static Rarity legendary() {
-        return new Rarity("legendary", "", 5, 50, 1, 1, 1, 1, 1, 3, null, List.of("*"));
+        return new Rarity("legendary", "", 5, 50, 1, 1, 1, 3, null, List.of("*"));
     }
 
     /** A pool with TWO resistance-bearing affixes so the one-resistance rule is exercised. */
@@ -71,7 +71,7 @@ class AffixRosterTest {
     @Test
     void rarityGatingBlocksDisallowedAffix() {
         AffixRoster p = AffixRoster.build(List.of(affix("cursed", 5, 5, List.of("epic"), false)));
-        Rarity rare = new Rarity("rare", "", 70, 5, 1, 1, 1, 1, 1, 1, null, List.of("*"));
+        Rarity rare = new Rarity("rare", "", 70, 5, 1, 1, 1, 1, null, List.of("*"));
         for (long s = 0; s < 128; s++) {
             assertTrue(p.pick(60, rare, 1, new SplitMix64(s)).isEmpty(), "epic-only affix blocked on a rare mob");
         }
@@ -85,8 +85,8 @@ class AffixRosterTest {
         AffixRoster p = AffixRoster.build(List.of(
                 affix("stalwart", 3, 5, List.of("*"), false),
                 variantAffix("venomous", List.of("horrific"))));
-        Rarity epic = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 1, null, List.of("*"));
-        Variant horrific = new Variant("horrific", "", 0.15, 20, 1, 1, 1, 1, 1, 1, List.of("venomous"));
+        Rarity epic = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, null, List.of("*"));
+        Variant horrific = new Variant("horrific", "", 0.15, 20, 1, 1, 1, 1, List.of("venomous"));
         boolean sawVenom = false;
         boolean sawStalwart = false;
         for (long s = 0; s < 256; s++) {
@@ -103,7 +103,7 @@ class AffixRosterTest {
     @Test
     void variantAffixNotGrantedWithoutTheVariant() {
         AffixRoster p = AffixRoster.build(List.of(variantAffix("venomous", List.of("horrific"))));
-        Rarity epic = new Rarity("epic", "", 25, 25, 1, 1, 1, 1, 1, 2, null, List.of("*"));
+        Rarity epic = new Rarity("epic", "", 25, 25, 1, 1, 1, 2, null, List.of("*"));
         for (long s = 0; s < 128; s++) {
             // Rarity-only roll (no variant): venomous is variant-exclusive, so it never appears.
             assertTrue(p.pick(60, epic, (Variant) null, new SplitMix64(s)).isEmpty(),
@@ -136,7 +136,7 @@ class AffixRosterTest {
     @Test
     void extraWorldSlotsAddAffixesButNeedAHost() {
         AffixRoster p = pool();
-        Rarity oneSlot = new Rarity("epic", "", 25, 5, 1, 1, 1, 1, 1, 1, null, List.of("*"));
+        Rarity oneSlot = new Rarity("epic", "", 25, 5, 1, 1, 1, 1, null, List.of("*"));
         // +2 extra world slots on a 1-slot rarity: rolls can now exceed one affix.
         boolean sawMoreThanOne = false;
         for (long s = 0; s < 256 && !sawMoreThanOne; s++) {

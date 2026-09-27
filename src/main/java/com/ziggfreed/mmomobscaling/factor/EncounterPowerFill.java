@@ -20,15 +20,17 @@ import com.ziggfreed.mmomobscaling.world.RegionKeys;
  * reading to a companion; this mod tracks player power per region already, so it answers.
  *
  * <p><b>A fight's power is the power of the region the SUBJECT stands in</b>, read at the boss's
- * own world and chunk through the same {@link RegionKeys} the presence tick writes with. It is not
+ * own world and chunk through the same {@link RegionKeys} the presence tick writes with, at the
+ * grid size that world's own settings view declares (the size is per world). It is not
  * an aggregate walked over the member refs: the tracker is region-keyed and has no per-player read,
  * the members are already paid for by the row's {@code Scale.HealthPerMember} (summing them here
  * would count the party twice), and the subject is the one ref the seam guarantees a position for.
  *
  * <p><b>Null means "nothing is known", never zero.</b> A region no player is tracked in answers
- * null, so {@code HealthPerPowerPoint} contributes nothing rather than a confident zero; a subject
- * with no ref, no world or no position answers null too. Whole body fail-soft: a throw reads as
- * unknown.
+ * null, so {@code HealthPerPowerPoint} contributes nothing rather than a confident zero; so does a
+ * world whose {@code OpenWorld.AggregationMode} is {@code DISABLED} (this mod holds no opinion about
+ * power there, and the framework keeps its own posture), and a subject with no ref, no world or no
+ * position. Whole body fail-soft: a throw reads as unknown.
  */
 public final class EncounterPowerFill implements EncounterPowerSource {
 
@@ -45,7 +47,7 @@ public final class EncounterPowerFill implements EncounterPowerSource {
                 return null;
             }
             RegionPowerTracker.RegionKey key = RegionKeys.of(store, subjectRef, world,
-                    MobScalingConfig.getInstance().getRegionSizeChunks());
+                    MobScalingConfig.getInstance().spawnSettingsFor(world).getRegionSizeChunks());
             if (key == null) {
                 return null;
             }

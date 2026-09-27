@@ -72,14 +72,18 @@ public final class MobScalingFactors {
      */
     public static final String MOB_AFFIX = "mmomobscaling:mob_affix";
 
-    /** The target's frozen effective difficulty, the number every one of its multipliers came from. */
+    /**
+     * The target's frozen difficulty: the difficulty of the SPOT it spawned at, after the zone floor, the
+     * distance ramp and the nearby group. Its rarity's premium on top of that is a separate reading
+     * ({@link #MOB_RARITY_TIER}), so content can gate on the place and on the tier independently.
+     */
     public static final String MOB_DIFFICULTY = "mmomobscaling:mob_difficulty";
 
     /**
      * How much player power this mod is currently tracking in the region the moment is happening in -
      * the same aggregate that hardens spawns there. Reads the target's position when there is one and
      * the acting subject's otherwise, so a block break and a mob kill both answer for where they
-     * happened.
+     * happened. Absent in a world whose aggregation is {@code DISABLED}: this mod has no opinion there.
      */
     public static final String REGION_POWER = "mmomobscaling:region_power";
 
@@ -176,7 +180,7 @@ public final class MobScalingFactors {
         return 0.0;
     }
 
-    /** The target's frozen effective difficulty. */
+    /** The target's frozen spot difficulty. */
     @Nullable
     private static Double difficulty(@Nonnull FactorContext ctx) {
         MobScaleResult result = scaleOf(ctx);
@@ -185,7 +189,8 @@ public final class MobScalingFactors {
 
     /**
      * The tracked player power in the region the moment is happening in. Null when there is no world,
-     * no positioned entity to locate, or the engine cannot be asked - never {@code 0}, which is a
+     * no positioned entity to locate, the engine cannot be asked, or the world's aggregation is
+     * {@code DISABLED} (this mod holds no opinion there) - never {@code 0} for any of those, which is a
      * genuine reading meaning "nobody is being tracked here right now".
      */
     @Nullable
@@ -200,12 +205,14 @@ public final class MobScalingFactors {
             if (world == null) {
                 return null;
             }
+            // The grid size is the world's own (a per-world leaf), read off the same view the presence
+            // tick keyed the bucket with.
             RegionPowerTracker.RegionKey key = RegionKeys.of(store, at, world,
-                    MobScalingConfig.getInstance().getRegionSizeChunks());
+                    MobScalingConfig.getInstance().spawnSettingsFor(world).getRegionSizeChunks());
             if (key == null) {
                 return null;
             }
-            return RegionPowerTracker.get().scalarFor(world.getName(), key);
+            return RegionPowerTracker.get().readingFor(world.getName(), key);
         } catch (Throwable t) {
             return null;
         }

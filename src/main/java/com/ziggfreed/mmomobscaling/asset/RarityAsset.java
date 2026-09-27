@@ -26,15 +26,22 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  * {@link com.ziggfreed.mmomobscaling.config.RarityConfig}.
  *
  * <p><b>Cohesive field groups are NESTED sub-objects</b> (the schema-design rule): the roll gate is
- * {@code Roll}, the stat/reward multipliers are {@code Multipliers}, the affix policy is
+ * {@code Roll}, the reward multipliers are {@code Multipliers}, the affix policy is
  * {@code Affixes}, the mob-family gate is {@code Families} - each its own {@link BuilderCodec}, so a future
- * knob lands INSIDE its group instead of growing a flat suffix-soup ({@code HpMult}/{@code OutDamageMult}/...).
+ * knob lands INSIDE its group instead of growing a flat suffix-soup.
+ *
+ * <p><b>The tier's strength is ONE number, {@code DifficultyMultiplier}</b>: the difficulty curve is evaluated
+ * at {@code zoneDifficulty * DifficultyMultiplier}, so the tier's premium over a plain mob holds across the
+ * band. {@code Multipliers} carries only the reward half ({@code Loot} = how many times the {@code Loot} block
+ * is rolled, {@code Xp}); a per-stat multiplier is not a leaf of this schema, so a file authoring one under
+ * {@code Multipliers} gets the server's own "Unused key(s)" warning naming the file and the key.
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
  * { "Name": "Epic", "DisplayNameKey": "mmomobscaling.rarity.epic.name", "NameColor": "#b388ff",
  *   "Roll": { "Weight": 25, "MinDifficulty": 25 },
- *   "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "InDamage": 0.7, "Loot": 1.5, "Xp": 1.3 },
+ *   "DifficultyMultiplier": 1.8,
+ *   "Multipliers": { "Loot": 1.5, "Xp": 1.3 },
  *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [],
  *                 "ForceGroups": [], "ForceRoles": [] },
@@ -50,6 +57,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private String displayNameKey;
     @Nullable private String nameColor;
     @Nullable private Roll roll;
+    @Nullable private Double difficultyMultiplier;
     @Nullable private Multipliers multipliers;
     @Nullable private AffixPolicy affixes;
     @Nullable private Families families;
@@ -79,7 +87,17 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
             // The roll gate: how often this tier is picked and from which difficulty band on.
             .append(new KeyedCodec<>("Roll", Roll.CODEC, false), (a, v) -> a.roll = v, a -> a.roll)
             .add()
-            // The stat/reward multipliers folded into the frozen spawn result.
+            // What the tier IS in the fold: the multiplier on the difficulty the curve is evaluated at.
+            .append(new KeyedCodec<>("DifficultyMultiplier", Codec.DOUBLE, false),
+                    (a, v) -> a.difficultyMultiplier = v, a -> a.difficultyMultiplier)
+            .metadata(EditorSchema.defaultValue(1.0))
+            .documentation("The multiplier on the spot's difficulty this tier is folded at: a mob of this"
+                    + " tier at difficulty 30 gets the health and damage a plain mob has at 30 times this"
+                    + " number. 1.0 is a plain mob. It is also the tier's strength for ordering (which"
+                    + " forced tier wins, and the ladder position other mods read), so keep the ladder"
+                    + " increasing from the entry tier up.")
+            .add()
+            // The reward multipliers folded into the frozen spawn result.
             .append(new KeyedCodec<>("Multipliers", Multipliers.CODEC, false),
                     (a, v) -> a.multipliers = v, a -> a.multipliers)
             .add()
@@ -115,18 +133,17 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
 
     /**
      * Build the runtime {@link Rarity} (the map key is the id). Absent groups/leaves take the neutral
-     * defaults (weight 1, no band gate, all multipliers 1.0, zero affix slots). An absent
-     * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow
-     * none". An absent display key stays {@code ""} so the text util falls back to the convention key.
-     * An absent or empty {@code Loot} block folds to {@code null} (this tier pays nothing extra).
+     * defaults (weight 1, no band gate, difficulty multiplier 1.0, reward multipliers 1.0, zero affix
+     * slots). An absent {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list
+     * means "allow none". An absent display key stays {@code ""} so the text util falls back to the
+     * convention key. An absent or empty {@code Loot} block folds to {@code null} (this tier pays nothing
+     * extra).
      */
     @Nonnull
     public Rarity toRarity() {
         double weight = roll != null && roll.weight != null ? roll.weight : 1.0;
         double minDifficulty = roll != null && roll.minDifficulty != null ? roll.minDifficulty : 0.0;
-        double hp = mult(multipliers != null ? multipliers.hp : null);
-        double out = mult(multipliers != null ? multipliers.outDamage : null);
-        double in = mult(multipliers != null ? multipliers.inDamage : null);
+        double difficultyMult = mult(difficultyMultiplier);
         double lootMult = mult(multipliers != null ? multipliers.loot : null);
         double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
@@ -135,7 +152,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
         LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
-        return new Rarity(id, nameKey, weight, minDifficulty, hp, out, in,
+        return new Rarity(id, nameKey, weight, minDifficulty, difficultyMult,
                 lootMult, xp, slots, auraEffectId, allowed, color, filter, deathLoot);
     }
 
@@ -162,32 +179,25 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         @Nullable private Double minDifficulty;
     }
 
-    /** The stat/reward multipliers (each absent leaf = 1.0, the plain baseline). */
+    /**
+     * The reward multipliers (each absent leaf = 1.0, the plain baseline): how often the tier's loot is
+     * rolled and how much kill XP it pays. A tier's health, damage dealt and damage taken are not here;
+     * they all follow from the top-level {@code DifficultyMultiplier}.
+     */
     public static final class Multipliers {
         public static final BuilderCodec<Multipliers> CODEC = BuilderCodec
                 .builder(Multipliers.class, Multipliers::new)
-                .append(new KeyedCodec<>("Hp", Codec.DOUBLE, false), (m, v) -> m.hp = v, m -> m.hp)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .add()
-                .append(new KeyedCodec<>("OutDamage", Codec.DOUBLE, false),
-                        (m, v) -> m.outDamage = v, m -> m.outDamage)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .add()
-                .append(new KeyedCodec<>("InDamage", Codec.DOUBLE, false),
-                        (m, v) -> m.inDamage = v, m -> m.inDamage)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .add()
                 .append(new KeyedCodec<>("Loot", Codec.DOUBLE, false), (m, v) -> m.loot = v, m -> m.loot)
                 .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("How many times this tier's Loot block is rolled on death: the whole part is"
+                        + " guaranteed and the fraction is one more pass with that probability.")
                 .add()
                 .append(new KeyedCodec<>("Xp", Codec.DOUBLE, false), (m, v) -> m.xp = v, m -> m.xp)
                 .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("The kill-XP multiplier a kill of this tier pays through the MMO's kill path.")
                 .add()
                 .build();
 
-        @Nullable private Double hp;
-        @Nullable private Double outDamage;
-        @Nullable private Double inDamage;
         @Nullable private Double loot;
         @Nullable private Double xp;
     }
@@ -220,8 +230,8 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
      *   <li><b>Deny</b> (blacklist) - these families never roll this tier; deny wins over allow.</li>
      *   <li><b>Force</b> - these families ALWAYS get at least this tier, bypassing the weight / difficulty
      *       band / spawn-chance roll and the allow+deny gate. When several tiers force the same mob, the
-     *       strongest wins ({@code Multipliers.Hp}, then {@code Multipliers.OutDamage}, then id); a normal
-     *       roll that lands on an even stronger tier still wins, since force is a FLOOR.</li>
+     *       strongest wins ({@code DifficultyMultiplier}, then id); a normal roll that lands on an even
+     *       stronger tier still wins, since force is a FLOOR.</li>
      * </ul>
      * An entirely absent/empty block = {@link FamilyFilter#ALLOW_ALL}. Every leaf is a nullable
      * {@code String[]} so a partial owner overlay folds per-leaf (absent = the empty list, i.e. no constraint

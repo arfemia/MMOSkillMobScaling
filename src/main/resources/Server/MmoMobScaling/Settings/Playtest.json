@@ -1,5 +1,5 @@
 {
-  "$Comment": "PLAYTEST preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; omitted leaves fall through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Playtest\" (owner file or /mobscaling preset Playtest). A steep, fast-ramp curve for testing: escalation starts AT spawn and climbs steeply (a point every 50 blocks) so difficulty and rarity rise quickly within a short walk, backed by a steep StatCurve (fast HP/damage growth, high caps). Not for production.",
+  "$Comment": "PLAYTEST preset (partial overlay, decoded via MobScalingSettingsAsset.CODEC). Only the keys that differ from Default; omitted leaves fall through to the jar Default via the per-leaf fold. Selected by setting ActivePreset:\"Playtest\" (owner file or /mobscaling preset Playtest). A steep, fast-ramp curve for testing: escalation starts AT spawn and climbs a point every 50 blocks, so difficulty and rarity rise quickly within a short walk (the cap of 200 sits about 8,600 blocks out from the highest shipped zone floor), and the toughness slope and the damage scale are 1.5 times Default's (the damage shape is inherited) so every band of the ladder shows up within reach, with the two rails just past a Boss at this preset's own top of the scale. Player scaling is inherited from Default and stays on, so a group's effect is visible too. Not for production.",
   "Name": "Playtest",
   "Difficulty": {
     "DistanceEscalation": {
@@ -9,12 +9,10 @@
       "MaxBonus": 199.0
     },
     "StatCurve": {
-      "HpPerPoint": 0.12,
-      "OutDamagePerPoint": 0.35,
-      "InDamageReductionPerPoint": 0.0025,
-      "MaxHpMult": 30.0,
-      "MaxOutDamageMult": 56.0,
-      "MinInDamageMult": 0.45
+      "EffectiveHpPerPoint": 0.079,
+      "OutDamageScale": 0.0513,
+      "MaxEffectiveHpMult": 50.2,
+      "MaxOutDamageMult": 405.0
     }
   }
 }

@@ -38,6 +38,8 @@ start (search the log for `mob-scaling config:`).
 - `_reference/defaults-mob-scaling.json` - the full default settings, rewritten every start. Read-only
   reference to copy keys from; editing it has no effect.
 - `worlds/` - one file per world rule, with a `README.txt` describing the format.
+- `difficulty/` - one file per zone or biome floor you want to retune (a file named after a shipped
+  mapping with just a `Floor` in it is enough), with a `README.txt` describing the format.
 
 ## Extension packs
 

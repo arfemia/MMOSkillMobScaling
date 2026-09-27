@@ -25,18 +25,25 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * independent yes/no overlay rolled separately from the rarity ladder - see
  * {@link com.ziggfreed.mmomobscaling.variant.VariantRoster}), and its {@code AuraEffectId} is only a
  * FALLBACK tint (the rarity owns the single body-tint channel), so a variant's identity is mostly its name
- * decoration + its granted affix(es) + its multiplier stack.
+ * decoration + its granted affix(es) + the difficulty premium it adds.
  *
  * <p><b>Cohesive field groups are NESTED sub-objects</b> (the schema rule): {@code Roll} (chance + band +
- * family... no, family is its own group), {@code Multipliers}, {@code Affixes}, {@code Families} - each its
- * own {@link BuilderCodec}. The {@code Families} block is the SAME shape the rarity gate uses (native
+ * the base-rarity gate), {@code Multipliers}, {@code Affixes}, {@code Families} - each its own
+ * {@link BuilderCodec}. The {@code Families} block is the SAME shape the rarity gate uses (native
  * {@code NPCGroup} ids + role globs, deny wins, absent = allow-all), so a variant reuses the exact matcher.
+ *
+ * <p><b>The overlay's strength is ONE number, {@code DifficultyMultiplier}</b>, multiplied together with the
+ * base rarity's own on the difficulty the curve is evaluated at. {@code Multipliers} carries only the
+ * reward half ({@code Loot}, {@code Xp}); a per-stat multiplier is not a leaf of this schema, so a file
+ * authoring one under {@code Multipliers} gets the server's own "Unused key(s)" warning naming the file and
+ * the key.
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
  * { "Name": "Horrific", "DisplayNameKey": "mmomobscaling.variant.horrific.name", "NameColor": "#7cb342",
  *   "Roll": { "Chance": 0.15, "MinDifficulty": 20 },
- *   "Multipliers": { "Hp": 1.5, "OutDamage": 1.4, "InDamage": 0.9, "Loot": 1.3, "Xp": 1.2 },
+ *   "DifficultyMultiplier": 1.25,
+ *   "Multipliers": { "Loot": 1.3, "Xp": 1.2 },
  *   "Affixes": { "Slots": 1, "Allowed": ["venomous"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"] },
  *   "Loot": { "Rolls": [ { "Grants": { "DropLists": ["Mmoscaling_Drops_Horrific"] } } ] } }
@@ -50,6 +57,7 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
     @Nullable private String displayNameKey;
     @Nullable private String nameColor;
     @Nullable private Roll roll;
+    @Nullable private Double difficultyMultiplier;
     @Nullable private Multipliers multipliers;
     @Nullable private AffixPolicy affixes;
     @Nullable private Families families;
@@ -74,6 +82,15 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
             .append(new KeyedCodec<>("NameColor", Codec.STRING, false), (a, v) -> a.nameColor = v, a -> a.nameColor)
             .add()
             .append(new KeyedCodec<>("Roll", Roll.CODEC, false), (a, v) -> a.roll = v, a -> a.roll)
+            .add()
+            // The overlay's premium: multiplied with the base rarity's DifficultyMultiplier on the
+            // difficulty the curve is evaluated at.
+            .append(new KeyedCodec<>("DifficultyMultiplier", Codec.DOUBLE, false),
+                    (a, v) -> a.difficultyMultiplier = v, a -> a.difficultyMultiplier)
+            .metadata(EditorSchema.defaultValue(1.0))
+            .documentation("The extra multiplier this overlay puts on the spot's difficulty, on top of the"
+                    + " base rarity's own: a Horrific Epic is folded at the difficulty times both numbers."
+                    + " 1.0 adds nothing. Keep it modest, since it compounds with every tier it may overlay.")
             .add()
             .append(new KeyedCodec<>("Multipliers", Multipliers.CODEC, false),
                     (a, v) -> a.multipliers = v, a -> a.multipliers)
@@ -109,18 +126,17 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
 
     /**
      * Build the runtime {@link Variant} (the map key is the id). Absent groups/leaves take the neutral
-     * defaults (chance 0 = not rollable, no band gate, all multipliers 1.0, zero affix slots). An absent
-     * {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list means "allow none".
-     * An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL} (every mob eligible). An absent or
-     * empty {@code Loot} block folds to {@code null} (the variant adds nothing to the base tier's loot).
+     * defaults (chance 0 = not rollable, no band gate, difficulty multiplier 1.0, reward multipliers 1.0,
+     * zero affix slots). An absent {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit
+     * empty list means "allow none". An absent {@code Families} block = {@link FamilyFilter#ALLOW_ALL}
+     * (every mob eligible). An absent or empty {@code Loot} block folds to {@code null} (the variant adds
+     * nothing to the base tier's loot).
      */
     @Nonnull
     public Variant toVariant() {
         double chance = roll != null && roll.chance != null ? roll.chance : 0.0;
         double minDifficulty = roll != null && roll.minDifficulty != null ? roll.minDifficulty : 0.0;
-        double hp = mult(multipliers != null ? multipliers.hp : null);
-        double out = mult(multipliers != null ? multipliers.outDamage : null);
-        double in = mult(multipliers != null ? multipliers.inDamage : null);
+        double difficultyMult = mult(difficultyMultiplier);
         double lootMult = mult(multipliers != null ? multipliers.loot : null);
         double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
@@ -133,7 +149,7 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
         LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
-        return new Variant(id, nameKey, chance, minDifficulty, hp, out, in, lootMult, xp, slots, allowed,
+        return new Variant(id, nameKey, chance, minDifficulty, difficultyMult, lootMult, xp, slots, allowed,
                 allowedRarities, auraEffectId, color, filter, deathLoot);
     }
 
@@ -167,32 +183,25 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         @Nullable private String[] allowedRarities;
     }
 
-    /** The stat/reward multipliers (each absent leaf = 1.0), stacked MULTIPLICATIVELY on the base rarity. */
+    /**
+     * The reward multipliers (each absent leaf = 1.0), multiplied with the base rarity's: how often the
+     * loot is rolled and how much kill XP it pays. The overlay's health, damage dealt and damage taken
+     * all follow from its top-level {@code DifficultyMultiplier}.
+     */
     public static final class Multipliers {
         public static final BuilderCodec<Multipliers> CODEC = BuilderCodec
                 .builder(Multipliers.class, Multipliers::new)
-                .append(new KeyedCodec<>("Hp", Codec.DOUBLE, false), (m, v) -> m.hp = v, m -> m.hp)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .add()
-                .append(new KeyedCodec<>("OutDamage", Codec.DOUBLE, false),
-                        (m, v) -> m.outDamage = v, m -> m.outDamage)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .add()
-                .append(new KeyedCodec<>("InDamage", Codec.DOUBLE, false),
-                        (m, v) -> m.inDamage = v, m -> m.inDamage)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .add()
                 .append(new KeyedCodec<>("Loot", Codec.DOUBLE, false), (m, v) -> m.loot = v, m -> m.loot)
                 .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("Multiplies the base rarity's loot pass count: how many times both hosts' Loot"
+                        + " blocks are rolled on death.")
                 .add()
                 .append(new KeyedCodec<>("Xp", Codec.DOUBLE, false), (m, v) -> m.xp = v, m -> m.xp)
                 .metadata(EditorSchema.defaultValue(1.0))
+                .documentation("Multiplies the base rarity's kill-XP multiplier.")
                 .add()
                 .build();
 
-        @Nullable private Double hp;
-        @Nullable private Double outDamage;
-        @Nullable private Double inDamage;
         @Nullable private Double loot;
         @Nullable private Double xp;
     }

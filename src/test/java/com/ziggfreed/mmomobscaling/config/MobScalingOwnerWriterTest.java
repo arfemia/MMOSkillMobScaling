@@ -44,16 +44,16 @@ class MobScalingOwnerWriterTest {
     }
 
     @Test
-    void saveIntensityPersistsRefoldsAndKeepsComment(@TempDir Path tmp) throws Exception {
+    void saveRaritySpawnChancePersistsRefoldsAndKeepsComment(@TempDir Path tmp) throws Exception {
         Path file = tmp.resolve("mob-scaling.json");
         MobScalingConfig cfg = loaded(file);
 
-        assertTrue(MobScalingOwnerWriter.saveIntensity(2.0));
+        assertTrue(MobScalingOwnerWriter.saveRaritySpawnChance(0.5));
 
         String body = Files.readString(file, StandardCharsets.UTF_8);
-        assertTrue(body.contains("\"Intensity\": 2.0"), body);
+        assertTrue(body.contains("\"RaritySpawnChance\": 0.5"), body);
         assertTrue(body.contains("$Comment"), "scaffold $Comment preserved: " + body);
-        assertEquals(2.0, cfg.getIntensity(), 1e-9, "live config reflects the persisted value");
+        assertEquals(0.5, cfg.getRaritySpawnChance(), 1e-9, "live config reflects the persisted value");
     }
 
     @Test
@@ -81,7 +81,7 @@ class MobScalingOwnerWriterTest {
 
         Map<String, Object> leaves = new LinkedHashMap<>();
         leaves.put(MobScalingOwnerWriter.WHERE_MATCH, List.of("arena_*"));
-        leaves.put("Intensity", 3.0);
+        leaves.put("RaritySpawnChance", 0.3);
         leaves.put("OpenWorld.PlayerScalingEnabled", Boolean.FALSE);
         leaves.put("Difficulty.MinCap", 60.0);
         assertTrue(MobScalingOwnerWriter.saveWorldFile("arena", leaves));
@@ -91,7 +91,7 @@ class MobScalingOwnerWriterTest {
         WorldSettings ws = worlds.effectiveById("arena");
         assertNotNull(ws);
         assertEquals("arena_*", ws.firstMatchPattern());
-        assertEquals(3.0, ws.getIntensity(), 1e-9);
+        assertEquals(0.3, ws.getRaritySpawnChance(), 1e-9);
         SpawnScalingSettings view = cfg.spawnSettingsFor("arena_pvp7");
         assertFalse(view.isPlayerScalingEnabled(), "OpenWorld.PlayerScalingEnabled applies per world");
         assertEquals(60.0, view.getDifficultyMinCap(), 1e-9);
@@ -105,6 +105,39 @@ class MobScalingOwnerWriterTest {
     }
 
     @Test
+    void saveAndDeleteReachAHandCasedOwnerWorldFile(@TempDir Path tmp) throws Exception {
+        // An owner hand-named Arena.json: the fold reads it under "arena", and a save or delete for "arena"
+        // must land on THAT file rather than on a second, lower-cased one beside it.
+        Path file = tmp.resolve("mob-scaling.json");
+        MobScalingConfig cfg = loaded(file);
+        Path worldsDir = tmp.resolve("worlds");
+        Files.createDirectories(worldsDir);
+        Files.writeString(worldsDir.resolve("Arena.json"),
+                "{ \"Where\": { \"Match\": [\"arena_*\"] }, \"RaritySpawnChance\": 0.3 }", StandardCharsets.UTF_8);
+        WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();
+        worlds.setOwnerDir(worldsDir);
+        worlds.refold();
+        assertEquals(0.3, cfg.spawnSettingsFor("arena_1").getRaritySpawnChance(), 1e-9, "the hand-cased file folds");
+        assertEquals("Arena.json", worlds.ownerFileFor("arena").getFileName().toString(), "and is the file for the id");
+
+        assertTrue(MobScalingOwnerWriter.saveWorldFile("arena", Map.of("RaritySpawnChance", 0.4)));
+        assertEquals(1, jsonFilesIn(worldsDir), "the save reached the existing file; no second file was created");
+        assertTrue(Files.readString(worldsDir.resolve("Arena.json"), StandardCharsets.UTF_8).contains("0.4"));
+        assertEquals(0.4, cfg.spawnSettingsFor("arena_1").getRaritySpawnChance(), 1e-9);
+
+        assertTrue(MobScalingOwnerWriter.deleteWorldFile("arena"));
+        assertEquals(0, jsonFilesIn(worldsDir), "the delete removed the hand-cased file");
+        assertEquals(cfg.getRaritySpawnChance(), cfg.spawnSettingsFor("arena_1").getRaritySpawnChance(), 1e-9,
+                "the world falls back to the global");
+    }
+
+    private static long jsonFilesIn(Path dir) throws Exception {
+        try (var files = Files.list(dir)) {
+            return files.filter(p -> p.getFileName().toString().endsWith(".json")).count();
+        }
+    }
+
+    @Test
     void saveWorldFileMergesPartiallyAndLeavesOtherFilesIntact(@TempDir Path tmp) throws Exception {
         Path file = tmp.resolve("mob-scaling.json");
         loaded(file);
@@ -112,17 +145,17 @@ class MobScalingOwnerWriterTest {
         worlds.setOwnerDir(tmp.resolve("worlds"));
         worlds.refold();
 
-        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of(MobScalingOwnerWriter.WHERE_MATCH, List.of("world_a*"), "Intensity", 1.5));
-        MobScalingOwnerWriter.saveWorldFile("world_b", Map.of(MobScalingOwnerWriter.WHERE_MATCH, List.of("world_b*"), "Intensity", 2.5));
-        // Re-save world_a with a new Intensity: a PARTIAL merge into its own file; world_b untouched.
-        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of("Intensity", 4.0));
+        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of(MobScalingOwnerWriter.WHERE_MATCH, List.of("world_a*"), "RaritySpawnChance", 0.15));
+        MobScalingOwnerWriter.saveWorldFile("world_b", Map.of(MobScalingOwnerWriter.WHERE_MATCH, List.of("world_b*"), "RaritySpawnChance", 0.25));
+        // Re-save world_a with a new RaritySpawnChance: a PARTIAL merge into its own file; world_b untouched.
+        MobScalingOwnerWriter.saveWorldFile("world_a", Map.of("RaritySpawnChance", 0.4));
 
-        assertEquals(4.0, worlds.effectiveById("world_a").getIntensity(), 1e-9);
+        assertEquals(0.4, worlds.effectiveById("world_a").getRaritySpawnChance(), 1e-9);
         assertEquals("world_a*", worlds.effectiveById("world_a").firstMatchPattern(),
                 "unwritten leaf survives the merge");
         WorldSettings b = worlds.effectiveById("world_b");
         assertNotNull(b, "the other owner world file is preserved");
-        assertEquals(2.5, b.getIntensity(), 1e-9);
+        assertEquals(0.25, b.getRaritySpawnChance(), 1e-9);
     }
 
     @Test
@@ -133,14 +166,14 @@ class MobScalingOwnerWriterTest {
         worlds.setOwnerDir(tmp.resolve("worlds"));
         worlds.refold();
 
-        MobScalingOwnerWriter.saveWorldFile("arena", Map.of("Match", "arena_*", "Intensity", 3.0));
+        MobScalingOwnerWriter.saveWorldFile("arena", Map.of("Match", "arena_*", "RaritySpawnChance", 0.3));
         Map<String, Object> clear = new LinkedHashMap<>();
-        clear.put("Intensity", null); // blank editor field / Inherit -> remove the leaf
+        clear.put("RaritySpawnChance", null); // blank editor field / Inherit -> remove the leaf
         MobScalingOwnerWriter.saveWorldFile("arena", clear);
 
-        assertNull(worlds.effectiveById("arena").getIntensity(), "removed leaf inherits again");
+        assertNull(worlds.effectiveById("arena").getRaritySpawnChance(), "removed leaf inherits again");
         String body = Files.readString(tmp.resolve("worlds").resolve("arena.json"), StandardCharsets.UTF_8);
-        assertFalse(body.contains("Intensity"), body);
+        assertFalse(body.contains("RaritySpawnChance"), body);
     }
 
     @Test
@@ -153,28 +186,29 @@ class MobScalingOwnerWriterTest {
                 "Shared_Base", JsonParser.parseString(
                         "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": false } } }").getAsJsonObject(),
                 "shipped_world", JsonParser.parseString(
-                        "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Parent\": \"Shared_Base\", \"Intensity\": 5.0, "
+                        "{ \"Where\": { \"Match\": [\"shipped_*\"] }, \"Parent\": \"Shared_Base\", \"RaritySpawnChance\": 0.5, "
                       + "\"InspectorHud\": { \"RangeBlocks\": 20.0 } }").getAsJsonObject()));
         assertTrue(worlds.ownerAuthoredIds().isEmpty(), "no owner file for shipped_world yet");
 
-        // A UI-style save: only the exposed leaves the admin form collected, with Intensity blanked
+        // A UI-style save: only the exposed leaves the admin form collected, with RaritySpawnChance blanked
         // (Inherit) - the pre-fix bug dropped everything else the shipped body authored.
+
         Map<String, Object> uiLeaves = new LinkedHashMap<>();
         uiLeaves.put("Match", "shipped_*");
-        uiLeaves.put("Intensity", null);
+        uiLeaves.put("RaritySpawnChance", null);
         assertTrue(MobScalingOwnerWriter.saveWorldFile("shipped_world", uiLeaves));
 
         Path ownerFile = tmp.resolve("worlds").resolve("shipped_world.json");
         String body = Files.readString(ownerFile, StandardCharsets.UTF_8);
         assertTrue(body.contains("\"RangeBlocks\": 20.0"), "unexposed leaf survives the seed: " + body);
         assertTrue(body.contains("\"Parent\": \"Shared_Base\""), "Parent survives the seed: " + body);
-        assertFalse(body.contains("\"Intensity\""), "the blanked EXPOSED leaf is removed: " + body);
+        assertFalse(body.contains("\"RaritySpawnChance\""), "the blanked EXPOSED leaf is removed: " + body);
 
         WorldSettings ws = worlds.effectiveById("shipped_world");
         assertNotNull(ws);
         assertNotNull(ws.getInspectorHud());
         assertEquals(20.0, ws.getInspectorHud().getRangeBlocks(), 1e-9, "unexposed leaf still decodes");
-        assertNull(ws.getIntensity(), "blanked exposed leaf is gone (falls through to the parent/global)");
+        assertNull(ws.getRaritySpawnChance(), "blanked exposed leaf is gone (falls through to the parent/global)");
         assertEquals(Boolean.FALSE, ws.getDifficulty().getDistanceEscalation().getEnabled(),
                 "the Parent chain still resolves after the seed");
         assertTrue(worlds.ownerAuthoredIds().contains("shipped_world"), "now badged as owner-authored");

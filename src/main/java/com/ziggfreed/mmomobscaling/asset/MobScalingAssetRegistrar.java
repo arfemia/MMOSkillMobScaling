@@ -8,12 +8,14 @@ import java.util.function.BooleanSupplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.assetstore.event.LoadedAssetsEvent;
 import com.hypixel.hytale.assetstore.map.AssetMapWithIndexes;
 import com.hypixel.hytale.assetstore.map.DefaultAssetMap;
 import com.hypixel.hytale.builtin.tagset.config.NPCGroup;
 import com.hypixel.hytale.server.core.asset.type.entityeffect.config.EntityEffect;
 import com.hypixel.hytale.server.core.asset.type.item.config.ItemDropList;
+import com.hypixel.hytale.server.core.modules.entity.damage.ResistanceModifier;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.RootInteraction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.npc.NPCPlugin;
@@ -25,6 +27,8 @@ import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
+import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
+import com.ziggfreed.mmomobscaling.config.LegacyIntensityReport;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.ScalingContentValidator;
@@ -185,13 +189,13 @@ public final class MobScalingAssetRegistrar {
      */
     static void onWorldsLoaded(
             LoadedAssetsEvent<String, WorldSettingsAsset, DefaultAssetMap<String, WorldSettingsAsset>> event) {
-        Map<String, com.google.gson.JsonObject> bodies = new LinkedHashMap<>();
+        Map<String, JsonObject> bodies = new LinkedHashMap<>();
         for (Map.Entry<String, WorldSettingsAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
             WorldSettingsAsset asset = entry.getValue();
             if (asset == null) {
                 continue;
             }
-            com.google.gson.JsonObject body = asset.getPayloadAsJsonObject();
+            JsonObject body = asset.getPayloadAsJsonObject();
             if (body != null) {
                 bodies.put(entry.getKey(), body);
             }
@@ -232,10 +236,6 @@ public final class MobScalingAssetRegistrar {
                     MobScalingConfig.getInstance().getDifficultyMinCap(),
                     MobScalingConfig.getInstance().getDifficultyMaxCap(),
                     powerLevelMin(), powerLevelMax()));
-            // Per-preset value sanity (Intensity range); per-world checks run on the Worlds fold.
-            for (Map.Entry<String, MobScalingSettingsAsset> preset : presets.entrySet()) {
-                warnFindings(ScalingContentValidator.validateSettings(preset.getKey(), preset.getValue()));
-            }
         }
     }
 
@@ -317,9 +317,12 @@ public final class MobScalingAssetRegistrar {
 
     /**
      * Fold the loaded difficulty mappings into {@link DifficultyConfig}'s pack layer (same all-entries
-     * fold as rarities - the bundled zone gradient IS our default). A malformed mapping (unknown
-     * TargetType / blank TargetId) decodes to {@code null} via {@code toMapping} and is skipped with a
-     * warning rather than poisoning the fold.
+     * fold as rarities - the bundled zone gradient IS our default), then refold the OWNER layer over it
+     * ({@link DifficultyOwnerLayer}: a partial {@code mods/MmoMobScaling/difficulty/<id>.json} inherits
+     * the shipped mapping's leaves, so it can only resolve once these have landed). A malformed mapping
+     * (unknown TargetType / blank TargetId / no Floor) decodes to {@code null} via {@code toMapping} and
+     * is skipped with a warning rather than poisoning the fold; the value checks run over the FOLDED
+     * set, owner floors included.
      */
     static void onDifficultyLoaded(
             LoadedAssetsEvent<String, DifficultyMappingAsset, DefaultAssetMap<String, DifficultyMappingAsset>> event) {
@@ -332,14 +335,16 @@ public final class MobScalingAssetRegistrar {
             DifficultyMapping mapping = asset.toMapping(entry.getKey());
             if (mapping == null) {
                 warnFindings(List.of("difficulty mapping '" + entry.getKey()
-                        + "' skipped: TargetType must be Zone|Biome and TargetId non-blank"));
+                        + "' skipped: TargetType must be Zone|Biome, TargetId non-blank and Floor authored"));
                 continue;
             }
             layer.put(entry.getKey(), mapping);
         }
         DifficultyConfig.getInstance().mergePackLayer(layer);
+        DifficultyOwnerLayer.getInstance().refold();
         logApplied("difficulty mappings", layer.size());
-        warnFindings(ScalingContentValidator.validateDifficultyMappings(layer.values()));
+        warnFindings(ScalingContentValidator.validateDifficultyMappings(
+                DifficultyConfig.getInstance().all().values()));
     }
 
     /**
@@ -359,11 +364,28 @@ public final class MobScalingAssetRegistrar {
      *
      * <p>Findings are WARNINGS only - a dangling reference degrades (the content still rolls, it just
      * applies nothing), it never fails the load.
+     *
+     * <p>The same moment names every settings layer still authoring the retired {@code Intensity}
+     * multiplier or a retired curve leaf ({@link LegacyIntensityReport}), rewriting nothing: it reads the
+     * owner file, the owner and pack world bodies and every pack's settings files, and only
+     * {@code BootEvent} sees all of them whatever order the stores load in. It runs enabled or not, since
+     * a disabled mod must still explain what it is ignoring.
      */
     public static void runBootAudit() {
         PackDependencyAudit.run();
         validateReferences();
+        reportLegacyIntensity();
     }
+
+    /** The retired-settings report, never a boot failure. */
+    private static void reportLegacyIntensity() {
+        try {
+            LegacyIntensityReport.run();
+        } catch (Throwable t) {
+            warnFindings(List.of("retired-settings report skipped: " + t));
+        }
+    }
+
 
     /** Run the reference-existence sweep over every folded store, resolved against the LIVE asset maps. */
     private static void validateReferences() {
@@ -375,10 +397,46 @@ public final class MobScalingAssetRegistrar {
                     VariantConfig.getInstance().all().values(), resolvers));
             warnFindings(ScalingContentValidator.validateAffixReferences(
                     AffixConfig.getInstance().all().values(), resolvers));
+            warnFindings(ScalingContentValidator.validateAffixResistanceMirrors(
+                    AffixConfig.getInstance().all().values(), MobScalingAssetRegistrar::effectPercentResistance));
             warnFindings(ScalingContentValidator.validateCasterRosterReferences(
                     CasterRosterConfig.getInstance().all().values(), resolvers));
         } catch (Throwable t) {
             warnFindings(List.of("reference audit skipped: " + t));
+        }
+    }
+
+    /**
+     * The LARGEST percent {@code DamageResistance} amount the named {@code EntityEffect} grants across
+     * its causes (the number an affix's {@code FoldDeltas.ResistancePercent} mirrors); {@code 0.0} for an
+     * effect with no percent resistance; {@code null} when it cannot tell (the effect is missing, or the
+     * engine is absent), so the mirror check skips the affix rather than warning falsely.
+     */
+    @Nullable
+    private static Double effectPercentResistance(@Nonnull String effectId) {
+        try {
+            EntityEffect effect = EntityEffect.getAssetMap().getAsset(effectId);
+            if (effect == null) {
+                return null;
+            }
+            Map<?, ResistanceModifier[]> resistances = effect.getDamageResistanceValues();
+            double max = 0.0;
+            if (resistances != null) {
+                for (ResistanceModifier[] modifiers : resistances.values()) {
+                    if (modifiers == null) {
+                        continue;
+                    }
+                    for (ResistanceModifier modifier : modifiers) {
+                        if (modifier != null
+                                && modifier.getCalculationType() == ResistanceModifier.ResistanceCalculationType.PERCENT) {
+                            max = Math.max(max, modifier.getAmount());
+                        }
+                    }
+                }
+            }
+            return max;
+        } catch (Throwable t) {
+            return null;
         }
     }
 

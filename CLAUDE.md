@@ -7,11 +7,30 @@ monorepo**'s `additional-mods/` (a git submodule; developed from the hyMMO root)
 **Status: v1.2.1 (a hotfix in development beside ziggfreed-common 2.1.1 and MMO Skill Tree 1.6.3, the family it ships with; 1.2.0 released 2026-09-12).** 1.2.1 stops the mod's damage
 reduction from scaling a landing hit to nothing (the engine rounds damage to a whole number, so a
 sufficiently mitigated hit reached the health stat as zero and a mob read as immune to a whole weapon
-rather than merely tough), gives the `Armored` affix the `Bludgeoning`/`Crush`/`Slashing` cause keys it
+rather than merely tough), gives the `Armored` affix the `Bludgeoning`/`Slashing` cause keys it
 was missing (inbound resistance is matched on the exact leaf cause, so the affix did nothing against
 most melee), shows the resolved health / damage-taken / damage-dealt percentages on the crosshair
 inspector, makes `/mobscaling purge` runnable from the console, and stops a missing ordering dependency
-from failing the whole plugin and taking `purge` down with it. The zero-cost registration
+from failing the whole plugin and taking `purge` down with it. Its config-surface pass drops the four
+settings leaves nothing read (`PresetMode`, `OpenWorld.AllowDifficultyIncreaseOnPartyJoin` /
+`LateArrivalBumpFactor` / `CompositionEnabled`), makes a per-world `OpenWorld.AggregationMode` fold for
+real (the presence tick declares each world's mode + grid size to `RegionPowerTracker.adoptWorldFold`),
+makes `OpenWorld.RegionSizeChunks` and every `ZoneHud` / `InspectorHud` leaf per-world and consumed, and
+wires the zone/biome floor OWNER layer (`config/DifficultyOwnerLayer`, `mods/MmoMobScaling/difficulty/`).
+**Its fold rework (the parity re-derivation, [[power-difficulty-parity]] in the hyMMO vault): a rarity or
+variant is a `DifficultyMultiplier` on the difficulty the curve is read at (`dEff = difficulty * rarity *
+variant`, deliberately NOT re-clamped to `Difficulty.MaxCap`; `Multipliers` keeps only `Loot`/`Xp`), the
+tank axis is ONE effective-HP curve split geometrically (`StatCurve.EffectiveHpPerPoint` + `VisibleHpShare`,
+`hp = ehp^share`, `in = ehp^(share-1)`, one composite rail `MaxEffectiveHpMult` enforced LAST by raising
+`in`, never `hp`, with each affix's declared `FoldDeltas.ResistancePercent` mirror counted), the damage axis
+is a POWER CURVE (`StatCurve.OutDamageScale` + `OutDamageShape`, `out = 1 + scale * (dEff - 1)^shape`, shape
+1.0 being the straight line whose scale is a plain per-point slope; the tank axis stays linear), `Intensity` is
+DELETED and only REPORTED (`config/LegacyIntensityReport`, from the boot audit: one warning per file still
+carrying it or a retired curve leaf, across the owner file, the owner and pack world bodies and every pack's
+settings files, nothing rewritten), and the Java balance constants left `MobScaleFold` for the
+`Difficulty.Clamps` asset group.
+`MobScaleResult.difficulty` stays the SPOT difficulty everywhere it is read (HUD, inspector, `/mobscaling
+inspect`, the XP underdog gap, the `mob_difficulty` factor, every `MinDifficulty` gate).** The zero-cost registration
 toggle + codec `MobScalingConfig`, plus the spawn-lock in two halves: `MobScalingSpawnHook` (the
 pre-add `HolderSystem`: the mod and per-world switches, the classification, the residue cleanup, and
 a one-tick `PendingRollComponent` stamp; a holder already carrying `ScaledMobComponent` is left as
@@ -41,14 +60,17 @@ still-resident `DeathComponent.getDeathInfo()` (mirrors the MMO jar's
 `event/MmoMomentReactions.resolveAttackerRef`). ONE `FactorSnapshot` covers the whole death, so two rolls
 asking the same question always agree. The continuous kill-XP multiplier (`MobScalingXpReward`) is a
 separate path, untouched by this),
-the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`),
+the region-power tracker (`RegionPowerTracker` + `MobScalingPresenceSystem`; the tick reads the
+PER-WORLD view and declares each world's `AggregationMode` + `RegionSizeChunks` to the tracker with
+`adoptWorldFold`, so every bucket in a world folds under its own mode on update and removal alike and
+a grid-size change purges that world's presence),
 NPCGroup boss/excluded classification (`Mmoscaling_Bosses`/`Mmoscaling_Excluded` tagsets + the forced
 `boss` tier; `Mmoscaling_Bosses` is the AMBIENT world-boss scope, a boss nobody scripted, since a
 scripted or encounter-bound boss is skipped before the classifier's answer matters), the fill of
 ziggfreed-common's `EncounterPowerSource` seam (`factor/EncounterPowerFill`: a bound fight's power is
 the tracked region power at its SUBJECT's own world and chunk, null on a cold miss, never zero;
 `RegionPowerTracker.scalarIfTracked` beside the zero-delta `scalarFor`; `world/RegionKeys` composes
-the key for the presence tick, the factor and the fill alike), `/mobscaling purge|inspect|hud|preset|intensity|worlds|ui` (1.0.2 adds `worlds`, the read-only
+the key for the presence tick, the factor and the fill alike; a world declaring `DISABLED`, or one no presence tick has declared yet, answers ABSENT to both (`RegionPowerTracker.holdsOpinion`), never a confident zero - `scalarIfTracked` for the seam, `readingFor` for the factor - while the spawn path's `scalarFor` keeps its zero delta), `/mobscaling purge|inspect|hud|preset|worlds|ui` (1.0.2 adds `worlds`, the read-only
 listing of the folded per-world rules, and `ui`, the in-game admin
 config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `mmomobscaling.lang`, and TWO
 player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
@@ -119,21 +141,22 @@ change, whenever either dependency ships. The `LinkageError` guards around the n
 (`registerKillRarityProvider`, `EncounterRuntime`, the encounter power seam) keep a mis-installed
 server from failing to load the mod; they never make an older jar a supported one.
 
-- **ZiggfreedCommon >= 2.1.0** (`compileOnly files(ziggfreedCommonJar)`, pin
-  `ziggfreedCommonVersion=2.1.0`, the manifest floor `>=2.1.0`: the boss framework, whose
+- **ZiggfreedCommon >= 2.1.1** (`compileOnly files(ziggfreedCommonJar)`, pin
+  `ziggfreedCommonVersion=2.1.1`, the manifest floor `>=2.1.1`: the released 2.1.x build of the boss framework, whose
   `EncounterRuntime.isBoundSubject` the deferred roll reads and whose `EncounterPowerSource` seam
   this mod fills, neither of which exists in 2.0.x) - the shared
   primitive lib; its `scaling/` engine is the fold this mod
   builds on, and (1.0.2) its settings-UI toolkit (`ui/SettingsUiUtil`, `ui/ZigRichButton`,
   `ui/hud/HudPosition`, `util/JsonOverrideWriter`, `Pages/ZigListRow.ui`, and `ui/form/` -
   `FieldSpec`/`SettingsForm` + the five `Pages/ZigForm*Row.ui` templates) backs the admin page, which
-  is now spec-driven over `ui/form/` for full coverage of every CONSUMED knob (a few leaves - the
-  per-world HUD group beyond `Enabled`, `RegionSizeChunks` - decode but deliberately apply globally, so
-  the per-world form does not expose them; see `pages/CLAUDE.md`). The mod's own `hud/HudPosition` copy
+  is now spec-driven over `ui/form/` for full coverage of every CONSUMED knob, the per-world form
+  included (every per-world leaf the schema decodes is consumed and exposed, the two HUD groups and
+  `RegionSizeChunks` among them; see `pages/CLAUDE.md`). The mod's own `hud/HudPosition` copy
   was retired for the lifted common one.
-- **MMOSkillTree >= 1.6.1** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
-  `MMOSkillTree-1.6.1.jar` dev jar (pin `mmoSkillTreeVersion=1.6.1`), the release this mod ships
-  beside, which carries the frozen API the mod uses: `getPowerLevel` / `getPowerLevelMin` /
+- **MMOSkillTree >= 1.6.3** at runtime (manifest `Dependencies`) AND compiled against the LOCAL
+  `MMOSkillTree-1.6.3.jar` dev jar (pin `mmoSkillTreeVersion=1.6.3`), the release this mod ships
+  beside (the API it uses has been frozen since 1.6.1; the 1.6.3 floor is the player mitigation bound the
+  damage axis is derived against), which carries the frozen API the mod uses: `getPowerLevel` / `getPowerLevelMin` /
   `getPowerLevelMax` / `statRewardSum` / `getCombatLevel` (power reads), `registerMobKillXpMultiplier`
   (the kill-XP reward hook), `registerKillRarityProvider` (the kill-rarity attribution hook; its
   registration is LinkageError-guarded) and `castNpcAbility(Store, Ref, String)` (the caster
@@ -142,8 +165,11 @@ server from failing to load the mod; they never make an older jar a supported on
   `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift (guarded: a jar without
   the getters validates clean). See the comment blocks in `gradle.properties` and `build.gradle`.
 
-jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson: the
-config is decoded by the Hytale asset codec (`RawJsonReader` from the server jar), not gson.
+jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson dependency of
+its own: the settings decode through the Hytale asset codec (`RawJsonReader` from the server jar), and the
+raw-body layers (the owner folders, the `Parent` pool, the boot report over retired keys) use the gson the
+server jar already provides.
+
 
 ## Paradigm - CONFIG IS AN ASSET CODEC (never Java-baked, never a loose JSON blob)
 
@@ -169,24 +195,37 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   / `ActivePreset` (which `Settings/<name>.json` folds between the owner file and the jar `Default`,
   resolved owner-over-jar in `config/MobScalingConfig`; the persistent authority behind `/mobscaling
   preset` via `MobScalingOwnerWriter.saveActivePreset`, with `Casual`/`Hardcore`/`Playtest` shipped
-  beside `Default`) / `Enabled` / `PresetMode` (verified UNCONSUMED - nothing reads `getPresetMode()`
-  outside the schema/config fold; deliberately NOT exposed on the admin-page UI, round-2 hardening) /
-  `Intensity` / `RaritySpawnChance` plus the NESTED groups `OpenWorld`
-  (`AggregationMode`/`RegionSizeChunks`/`GroupDeltaBandWidth`/`AllowDifficultyIncreaseOnPartyJoin`/
-  `LateArrivalBumpFactor`/`CompositionEnabled`/`OnlyRaiseDifficulty`/`PlayerScalingEnabled`/
-  `PlayerScalingStartRingBlocks`), `Difficulty` (`Floor`/`MinCap`/`MaxCap` + nested
+  beside `Default`) / `Enabled` / `RaritySpawnChance` plus the NESTED groups `OpenWorld`
+  (`AggregationMode`/`RegionSizeChunks`/`GroupDeltaBandWidth`/`OnlyRaiseDifficulty`/
+  `PlayerScalingEnabled`/`PlayerScalingStartRingBlocks`; every leaf here is read - a leaf nothing
+  consumes is deleted, never carried), `Difficulty` (`Floor`/`MinCap`/`MaxCap` + nested
   `DistanceEscalation` `Enabled`/`StartDistanceBlocks`/`BlocksPerPoint`/`MaxBonus`/
-  `RarityChancePerPoint` and nested `StatCurve` `HpPerPoint`/`OutDamagePerPoint`/
-  `InDamageReductionPerPoint`/`MaxHpMult`/`MaxOutDamageMult`/`MinInDamageMult`), `ZoneHud`
+  `RarityChancePerPoint`, nested `StatCurve` `EffectiveHpPerPoint`/`VisibleHpShare`/
+  `OutDamageScale`/`OutDamageShape`/`MaxEffectiveHpMult`/`MaxOutDamageMult` (the linear tank slope and its
+  split, the power-curve damage axis `1 + scale * (dEff - 1)^shape` whose shape 1.0 is the straight line,
+  and the curve's own two ceilings; `MobScalingConfig.buildCurve` is the ONE constructor every layer and
+  the admin preview build it through) and nested `Clamps` `MinHpMult`/`MaxInDamageMult`/`MinOutDamageMult`/
+  `MinLootMult`/`MaxLootMult` (the safety rails that are not the curve's shape; `buildClamps`
+  likewise) - both fold to `MobScaleFold.DifficultyStatCurve` / `MobScaleFold.Clamps`, whose `NONE`
+  values are the genuine identity (every factor 1.0, no rail), never a tuning), `ZoneHud`
   (`Enabled`/`Position`/`OffsetX`/`OffsetY`/`ShowLocationName`/`ZoneNameKeyPrefix`/
   `BiomeNameKeyPrefix`) and `InspectorHud` (the four anchor leaves `Enabled`/`Position`/`OffsetX`/`OffsetY`
   plus `RangeBlocks`/`PortraitEnabled`, the three location-name leaves being `ZoneHud`-only;
   positions are named corner presets parsed by `ziggfreed-common`'s `ui/hud/HudPosition.parse`).
   Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
   partially-filled group) stays `null`, which is what makes the per-leaf partial owner overlay work.
-  **1.0.1**: `Intensity` is a NUMERIC multiplier (default 1.0, was a dead string) applied to the
-  `StatCurve` slopes in `config/MobScalingConfig.statCurveModel()` (runtime-tunable via `/mobscaling
-  intensity`, `setIntensityRuntime`); `OpenWorld` gained `PlayerScalingEnabled` (default true; false
+  There is NO slope multiplier: an owner tunes the curve themselves. `config/LegacyIntensityReport`
+  (run once per boot from `MobScalingAssetRegistrar.runBootAudit`, enabled or not, after every store has
+  folded) REWRITES NOTHING: it names, in one warning per file, every layer still authoring `Intensity` or
+  one of the four retired `StatCurve` leaves (`HpPerPoint`, `InDamageReductionPerPoint`, `MaxHpMult`,
+  `MinInDamageMult`, each with its value) - the owner file, every owner world file (by the path its id
+  resolves to), every jar or pack world body no owner file shadows (`WorldSettingsConfig.packOnlyIds` /
+  `authoredRawJsonById` / `mergedRawJsonById` are its reads) and every `Server/MmoMobScaling/Settings/*.json`
+  in every loaded asset pack (read raw off `AssetPack.getRoot()`, since the settings codec keeps no key it
+  does not declare) - saying what the file folds to today for the leaves that replaced the multiplier and
+  offering one starting point for the damage axis only (`OutDamageScale` times the old `Intensity`, marked
+  a suggestion); the tank axis gets no number, because the slopes `Intensity` scaled there no longer exist
+  and any carried value would be a third curve. A pack body is named with the owner-copy route. **1.0.1**: `OpenWorld` gained `PlayerScalingEnabled` (default true; false
   skips the group delta). **1.0.2**: `Difficulty` gained `Floor` (the world-baseline difficulty floor
   under the zone/biome `Difficulty/*.json` mappings; global default 30.0 in `Settings/Default.json` -
   absorbed from the MMO jar's removed `WorldRules.MobScaling` group), and the 1.0.1 inline
@@ -202,9 +241,14 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   world rule use, so this mod holds no matcher and no pattern parser of its own; absent or empty
   (tested with `WorldSelector.isBlank()`, so `"Where": {}` reads the same as omitting it) = a
   pool-only BASE, never matched - per-world
-  `Enabled` kill-switch, `Intensity`, `RaritySpawnChance`, the FULL `Difficulty` + `OpenWorld` groups
-  (reused codecs; `RegionSizeChunks` decodes but stays GLOBAL for grid consistency), `ZoneHud`/
-  `InspectorHud` (per-world `Enabled` consumed; hide-only vs a globally-on HUD), and the `Pool` group
+  `Enabled` kill-switch, `RaritySpawnChance`, the FULL `Difficulty` + `OpenWorld` groups
+  (reused codecs, every leaf per-world - `RegionSizeChunks` too: a region bucket is keyed by world, so
+  the proximity grid only has to agree within one, and `RegionPowerTracker.adoptWorldFold` purges a
+  world's tracked presence when its declared grid size changes because every key composed under the
+  old size is stale), the FULL `ZoneHud`/`InspectorHud` groups (`Enabled` is hide-only against a
+  globally-on HUD; the corner, offsets, location line, name-key prefixes, inspector reach and portrait
+  are read for the world the viewing player stands in - `ScalingHud.worldSettings()` for the corner,
+  the HUD system's per-world view for the rest), and the `Pool` group
   (`Rarities`/`Variants`/`Affixes` `Allow`/`Deny` lists, deny wins; `Variants.ChanceMultiplier`;
   `Affixes.ExtraSlots`). A body may carry a top-level `"Parent": "<file-id>"` resolved CROSS-LAYER by
   common's `codec/JsonParentResolver` (raw pre-merge, memoized, cycle-guarded; child overrides per leaf,
@@ -242,9 +286,12 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
 - **WRITE-BACK (1.0.2): `config/MobScalingOwnerWriter` is the ONE path that persists a runtime edit** to
   that owner file (partial-override write via the common `util/JsonOverrideWriter`, then
   `MobScalingConfig.refreshFromDisk` refolds live). BOTH the admin UI ([`pages/MobScalingAdminPage`](src/main/java/com/ziggfreed/mmomobscaling/pages/CLAUDE.md), `/mobscaling ui`)
-  AND the `/mobscaling intensity|hud|preset` commands go through it, so a live change now STICKS across a
-  restart (1.0.1's runtime-only setters remain but are superseded). Never write the owner file or mutate
-  `MobScalingConfig` fields from a page/command directly - route through `MobScalingOwnerWriter`.
+  AND the `/mobscaling hud|preset` commands go through it, so a live change now STICKS across a
+  restart (1.0.1's runtime-only HUD setters remain but are superseded). The same class carries the per-world
+  file writes (`saveWorldFile`/`deleteWorldFile`) and the zone/biome floor writes
+  (`saveDifficultyMapping`/`saveDifficultyFloor`/`deleteDifficultyMapping`, one owner file per mapping under
+  `mods/MmoMobScaling/difficulty/`, refolded live through `DifficultyOwnerLayer`). Never write an owner
+  file or mutate `MobScalingConfig` fields from a page/command directly - route through `MobScalingOwnerWriter`.
 - **[`config/MobScalingConfig`](src/main/java/com/ziggfreed/mmomobscaling/config/MobScalingConfig.java)**
   reads the settings through TWO codec-driven paths (the `WorldRulesConfig` dual mechanism), folding
   owner-over-default, then exposes typed getters:
@@ -260,19 +307,39 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   `AssetStoreRegistrar` + wires the `LoadedAssetsEvent` fold, so the settings are a REAL claimed
   Hytale asset (pack-overridable), not just a bundled resource. Registered only in the plugin's
   ENABLED branch (a disabled mod registers literally nothing).
-- Map-shaped SIMPLE-preset knobs (rarity weights, zone difficulty overrides) are deliberately NOT in
-  the settings asset: their canonical home is the per-type keyed assets, ALL LANDED as Pattern-A
-  codecs with nested groups: `Rarities/*.json` (`Roll`/`Multipliers`/`Affixes`/`Families` groups, fold
-  `RarityConfig`), `Variants/*.json` (the second overlay axis - `Roll` with an absolute `Chance` +
-  `AllowedRarities` requires-rarity gate, `Multipliers`/`Affixes`/`Families` + top-level `AuraEffectId`
-  (fallback tint, applied only when the base rarity has none) / `Loot` (the shared loot block, rolled in
-  ADDITION to the rarity's), fold `VariantConfig`), `Affixes/*.json` (`Roll` incl. `AllowedRarities`
-  + `AllowedVariants`/`FoldDeltas`, fold `AffixConfig`), and
-  `Difficulty/*.json` (`TargetType` Zone|Biome + `TargetId` native name or `*` + `Floor`, fold
-  `DifficultyConfig` with a derived O(1) name index, consumed by `world/ZoneDifficultyResolver`; the
-  jar ships the Zone1..Zone4 starter gradient with its per-tier entries (`Zone1_Spawn`,
-  `Zone1_Tier1..3`, `Zone2_Tier1..3`, `Zone3_Tier1..3`, `Zone4_Tier4/5`), the `*` zone wildcard
-  (`ZoneAny.json`) and an `Ocean1` biome example (`OceanBiome.json`)).
+- Map-shaped content (the rarity ladder, the zone and biome floors) is deliberately NOT in
+  the settings asset: its canonical home is the per-type keyed assets, ALL LANDED as Pattern-A
+  codecs with nested groups: `Rarities/*.json` (`Roll` + the top-level `DifficultyMultiplier`, which IS
+  the tier's strength - the fold reads the curve at `difficulty * DifficultyMultiplier`, and
+  `Rarity.compareStrength` / `RarityRoster.tierOf` order the ladder by it - + the reward-only
+  `Multipliers` `Loot`/`Xp` (a per-stat `Hp`/`OutDamage`/`InDamage` key is NOT a leaf: the engine's own
+  `Unused key(s)` load warning names a file still carrying one) /`Affixes`/`Families` groups, fold
+  `RarityConfig`), `Variants/*.json` (the second overlay axis -
+  `Roll` with an absolute `Chance` + `AllowedRarities` requires-rarity gate, its own
+  `DifficultyMultiplier` multiplied with the rarity's, `Multipliers`/`Affixes`/`Families` + top-level
+  `AuraEffectId` (fallback tint, applied only when the base rarity has none) / `Loot` (the shared loot
+  block, rolled in ADDITION to the rarity's), fold `VariantConfig`), `Affixes/*.json` (`Roll` incl.
+  `AllowedRarities` + `AllowedVariants`/`FoldDeltas` - the four multiplicative deltas plus
+  `ResistancePercent`, the DECLARED mirror of the effect's percent `DamageResistance` the effective-HP
+  rail counts, `ScalingContentValidator.validateAffixResistanceMirrors` reporting drift against the live
+  effect at boot - fold `AffixConfig`), and
+  `Difficulty/*.json` (`TargetType` Zone|Biome + `TargetId` native name or `*` + `Floor`, every leaf
+  nullable, fold `DifficultyConfig` with a derived O(1) name index, consumed by
+  `world/ZoneDifficultyResolver`; the jar ships the Zone1..Zone4 starter gradient with its per-tier
+  entries (`Zone1_Spawn`, `Zone1_Tier1..3`, `Zone2_Tier1..3`, `Zone3_Tier1..3`, `Zone4_Tier4/5`), the
+  `*` zone wildcard (`ZoneAny.json`) and an `Ocean1` biome example (`OceanBiome.json`)). **Its OWNER
+  layer is `mods/MmoMobScaling/difficulty/<id>.json`** (`config/DifficultyOwnerLayer`): one file per
+  mapping on the `worlds/` convention (filename = id, matched by the ONE id key `OwnerFiles.idKey`, the
+  sanitizer, so case, spaces and separators all fold to one key; bare body, `Payload` peeled, README seeded -
+  the shared mechanics live in `config/OwnerFiles`, whose scan and `resolveFile` key a file the same way, so a
+  hand-named `Arena.json` or `Arena Big.json` is the file read AND the file written for `arena` / `arena_big`,
+  and several files keying to one id are settled deterministically, canonical spelling first, with one
+  warning naming them all; `WorldSettingsConfig`, `DifficultyConfig` and a `Parent` lookup key by it too), overlaying the shipped mapping of the same id PER
+  LEAF (`Zone2.json` = `{"Floor": 60.0}` retunes the shipped Zone2 and inherits its target; a new id
+  must carry all three leaves or is skipped with a warning naming the missing one). It is scaffolded at
+  `setup()` and SCANNED on the difficulty store's `LoadedAssetsEvent` (a partial file can only inherit
+  from a shipped mapping that has loaded) and after every `MobScalingOwnerWriter` difficulty write;
+  `DifficultyConfig.packMapping(id)` is the shipped layer it overlays.
 
 ## Paradigm - NATIVE-ASSET-FIRST (prefer native systems + author our own assets into them)
 

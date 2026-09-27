@@ -20,6 +20,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
@@ -45,7 +46,7 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
  *
  * <p><b>Convention (do NOT regress):</b> config data is defined by an asset codec, PascalCase, under
  * {@code Server/}; there are no Java default VALUES in this class (only a neutral fail-safe used when
- * a broken jar is missing its bundled default asset).
+ * a broken jar is missing its bundled default asset: the identity curve and rails that never bind).
  */
 public final class MobScalingConfig implements SpawnScalingSettings {
 
@@ -60,6 +61,12 @@ public final class MobScalingConfig implements SpawnScalingSettings {
      * {@code WorldSettingsConfig} owns the real path (set from {@code MobScalingPlugin.setup}).
      */
     private static final String WORLDS_DIR = "worlds";
+
+    /**
+     * Per-mapping zone/biome floor overrides beside the owner file. Named here only for the boot INFO
+     * line; {@code DifficultyOwnerLayer} owns the real path (set from {@code MobScalingPlugin.setup}).
+     */
+    private static final String DIFFICULTY_DIR = "difficulty";
 
     /**
      * The empty override scaffold seeded at {@code mods/MmoMobScaling/mob-scaling.json} on first run.
@@ -119,30 +126,23 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // Effective (owner > store > jar) settings. The spawn-path reads are volatile so a value written on
     // the asset-load thread is visible on the world threads that read it per spawn.
     private volatile boolean enabled;
-    private boolean compositionEnabled;
     // Group-power delta may only raise a region's difficulty over the floor, never soften it. Spawn-path read.
     private volatile boolean onlyRaiseDifficulty = true;
-    // Whether player/group-based scaling applies at all (1.0.1; default on). Spawn-path read (volatile);
+    // Whether player/group-based scaling applies at all (default on). Spawn-path read (volatile);
     // a world with PlayerScalingEnabled=false pins difficulty to the escalated floor.
     private volatile boolean playerScalingEnabled = true;
     // Protected radius around world spawn inside which the group delta never applies (its OWN knob, NOT the
     // distance-escalation start radius). Spawn-path read, so volatile. 0 = no protected ring.
     private volatile double playerScalingStartRingBlocks;
-    @Nonnull private String presetMode = "";
-    // Intensity multiplier on the difficulty->stat curve slopes (1.0.1; default 1.0, clamped >= 0). Spawn-path
-    // read (statCurveModel) so volatile; runtime-tunable via setIntensityRuntime (/mobscaling intensity).
-    private volatile double intensity = 1.0;
     private volatile double raritySpawnChance;
-    private boolean allowDifficultyIncreaseOnPartyJoin;
-    private double lateArrivalBumpFactor;
     @Nonnull private String openWorldAggregationMode = "";
     private int regionSizeChunks;
     // Spawn-path reads (the group-delta resolve runs per spawn), so volatile like raritySpawnChance.
     private volatile double groupDeltaBandWidth;
     private volatile double difficultyMinCap;
     private volatile double difficultyMaxCap;
-    // The world-baseline difficulty floor (1.0.2; absorbs the removed hyMMO WorldRules.MobScaling
-    // baseline): the lowest-precedence floor under the zone/biome Difficulty/*.json mappings. Spawn-path.
+    // The world-baseline difficulty floor: the lowest-precedence floor under the zone/biome
+    // Difficulty/*.json mappings. Spawn-path.
     private volatile double difficultyFloor;
     // Distance escalation (spawn-path + presence reads, so volatile).
     private volatile boolean distanceEscalationEnabled;
@@ -150,14 +150,10 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private volatile double escalationBlocksPerPoint;
     private volatile double escalationMaxBonus;
     private volatile double escalationRarityChancePerPoint;
-    // Difficulty stat curve (spawn-path reads, so volatile): how the resolved difficulty maps to a mob's
-    // HP / outgoing-damage / incoming-damage-reduction factors, plus each factor's ceiling/floor.
-    private volatile double statCurveHpPerPoint;
-    private volatile double statCurveOutDamagePerPoint;
-    private volatile double statCurveInDamageReductionPerPoint;
-    private volatile double statCurveMaxHpMult;
-    private volatile double statCurveMaxOutDamageMult;
-    private volatile double statCurveMinInDamageMult;
+    // The difficulty stat curve and the safety clamps, folded per leaf and rebuilt as the two immutable
+    // records the fold reads (spawn-path reads, so the records are volatile).
+    @Nonnull private volatile MobScaleFold.DifficultyStatCurve statCurve = MobScaleFold.DifficultyStatCurve.NONE;
+    @Nonnull private volatile MobScaleFold.Clamps clamps = MobScaleFold.Clamps.NONE;
     // HUD settings: read every tick by the HUD system + on install, so all volatile. The enabled flags
     // and positions also take a RUNTIME override from /mobscaling hud (live tuning; lost on restart -
     // the owner file is the persistent authority, and the command says so).
@@ -177,9 +173,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private volatile double inspectorRangeBlocks;
     private volatile boolean inspectorPortraitEnabled = true;
 
-    // Per-world resolved-view cache (1.0.2): worldName -> ResolvedWorldSettings overlay (or this on no
+    // Per-world resolved-view cache: worldName -> ResolvedWorldSettings overlay (or this on no
     // match). The rules themselves live in WorldSettingsConfig (Worlds/*.json, Parent-merged); this cache
-    // is cleared on any refold (global OR worlds), on setIntensityRuntime, and by invalidateWorldViews().
+    // is cleared on any refold (global OR worlds) and by invalidateWorldViews().
     @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> worldViewCache = new ConcurrentHashMap<>();
     // The same cache for a lookup made from a world NAME alone, which can score fewer axes (no
     // GameplayConfig) and so must never share an entry with the full-world lookup.
@@ -320,9 +316,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
      * in-memory {@link #activePreset} + loaded store (via {@link #refoldFromStore}). The single reconcile a
      * write-back layer ({@code MobScalingOwnerWriter}) calls after persisting a change to
      * {@code mods/MmoMobScaling/mob-scaling.json}, so the live config == the owner file with no restart.
-     * Rebuilds {@link #worldOverrideEntries} + clears the per-world view cache (both inside
-     * {@link #applyFold}). Safe before the async {@code LoadedAssetsEvent} (store null -> folds
-     * owner-over-jar, same as {@link #load()}).
+     * Clears the per-world view cache (inside {@link #applyFold}). Safe before the async
+     * {@code LoadedAssetsEvent} (store null -> folds owner-over-jar, same as {@link #load()}).
      */
     public void refreshFromDisk() {
         refoldFromStore(decode(readOwnerFile(), ownerLabel()));
@@ -369,9 +364,6 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private void applyFold(@Nullable MobScalingSettingsAsset jar, @Nullable MobScalingSettingsAsset store,
             @Nullable MobScalingSettingsAsset owner) {
         this.enabled = or(fold3(owner, store, jar, MobScalingSettingsAsset::getEnabled), false);
-        this.presetMode = or(fold3(owner, store, jar, MobScalingSettingsAsset::getPresetMode), "");
-        // Intensity is now a numeric multiplier (1.0.1); neutral fallback 1.0, clamped >= 0.
-        this.intensity = Math.max(0.0, or(fold3(owner, store, jar, MobScalingSettingsAsset::getIntensity), 1.0));
         double chance = or(fold3(owner, store, jar, MobScalingSettingsAsset::getRaritySpawnChance), 0.0);
         this.raritySpawnChance = Math.max(0.0, Math.min(1.0, chance)); // clamp: an unclamped chance is a footgun
 
@@ -383,12 +375,6 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         double band = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getGroupDeltaBandWidth), 0.0);
         this.groupDeltaBandWidth = Math.max(0.0, band); // the engine expects a non-negative band
-        this.allowDifficultyIncreaseOnPartyJoin = or(fold3(owner, store, jar,
-                MobScalingSettingsAsset::getOpenWorld, OpenWorld::getAllowDifficultyIncreaseOnPartyJoin), false);
-        this.lateArrivalBumpFactor = or(
-                fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getLateArrivalBumpFactor), 0.0);
-        this.compositionEnabled = or(
-                fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getCompositionEnabled), false);
         this.onlyRaiseDifficulty = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getOnlyRaiseDifficulty), true);
         this.playerScalingEnabled = or(
@@ -416,22 +402,31 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         this.escalationRarityChancePerPoint = Math.max(0.0, or(
                 fold3(owner, store, jar, MobScalingConfig::escalation, DistanceEscalation::getRarityChancePerPoint), 0.0));
 
-        // Difficulty stat curve (doubly-nested under Difficulty). NEUTRAL broken-jar fallbacks build the
-        // IDENTITY curve (zero slopes + the legacy MobScaleFold caps), so a broken-but-enabled jar behaves
-        // like the old rarity-only fold rather than flattening every mob's stats.
-        this.statCurveHpPerPoint = Math.max(0.0,
-                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getHpPerPoint), 0.0));
-        this.statCurveOutDamagePerPoint = Math.max(0.0,
-                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getOutDamagePerPoint), 0.0));
-        this.statCurveInDamageReductionPerPoint = Math.max(0.0,
-                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getInDamageReductionPerPoint), 0.0));
-        this.statCurveMaxHpMult = Math.max(1.0,
-                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getMaxHpMult), MobScaleFold.MAX_HEALTH_MULT));
-        this.statCurveMaxOutDamageMult = Math.max(1.0,
-                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getMaxOutDamageMult), MobScaleFold.OUT_DMG_MAX));
-        double statCurveMinIn = or(
-                fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getMinInDamageMult), MobScaleFold.IN_DMG_MIN);
-        this.statCurveMinInDamageMult = Math.max(0.01, Math.min(1.0, statCurveMinIn)); // minIn in (0,1]
+        // Difficulty stat curve (doubly-nested under Difficulty). The broken-jar fallbacks are the IDENTITY
+        // curve (zero slopes, everything on the bar, rails at 1.0), so a broken-but-enabled jar leaves every
+        // mob's stats exactly as the engine made them rather than flattening them to a tuning.
+        MobScaleFold.DifficultyStatCurve none = MobScaleFold.DifficultyStatCurve.NONE;
+        this.statCurve = buildCurve(
+                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getEffectiveHpPerPoint),
+                        none.effectiveHpPerPoint()),
+                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getVisibleHpShare),
+                        none.visibleHpShare()),
+                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getOutDamageScale),
+                        none.outDamageScale()),
+                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getOutDamageShape),
+                        none.outDamageShape()),
+                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getMaxEffectiveHpMult),
+                        none.maxEffectiveHpMult()),
+                or(fold3(owner, store, jar, MobScalingConfig::statCurve, StatCurve::getMaxOutDamageMult),
+                        none.maxOutDamageMult()));
+        // The safety clamps (doubly-nested under Difficulty). The fallbacks are the rails that never bind.
+        MobScaleFold.Clamps noRails = MobScaleFold.Clamps.NONE;
+        this.clamps = buildClamps(
+                or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMinHpMult), noRails.minHpMult()),
+                or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMaxInDamageMult), noRails.maxInDamageMult()),
+                or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMinOutDamageMult), noRails.minOutDamageMult()),
+                or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMinLootMult), noRails.minLootMult()),
+                or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMaxLootMult), noRails.maxLootMult()));
 
         // HUD groups (nested).
         this.zoneHudEnabled = or(
@@ -482,6 +477,13 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private static StatCurve statCurve(@Nonnull MobScalingSettingsAsset a) {
         Difficulty d = a.getDifficulty();
         return d == null ? null : d.getStatCurve();
+    }
+
+    /** The doubly-nested clamps group ({@code Difficulty.Clamps}); {@code null} when absent. */
+    @Nullable
+    private static Clamps clamps(@Nonnull MobScalingSettingsAsset a) {
+        Difficulty d = a.getDifficulty();
+        return d == null ? null : d.getClamps();
     }
 
     // ---------------------------------------------------------------------
@@ -640,14 +642,15 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     }
 
     /**
-     * One INFO line per boot naming the three places an owner edits this mod: the override file, the
-     * regenerated schema reference beside it, and the per-world rules folder.
+     * One INFO line per boot naming the four places an owner edits this mod: the override file, the
+     * regenerated schema reference beside it, the per-world rules folder and the zone/biome floors folder.
      */
     private static void logConfigLocations(@Nonnull Path owner, @Nullable Path dir) {
         String reference = dir == null ? "(none)" : absolute(dir.resolve("_reference").resolve(REFERENCE_FILE));
         String worlds = dir == null ? "(none)" : absolute(dir.resolve(WORLDS_DIR));
+        String difficulty = dir == null ? "(none)" : absolute(dir.resolve(DIFFICULTY_DIR));
         info("config: " + absolute(owner) + " (schema reference: " + reference
-                + ", per-world rules: " + worlds + ")");
+                + ", per-world rules: " + worlds + ", zone/biome floors: " + difficulty + ")");
     }
 
     /** Absolute form of a path for a copy-pasteable log line; falls back to the raw path if unresolvable. */
@@ -682,22 +685,16 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // ---------------------------------------------------------------------
 
     public boolean isEnabled() { return enabled; }
-    public boolean isCompositionEnabled() { return compositionEnabled; }
     @Override public boolean isOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
     @Override public boolean isPlayerScalingEnabled() { return playerScalingEnabled; }
     @Override public double getPlayerScalingStartRingBlocks() { return playerScalingStartRingBlocks; }
-    @Nonnull public String getPresetMode() { return presetMode; }
-    /** The GLOBAL intensity multiplier on the stat-curve slopes (1.0.1; default 1.0). */
-    public double getIntensity() { return intensity; }
     @Override public double getRaritySpawnChance() { return raritySpawnChance; }
-    public boolean isAllowDifficultyIncreaseOnPartyJoin() { return allowDifficultyIncreaseOnPartyJoin; }
-    public double getLateArrivalBumpFactor() { return lateArrivalBumpFactor; }
     @Nonnull public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
     public int getRegionSizeChunks() { return regionSizeChunks; }
     public double getGroupDeltaBandWidth() { return groupDeltaBandWidth; }
     /** GLOBAL view of the per-world kill-switch: the folded {@code Enabled} (systems gate at setup). */
     @Override public boolean isWorldScalingEnabled() { return enabled; }
-    /** The GLOBAL world-baseline difficulty floor ({@code Difficulty.Floor}; 1.0.2). */
+    /** The GLOBAL world-baseline difficulty floor ({@code Difficulty.Floor}). */
     @Override public double getDifficultyFloor() { return difficultyFloor; }
     public double getDifficultyMinCap() { return difficultyMinCap; }
     public double getDifficultyMaxCap() { return difficultyMaxCap; }
@@ -713,53 +710,85 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     public double getEscalationBlocksPerPoint() { return escalationBlocksPerPoint; }
     public double getEscalationMaxBonus() { return escalationMaxBonus; }
     public double getEscalationRarityChancePerPoint() { return escalationRarityChancePerPoint; }
-    public double getStatCurveHpPerPoint() { return statCurveHpPerPoint; }
-    public double getStatCurveOutDamagePerPoint() { return statCurveOutDamagePerPoint; }
-    public double getStatCurveInDamageReductionPerPoint() { return statCurveInDamageReductionPerPoint; }
-    public double getStatCurveMaxHpMult() { return statCurveMaxHpMult; }
-    public double getStatCurveMaxOutDamageMult() { return statCurveMaxOutDamageMult; }
-    public double getStatCurveMinInDamageMult() { return statCurveMinInDamageMult; }
+    // The folded StatCurve leaves, one getter per leaf (the per-world overlay and the admin page read them).
+    public double getStatCurveEffectiveHpPerPoint() { return statCurve.effectiveHpPerPoint(); }
+    public double getStatCurveVisibleHpShare() { return statCurve.visibleHpShare(); }
+    public double getStatCurveOutDamageScale() { return statCurve.outDamageScale(); }
+    public double getStatCurveOutDamageShape() { return statCurve.outDamageShape(); }
+    public double getStatCurveMaxEffectiveHpMult() { return statCurve.maxEffectiveHpMult(); }
+    public double getStatCurveMaxOutDamageMult() { return statCurve.maxOutDamageMult(); }
+    // The folded Clamps leaves, one getter per leaf.
+    public double getClampMinHpMult() { return clamps.minHpMult(); }
+    public double getClampMaxInDamageMult() { return clamps.maxInDamageMult(); }
+    public double getClampMinOutDamageMult() { return clamps.minOutDamageMult(); }
+    public double getClampMinLootMult() { return clamps.minLootMult(); }
+    public double getClampMaxLootMult() { return clamps.maxLootMult(); }
 
-    /**
-     * Build the GLOBAL difficulty stat curve from the folded leaves, with the {@code Intensity} multiplier
-     * (1.0.1) applied to the three slopes. A per-world overlay builds its own curve in
-     * {@link ResolvedWorldSettings#statCurveModel()} with the effective per-world intensity + slopes.
-     */
+    /** The GLOBAL difficulty stat curve, built from the folded {@code Difficulty.StatCurve} leaves. */
     @Nonnull
     @Override
     public MobScaleFold.DifficultyStatCurve statCurveModel() {
-        return buildCurve(statCurveHpPerPoint, statCurveOutDamagePerPoint, statCurveInDamageReductionPerPoint,
-                statCurveMaxHpMult, statCurveMaxOutDamageMult, statCurveMinInDamageMult, intensity);
+        return statCurve;
+    }
+
+    /** The GLOBAL safety rails, built from the folded {@code Difficulty.Clamps} leaves. */
+    @Nonnull
+    @Override
+    public MobScaleFold.Clamps clampsModel() {
+        return clamps;
     }
 
     /**
-     * Build a {@link MobScaleFold.DifficultyStatCurve}, multiplying the three SLOPES by {@code intensity}
-     * (clamped {@code >= 0}); the caps are unchanged (the curve's own per-factor ceilings still bound the
-     * result). Shared by the global {@link #statCurveModel()} and the per-world overlay view
-     * ({@link ResolvedWorldSettings} - package-visible for exactly that caller).
+     * Build a {@link MobScaleFold.DifficultyStatCurve} from six leaves with the one set of sanity clamps
+     * every layer applies (a negative slope or scale would shrink a mob as difficulty rises; a share outside
+     * [0, 1] or a ceiling under 1.0 is an impossible curve; a non-positive shape is not a curve at all and
+     * reads as the straight line, 1.0). Shared by the global fold, the per-world overlay
+     * ({@link ResolvedWorldSettings}) and the admin page's preview, so the three can never drift.
      */
     @Nonnull
-    static MobScaleFold.DifficultyStatCurve buildCurve(double hpPerPoint, double outPerPoint,
-            double inReductionPerPoint, double maxHpMult, double maxOutDamageMult, double minInDamageMult,
-            double intensity) {
-        double k = Math.max(0.0, intensity);
-        return new MobScaleFold.DifficultyStatCurve(hpPerPoint * k, outPerPoint * k, inReductionPerPoint * k,
-                maxHpMult, maxOutDamageMult, minInDamageMult);
+    public static MobScaleFold.DifficultyStatCurve buildCurve(double effectiveHpPerPoint, double visibleHpShare,
+            double outDamageScale, double outDamageShape, double maxEffectiveHpMult, double maxOutDamageMult) {
+        return new MobScaleFold.DifficultyStatCurve(
+                Math.max(0.0, effectiveHpPerPoint),
+                Math.max(0.0, Math.min(1.0, visibleHpShare)),
+                Math.max(0.0, outDamageScale),
+                outDamageShape > 0.0 ? outDamageShape : 1.0,
+                Math.max(1.0, maxEffectiveHpMult),
+                Math.max(1.0, maxOutDamageMult));
     }
 
-    public boolean isZoneHudEnabled() { return zoneHudEnabled; }
-    public boolean isZoneShowLocationName() { return zoneShowLocationName; }
-    @Nonnull public String getZoneHudPosition() { return zoneHudPosition; }
-    public int getZoneHudOffsetX() { return zoneHudOffsetX; }
-    public int getZoneHudOffsetY() { return zoneHudOffsetY; }
-    @Nonnull public String getZoneNameKeyPrefix() { return zoneNameKeyPrefix; }
-    @Nonnull public String getBiomeNameKeyPrefix() { return biomeNameKeyPrefix; }
-    public boolean isInspectorHudEnabled() { return inspectorHudEnabled; }
-    @Nonnull public String getInspectorHudPosition() { return inspectorHudPosition; }
-    public int getInspectorHudOffsetX() { return inspectorHudOffsetX; }
-    public int getInspectorHudOffsetY() { return inspectorHudOffsetY; }
-    public double getInspectorRangeBlocks() { return inspectorRangeBlocks; }
-    public boolean isInspectorPortraitEnabled() { return inspectorPortraitEnabled; }
+
+    /**
+     * Build a {@link MobScaleFold.Clamps} from five leaves with the one set of sanity clamps every layer
+     * applies (no negative floor, a positive incoming ceiling, an ordered loot band). Shared by the global
+     * fold and the per-world overlay.
+     */
+    @Nonnull
+    public static MobScaleFold.Clamps buildClamps(double minHpMult, double maxInDamageMult, double minOutDamageMult,
+            double minLootMult, double maxLootMult) {
+        double minLoot = Math.max(0.0, minLootMult);
+        return new MobScaleFold.Clamps(
+                Math.max(0.0, minHpMult),
+                maxInDamageMult > 0.0 ? maxInDamageMult : MobScaleFold.Clamps.NONE.maxInDamageMult(),
+                Math.max(0.0, minOutDamageMult),
+                minLoot,
+                Math.max(minLoot, maxLootMult));
+    }
+
+    // The GLOBAL HUD view; a world file overlays any of these per leaf through ResolvedWorldSettings.
+    @Override public boolean isZoneHudEnabled() { return zoneHudEnabled; }
+    @Override public boolean isZoneShowLocationName() { return zoneShowLocationName; }
+    @Nonnull @Override public String getZoneHudPosition() { return zoneHudPosition; }
+    @Override public int getZoneHudOffsetX() { return zoneHudOffsetX; }
+    @Override public int getZoneHudOffsetY() { return zoneHudOffsetY; }
+    @Nonnull @Override public String getZoneNameKeyPrefix() { return zoneNameKeyPrefix; }
+    @Nonnull @Override public String getBiomeNameKeyPrefix() { return biomeNameKeyPrefix; }
+    @Override public boolean isInspectorHudEnabled() { return inspectorHudEnabled; }
+    @Nonnull @Override public String getInspectorHudPosition() { return inspectorHudPosition; }
+    @Override public int getInspectorHudOffsetX() { return inspectorHudOffsetX; }
+    @Override public int getInspectorHudOffsetY() { return inspectorHudOffsetY; }
+    @Override public double getInspectorRangeBlocks() { return inspectorRangeBlocks; }
+    @Override public boolean isInspectorPortraitEnabled() { return inspectorPortraitEnabled; }
 
     // ---------------------------------------------------------------------
     // Runtime HUD overrides (/mobscaling hud - live tuning only)
@@ -784,21 +813,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         this.inspectorHudOffsetY = offsetY;
     }
 
-    /**
-     * Live-tune the GLOBAL {@code Intensity} multiplier ({@code /mobscaling intensity}). RUNTIME-ONLY: lost
-     * on restart or the next {@code applyStoreLayer} refold; the owner file's {@code Intensity} is the
-     * persistent authority (the command reminds the admin). A world with an AUTHORED per-world
-     * {@code Intensity} override is UNAFFECTED (authoring wins). Clamped {@code >= 0}; clears the per-world
-     * view cache so the effective per-world curves re-resolve against the new global.
-     */
-    public void setIntensityRuntime(double value) {
-        this.intensity = Math.max(0.0, value);
-        this.worldViewCache.clear();
-        this.nameOnlyViewCache.clear();
-    }
-
     // ---------------------------------------------------------------------
-    // Per-world settings overlay (1.0.2: Worlds/*.json via WorldSettingsConfig)
+    // Per-world settings overlay (Worlds/*.json via WorldSettingsConfig)
     // ---------------------------------------------------------------------
 
     /**
@@ -806,9 +822,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
      * {@code Worlds/*.json} rule matches (zero-alloc common case), else a cached
      * {@link ResolvedWorldSettings} overlay where every exposed leaf is
      * {@code world-file-leaf ?? global} (the file itself is already {@code Parent}-merged by
-     * {@link WorldSettingsConfig}). The cache is dropped on any refold ({@link #applyFold}), on any
-     * worlds refold ({@link #invalidateWorldViews}), and on {@link #setIntensityRuntime}, so a
-     * reload / preset swap / owner-file edit / intensity change takes effect on the next spawn.
+     * {@link WorldSettingsConfig}). The cache is dropped on any refold ({@link #applyFold}) and on any
+     * worlds refold ({@link #invalidateWorldViews}), so a reload / preset swap / owner-file edit takes
+     * effect on the next spawn.
      *
      * <p>Prefer this form wherever the world is in hand: it scores BOTH axes, so a rule written on
      * the world's {@code GameplayConfig} key applies. The name-only form below cannot see it.

@@ -20,7 +20,10 @@ import com.ziggfreed.common.util.JsonOverrideWriter;
  * then reconciles the in-memory config via {@link MobScalingConfig#refreshFromDisk()} so the change
  * applies LIVE without a restart. Per-WORLD settings (1.0.2) write to their OWN files under
  * {@code mods/MmoMobScaling/worlds/<id>.json} (bare {@code WorldSettings} bodies; delete re-exposes
- * the jar/pack file underneath), reconciled via {@link WorldSettingsConfig#refold()}. Every method is
+ * the jar/pack file underneath), reconciled via {@link WorldSettingsConfig#refold()}. A zone/biome
+ * difficulty FLOOR writes to its own file under {@code mods/MmoMobScaling/difficulty/<id>.json} (a
+ * bare {@code DifficultyMappingAsset} body overlaying the shipped mapping of that id per leaf; delete
+ * re-exposes the shipped one), reconciled via {@link DifficultyOwnerLayer#refold()}. Every method is
  * a no-op returning {@code false} when no owner path is set (defaults-only / unit contexts).
  *
  * <p><b>Type fidelity is enforced HERE</b> (an {@code int} offset autoboxes to {@link Integer} for the
@@ -32,7 +35,6 @@ public final class MobScalingOwnerWriter {
     // Top-level leaves.
     private static final String ENABLED = "Enabled";
     private static final String ACTIVE_PRESET = "ActivePreset";
-    private static final String INTENSITY = "Intensity";
     private static final String RARITY_SPAWN_CHANCE = "RaritySpawnChance";
     // OpenWorld group.
     private static final String PLAYER_SCALING = "OpenWorld.PlayerScalingEnabled";
@@ -104,7 +106,6 @@ public final class MobScalingOwnerWriter {
 
     public static boolean saveEnabled(boolean v) { return saveLeaf(ENABLED, v); }
     public static boolean saveActivePreset(@Nonnull String name) { return saveLeaf(ACTIVE_PRESET, name); }
-    public static boolean saveIntensity(double v) { return saveLeaf(INTENSITY, v); }
     public static boolean saveRaritySpawnChance(double v) { return saveLeaf(RARITY_SPAWN_CHANCE, v); }
     public static boolean savePlayerScalingEnabled(boolean v) { return saveLeaf(PLAYER_SCALING, v); }
     public static boolean saveDifficultyMinCap(double v) { return saveLeaf(MIN_CAP, v); }
@@ -209,5 +210,59 @@ public final class MobScalingOwnerWriter {
     @Nonnull
     public static Set<String> ownerAuthoredIds() {
         return WorldSettingsConfig.getInstance().ownerAuthoredIds();
+    }
+
+    // ---------------------------------------------------------------------
+    // Zone / biome difficulty floors (one owner file per mapping)
+    // ---------------------------------------------------------------------
+
+    /** The {@code Floor} leaf of a difficulty mapping file. */
+    private static final String DIFFICULTY_FLOOR = "Floor";
+
+    /**
+     * Write dotted-PascalCase leaves into the OWNER difficulty file {@code difficulty/<id>.json} (a
+     * bare {@code DifficultyMappingAsset} body: {@code TargetType} / {@code TargetId} / {@code Floor};
+     * siblings preserved, a null value removes a leaf), then refold the owner layer so the change
+     * applies live. A file overlays the shipped mapping of the same id PER LEAF, so retuning a shipped
+     * zone needs only its {@code Floor}; a brand-new id must be given all three leaves or the layer
+     * skips it with a warning.
+     */
+    public static boolean saveDifficultyMapping(@Nonnull String id, @Nonnull Map<String, Object> leaves) {
+        DifficultyOwnerLayer layer = DifficultyOwnerLayer.getInstance();
+        Path file = layer.ownerFileFor(id);
+        if (file == null || !JsonOverrideWriter.setLeaves(file, leaves)) {
+            return false;
+        }
+        layer.refold();
+        return true;
+    }
+
+    /** Persist one mapping's {@code Floor} (a {@code Codec.DOUBLE} leaf) over the shipped mapping of that id. */
+    public static boolean saveDifficultyFloor(@Nonnull String id, double floor) {
+        return saveDifficultyMapping(id, Map.of(DIFFICULTY_FLOOR, floor));
+    }
+
+    /** Delete the OWNER difficulty file for {@code id} (the shipped mapping of that id stands again). */
+    public static boolean deleteDifficultyMapping(@Nonnull String id) {
+        DifficultyOwnerLayer layer = DifficultyOwnerLayer.getInstance();
+        Path file = layer.ownerFileFor(id);
+        if (file == null) {
+            return false;
+        }
+        try {
+            boolean removed = Files.deleteIfExists(file);
+            if (removed) {
+                layer.refold();
+            }
+            return removed;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** The lower-cased difficulty mapping ids the OWNER dir authors. */
+    @Nonnull
+    public static Set<String> ownerAuthoredDifficultyIds() {
+        return DifficultyOwnerLayer.getInstance().ownerAuthoredIds();
     }
 }

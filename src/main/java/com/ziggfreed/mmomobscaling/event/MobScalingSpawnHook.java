@@ -184,8 +184,9 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * resolves. Pipeline: {@link ZoneDifficultyResolver} produces the layered floor (native zone &gt;
      * biome &gt; world baseline) plus the distance escalation (which also boosts the rarity chance);
      * then the cached per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker}, O(1),
-     * maintained on player region-cross, NEVER a per-spawn scan) rides on top through
-     * ziggfreed-common's {@code ScalingEngine} under the configured aggregation mode + band/caps. A
+     * maintained on player region-cross, NEVER a per-spawn scan; keyed at the world's own grid size and
+     * already folded under the world's own aggregation mode, both declared by the presence tick) rides
+     * on top through ziggfreed-common's {@code ScalingEngine} under the world's band/caps. A
      * cold region (no players tracked, scalar {@code <= 0}) is a ZERO delta: the escalated floor
      * stands. Power scaling is also fully OFF inside the PROTECTED RING near world spawn
      * ({@code floor.insideStartRing()}, sized by its own {@code OpenWorld.PlayerScalingStartRingBlocks}

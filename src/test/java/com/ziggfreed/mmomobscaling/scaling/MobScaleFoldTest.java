@@ -10,17 +10,31 @@ import org.junit.jupiter.api.Test;
 
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.scaling.MobScaleFold.Clamps;
+import com.ziggfreed.mmomobscaling.scaling.MobScaleFold.DifficultyStatCurve;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 
-/** Verifies the additive-affix fold + the multiplicative variant overlay + the global safety-cap clamps. */
+/**
+ * The fold's mechanics on test-authored curves: the rarity and variant multipliers on DIFFICULTY (a tier
+ * at X folds exactly like a plain mob at X times its multiplier, never clamped to a zone cap), the
+ * geometric split of one effective-HP curve ({@code hp / in == ehp} exactly for any share), the shaped
+ * damage axis (a shape of 1.0 is exactly the straight line; above it the curve bends upward and leaves the
+ * tank axis alone), the multiplicative affix deltas, the safety clamps, and the composite rail that pulls
+ * back {@code in} and never {@code hp}. No shipped number is restated here.
+ */
 class MobScaleFoldTest {
 
-    private static Rarity rarity(double hp, double out, double in, double loot, double xp) {
-        return new Rarity("epic", "", 25, 25, hp, out, in, loot, xp, 2, "aura", List.of("*"));
+    /** A steep test curve: effective HP +8%/pt, damage +20%/pt on a straight line, share 0.75, rails 20x / 60x. */
+    private static final DifficultyStatCurve CURVE = new DifficultyStatCurve(0.08, 0.75, 0.20, 1.0, 20.0, 60.0);
+    /** Test rails wide enough that the curve, not a clamp, decides every fold below. */
+    private static final Clamps RAILS = new Clamps(0.1, 1.0, 0.5, 0.5, 4.0);
+
+    private static Rarity rarity(String id, double difficultyMultiplier, double loot, double xp) {
+        return new Rarity(id, "", 25, 25, difficultyMultiplier, loot, xp, 2, "aura", List.of("*"));
     }
 
-    private static Variant variant(double hp, double out, double in, double loot, double xp) {
-        return new Variant("horrific", "", 0.15, 20, hp, out, in, loot, xp, 1, List.of("venomous"));
+    private static Variant variant(double difficultyMultiplier, double loot, double xp) {
+        return new Variant("horrific", "", 0.15, 20, difficultyMultiplier, loot, xp, 1, List.of("venomous"));
     }
 
     private static Affix affix(double hpDelta, double outDelta, double inDelta, double lootBonus) {
@@ -28,131 +42,245 @@ class MobScaleFoldTest {
                 Affix.KIND_STAT, null, false);
     }
 
-    @Test
-    void plainIsAllOnes() {
-        MobScaleResult r = MobScaleFold.plain(12.0, MobScaleResult.SCOPE_HOSTILE,
-                MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals(1f, r.hpMult());
-        assertEquals(1f, r.outDmgMult());
-        assertEquals(1f, r.inDmgMult());
-        assertEquals(1f, r.lootMult());
-        assertEquals(1f, r.xpMult());
-        assertFalse(r.hasRarity());
-        assertFalse(r.hasAffixes());
-        assertEquals(12f, r.difficulty());
+    private static Affix resisting(double resistancePercent) {
+        return new Affix("ward", "", "", "Mmoscaling_Ward", 1, 5, List.of("*"), List.of(),
+                0, 0, 0, 0, resistancePercent, Affix.KIND_STAT, null, true, null, null);
     }
 
     @Test
-    void nullRarityFoldsToPlain() {
-        MobScaleResult r = MobScaleFold.fold(null, List.of(affix(1, 1, -1, 1)), 30, MobScaleResult.SCOPE_HOSTILE,
-                MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals(1f, r.hpMult(), "no rarity -> plain, affixes ignored");
-        assertFalse(r.hasAffixes());
+    void identityCurveIsAllOnesWhateverTheDifficultyOrTier() {
+        MobScaleResult plain = MobScaleFold.plain(12.0, MobScaleResult.SCOPE_HOSTILE, DifficultyStatCurve.NONE);
+        assertEquals(1f, plain.hpMult());
+        assertEquals(1f, plain.outDmgMult());
+        assertEquals(1f, plain.inDmgMult());
+        assertEquals(1f, plain.lootMult());
+        assertEquals(1f, plain.xpMult());
+        assertFalse(plain.hasRarity());
+        assertFalse(plain.hasAffixes());
+        assertEquals(12f, plain.difficulty());
+
+        // The identity is genuinely neutral: a tier through NONE + no rails changes nothing but loot/xp.
+        MobScaleResult tier = MobScaleFold.fold(rarity("epic", 2.0, 1.5, 1.3), null, List.of(), 150,
+                MobScaleResult.SCOPE_HOSTILE, DifficultyStatCurve.NONE, Clamps.NONE);
+        assertEquals(1f, tier.hpMult(), "no tuning hides in the fail-safe curve");
+        assertEquals(1f, tier.outDmgMult());
+        assertEquals(1f, tier.inDmgMult());
+        assertEquals(1.5f, tier.lootMult(), 1e-6f);
+        assertEquals(1.3f, tier.xpMult(), 1e-6f);
     }
 
     @Test
-    void rarityOnlyPassesThrough() {
-        MobScaleResult r = MobScaleFold.fold(rarity(2.2, 1.9, 0.7, 1.5, 1.3), List.of(), 40,
-                MobScaleResult.SCOPE_HOSTILE, MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals(2.2f, r.hpMult(), 1e-5f);
-        assertEquals(1.9f, r.outDmgMult(), 1e-5f);
-        assertEquals(0.7f, r.inDmgMult(), 1e-5f);
-        assertEquals(1.5f, r.lootMult(), 1e-5f);
-        assertEquals(1.3f, r.xpMult(), 1e-5f);
-        assertTrue(r.hasRarity());
+    void visibleAndInvisibleHalvesMultiplyBackToTheEffectiveHpExactly() {
+        for (double share : new double[] {0.0, 0.25, 0.5, 0.85, 1.0}) {
+            DifficultyStatCurve c = new DifficultyStatCurve(0.05, share, 0.2, 1.0, 40.0, 60.0);
+            for (double d : new double[] {1, 7, 38, 120, 500}) {
+                double ehp = c.effectiveHp(d);
+                assertEquals(ehp, c.hpFactor(d) / c.inFactor(d), 1e-9,
+                        "hp / in is exactly the effective HP at share " + share + ", d " + d);
+                assertTrue(c.inFactor(d) <= 1.0 + 1e-12, "the invisible half never makes a mob softer");
+                assertTrue(c.hpFactor(d) >= 1.0 - 1e-12, "the visible half never shrinks a mob");
+            }
+        }
+        DifficultyStatCurve allVisible = new DifficultyStatCurve(0.05, 1.0, 0.2, 1.0, 40.0, 60.0);
+        assertEquals(1.0, allVisible.inFactor(80), 1e-12, "share 1.0 leaves every hit landing for full damage");
+        assertEquals(allVisible.effectiveHp(80), allVisible.hpFactor(80), 1e-12, "and puts it all on the bar");
+        DifficultyStatCurve even = new DifficultyStatCurve(0.05, 0.5, 0.2, 1.0, 40.0, 60.0);
+        assertEquals(Math.sqrt(even.effectiveHp(80)), even.hpFactor(80), 1e-12, "share 0.5 splits evenly");
+        assertEquals(1.0 / Math.sqrt(even.effectiveHp(80)), even.inFactor(80), 1e-12);
     }
 
     @Test
-    void affixDeltasAreAdditive() {
-        // Stalwart-like +0.15 hp; a +0.2 out; a -0.1 in; +0.2 loot bonus.
-        MobScaleResult r = MobScaleFold.fold(rarity(2.0, 1.5, 0.8, 1.5, 1.3),
-                List.of(affix(0.15, 0.2, -0.1, 0.2)), 40, MobScaleResult.SCOPE_HOSTILE,
-                MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals(2.15f, r.hpMult(), 1e-5f, "hp additive");
-        assertEquals(1.7f, r.outDmgMult(), 1e-5f, "out additive");
-        assertEquals(0.7f, r.inDmgMult(), 1e-5f, "in additive");
-        assertEquals(1.5f * 1.2f, r.lootMult(), 1e-5f, "loot multiplicative with affix bonus");
+    void aShapeOfOneIsExactlyTheStraightLineSlope() {
+        // The identity that makes the knob legible: at shape 1.0 the scale IS the per-point slope, so the
+        // damage axis reads 1 + (d - 1) * scale to the last bit, exactly as a plain slope would.
+        DifficultyStatCurve line = new DifficultyStatCurve(0.05, 0.85, 0.2, 1.0, 1_000.0, 1_000.0);
+        for (double d : new double[] {1, 2, 7, 38, 120, 500}) {
+            assertEquals(1.0 + (d - 1.0) * 0.2, line.outFactor(d), 1e-12, "shape 1.0 is the plain slope at d " + d);
+        }
+    }
+
+    @Test
+    void aShapeAboveOneBendsTheDamageAxisUpwardAndLeavesTheTankAxisAlone() {
+        DifficultyStatCurve line = new DifficultyStatCurve(0.05, 0.85, 0.2, 1.0, 1_000.0, 1_000.0);
+        DifficultyStatCurve bent = new DifficultyStatCurve(0.05, 0.85, 0.2, 1.4, 1_000.0, 1_000.0);
+        assertEquals(1.0, bent.outFactor(1), 1e-12, "the curve starts at exactly 1.0 whatever the shape");
+        assertEquals(1.0 + 0.2, bent.outFactor(2), 1e-12, "one point above the baseline reads the scale itself (1 ^ shape = 1)");
+        assertTrue(bent.outFactor(1.5) < line.outFactor(1.5), "under one point of distance the bent curve sits below the line");
+        assertTrue(bent.outFactor(10) > line.outFactor(10), "past it the bent curve sits above the line");
+        assertTrue(bent.outFactor(60) / bent.outFactor(30) > line.outFactor(60) / line.outFactor(30),
+                "a shape above 1.0 widens the ratio between two difficulties: the late game grows faster than the early game");
+        double previous = 1.0;
+        for (double d : new double[] {2, 5, 20, 80, 300}) {
+            assertTrue(bent.outFactor(d) > previous, "monotone in difficulty at d " + d);
+            previous = bent.outFactor(d);
+        }
+        for (double d : new double[] {1, 7, 38, 120}) {
+            assertEquals(line.effectiveHp(d), bent.effectiveHp(d), 1e-12, "the shape never touches the tank axis");
+            assertEquals(line.hpFactor(d), bent.hpFactor(d), 1e-12);
+            assertEquals(line.inFactor(d), bent.inFactor(d), 1e-12);
+        }
+        DifficultyStatCurve railed = new DifficultyStatCurve(0.05, 0.85, 0.2, 1.4, 1_000.0, 9.0);
+        assertEquals(9.0, railed.outFactor(10_000), 1e-12, "the damage rail still caps the bent curve");
+        // A non-positive shape is not a curve at all and reads as the straight line, in the record and in buildCurve.
+        assertEquals(1.0, new DifficultyStatCurve(0.05, 0.85, 0.2, 0.0, 1_000.0, 1_000.0).outDamageShape(), 0.0);
+        assertEquals(line.outFactor(38), new DifficultyStatCurve(0.05, 0.85, 0.2, -2.0, 1_000.0, 1_000.0).outFactor(38), 1e-12);
+    }
+
+    @Test
+    void theTankAxisIsLinearInDifficultyAndBothAxesAreRailedAtTheirOwnCeilings() {
+        assertEquals(1.0, CURVE.effectiveHp(1), 1e-12, "difficulty 1 is the baseline");
+        assertEquals(1.0, CURVE.effectiveHp(0.2), 1e-12, "below 1 reads as 1");
+        assertEquals(1.0 + 37 * 0.08, CURVE.effectiveHp(38), 1e-12);
+        assertEquals(1.0 + 37 * 0.20, CURVE.outFactor(38), 1e-12);
+        assertEquals(20.0, CURVE.effectiveHp(10_000), 1e-12, "the effective-HP rail");
+        assertEquals(60.0, CURVE.outFactor(10_000), 1e-12, "the damage rail");
+        MobScaleResult low = MobScaleFold.plain(3, MobScaleResult.SCOPE_HOSTILE, CURVE);
+        MobScaleResult mid = MobScaleFold.plain(38, MobScaleResult.SCOPE_HOSTILE, CURVE);
+        MobScaleResult high = MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, CURVE);
+        assertTrue(high.hpMult() > mid.hpMult() && mid.hpMult() > low.hpMult(), "hp rises with difficulty");
+        assertTrue(high.outDmgMult() > mid.outDmgMult() && mid.outDmgMult() > low.outDmgMult(), "out rises");
+        assertTrue(high.inDmgMult() < mid.inDmgMult() && mid.inDmgMult() < low.inDmgMult(), "in falls");
+    }
+
+    @Test
+    void aRarityAtXFoldsExactlyLikeAPlainMobAtXTimesItsMultiplier() {
+        Rarity tier = rarity("legendary", 2.4, 1.0, 1.0);
+        for (double d : new double[] {1, 10, 30, 65}) {
+            MobScaleResult rolled = MobScaleFold.fold(tier, null, List.of(), d, MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
+            MobScaleResult plainFurtherAlong = MobScaleFold.plain(d * 2.4, MobScaleResult.SCOPE_HOSTILE, CURVE);
+            assertEquals(plainFurtherAlong.hpMult(), rolled.hpMult(), 1e-6f, "hp at d " + d);
+            assertEquals(plainFurtherAlong.outDmgMult(), rolled.outDmgMult(), 1e-6f, "out at d " + d);
+            assertEquals(plainFurtherAlong.inDmgMult(), rolled.inDmgMult(), 1e-6f, "in at d " + d);
+            assertEquals((float) d, rolled.difficulty(), "the result carries the SPOT difficulty, not the product");
+            assertTrue(rolled.hasRarity());
+        }
+    }
+
+    @Test
+    void rarityAndVariantMultipliersCompose() {
+        Rarity tier = rarity("epic", 1.8, 1.5, 1.3);
+        Variant overlay = variant(1.25, 1.3, 1.2);
+        MobScaleResult both = MobScaleFold.fold(tier, overlay, List.of(), 20, MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
+        MobScaleResult plain = MobScaleFold.plain(20 * 1.8 * 1.25, MobScaleResult.SCOPE_HOSTILE, CURVE);
+        assertEquals(plain.hpMult(), both.hpMult(), 1e-6f, "the two multipliers multiply on the difficulty");
+        assertEquals(plain.outDmgMult(), both.outDmgMult(), 1e-6f);
+        assertEquals(1.5f * 1.3f, both.lootMult(), 1e-6f, "loot = rarity x variant");
+        assertEquals(1.3f * 1.2f, both.xpMult(), 1e-6f, "xp = rarity x variant");
+        assertEquals("horrific", both.variantId());
+        assertTrue(both.hasVariant() && both.hasRarity());
+
+        // A variant on a plain base folds off the spot difficulty times its own multiplier alone.
+        MobScaleResult plainBase = MobScaleFold.fold(null, overlay, List.of(), 20, MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
+        assertEquals(MobScaleFold.plain(25, MobScaleResult.SCOPE_HOSTILE, CURVE).hpMult(), plainBase.hpMult(), 1e-6f);
+        assertFalse(plainBase.hasRarity());
+        assertTrue(plainBase.hasVariant());
+    }
+
+    @Test
+    void theCurveDifficultyIsNeverClampedToAZoneCap() {
+        // A curve whose rails sit far away: a Boss at the top of a 200 band reads the curve at 600, and
+        // that is visibly further along than a plain mob at 200, so the ladder still exists up there.
+        DifficultyStatCurve roomy = new DifficultyStatCurve(0.05, 0.85, 0.3, 1.0, 1_000.0, 1_000.0);
+        MobScaleResult boss = MobScaleFold.fold(rarity("boss", 3.0, 3.0, 2.0), null, List.of(), 200,
+                MobScaleResult.SCOPE_HOSTILE, roomy, RAILS);
+        MobScaleResult plainAtCap = MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, roomy);
+        assertEquals(600.0, MobScaleFold.curveDifficulty(200, rarity("boss", 3.0, 3.0, 2.0), null), 1e-12);
+        assertTrue(boss.outDmgMult() > plainAtCap.outDmgMult() * 2.5, "the boss reads the curve at 600, not 200");
+        assertEquals(roomy.outFactor(600), boss.outDmgMult(), 1e-4f);
+    }
+
+    @Test
+    void affixDeltasMultiplyTheCurve() {
+        // Stalwart-like +15% hp; +20% out; -10% in; +20% loot passes.
+        Rarity tier = rarity("epic", 2.0, 1.5, 1.3);
+        MobScaleResult r = MobScaleFold.fold(tier, null, List.of(affix(0.15, 0.2, -0.1, 0.2)), 20,
+                MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
+        double dEff = 40;
+        assertEquals((float) (CURVE.hpFactor(dEff) * 1.15), r.hpMult(), 1e-5f, "hp = curve x (1 + delta)");
+        assertEquals((float) (CURVE.outFactor(dEff) * 1.2), r.outDmgMult(), 1e-5f, "out = curve x (1 + delta)");
+        assertEquals((float) (CURVE.inFactor(dEff) * 0.9), r.inDmgMult(), 1e-5f, "in = curve x (1 + delta)");
+        assertEquals(1.5f * 1.2f, r.lootMult(), 1e-5f, "loot passes x (1 + bonus)");
         assertEquals(1, r.affixIds().length);
     }
 
     @Test
-    void variantStacksMultiplicativelyOverRarity() {
-        // Epic base * horrific overlay per channel: hp 2.0*1.5=3.0, out 1.5*1.4=2.1, in 0.8*0.9=0.72,
-        // loot 1.5*1.3, xp 1.3*1.2. Identity curve, all within caps.
-        MobScaleResult r = MobScaleFold.fold(rarity(2.0, 1.5, 0.8, 1.5, 1.3),
-                variant(1.5, 1.4, 0.9, 1.3, 1.2), List.of(), 40, MobScaleResult.SCOPE_HOSTILE,
-                MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals(3.0f, r.hpMult(), 1e-4f, "hp = rarity * variant");
-        assertEquals(2.1f, r.outDmgMult(), 1e-4f, "out = rarity * variant");
-        assertEquals(0.72f, r.inDmgMult(), 1e-4f, "in = rarity * variant (tankier)");
-        assertEquals(1.5f * 1.3f, r.lootMult(), 1e-4f, "loot = rarity * variant");
-        assertEquals(1.3f * 1.2f, r.xpMult(), 1e-4f, "xp = rarity * variant");
-        assertEquals("horrific", r.variantId(), "variant id recorded");
-        assertTrue(r.hasVariant());
-        assertTrue(r.hasRarity());
+    void anAffixOnAPlainMobStillFolds() {
+        MobScaleResult r = MobScaleFold.fold(null, null, List.of(affix(0.15, 0, 0, 0)), 30,
+                MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
+        assertEquals((float) (CURVE.hpFactor(30) * 1.15), r.hpMult(), 1e-5f, "the delta applies with no tier");
+        assertTrue(r.hasAffixes());
+        assertFalse(r.hasRarity());
     }
 
     @Test
-    void variantWithoutRarityFoldsOffBaseOne() {
-        // No base rarity: base = 1.0, the variant multiplier IS the result ("Horrific Spider", plain base).
-        MobScaleResult r = MobScaleFold.fold(null, variant(1.5, 1.4, 0.9, 1.3, 1.2), List.of(), 30,
-                MobScaleResult.SCOPE_HOSTILE, MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals(1.5f, r.hpMult(), 1e-4f, "hp = 1.0 base * variant");
-        assertEquals(1.4f, r.outDmgMult(), 1e-4f);
-        assertFalse(r.hasRarity(), "no base rarity");
-        assertTrue(r.hasVariant(), "but a variant overlay");
+    void theSafetyClampsBoundEachAxis() {
+        Clamps tight = new Clamps(0.5, 1.0, 0.9, 0.5, 2.0);
+        // A negative hp delta that would take hp under the floor; a negative out delta under its floor; a
+        // positive in delta over the 1.0 ceiling; a loot product over the ceiling.
+        MobScaleResult r = MobScaleFold.fold(rarity("epic", 1.0, 3.0, 1.0), null,
+                List.of(affix(-0.9, -0.9, 5.0, 0.0)), 1, MobScaleResult.SCOPE_HOSTILE, CURVE, tight);
+        assertEquals(0.5f, r.hpMult(), 1e-6f, "MinHpMult");
+        assertEquals(0.9f, r.outDmgMult(), 1e-6f, "MinOutDamageMult");
+        assertEquals(1.0f, r.inDmgMult(), 1e-6f, "MaxInDamageMult");
+        assertEquals(2.0f, r.lootMult(), 1e-6f, "MaxLootMult");
+        MobScaleResult little = MobScaleFold.fold(rarity("epic", 1.0, 0.1, 1.0), null, List.of(), 1,
+                MobScaleResult.SCOPE_HOSTILE, CURVE, tight);
+        assertEquals(0.5f, little.lootMult(), 1e-6f, "MinLootMult");
+
+        // The no-rail identity lets the same fold through untouched.
+        MobScaleResult free = MobScaleFold.fold(rarity("epic", 1.0, 3.0, 1.0), null,
+                List.of(affix(-0.9, -0.9, 5.0, 0.0)), 1, MobScaleResult.SCOPE_HOSTILE, CURVE, Clamps.NONE);
+        assertEquals(0.1f, free.hpMult(), 1e-6f);
+        assertEquals(6.0f, free.inDmgMult(), 1e-6f);
+        assertEquals(3.0f, free.lootMult(), 1e-6f);
     }
 
     @Test
-    void clampsToSafetyCaps() {
-        // Legendary + multiple big affixes would blow past every cap; the fold clamps.
-        MobScaleResult r = MobScaleFold.fold(rarity(3.8, 2.6, 0.55, 2.0, 1.6),
-                List.of(affix(2.0, 2.0, -2.0, 5.0), affix(2.0, 2.0, -2.0, 5.0)), 80, MobScaleResult.SCOPE_HOSTILE,
-                MobScaleFold.DifficultyStatCurve.NONE);
-        assertEquals((float) MobScaleFold.MAX_HEALTH_MULT, r.hpMult(), 1e-5f, "hp capped at 4.5");
-        assertEquals((float) MobScaleFold.OUT_DMG_MAX, r.outDmgMult(), 1e-5f, "out capped at 3.0");
-        assertEquals((float) MobScaleFold.IN_DMG_MIN, r.inDmgMult(), 1e-5f, "in floored at 0.5 (x2 effective HP ceiling)");
-        assertEquals((float) MobScaleFold.LOOT_MULT_MAX, r.lootMult(), 1e-5f, "loot capped at 3.0");
+    void theCompositeRailPullsBackTheInvisibleTermAndNeverTheVisibleOne() {
+        // A curve whose rail the plain fold reaches exactly at the top: an affix's +hp then pushes
+        // hp / in past it, and the correction lands on `in`.
+        DifficultyStatCurve railed = new DifficultyStatCurve(0.1, 0.85, 0.1, 1.0, 10.0, 10.0);
+        double atRail = 91; // 1 + 90 * 0.1 = 10.0 = the rail
+        MobScaleResult plain = MobScaleFold.plain(atRail, MobScaleResult.SCOPE_HOSTILE, railed);
+        assertEquals(10.0, plain.hpMult() / plain.inDmgMult(), 1e-4, "the plain fold sits on the rail");
+
+        MobScaleResult stalwart = MobScaleFold.fold(null, null, List.of(affix(0.5, 0, 0, 0)), atRail,
+                MobScaleResult.SCOPE_HOSTILE, railed, Clamps.NONE);
+        assertEquals((float) (railed.hpFactor(atRail) * 1.5), stalwart.hpMult(), 1e-5f,
+                "hp keeps the affix bonus in full - the health bar is what the player reads");
+        assertTrue(stalwart.inDmgMult() > plain.inDmgMult(), "the invisible term is raised instead");
+        assertEquals(10.0, stalwart.hpMult() / stalwart.inDmgMult(), 1e-4, "and the product sits back on the rail");
     }
 
     @Test
-    void plainScalesWithDifficulty() {
-        // A steep curve: HP +8%/pt, out +2%/pt, in -0.2%/pt, capped 20x / 8x / floor 0.5.
-        var curve = new MobScaleFold.DifficultyStatCurve(0.08, 0.02, 0.002, 20.0, 8.0, 0.5);
+    void theCompositeRailCountsADeclaredResistanceMirror() {
+        DifficultyStatCurve railed = new DifficultyStatCurve(0.1, 0.85, 0.1, 1.0, 10.0, 10.0);
 
-        // Difficulty 1 is the baseline (no scaling): hpFactor = 1 + (1-1)*0.08 = 1.
-        assertEquals(1f, MobScaleFold.plain(1, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(),
-                "difficulty 1 = baseline");
+        double atRail = 91;
+        MobScaleResult warded = MobScaleFold.fold(null, null, List.of(resisting(0.4)), atRail,
+                MobScaleResult.SCOPE_HOSTILE, railed, Clamps.NONE);
+        MobScaleResult plain = MobScaleFold.plain(atRail, MobScaleResult.SCOPE_HOSTILE, railed);
+        assertEquals(plain.hpMult(), warded.hpMult(), 1e-6f, "the mirror never touches hp");
+        assertEquals(10.0, warded.hpMult() / (warded.inDmgMult() * (1.0 - 0.4)), 1e-4,
+                "hp / (in x surviving fraction) is held at the rail");
+        assertTrue(warded.inDmgMult() > plain.inDmgMult(), "in is raised to pay for the resistance");
 
-        // hpFactor = clamp(1 + (max(1,d)-1)*0.08, 1, 20).
-        assertEquals(1.16f, MobScaleFold.plain(3, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(), 1e-4f);
-        assertEquals(3.96f, MobScaleFold.plain(38, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(), 1e-4f);
-        assertEquals(16.92f, MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, curve).hpMult(), 1e-4f);
-
-        // At difficulty 38: out rises (1 + 37*0.02), in falls (1 - 37*0.002).
-        MobScaleResult mid = MobScaleFold.plain(38, MobScaleResult.SCOPE_HOSTILE, curve);
-        assertEquals(1.74f, mid.outDmgMult(), 1e-4f, "outFactor = 1 + 37*0.02");
-        assertEquals(0.926f, mid.inDmgMult(), 1e-4f, "inFactor = 1 - 37*0.002");
-
-        // Monotone across difficulty: hp + out rise, in falls.
-        MobScaleResult low = MobScaleFold.plain(3, MobScaleResult.SCOPE_HOSTILE, curve);
-        MobScaleResult high = MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, curve);
-        assertTrue(high.hpMult() > mid.hpMult() && mid.hpMult() > low.hpMult(), "hp rises with difficulty");
-        assertTrue(high.outDmgMult() > mid.outDmgMult() && mid.outDmgMult() > low.outDmgMult(),
-                "out rises with difficulty");
-        assertTrue(high.inDmgMult() < mid.inDmgMult() && mid.inDmgMult() < low.inDmgMult(),
-                "in falls with difficulty");
+        // Well under the rail the mirror changes nothing: it is bound arithmetic, not a stat.
+        MobScaleResult low = MobScaleFold.fold(null, null, List.of(resisting(0.4)), 5,
+                MobScaleResult.SCOPE_HOSTILE, railed, Clamps.NONE);
+        assertEquals(MobScaleFold.plain(5, MobScaleResult.SCOPE_HOSTILE, railed).inDmgMult(), low.inDmgMult(), 1e-6f);
     }
 
     @Test
-    void foldIsCurveTimesRarity() {
-        // The same steep curve; a rarity multiplies the curve-scaled base per channel.
-        var curve = new MobScaleFold.DifficultyStatCurve(0.08, 0.02, 0.002, 20.0, 8.0, 0.5);
-        MobScaleResult r = MobScaleFold.fold(rarity(2.0, 1.5, 0.8, 1.5, 1.3), List.of(), 38,
-                MobScaleResult.SCOPE_HOSTILE, curve);
-        // hp: curve.hpFactor(38)=3.96 * rarity 2.0; out: 1.74 * 1.5; in: 0.926 * 0.8. All below the curve caps.
-        assertEquals(3.96f * 2.0f, r.hpMult(), 1e-3f, "curve HP times rarity HP");
-        assertEquals(1.74f * 1.5f, r.outDmgMult(), 1e-3f, "curve out times rarity out");
-        assertEquals(0.926f * 0.8f, r.inDmgMult(), 1e-3f, "curve in times rarity in");
+    void boundEffectiveHpArithmetic() {
+        assertEquals(0.5, MobScaleFold.boundEffectiveHp(4.0, 0.5, 0.0, 10.0), 1e-12, "under the rail: untouched");
+        assertEquals(0.5, MobScaleFold.boundEffectiveHp(5.0, 0.5, 0.0, 10.0), 1e-12, "on the rail: untouched");
+        assertEquals(0.8, MobScaleFold.boundEffectiveHp(8.0, 0.5, 0.0, 10.0), 1e-12, "over: in = hp / rail");
+        assertEquals(8.0 / (10.0 * 0.6), MobScaleFold.boundEffectiveHp(8.0, 0.5, 0.4, 10.0), 1e-12,
+                "a resistance divides the surviving fraction into the rail");
+        assertEquals(0.5, MobScaleFold.boundEffectiveHp(50.0, 0.5, 1.0, 10.0), 1e-12,
+                "outright immunity cannot be bounded here and is left to the effect's own validation");
+        assertEquals(4.0, MobScaleFold.boundEffectiveHp(40.0, 0.5, 0.0, 10.0), 1e-12,
+                "a visible hp already past the rail lifts in past 1.0 rather than touching hp");
     }
 }

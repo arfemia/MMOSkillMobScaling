@@ -20,8 +20,11 @@ import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
  * own {@code Zone.name()} ({@code Zone0}..{@code Zone4} on the default worldgen), {@code "Biome"} keys
  * {@code Biome.getName()} ({@code Plains1}/{@code Ocean1}/...); {@code TargetId: "*"} is the type-wide
  * wildcard. Precedence + the {@code WorldRules} baseline live in
- * {@code world/ZoneDifficultyResolver}. The jar ships the starter gradient; a pack or owner overrides
- * any mapping by id, folded {@code defaults < pack < owner} through {@code DifficultyConfig}.
+ * {@code world/ZoneDifficultyResolver}. The jar ships the starter gradient; a pack replaces a mapping
+ * by id, and an owner file under {@code mods/MmoMobScaling/difficulty/} overlays the same-id mapping
+ * per leaf (a file holding only {@code Floor} retunes it), folded {@code pack < owner} through
+ * {@code DifficultyConfig}. Every leaf is a NULLABLE wrapper so an absent key reads as absent, which
+ * is what lets a partial owner file inherit the leaves it does not author.
  *
  * <p>Pack JSON shape:
  * <pre>{@code
@@ -36,7 +39,7 @@ public final class DifficultyMappingAsset
 
     @Nullable private String targetType;
     @Nullable private String targetId;
-    private double floor = 0.0;
+    @Nullable private Double floor;
 
     public static final AssetBuilderCodec<String, DifficultyMappingAsset> CODEC = AssetBuilderCodec.builder(
                     DifficultyMappingAsset.class,
@@ -73,14 +76,24 @@ public final class DifficultyMappingAsset
         return id;
     }
 
+    /** The authored {@code TargetType} string ({@code Zone} / {@code Biome}); {@code null} when absent. */
+    @Nullable public String getTargetType() { return targetType; }
+
+    /** The authored native zone/biome name or {@code *}; {@code null} when absent. */
+    @Nullable public String getTargetId() { return targetId; }
+
+    /** The authored floor; {@code null} when absent (a partial owner file inheriting the shipped one). */
+    @Nullable public Double getFloor() { return floor; }
+
     /**
      * Map the decoded fields onto the runtime {@link DifficultyMapping}; {@code null} (skip + warn at
-     * the fold) when {@code TargetType} is unknown or {@code TargetId} is absent/blank.
+     * the fold) when {@code TargetType} is unknown, {@code TargetId} is absent/blank or {@code Floor}
+     * is absent - a shipped mapping is complete by definition.
      */
     @Nullable
     public DifficultyMapping toMapping(@Nonnull String mappingId) {
         DifficultyMapping.TargetType type = DifficultyMapping.TargetType.parse(targetType);
-        if (type == null || targetId == null || targetId.isBlank()) {
+        if (type == null || targetId == null || targetId.isBlank() || floor == null) {
             return null;
         }
         return new DifficultyMapping(mappingId, type, targetId.trim(), floor);

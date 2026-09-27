@@ -16,11 +16,12 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  *
  * <p>A variant is a SECOND, independent roll axis beside the {@link com.ziggfreed.mmomobscaling.rarity.Rarity}
  * ladder: a mob rolls its base rarity as before, then INDEPENDENTLY rolls at most one variant (family-gated).
- * The two compose - "Horrific Epic Spider" is an epic base + a horrific overlay. A variant's stat multipliers
- * stack MULTIPLICATIVELY on top of the base rarity+affix layer ({@link com.ziggfreed.mmomobscaling.scaling.MobScaleFold}),
- * and a variant contributes its OWN affix slots + allow-list (so an affix can be variant-exclusive via the
- * affix's {@code AllowedVariants} gate - the transitive "spider-only venom" pattern). A variant carries NO
- * aura/body-tint (the RARITY owns the single tint channel); its identity is the name decoration + its affix(es).
+ * The two compose - "Horrific Epic Spider" is an epic base + a horrific overlay. Like a rarity, a variant is a
+ * multiplier on the DIFFICULTY the curve is evaluated at ({@link #difficultyMultiplier}; the fold multiplies
+ * the rarity's and the variant's together), and a variant contributes its OWN affix slots + allow-list (so an
+ * affix can be variant-exclusive via the affix's {@code AllowedVariants} gate - the transitive "spider-only
+ * venom" pattern). A variant carries NO aura/body-tint of its own beyond a fallback (the RARITY owns the
+ * single tint channel); its identity is the name decoration + its affix(es).
  *
  * <p>{@link #chance} is this variant's ABSOLUTE spawn probability on an eligible mob (not a relative weight):
  * {@link VariantRoster} draws once and the chances of all eligible variants partition the roll, with the
@@ -36,9 +37,7 @@ public record Variant(
         @Nonnull String displayNameKey,
         double chance,
         double minDifficulty,
-        double hpMult,
-        double outDamageMult,
-        double inDamageMult,
+        double difficultyMultiplier,
         double lootMult,
         double xpMult,
         int affixSlots,
@@ -63,9 +62,9 @@ public record Variant(
      * {@link #loot}).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
-            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult, double xpMult,
             int affixSlots, @Nonnull List<String> allowedAffixes) {
-        this(id, displayNameKey, chance, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+        this(id, displayNameKey, chance, minDifficulty, difficultyMultiplier, lootMult,
                 xpMult, affixSlots, allowedAffixes, List.of("*"), null, "", FamilyFilter.ALLOW_ALL, null);
     }
 
@@ -74,10 +73,10 @@ public record Variant(
      * death loot (any base rarity, no aura, no {@link #loot}).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
-            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult, double xpMult,
             int affixSlots, @Nonnull List<String> allowedAffixes, @Nonnull String nameColor,
             @Nonnull FamilyFilter familyFilter) {
-        this(id, displayNameKey, chance, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+        this(id, displayNameKey, chance, minDifficulty, difficultyMultiplier, lootMult,
                 xpMult, affixSlots, allowedAffixes, List.of("*"), null, nameColor, familyFilter, null);
     }
 
@@ -86,10 +85,10 @@ public record Variant(
      * but no death loot ({@link #loot} = none).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
-            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult, double xpMult,
             int affixSlots, @Nonnull List<String> allowedAffixes, @Nonnull List<String> allowedRarities,
             @Nullable String auraEffectId, @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter) {
-        this(id, displayNameKey, chance, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+        this(id, displayNameKey, chance, minDifficulty, difficultyMultiplier, lootMult,
                 xpMult, affixSlots, allowedAffixes, allowedRarities, auraEffectId, nameColor,
                 familyFilter, null);
     }

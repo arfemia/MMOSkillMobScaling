@@ -33,10 +33,14 @@ import com.ziggfreed.common.icon.IconSpec;
  *   "DescriptionKey": "mmomobscaling.affix.armored.desc",
  *   "EffectId": "Mmoscaling_Affix_Armored",
  *   "Roll": { "Weight": 3.0, "MinDifficulty": 5, "AllowedRarities": ["*"] },
- *   "FoldDeltas": { "Hp": 0.15, "OutDamage": 0.0, "InDamage": 0.0, "LootBonus": 0.0 },
+ *   "FoldDeltas": { "ResistancePercent": 0.15 },
  *   "Kind": "STAT", "ResistanceBearing": true,
  *   "Icon": { "ItemId": "Armor_Bronze_Chest" } }
  * }</pre>
+ *
+ * <p>That is the shipped Armored exactly: its toughness is the effect's own resistance, so it declares
+ * only the mirror. {@code FoldDeltas} takes any of {@code Hp}, {@code OutDamage}, {@code InDamage},
+ * {@code LootBonus} and {@code ResistancePercent}; an absent leaf contributes nothing.
  *
  * <p>The optional {@code Icon} is the shared {@link IconSpec} (an {@code ItemId} rendered as that item's
  * generated icon, OR a Common-rooted {@code TexturePath} such as {@code "UI/StatusEffects/Stamina.png"});
@@ -124,13 +128,14 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
         double inDelta = delta(foldDeltas != null ? foldDeltas.inDamage : null);
         double hpDelta = delta(foldDeltas != null ? foldDeltas.hp : null);
         double lootBonus = delta(foldDeltas != null ? foldDeltas.lootBonus : null);
+        double resistancePercent = delta(foldDeltas != null ? foldDeltas.resistancePercent : null);
         String nameKey = displayNameKey != null ? displayNameKey : "";
         String descKey = descriptionKey != null ? descriptionKey : "";
         String k = kind != null ? kind : Affix.KIND_STAT;
         String iconItemId = icon != null ? icon.itemId() : null;
         String iconTexturePath = icon != null ? icon.texturePath() : null;
         return new Affix(id, nameKey, descKey, effectId, weight, minDifficulty, allowed, allowedVariants,
-                outDelta, inDelta, hpDelta, lootBonus, k, behaviorId, resistanceBearing,
+                outDelta, inDelta, hpDelta, lootBonus, resistancePercent, k, behaviorId, resistanceBearing,
                 iconItemId, iconTexturePath);
     }
 
@@ -163,20 +168,42 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable private String[] allowedVariants;
     }
 
-    /** Additive fold deltas on the frozen spawn result (each absent leaf = 0.0, no contribution). */
+    /**
+     * The affix's contributions to the frozen spawn result (each absent leaf = 0.0, no contribution). The
+     * four deltas are fractions the fold applies as {@code 1 + sum} over the difficulty curve; the fifth,
+     * {@code ResistancePercent}, is the DECLARED mirror of the native effect's percent resistance, read by
+     * the effective-HP rail alone.
+     */
     public static final class FoldDeltas {
         public static final BuilderCodec<FoldDeltas> CODEC = BuilderCodec
                 .builder(FoldDeltas.class, FoldDeltas::new)
                 .append(new KeyedCodec<>("Hp", Codec.DOUBLE, false), (d, v) -> d.hp = v, d -> d.hp)
+                .documentation("Extra health as a fraction of the curve's: 0.15 is fifteen percent more.")
                 .add()
                 .append(new KeyedCodec<>("OutDamage", Codec.DOUBLE, false),
                         (d, v) -> d.outDamage = v, d -> d.outDamage)
+                .documentation("Extra damage dealt as a fraction of the curve's: 0.2 is twenty percent more.")
                 .add()
                 .append(new KeyedCodec<>("InDamage", Codec.DOUBLE, false),
                         (d, v) -> d.inDamage = v, d -> d.inDamage)
+                .documentation("A change to the damage taken as a fraction of the curve's: -0.1 is ten"
+                        + " percent less taken, 0.1 ten percent more.")
                 .add()
                 .append(new KeyedCodec<>("LootBonus", Codec.DOUBLE, false),
                         (d, v) -> d.lootBonus = v, d -> d.lootBonus)
+                .documentation("Extra loot passes as a fraction: 0.5 rolls the death loot half a pass more.")
+                .add()
+                .append(new KeyedCodec<>("ResistancePercent", Codec.DOUBLE, false),
+                        (d, v) -> d.resistancePercent = v, d -> d.resistancePercent)
+                .documentation("The percent damage resistance the affix's own EntityEffect grants, stated"
+                        + " again here as a fraction (0.15 for fifteen percent) so the effective-HP rail can"
+                        + " count it; the fold cannot read the effect file. The rail treats this as the share"
+                        + " of every hit the effect turns away, and when the mob's visible health over what"
+                        + " gets through would exceed MaxEffectiveHpMult it raises the mob's damage taken, for"
+                        + " every cause at once. So a value LARGER than the effect really grants makes the mob"
+                        + " take more damage from everything the effect does not resist, and a smaller one"
+                        + " lets the mob sit past the rail. Keep it equal to the effect's DamageResistance"
+                        + " Percent Amount: the content audit warns when the two drift.")
                 .add()
                 .build();
 
@@ -184,5 +211,6 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
         @Nullable private Double outDamage;
         @Nullable private Double inDamage;
         @Nullable private Double lootBonus;
+        @Nullable private Double resistancePercent;
     }
 }

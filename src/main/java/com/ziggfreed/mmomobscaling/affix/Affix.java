@@ -12,10 +12,13 @@ import javax.annotation.Nullable;
  *
  * <p><b>Native-asset-first:</b> a stat-shaped affix's magnitude lives in the native {@link #effectId}
  * {@code EntityEffect} (Armored = {@code DamageResistance}, Swift = {@code HorizontalSpeedMultiplier}),
- * applied via {@code addInfiniteEffect} at spawn - zero Java. {@link #hpDelta} folds into the mob's frozen
- * HP mult on the maximized pre-add path (Stalwart), and {@link #outDamageDelta}/{@link #inDamageDelta} fold
- * into the frozen pipeline mults (for future affixes with no native damage stat); MVP stat affixes leave
- * these at 0. A {@link #kind} of {@code BEHAVIORAL}/{@code HYBRID} dispatches to a mod-side
+ * applied via {@code addInfiniteEffect} at spawn - zero Java. {@link #hpDelta} scales the mob's frozen
+ * HP mult (Stalwart), and {@link #outDamageDelta}/{@link #inDamageDelta} scale the frozen pipeline mults
+ * (for affixes with no native damage stat); each is a fraction the fold applies as {@code 1 + sum(delta)}
+ * over the difficulty curve. {@link #resistancePercent} is the DECLARED mirror of the native effect's
+ * percent {@code DamageResistance}: the fold cannot read the effect asset, so an affix that resists states
+ * the fraction here and the effective-HP rail counts it ({@code ScalingContentValidator} reports any drift
+ * between the two). A {@link #kind} of {@code BEHAVIORAL}/{@code HYBRID} dispatches to a mod-side
  * {@link AffixBehavior} by {@link #behaviorId} for the per-hit policy the engine has no native hook for
  * (Vampiric lifesteal; the Freezing on-hit trigger).
  */
@@ -32,6 +35,7 @@ public record Affix(
         double inDamageDelta,
         double hpDelta,
         double lootBonus,
+        double resistancePercent,
         @Nonnull String kind,
         @Nullable String behaviorId,
         boolean resistanceBearing,
@@ -50,9 +54,10 @@ public record Affix(
 
     /**
      * Convenience constructor without an {@code allowedVariants} gate (defaults to {@code []} = this affix is
-     * NOT granted by any variant, only by a rarity via {@code allowedRarities}) or a display icon. Keeps every
-     * pre-variant / pre-icon call site (tests + the roll paths) compiling unchanged; the codec
-     * {@link com.ziggfreed.mmomobscaling.asset.AffixAsset#toAffix()} uses the full constructor.
+     * NOT granted by any variant, only by a rarity via {@code allowedRarities}), a declared resistance mirror
+     * (0) or a display icon. Keeps every pre-variant / pre-icon call site (tests + the roll paths) compiling
+     * unchanged; the codec {@link com.ziggfreed.mmomobscaling.asset.AffixAsset#toAffix()} uses the full
+     * constructor.
      */
     public Affix(@Nonnull String id, @Nonnull String displayNameKey, @Nonnull String descriptionKey,
             @Nullable String effectId, double spawnWeight, double minDifficulty,
@@ -60,8 +65,8 @@ public record Affix(
             double hpDelta, double lootBonus, @Nonnull String kind, @Nullable String behaviorId,
             boolean resistanceBearing) {
         this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
-                List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, kind, behaviorId, resistanceBearing,
-                null, null);
+                List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, 0.0, kind, behaviorId,
+                resistanceBearing, null, null);
     }
 
     /** Convenience constructor with an icon but the pre-variant gate list order (adds {@code allowedVariants}). */
@@ -71,8 +76,8 @@ public record Affix(
             double hpDelta, double lootBonus, @Nonnull String kind, @Nullable String behaviorId,
             boolean resistanceBearing, @Nullable String iconItemId, @Nullable String iconTexturePath) {
         this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
-                List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, kind, behaviorId, resistanceBearing,
-                iconItemId, iconTexturePath);
+                List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, 0.0, kind, behaviorId,
+                resistanceBearing, iconItemId, iconTexturePath);
     }
 
     /** True when this affix authors a chip icon (an item id or a texture path) for the inspector HUD. */

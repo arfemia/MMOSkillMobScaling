@@ -93,8 +93,10 @@ class MobScalingAssetCodecTest {
 
     @Test
     void decodesShippedEpicRarity() throws Exception {
-        Rarity r = decode("/Server/MmoMobScaling/Rarities/Epic.json", RarityAsset.CODEC).toRarity();
-        assertEquals(2.2, r.hpMult(), 1e-9, "HpMult");
+        RarityAsset asset = decode("/Server/MmoMobScaling/Rarities/Epic.json", RarityAsset.CODEC);
+        Rarity r = asset.toRarity();
+        assertTrue(r.difficultyMultiplier() > 1.0,
+                "DifficultyMultiplier decodes and a rollable tier reads the curve further along than a plain mob");
         assertEquals(25.0, r.weight(), 1e-9, "Weight");
         assertEquals(25.0, r.minDifficulty(), 1e-9, "MinDifficulty");
         assertEquals(2, r.affixSlots(), "AffixSlots");
@@ -113,7 +115,7 @@ class MobScalingAssetCodecTest {
         Variant v = decode("/Server/MmoMobScaling/Variants/Horrific.json", VariantAsset.CODEC).toVariant();
         assertEquals(0.15, v.chance(), 1e-9, "Roll.Chance");
         assertEquals(20.0, v.minDifficulty(), 1e-9, "Roll.MinDifficulty");
-        assertEquals(1.5, v.hpMult(), 1e-9, "Multipliers.Hp");
+        assertTrue(v.difficultyMultiplier() >= 1.0, "DifficultyMultiplier decodes; an overlay never softens its base");
         assertTrue(v.allowsAffix("venomous"), "the variant grants its unique affix");
         assertTrue(!v.familyFilter().isUnrestricted(), "the Families block makes it restricted");
         assertTrue(v.familyFilter().allowGroups().contains("Spiders"), "AllowGroups decoded");
@@ -157,11 +159,51 @@ class MobScalingAssetCodecTest {
         RarityAsset asset = decodeJson("{ \"Name\": \"fixture_plain\", \"Roll\": { \"Weight\": 1 } }",
                 RarityAsset.CODEC);
         assertTrue(!asset.toRarity().familyFilter().hasForce(), "no Families block -> nothing forced");
+        assertEquals(1.0, asset.toRarity().difficultyMultiplier(), 1e-9,
+                "an absent DifficultyMultiplier is the plain 1.0 (the tier reads the curve where a plain mob does)");
+    }
+
+    @Test
+    void theShippedLadderIncreasesInDifficultyMultiplier() throws Exception {
+        // A relative-ordering invariant, not a number: the roster orders tiers by DifficultyMultiplier
+        // (forced-tier resolution, the ladder position other mods read), so the shipped ladder must climb.
+        Rarity rare = decode("/Server/MmoMobScaling/Rarities/Rare.json", RarityAsset.CODEC).toRarity();
+        Rarity epic = decode("/Server/MmoMobScaling/Rarities/Epic.json", RarityAsset.CODEC).toRarity();
+        Rarity legendary = decode("/Server/MmoMobScaling/Rarities/Legendary.json", RarityAsset.CODEC).toRarity();
+        Rarity boss = decode("/Server/MmoMobScaling/Rarities/Boss.json", RarityAsset.CODEC).toRarity();
+        assertTrue(rare.difficultyMultiplier() > 1.0, "rare reads the curve past a plain mob");
+        assertTrue(epic.compareStrength(rare) > 0, "epic outranks rare");
+        assertTrue(legendary.compareStrength(epic) > 0, "legendary outranks epic");
+        assertTrue(boss.compareStrength(legendary) > 0, "the forced boss tier is the strongest, so it wins a force tie");
+    }
+
+    @Test
+    void perStatMultipliersAreNotLeavesAndAFileStillAuthoringThemFoldsOnItsDifficultyMultiplier() throws Exception {
+        // Hp / OutDamage / InDamage are not declared under Multipliers: the codec skips them as unknown
+        // keys (the server's own "Unused key(s)" load warning names the file and the key), the reward leaves
+        // beside them still decode, and the tier folds on whatever DifficultyMultiplier it authors.
+        RarityAsset legacy = decodeJson("""
+                { "Name": "fixture_legacy", "Roll": { "Weight": 1 },
+                  "DifficultyMultiplier": 1.5,
+                  "Multipliers": { "Hp": 2.2, "OutDamage": 1.9, "Loot": 1.5, "Xp": 1.3 } }
+                """, RarityAsset.CODEC);
+        Rarity r = legacy.toRarity();
+        assertEquals(1.5, r.difficultyMultiplier(), 1e-9, "the tier folds on its DifficultyMultiplier");
+        assertEquals(1.5, r.lootMult(), 1e-9, "the reward leaves beside the unknown keys still decode");
+        assertEquals(1.3, r.xpMult(), 1e-9);
+
+        VariantAsset legacyVariant = decodeJson("""
+                { "Name": "fixture_legacy_variant", "Roll": { "Chance": 0.1 },
+                  "Multipliers": { "InDamage": 0.9, "Loot": 1.3 } }
+                """, VariantAsset.CODEC);
+        assertEquals(1.0, legacyVariant.toVariant().difficultyMultiplier(), 1e-9,
+                "an unknown per-stat key never becomes a difficulty multiplier - there is no honest conversion");
+        assertEquals(1.3, legacyVariant.toVariant().lootMult(), 1e-9, "the reward leaf beside it still decodes");
     }
 
     @Test
     void rarityWithoutNameColorFallsBackToWhite() {
-        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 1, 1, 0, null, java.util.List.of("*"));
+        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 0, null, java.util.List.of("*"));
         assertEquals("", plain.nameColor(), "convenience constructor leaves NameColor empty");
         assertEquals(Rarity.DEFAULT_NAME_COLOR, plain.displayColor(), "empty NameColor renders white");
     }
@@ -421,10 +463,10 @@ class MobScalingAssetCodecTest {
     @Test
     void keyedConfigFoldIsCaseInsensitive() {
         RarityConfig cfg = RarityConfig.getInstance();
-        Rarity epic = new Rarity("Epic", "", 25, 25, 2.2, 1.9, 0.7, 1.5, 1.3, 2, "aura", java.util.List.of("*"));
+        Rarity epic = new Rarity("Epic", "", 25, 25, 1.8, 1.5, 1.3, 2, "aura", java.util.List.of("*"));
         cfg.mergePackLayer(Map.of("Epic", epic));
         assertNotNull(cfg.resolve("epic"), "ids are lower-cased by the fold");
-        assertEquals(2.2, cfg.resolve("EPIC").hpMult(), 1e-9, "resolve is case-insensitive");
+        assertEquals(1.8, cfg.resolve("EPIC").difficultyMultiplier(), 1e-9, "resolve is case-insensitive");
 
         AffixConfig acfg = AffixConfig.getInstance();
         Affix armored = new Affix("Armored", "", "", "eff", 3, 5, java.util.List.of("*"), 0, 0, 0, 0, Affix.KIND_STAT, null, true);
@@ -446,16 +488,16 @@ class MobScalingAssetCodecTest {
     }
 
     @Test
-    void schemaDeclaresTheNeutralMultiplierDefaultAndTheClosedPresetModes() {
+    void schemaDeclaresTheNeutralMultiplierDefaultAndTheClosedAggregationModes() {
         ObjectSchema multipliers = RarityAsset.Multipliers.CODEC.toSchema(new SchemaContext());
-        NumberSchema hp = (NumberSchema) multipliers.getProperties().get("Hp");
-        assertEquals(Double.valueOf(1.0), hp.getDefault(),
+        NumberSchema loot = (NumberSchema) multipliers.getProperties().get("Loot");
+        assertEquals(Double.valueOf(1.0), loot.getDefault(),
                 "an absent multiplier leaf is the plain 1.0 baseline, and the exported schema must "
                         + "say so or the editor renders 0 and lies about the effective value");
 
-        ObjectSchema settings = MobScalingSettingsAsset.CODEC.toSchema(new SchemaContext());
-        StringSchema presetMode = (StringSchema) settings.getProperties().get("PresetMode");
-        assertArrayEquals(new String[] {"SIMPLE", "TUNED", "ADVANCED"}, presetMode.getEnum(),
-                "the three customization tiers are the whole vocabulary, so the editor may offer a dropdown");
+        ObjectSchema openWorld = MobScalingSettingsAsset.OpenWorld.CODEC.toSchema(new SchemaContext());
+        StringSchema mode = (StringSchema) openWorld.getProperties().get("AggregationMode");
+        assertArrayEquals(new String[] {"SOLO", "AVERAGE", "PEAK", "WEIGHTED", "DISABLED"}, mode.getEnum(),
+                "the five fold modes are the whole vocabulary, so the editor may offer a dropdown");
     }
 }

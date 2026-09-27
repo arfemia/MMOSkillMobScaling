@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -21,7 +22,6 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
 import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.mmomobscaling.affix.Affix;
-import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
@@ -76,11 +76,10 @@ public final class ScalingContentValidator {
             if (r.minDifficulty() < 0) {
                 findings.add(at + ": MinDifficulty must be >= 0");
             }
-            if (r.hpMult() <= 0) {
-                findings.add(at + ": HpMult must be > 0");
-            }
-            if (r.outDamageMult() <= 0 || r.inDamageMult() <= 0) {
-                findings.add(at + ": damage multipliers must be > 0");
+            // The multiplier is what the tier IS: zero or negative folds the curve at difficulty 1 whatever the
+            // spot says, and the strength ordering (forced-tier resolution, the ladder position) loses meaning.
+            if (r.difficultyMultiplier() <= 0) {
+                findings.add(at + ": DifficultyMultiplier must be > 0");
             }
             if (r.lootMult() < 0 || r.xpMult() < 0) {
                 findings.add(at + ": LootMult/XpMult must be >= 0");
@@ -154,11 +153,8 @@ public final class ScalingContentValidator {
             if (v.minDifficulty() < 0) {
                 findings.add(at + ": MinDifficulty must be >= 0");
             }
-            if (v.hpMult() <= 0) {
-                findings.add(at + ": HpMult must be > 0");
-            }
-            if (v.outDamageMult() <= 0 || v.inDamageMult() <= 0) {
-                findings.add(at + ": damage multipliers must be > 0");
+            if (v.difficultyMultiplier() <= 0) {
+                findings.add(at + ": DifficultyMultiplier must be > 0");
             }
             if (v.lootMult() < 0 || v.xpMult() < 0) {
                 findings.add(at + ": LootMult/XpMult must be >= 0");
@@ -209,6 +205,55 @@ public final class ScalingContentValidator {
             // A behavioral/hybrid affix without a BehaviorId never dispatches its on-hit policy.
             if ((behavioral || hybrid) && isBlank(a.behaviorId())) {
                 findings.add(at + ": " + a.kind() + " affix needs a BehaviorId to dispatch");
+            }
+            // The declared resistance mirror is a fraction the effective-HP rail divides by; 1.0 or more
+            // would be outright immunity, which no rail can bound, and a negative one is nonsense.
+            if (a.resistancePercent() < 0 || a.resistancePercent() >= 1.0) {
+                findings.add(at + ": FoldDeltas.ResistancePercent must be in [0, 1) (got " + a.resistancePercent() + ")");
+            }
+            if (a.resistancePercent() > 0 && isBlank(a.effectId())) {
+                findings.add(at + ": FoldDeltas.ResistancePercent declares a resistance mirror but the affix names"
+                        + " no EffectId, so nothing applies the resistance it mirrors");
+            }
+        }
+        return findings;
+    }
+
+    /**
+     * Compare each affix's declared {@code FoldDeltas.ResistancePercent} against the percent
+     * {@code DamageResistance} its native {@code EntityEffect} actually grants, and report drift either way:
+     * a mirror the effect does not back, an effect resistance the affix does not declare (the effective-HP
+     * rail then under-counts it), or two numbers that disagree. {@code effectResistance} answers the
+     * effect's LARGEST percent amount across its causes, {@code 0.0} for an effect with no percent
+     * resistance, and {@code null} when it cannot tell (the effect is missing, which
+     * {@link #validateAffixReferences} already reports, or the engine is absent), in which case the affix
+     * is skipped. Runs once at boot with the live effect map, like the other reference checks.
+     */
+    @Nonnull
+    public static List<String> validateAffixResistanceMirrors(@Nonnull Collection<Affix> affixes,
+            @Nonnull Function<String, Double> effectResistance) {
+        List<String> findings = new ArrayList<>();
+        for (Affix a : affixes) {
+            if (isBlank(a.effectId())) {
+                continue; // no effect to mirror; the range check above covers a stray declaration
+            }
+            Double actual = effectResistance.apply(a.effectId().trim());
+            if (actual == null) {
+                continue;
+            }
+            double declared = a.resistancePercent();
+            String at = "affix '" + a.id() + "'";
+            if (declared > 0 && actual <= 0) {
+                findings.add(at + ": FoldDeltas.ResistancePercent " + declared + " has no backing - EntityEffect '"
+                        + a.effectId() + "' grants no percent DamageResistance, so the effective-HP rail counts a"
+                        + " resistance the mob does not have; remove the leaf or add the resistance to the effect");
+            } else if (declared <= 0 && actual > 0) {
+                findings.add(at + ": EntityEffect '" + a.effectId() + "' grants " + actual
+                        + " percent DamageResistance but the affix declares no FoldDeltas.ResistancePercent, so the"
+                        + " effective-HP rail cannot count it; declare " + actual);
+            } else if (Math.abs(declared - actual) > 1e-6) {
+                findings.add(at + ": FoldDeltas.ResistancePercent " + declared + " drifts from EntityEffect '"
+                        + a.effectId() + "', which grants " + actual + "; make the two equal");
             }
         }
         return findings;
@@ -486,29 +531,10 @@ public final class ScalingContentValidator {
     }
 
     /**
-     * Validate one folded settings asset: the top-level {@code Intensity} multiplier ({@code >= 0})
-     * and a DEPRECATION warning when the preset still carries the removed 1.0.1 inline
-     * {@code WorldOverrides} array key is handled at decode (the codec no longer declares the key, so
-     * the engine's unused-key warning fires). Empty = clean. Findings are prefixed with the preset
-     * name so an admin can locate the offending file.
-     */
-    @Nonnull
-    public static List<String> validateSettings(@Nonnull String presetName,
-            @Nonnull MobScalingSettingsAsset asset) {
-        List<String> findings = new ArrayList<>();
-        String pfx = "preset '" + presetName + "' ";
-        Double intensity = asset.getIntensity();
-        if (intensity != null && intensity < 0) {
-            findings.add(pfx + "Intensity must be >= 0 (got " + intensity + ")");
-        }
-        return findings;
-    }
-
-    /**
      * Validate the FOLDED per-world settings (1.0.2, {@code Worlds/*.json} across jar + pack + owner
      * dir, Parent-merged): a DUPLICATE {@code Match} across two ids (matcher precedence silently picks
-     * one - ambiguous authoring), an authored {@code Parent} that resolved to nothing, negative
-     * {@code Intensity}/{@code Floor}, an out-of-range {@code RaritySpawnChance}, an inverted
+     * one - ambiguous authoring), an authored {@code Parent} that resolved to nothing, a negative
+     * {@code Floor}, an out-of-range {@code RaritySpawnChance}, an inverted
      * {@code Difficulty.MinCap > MaxCap}, and a pool id present in both {@code Allow} and {@code Deny}
      * (deny wins, the allow entry is dead). Pool id EXISTENCE stays at the roll sites (the rarity /
      * variant / affix stores fold on their own events, so a static cross-check would race the load).
@@ -528,7 +554,8 @@ public final class ScalingContentValidator {
             WorldSettings ws = e.getValue();
             String at = "world '" + id + "'";
             String parent = worlds.parentOf(id);
-            if (parent != null && !worlds.foldedView().containsKey(parent.trim().toLowerCase(Locale.ROOT))) {
+            if (parent != null && !worlds.foldedView().containsKey(OwnerFiles.idKey(parent))) {
+
                 findings.add(at + ": Parent '" + parent + "' not found (the file resolved standalone)");
             }
             WorldSelector where = ws.getWhere();
@@ -542,10 +569,6 @@ public final class ScalingContentValidator {
                 } else {
                     rules.add(new MatchRule(id, pattern.trim(), Pattern.parse(pattern)));
                 }
-            }
-            Double intensity = ws.getIntensity();
-            if (intensity != null && intensity < 0) {
-                findings.add(at + ": Intensity must be >= 0");
             }
             Double chance = ws.getRaritySpawnChance();
             if (chance != null && (chance < 0 || chance > 1)) {

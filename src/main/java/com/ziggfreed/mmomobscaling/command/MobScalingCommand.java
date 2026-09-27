@@ -45,7 +45,7 @@ import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
- * {@code /mobscaling <purge|inspect|hud|preset|intensity|worlds|ui>} - the admin maintenance + tuning
+ * {@code /mobscaling <purge|inspect|hud|preset|worlds|ui>} - the admin maintenance + tuning
  * tools (permission group {@code hytale:Admin}; all strings are lang keys). The subcommand is a REQUIRED
  * positional arg; the follow-on values below are OPTIONAL args, which the Hytale parser binds by NAME
  * (e.g. {@code --hudTarget=zone}), NOT by position.
@@ -60,7 +60,8 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *       run it near the areas that matter (unloaded residue self-heals if the mod is re-enabled).</li>
  *   <li>{@code inspect} - report the difficulty inputs at the caller's position: their own
  *       power level, the world floor + kill-switch, the tracked region power scalar, the exact
- *       effective difficulty a spawn HERE would resolve (shared {@code effectiveDifficulty} code path),
+ *       spot difficulty a spawn HERE would resolve (the same {@code MobScalingSpawnHook.resolveSpawnScaling}
+ *       read a spawn takes; a rarity then multiplies it before the curve is read),
  *       and the plain-mob HP / outgoing-damage / incoming-taken stat curve that difficulty resolves to
  *       (so an admin can confirm plain mobs scale), then the rarity spawn chance.</li>
  *   <li>{@code hud --hudTarget=<zone|inspector> --hudValue=<on|off|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]} - LIVE-tune the two
@@ -76,11 +77,6 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *       players. RUNTIME ONLY: the swap is lost on restart; the persistent authority is the
  *       {@code ActivePreset} key in {@code mods/MmoMobScaling/mob-scaling.json} (the command reminds
  *       the admin).</li>
- *   <li>{@code intensity [--intensity=<multiplier>]} - with no value, report the current GLOBAL intensity multiplier
- *       on the difficulty-&gt;stat curve; with a value ({@code >= 0}), LIVE-set it (denser HP / harder
- *       hits scale with the multiplier). RUNTIME ONLY: lost on restart; the persistent authority is the
- *       {@code Intensity} key in {@code mods/MmoMobScaling/mob-scaling.json}. A world with an authored
- *       per-world {@code Intensity} override is unaffected.</li>
  *   <li>{@code worlds} - list the folded per-world settings rules ({@code Worlds/*.json} across jar +
  *       pack + owner dir, 1.0.2): id, Match (or a pool-only base), Parent, owner-vs-shipped origin, and
  *       the per-world kill-switch. Read-only; authoring happens in the files or {@code /mobscaling ui}.</li>
@@ -94,7 +90,6 @@ public final class MobScalingCommand extends CommandBase {
     private final OptionalArg<String> hudOffsetXArg;
     private final OptionalArg<String> hudOffsetYArg;
     private final OptionalArg<String> presetNameArg;
-    private final OptionalArg<String> intensityArg;
 
     public MobScalingCommand() {
         // The engine resolves the command + arg descriptions as localization keys.
@@ -108,7 +103,6 @@ public final class MobScalingCommand extends CommandBase {
         this.hudOffsetXArg = withOptionalArg("hudOffsetX", "mmomobscaling.command.arg.hud_offset_x", ArgTypes.STRING);
         this.hudOffsetYArg = withOptionalArg("hudOffsetY", "mmomobscaling.command.arg.hud_offset_y", ArgTypes.STRING);
         this.presetNameArg = withOptionalArg("presetName", "mmomobscaling.command.arg.preset_name", ArgTypes.STRING);
-        this.intensityArg = withOptionalArg("intensity", "mmomobscaling.command.arg.intensity", ArgTypes.STRING);
     }
 
     @Override
@@ -120,7 +114,6 @@ public final class MobScalingCommand extends CommandBase {
             case "inspect" -> inspect(ctx);
             case "hud" -> hud(ctx);
             case "preset" -> preset(ctx);
-            case "intensity" -> intensity(ctx);
             case "worlds" -> worlds(ctx);
             case "ui" -> openUi(ctx);
             default -> ctx.sendMessage(Message.translation("mmomobscaling.command.usage"));
@@ -175,49 +168,12 @@ public final class MobScalingCommand extends CommandBase {
             return;
         }
         ZoneDifficultyResolver.get().clearAll();
-        HudPosition zonePos = HudPosition.parse(
-                cfg.getZoneHudPosition().toUpperCase(Locale.ROOT), cfg.getZoneHudOffsetX(), cfg.getZoneHudOffsetY());
-        if (zonePos != null) {
-            ZoneDifficultyHud.refreshPositionForAllOnline(zonePos);
-        }
-        HudPosition inspectorPos = HudPosition.parse(cfg.getInspectorHudPosition().toUpperCase(Locale.ROOT),
-                cfg.getInspectorHudOffsetX(), cfg.getInspectorHudOffsetY());
-        if (inspectorPos != null) {
-            MobInspectorHud.refreshPositionForAllOnline(inspectorPos);
-        }
+        // Each HUD re-resolves the corner its own world configures (a preset moves the global one).
+        ZoneDifficultyHud.refreshPositionForAllOnline();
+        MobInspectorHud.refreshPositionForAllOnline();
         MobScalingOwnerWriter.saveActivePreset(cfg.getActivePreset());
         ctx.sendMessage(Message.translation("mmomobscaling.command.preset.swapped").param("0", cfg.getActivePreset()));
         ctx.sendMessage(Message.translation("mmomobscaling.command.preset.saved"));
-    }
-
-    /**
-     * Report or LIVE-tune the GLOBAL intensity multiplier on the difficulty-&gt;stat curve (1.0.1). With no
-     * value, print the current multiplier; with a value ({@code >= 0}), set it. RUNTIME ONLY: lost on
-     * restart; the persistent authority is the {@code Intensity} key in
-     * {@code mods/MmoMobScaling/mob-scaling.json} (the command reminds the admin). A world with an authored
-     * per-world {@code Intensity} override is unaffected (authoring wins).
-     */
-    private void intensity(@Nonnull CommandContext ctx) {
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
-        if (!ctx.provided(intensityArg)) {
-            ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.current")
-                    .param("value", cfg.getIntensity()));
-            return;
-        }
-        double value;
-        try {
-            value = Double.parseDouble(intensityArg.get(ctx).trim());
-        } catch (NumberFormatException e) {
-            ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.usage"));
-            return;
-        }
-        if (Double.isNaN(value) || value < 0.0) {
-            ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.usage"));
-            return;
-        }
-        MobScalingOwnerWriter.saveIntensity(value);
-        ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.set").param("value", cfg.getIntensity()));
-        ctx.sendMessage(Message.translation("mmomobscaling.command.intensity.saved"));
     }
 
     /** Live-tune one HUD overlay: on/off for everyone, or a named-corner reposition (runtime only). */
@@ -274,12 +230,14 @@ public final class MobScalingCommand extends CommandBase {
             ctx.sendMessage(Message.translation("mmomobscaling.command.hud.usage"));
             return;
         }
+        // The write is the GLOBAL corner; a world file authoring its own keeps it, so each online HUD
+        // re-resolves the corner its own world configures rather than being pushed this one.
         if (zone) {
             MobScalingOwnerWriter.saveZoneHudPosition(preset, offsetX, offsetY);
-            ZoneDifficultyHud.refreshPositionForAllOnline(position);
+            ZoneDifficultyHud.refreshPositionForAllOnline();
         } else {
             MobScalingOwnerWriter.saveInspectorHudPosition(preset, offsetX, offsetY);
-            MobInspectorHud.refreshPositionForAllOnline(position);
+            MobInspectorHud.refreshPositionForAllOnline();
         }
         ctx.sendMessage(Message.translation("mmomobscaling.command.hud.moved")
                 .param("target", targetName)
@@ -444,7 +402,8 @@ public final class MobScalingCommand extends CommandBase {
                 player.sendMessage(Message.translation("mmomobscaling.command.inspect.difficulty")
                         .param("difficulty", scaling.difficulty()));
                 // What a PLAIN (non-rarity, non-affix) hostile mob's HP / damage / tankiness curve
-                // resolves to at this difficulty, so an admin can confirm plain mobs now scale.
+                // resolves to at this SPOT difficulty (a rarity multiplies the difficulty the curve is
+                // read at; the inspector HUD shows a rolled mob's own numbers).
                 MobScaleResult plainCurve =
                         MobScaleFold.plain(scaling.difficulty(), MobScaleResult.SCOPE_HOSTILE, spawn.statCurveModel());
                 player.sendMessage(Message.translation("mmomobscaling.command.inspect.curve")

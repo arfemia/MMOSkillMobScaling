@@ -8,16 +8,19 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.ui.hud.HudPosition;
-import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.i18n.LocationNameResolver;
 
 /**
- * The ZONE DIFFICULTY overlay: a small always-on card showing the effective local spawn
- * difficulty (the same {@code MobScalingSpawnHook.effectiveDifficulty} number {@code /mobscaling
- * inspect} reports), a qualitative threat tier RELATIVE to the viewer ({@link ZoneTier}, coloured),
+ * The ZONE DIFFICULTY overlay: a small always-on card showing the local SPOT difficulty a spawn
+ * resolves to (the same {@code MobScalingSpawnHook.resolveSpawnScaling} number {@code /mobscaling
+ * inspect} reports, before any rarity multiplies it), a qualitative threat tier RELATIVE to the
+ * viewer ({@link ZoneTier}, coloured),
  * the viewer's own power level, and the tracked group (region) power when players share the region.
  * Driven by {@code MobScalingHudSystem} on a coarse throttle; hidden whenever mob scaling is off
- * for the world (the numbers would be meaningless).
+ * for the world (the numbers would be meaningless). Its corner, its location line and the two
+ * name-key prefixes are read off the PER-WORLD settings view the system hands it, so an instance may
+ * author its own.
  *
  * <p>All display text is client-resolved {@code Message}s over {@code mmomobscaling.hud.*} lang keys,
  * pushed on {@code .TextSpans} (never {@code .Text} - a Message on a String sink crashes the
@@ -48,12 +51,12 @@ public final class ZoneDifficultyHud extends ScalingHud {
         return new HudPosition(HudPosition.AnchorEdge.TOP, HudPosition.HorizontalEdge.LEFT, 16, 90);
     }
 
-    /** The configured position: the settings preset when valid, else {@link #defaultPosition()}. */
+    /** The position {@code settings} authors: its corner preset when valid, else {@link #defaultPosition()}. */
     @Nonnull
-    public static HudPosition configuredPositionFromSettings() {
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
+    @Override
+    protected HudPosition positionFrom(@Nonnull SpawnScalingSettings settings) {
         HudPosition parsed = HudPosition.parse(
-                cfg.getZoneHudPosition(), cfg.getZoneHudOffsetX(), cfg.getZoneHudOffsetY());
+                settings.getZoneHudPosition(), settings.getZoneHudOffsetX(), settings.getZoneHudOffsetY());
         return parsed != null ? parsed : defaultPosition();
     }
 
@@ -78,12 +81,6 @@ public final class ZoneDifficultyHud extends ScalingHud {
         return UPDATE_INTERVAL_MS;
     }
 
-    @Nonnull
-    @Override
-    protected HudPosition configuredPosition() {
-        return configuredPositionFromSettings();
-    }
-
     @Override
     protected void build(@Nonnull UICommandBuilder cmd) {
         cmd.append("Hud/MmoscalingZoneHud.ui");
@@ -97,28 +94,30 @@ public final class ZoneDifficultyHud extends ScalingHud {
     private static final String NO_LOCATION_PLACEHOLDER = "-";
 
     /**
-     * Push the zone readout. {@code visible} false (mob scaling off for this world, or the HUD
-     * admin-disabled) hides the whole card; {@code groupPower <= 0} (cold region) hides the group
-     * row. {@code zoneName}/{@code biomeName} are blank to hide the location row entirely (the
-     * {@code mmomobscaling.hud.zone.showLocationName} toggle off, or the caller has nothing to show);
-     * an empty {@code zoneName} with a non-blank pair still renders (falls back to
-     * {@value #NO_LOCATION_PLACEHOLDER} for the missing half) rather than a blank label. Skips the
-     * packet when nothing changed since the last push.
+     * Push the zone readout. {@code settings} is the view of the world the player stands in: its
+     * {@code ZoneHud.ShowLocationName} decides whether the location row shows at all and its two
+     * name-key prefixes decide how the zone and biome names resolve. {@code visible} false (mob
+     * scaling off for this world, or the HUD admin-disabled) hides the whole card; {@code groupPower
+     * <= 0} (cold region) hides the group row. Blank {@code zoneName}/{@code biomeName} hide the
+     * location row too (the caller has nothing to show); an empty {@code zoneName} with a non-blank
+     * pair still renders (falls back to {@value #NO_LOCATION_PLACEHOLDER} for the missing half)
+     * rather than a blank label. Skips the packet when nothing changed since the last push.
      */
-    public void pushUpdate(double difficulty, double playerPower, double groupPower, boolean visible,
-            @Nonnull String zoneName, @Nonnull String biomeName, boolean showLocation) {
+    public void pushUpdate(@Nonnull SpawnScalingSettings settings, double difficulty, double playerPower,
+            double groupPower, boolean visible, @Nonnull String zoneName, @Nonnull String biomeName) {
         markPushed();
 
         long diffRounded = Math.round(difficulty);
         long powerRounded = Math.round(playerPower);
         long groupRounded = Math.round(groupPower);
         ZoneTier tier = ZoneTier.fromDelta(difficulty - playerPower);
+        boolean showLocation = settings.isZoneShowLocationName();
         boolean hasLocation = showLocation && (!zoneName.isBlank() || !biomeName.isBlank());
-        // The friendly-name lang-key prefixes are config, so a reload could change the rendered location
-        // under unchanged ids; fold them into the skip-cache key so the next tick repaints after a reload.
-        MobScalingConfig cfg = MobScalingConfig.getInstance();
-        String zonePrefix = cfg.getZoneNameKeyPrefix();
-        String biomePrefix = cfg.getBiomeNameKeyPrefix();
+        // The friendly-name lang-key prefixes are config, so a reload (or a world-file edit) could change
+        // the rendered location under unchanged ids; fold them into the skip-cache key so the next tick
+        // repaints after one.
+        String zonePrefix = settings.getZoneNameKeyPrefix();
+        String biomePrefix = settings.getBiomeNameKeyPrefix();
         String state = visible + "|" + diffRounded + "|" + powerRounded + "|" + groupRounded + "|" + tier
                 + "|" + hasLocation + "|" + zoneName + "|" + biomeName + "|" + zonePrefix + "|" + biomePrefix;
         if (state.equals(lastState)) {
@@ -172,9 +171,9 @@ public final class ZoneDifficultyHud extends ScalingHud {
         return ScalingHud.get(player, HUD_KEY, ZoneDifficultyHud.class);
     }
 
-    /** Re-anchor every online player's zone HUD live (the admin reposition). */
-    public static void refreshPositionForAllOnline(@Nonnull HudPosition position) {
-        ScalingHud.refreshPositionForAllOnline(HUD_KEY, position);
+    /** Re-anchor every online player's zone HUD live, each to its own world's corner (the admin reposition). */
+    public static void refreshPositionForAllOnline() {
+        ScalingHud.refreshPositionForAllOnline(HUD_KEY);
     }
 
     /**

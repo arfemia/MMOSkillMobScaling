@@ -21,7 +21,7 @@ class RarityRosterTest {
     private static final Predicate<Rarity> ANY = r -> true;
 
     private static Rarity rarity(String id, double weight, double minDiff) {
-        return new Rarity(id, "", weight, minDiff, 1, 1, 1, 1, 1, 0, null, List.of("*"));
+        return new Rarity(id, "", weight, minDiff, 1, 1, 1, 0, null, List.of("*"));
     }
 
     /** The shipped starter ladder shape (boss has weight 0 -> not rollable). */
@@ -116,9 +116,9 @@ class RarityRosterTest {
     // Forced-tier targeting (Families.ForceGroups / Families.ForceRoles)
     // ---------------------------------------------------------------------
 
-    /** Fixture tiers whose HP multipliers are authored HERE purely to order them weakest -> strongest. */
-    private static Rarity tier(String id, double weight, double minDiff, double hp) {
-        return new Rarity(id, "", weight, minDiff, hp, 1, 1, 1, 1, 0, null, List.of("*"));
+    /** Fixture tiers whose difficulty multipliers are authored HERE purely to order them weakest -> strongest. */
+    private static Rarity tier(String id, double weight, double minDiff, double difficultyMultiplier) {
+        return new Rarity(id, "", weight, minDiff, difficultyMultiplier, 1, 1, 0, null, List.of("*"));
     }
 
     private static RarityRoster strengthLadder() {

@@ -17,6 +17,7 @@ import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
+import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
@@ -118,6 +119,9 @@ public class MobScalingPlugin extends JavaPlugin {
             worlds.setOwnerDir(Paths.get("mods", "MmoMobScaling", "worlds"));
             worlds.migrateLegacyOwnerOverrides(cfg.getConfigPath());
             worlds.refold();
+            // The zone/biome floor owner folder is scaffolded here too; it is scanned when the shipped
+            // mappings it overlays arrive (the difficulty store's LoadedAssetsEvent), not at setup.
+            DifficultyOwnerLayer.getInstance().setOwnerDir(Paths.get("mods", "MmoMobScaling", "difficulty"));
         } catch (Throwable t) {
             safeWarn("Failed to load mob-scaling config, using defaults: " + t.getMessage());
         }

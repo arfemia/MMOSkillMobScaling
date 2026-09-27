@@ -14,10 +14,13 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  * {@link com.ziggfreed.mmomobscaling.asset.RarityAsset}). Immutable, pure data - no engine coupling - so it
  * is unit-testable and safe to read off the frozen spawn path.
  *
- * <p>The stat multipliers are folded into the frozen {@code ScaledMobComponent} at spawn (Phase 5): HP via
- * the pre-add {@code HealthUtil.scaleMaxHealth} (maximized), out/in damage into the pipeline mults, loot/xp
- * into the reward path. {@link #auraEffectId} is a native {@code EntityEffect} (e.g. {@code Mmoscaling_Aura_Epic})
- * applied via {@code addInfiniteEffect} - the native-asset-first visual channel, zero Java.
+ * <p>{@link #difficultyMultiplier} is what the tier IS in the fold: the difficulty curve is evaluated at
+ * {@code zoneDifficulty * difficultyMultiplier} ({@code com.ziggfreed.mmomobscaling.scaling.MobScaleFold}),
+ * so a tier's premium over a plain mob is a near-constant ratio across the whole band rather than a stat
+ * multiplier that every clamp erodes. The tier carries no per-stat multipliers of its own; {@link #lootMult}
+ * (the loot pass count) and {@link #xpMult} are the reward half. {@link #auraEffectId} is a native
+ * {@code EntityEffect} (e.g. {@code Mmoscaling_Aura_Epic}) applied via {@code addInfiniteEffect} - the
+ * native-asset-first visual channel, zero Java.
  *
  * <p>{@link #loot} is everything this tier hands over when a mob wearing it dies: the shared
  * ziggfreed-common {@code LootRef} vocabulary (named {@code Lootables} and/or inline {@code Rolls} whose
@@ -36,9 +39,7 @@ public record Rarity(
         @Nonnull String displayNameKey,
         double weight,
         double minDifficulty,
-        double hpMult,
-        double outDamageMult,
-        double inDamageMult,
+        double difficultyMultiplier,
         double lootMult,
         double xpMult,
         int affixSlots,
@@ -61,9 +62,9 @@ public record Rarity(
      * eligible; {@link #loot} = none).
      */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult, double xpMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes) {
-        this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+        this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
                 xpMult, affixSlots, auraEffectId, allowedAffixes, "", FamilyFilter.ALLOW_ALL, null);
     }
 
@@ -72,36 +73,33 @@ public record Rarity(
      * ({@link FamilyFilter#ALLOW_ALL}; {@link #loot} = none).
      */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult, double xpMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
             @Nonnull String nameColor) {
-        this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+        this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
                 xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, FamilyFilter.ALLOW_ALL, null);
     }
 
     /** Convenience constructor with a display colour + family filter but no death loot. */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double hpMult, double outDamageMult, double inDamageMult, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult, double xpMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
             @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter) {
-        this(id, displayNameKey, weight, minDifficulty, hpMult, outDamageMult, inDamageMult, lootMult,
+        this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
                 xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, null);
     }
 
     /**
      * Ordering scalar for "which tier is stronger", used wherever two tiers must be compared outside the
      * weighted roll (the {@code ForceGroups}/{@code ForceRoles} resolution: highest forced tier wins, and a
-     * normal roll only replaces a forced tier when it is stronger still). Derived from the authored combat
-     * multipliers rather than {@code minDifficulty}, because an off-ladder tier (weight 0, e.g. a boss tier)
-     * carries no meaningful band. Comparison order is HP, then outgoing damage, then id - a total,
-     * content-determined order, so it never depends on map iteration.
+     * normal roll only replaces a forced tier when it is stronger still) and for the ladder position
+     * {@code RarityRoster.tierOf} publishes. Derived from the authored {@link #difficultyMultiplier} rather
+     * than {@code minDifficulty}, because an off-ladder tier (weight 0, e.g. a boss tier) carries no
+     * meaningful band. Ties break on id - a total, content-determined order that never depends on map
+     * iteration.
      */
     public int compareStrength(@Nonnull Rarity other) {
-        int cmp = Double.compare(this.hpMult, other.hpMult);
-        if (cmp != 0) {
-            return cmp;
-        }
-        cmp = Double.compare(this.outDamageMult, other.outDamageMult);
+        int cmp = Double.compare(this.difficultyMultiplier, other.difficultyMultiplier);
         return cmp != 0 ? cmp : this.id.compareTo(other.id);
     }
 

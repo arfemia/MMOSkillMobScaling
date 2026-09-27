@@ -16,6 +16,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
+import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 
 /**
  * Shared base for this mod's custom HUD overlays ({@link ZoneDifficultyHud},
@@ -26,9 +28,12 @@ import com.ziggfreed.mmomobscaling.MobScalingPlugin;
  * the native {@code HudManager}.
  *
  * <p>A concrete HUD supplies its identity + layout via {@link #rootSelector()}, {@link #panelWidth()},
- * {@link #panelHeight()}, {@link #configuredPosition()} and {@link #updateIntervalMs()}, calls
+ * {@link #panelHeight()}, {@link #positionFrom} and {@link #updateIntervalMs()}, calls
  * {@link #applyConfiguredPosition} in {@code build()}, and gates its push path on {@link #dueForPush}
- * + {@link #markPushed()}. Every client-shipped document path and top-level element id MUST be
+ * + {@link #markPushed()}. A HUD's position is PER WORLD: {@link #configuredPosition()} parses it off
+ * the settings view of the world its player stands in ({@link #worldSettings()}), so an instance may
+ * park the card in another corner, and the live reposition broadcast re-resolves it per HUD rather
+ * than pushing one global corner to everyone. Every client-shipped document path and top-level element id MUST be
  * mod-prefixed ({@code Hud/Mmoscaling*.ui} / {@code #Mmoscaling*}): the client UI namespace is FLAT
  * across mods, and a clobbered document makes {@code build()}'s anchor set fail and DISCONNECTS the
  * player (the MMO shipped that bug once; see its {@code ui/} router).
@@ -55,9 +60,30 @@ public abstract class ScalingHud extends CustomUIHud {
     /** Root element height in pixels (must match the {@code .ui}); fed to {@link HudPosition#toAnchor}. */
     protected abstract int panelHeight();
 
-    /** The server-wide configured position for this HUD (parsed off {@code MobScalingConfig}). */
+    /** This HUD's position as {@code settings} authors it (a blank or unknown corner falls back to the HUD's own default). */
     @Nonnull
-    protected abstract HudPosition configuredPosition();
+    protected abstract HudPosition positionFrom(@Nonnull SpawnScalingSettings settings);
+
+    /** The configured position for this HUD in the world its player stands in. */
+    @Nonnull
+    protected final HudPosition configuredPosition() {
+        return positionFrom(worldSettings());
+    }
+
+    /**
+     * The per-world settings view of the world this HUD's player is in, resolved through the
+     * player's current world uuid (the GLOBAL config when the world cannot be read, or when no
+     * {@code Worlds/*.json} rule matches it). Cheap: a map read plus the config's cached view.
+     */
+    @Nonnull
+    protected final SpawnScalingSettings worldSettings() {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        try {
+            return cfg.spawnSettingsFor(Universe.get().getWorld(getPlayerRef().getWorldUuid()));
+        } catch (Throwable t) {
+            return cfg;
+        }
+    }
 
     /** Minimum gap between pushes for this HUD's throttle. */
     protected abstract long updateIntervalMs();
@@ -79,10 +105,10 @@ public abstract class ScalingHud extends CustomUIHud {
         }
     }
 
-    /** Re-anchor this HUD to {@code position} live (partial update, no reconnect). */
-    public final void pushPositionUpdate(@Nonnull HudPosition position) {
+    /** Re-anchor this HUD to its world's configured position live (partial update, no reconnect). */
+    public final void pushConfiguredPosition() {
         UICommandBuilder cmd = new UICommandBuilder();
-        cmd.setObject(rootSelector() + ".Anchor", position.toAnchor(panelWidth(), panelHeight()));
+        cmd.setObject(rootSelector() + ".Anchor", configuredPosition().toAnchor(panelWidth(), panelHeight()));
         update(false, cmd);
     }
 
@@ -179,9 +205,12 @@ public abstract class ScalingHud extends CustomUIHud {
         }
     }
 
-    /** Re-anchor every online player's HUD registered under {@code key} live (no reconnect). */
-    public static void refreshPositionForAllOnline(@Nonnull String key, @Nonnull HudPosition position) {
-        forEachOnlineHud(key, hud -> hud.pushPositionUpdate(position));
+    /**
+     * Re-anchor every online player's HUD registered under {@code key} live (no reconnect), each to
+     * the position its OWN world configures - the world-level save and the global one both end here.
+     */
+    public static void refreshPositionForAllOnline(@Nonnull String key) {
+        forEachOnlineHud(key, ScalingHud::pushConfiguredPosition);
     }
 
     /** Push every online player's HUD registered under {@code key} hidden (the admin live-disable). */

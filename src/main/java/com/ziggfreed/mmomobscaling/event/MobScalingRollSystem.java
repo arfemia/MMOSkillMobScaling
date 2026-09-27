@@ -229,8 +229,11 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
         List<Affix> affixes = Rosters.affix().pick(effDifficulty, rarity, variant,
                 spawn.getExtraAffixSlots(), a -> spawn.isAffixAllowed(a.id()), rng);
 
-        MobScaleFold.DifficultyStatCurve curve = spawn.statCurveModel();
-        MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, effDifficulty, scope, curve);
+        // The fold evaluates the curve at the spot difficulty times the rarity's and variant's
+        // DifficultyMultiplier; the result carries the SPOT difficulty (what the roll gates, the HUD, the
+        // inspector, the XP underdog gap and the mob_difficulty factor all read).
+        MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, effDifficulty, scope,
+                spawn.statCurveModel(), spawn.clampsModel());
         // IDEMPOTENT stamp (putComponent, never addComponent), deferred through the command buffer so the
         // archetype move lands after this tick's iteration.
         cb.putComponent(ref, scaledType, new ScaledMobComponent(result));

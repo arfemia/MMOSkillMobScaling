@@ -26,7 +26,11 @@ import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
  * <p>Populated LAZILY by the {@code LoadedAssetsEvent} fold in {@code MobScalingAssetRegistrar} AFTER
  * plugin {@code setup()}; read at spawn / presence / HUD time (well after load). Like the rarity/affix
  * stores, this mod SHIPS jar defaults (the starter zone gradient under
- * {@code Server/MmoMobScaling/Difficulty/}).
+ * {@code Server/MmoMobScaling/Difficulty/}), which ride the PACK layer (the engine merges jar + pack by
+ * id); the OWNER layer is {@link DifficultyOwnerLayer}'s {@code mods/MmoMobScaling/difficulty/} folder,
+ * whose files overlay the shipped mapping of the same id per leaf. The base class's Java-baseline layer
+ * ({@code loadDefaults}) is not part of this fold: config is never Java-baked here, nothing calls it,
+ * and the two mutators below are the whole set that feeds the index.
  */
 public final class DifficultyConfig extends AbstractKeyedAssetConfig<DifficultyMapping> {
 
@@ -40,19 +44,34 @@ public final class DifficultyConfig extends AbstractKeyedAssetConfig<DifficultyM
     /** Immutable derived index, swapped wholesale on every layer merge (lock-free volatile reads). */
     private volatile Index index = new Index(Map.of(), null, Map.of(), null);
 
-    private DifficultyConfig() {
-    }
+    /**
+     * The engine-merged jar + pack mappings as last folded, by lower-cased id: what an owner file
+     * overlays per leaf ({@link DifficultyOwnerLayer}), read separately from {@link #resolve} because
+     * that answer already has the owner layer on top.
+     */
+    @Nonnull private volatile Map<String, DifficultyMapping> packLayer = Map.of();
 
-    @Override
-    public synchronized void loadDefaults(@Nonnull Map<String, DifficultyMapping> jarDefaults) {
-        super.loadDefaults(jarDefaults);
-        rebuildIndex();
+    private DifficultyConfig() {
     }
 
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, DifficultyMapping> layer) {
         super.mergePackLayer(layer);
+        Map<String, DifficultyMapping> lowered = new HashMap<>();
+        for (Map.Entry<String, DifficultyMapping> e : layer.entrySet()) {
+            if (e.getValue() != null) {
+                lowered.put(OwnerFiles.idKey(e.getKey()), e.getValue());
+            }
+        }
+        this.packLayer = Map.copyOf(lowered);
         rebuildIndex();
+    }
+
+    /** The shipped (jar + pack) mapping under {@code id}, BEFORE any owner overlay; {@code null} when none ships. */
+    @Nullable
+    public DifficultyMapping packMapping(@Nonnull String id) {
+        return packLayer.get(OwnerFiles.idKey(id));
+
     }
 
     @Override

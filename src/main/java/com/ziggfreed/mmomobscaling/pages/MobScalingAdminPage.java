@@ -31,7 +31,7 @@ import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.form.FieldSpec;
 import com.ziggfreed.common.ui.form.FormResult;
 import com.ziggfreed.common.ui.form.SettingsForm;
-import com.ziggfreed.common.ui.hud.HudPosition;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
@@ -41,6 +41,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
+import com.ziggfreed.mmomobscaling.config.OwnerFiles;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
@@ -68,7 +69,7 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
  * owner file -> {@code refreshFromDisk}); world edits write their own file
  * ({@link MobScalingOwnerWriter#saveWorldFile}/{@code deleteWorldFile} -> the worlds refold). The world
  * editor seeds from the AUTHORED (pre-{@code Parent}-merge) body
- * ({@link WorldSettingsConfig#authoredById}), NOT the folded-effective view: with ~40 exposed knobs,
+ * ({@link WorldSettingsConfig#authoredById}), NOT the folded-effective view: with ~50 exposed knobs,
  * seeding the Parent-merged view and saving back would materialize the whole parent chain into the
  * child file and silently break inheritance - authored-seeding keeps blank field = inherit faithful.
  * HUD / preset edits live-apply to all online players. All labelled buttons are RICH
@@ -125,11 +126,17 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String LEAF_MIN_CAP = "Difficulty.MinCap";
     private static final String LEAF_MAX_CAP = "Difficulty.MaxCap";
     private static final String LEAF_ONLY_RAISE = "OpenWorld.OnlyRaiseDifficulty";
-    private static final String LEAF_PARTY_JOIN = "OpenWorld.AllowDifficultyIncreaseOnPartyJoin";
-    private static final String LEAF_COMPOSITION = "OpenWorld.CompositionEnabled";
 
     // The 9 named corner presets (technical ids, shown literally in the position dropdowns).
     private static final String[] POSITIONS = {
+            "TOP_LEFT", "TOP_CENTER", "TOP_RIGHT",
+            "CENTER_LEFT", "CENTER", "CENTER_RIGHT",
+            "BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT"
+    };
+    // The per-world dropdowns lead with the Inherit pseudo-value (a blank/inherit leaf falls through the
+    // Parent chain to the global corner / mode).
+    private static final String[] POSITIONS_INHERIT = {
+            "inherit",
             "TOP_LEFT", "TOP_CENTER", "TOP_RIGHT",
             "CENTER_LEFT", "CENTER", "CENTER_RIGHT",
             "BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT"
@@ -317,11 +324,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     /**
      * Recompute + push the five sample rows AND the manual probe line (round-3) from the CURRENT
      * Global-form values (falling back to the live config for a blank/invalid field - never the form's
-     * Save validation, this is a read-only preview). Mirrors {@code MobScalingConfig.buildCurve}
-     * (package-private there, so the {@link MobScaleFold.DifficultyStatCurve} is built directly here via
-     * {@link #buildPreviewCurve}): the three slopes scale by {@code max(0, intensity)}, the caps do not.
-     * Each row shows a plain mob (no rarity/variant) run through that curve alone - rarity/variant
-     * multipliers stack on top at spawn, they are not part of this read. The HP cell additionally shows
+     * Save validation, this is a read-only preview). The curve is built through the same
+     * {@code MobScalingConfig.buildCurve} the fold uses ({@link #buildPreviewCurve}), so the preview and
+     * a Save can never disagree on the sanity clamps. Each row shows a plain mob (no rarity/variant) run
+     * through that curve alone - a rarity or variant multiplies the difficulty the curve is read at, so
+     * its row is the plain row further along the same curve. The HP cell additionally shows
      * the ABSOLUTE health when {@link RoleBaseHealthResolver#baseMaxHealth} resolves the sample role's
      * declared base (memoized/observed, so this is cheap on every keystroke); damage stays factor-only
      * (base attack damage lives in weapon/attack assets, out of scope here). Called from every
@@ -351,24 +358,19 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     /**
      * The CURRENT Global-form difficulty stat curve alone (no cap/min/max clamp to a sample range) -
      * shared by the five fixed sample rows and the manual probe line, so both read the exact same
-     * curve. See {@link #refreshPreview}'s javadoc for the clamps mirrored from
-     * {@code MobScalingConfig.applyFold}.
+     * curve, built through the one {@code MobScalingConfig.buildCurve} the fold itself uses (so an
+     * out-of-range typed value previews exactly how Save will fold it).
      */
     @Nonnull
     private MobScaleFold.DifficultyStatCurve buildPreviewCurve() {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
-        double k = Math.max(0.0, previewValue("intensity", cfg.getIntensity()));
-        double hpPerPoint = previewValue("hpPerPoint", cfg.getStatCurveHpPerPoint());
-        double outPerPoint = previewValue("outPerPoint", cfg.getStatCurveOutDamagePerPoint());
-        double inReductionPerPoint = previewValue("inReduction", cfg.getStatCurveInDamageReductionPerPoint());
-        // Mirror MobScalingConfig.applyFold's sanity clamps so an out-of-range typed cap previews
-        // exactly how Save will fold it (a maxHp/maxOut below 1, or a minIn outside (0,1], is otherwise
-        // an impossible curve - e.g. it could make the incoming-reduction cell exceed 100%).
-        double maxHpMult = Math.max(1.0, previewValue("maxHp", cfg.getStatCurveMaxHpMult()));
-        double maxOutMult = Math.max(1.0, previewValue("maxOut", cfg.getStatCurveMaxOutDamageMult()));
-        double minInMult = Math.max(0.01, Math.min(1.0, previewValue("minIn", cfg.getStatCurveMinInDamageMult())));
-        return new MobScaleFold.DifficultyStatCurve(
-                hpPerPoint * k, outPerPoint * k, inReductionPerPoint * k, maxHpMult, maxOutMult, minInMult);
+        return MobScalingConfig.buildCurve(
+                previewValue("ehpPerPoint", cfg.getStatCurveEffectiveHpPerPoint()),
+                previewValue("hpShare", cfg.getStatCurveVisibleHpShare()),
+                previewValue("outScale", cfg.getStatCurveOutDamageScale()),
+                previewValue("outShape", cfg.getStatCurveOutDamageShape()),
+                previewValue("maxEhp", cfg.getStatCurveMaxEffectiveHpMult()),
+                previewValue("maxOut", cfg.getStatCurveMaxOutDamageMult()));
     }
 
     /** One {@code mmomobscaling.ui.global.preview_row} line at difficulty {@code d} (shared: fixed rows + the probe). */
@@ -454,7 +456,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     /**
      * An incoming-damage-reduction cell, whole percent: {@code -22%}. Guarded against {@code -0%} (a
      * rounds-to-zero reduction shows plain {@code 0%}) and a double-minus (a negative input, which the
-     * clamped curve construction in {@link #refreshPreview} should never produce, still renders sanely).
+     * curve construction in {@link #buildPreviewCurve} should never produce, still renders sanely).
      */
     @Nonnull
     private static String formatReduction(double reductionPct) {
@@ -579,7 +581,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         zoneForm.applyValues(cmd, ZONE_FORM_SEL);
         inspectorForm.applyValues(cmd, INSPECTOR_FORM_SEL);
         refreshPreview(cmd);
-        refreshHuds(cfg);
+        refreshHuds();
         ok("mmomobscaling.ui.status.saved");
         finish(cmd);
     }
@@ -618,10 +620,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         }
         MobScalingOwnerWriter.saveLeaves(result.leaves());
         MobScalingConfig cfg = MobScalingConfig.getInstance();
-        HudPosition pos = HudPosition.parse(cfg.getZoneHudPosition(), cfg.getZoneHudOffsetX(), cfg.getZoneHudOffsetY());
-        if (pos != null) {
-            ZoneDifficultyHud.refreshPositionForAllOnline(pos);
-        }
+        // The save is the GLOBAL corner; a world authoring its own keeps it, so each online HUD
+        // re-resolves the corner its own world configures.
+        ZoneDifficultyHud.refreshPositionForAllOnline();
         reseedZoneFromConfig(cfg);
         zoneForm.applyValues(cmd, ZONE_FORM_SEL);
         ok("mmomobscaling.ui.status.saved");
@@ -638,11 +639,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         }
         MobScalingOwnerWriter.saveLeaves(result.leaves());
         MobScalingConfig cfg = MobScalingConfig.getInstance();
-        HudPosition pos = HudPosition.parse(cfg.getInspectorHudPosition(), cfg.getInspectorHudOffsetX(),
-                cfg.getInspectorHudOffsetY());
-        if (pos != null) {
-            MobInspectorHud.refreshPositionForAllOnline(pos);
-        }
+        MobInspectorHud.refreshPositionForAllOnline();
         reseedInspectorFromConfig(cfg);
         inspectorForm.applyValues(cmd, INSPECTOR_FORM_SEL);
         ok("mmomobscaling.ui.status.saved");
@@ -667,6 +664,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             return;
         }
         MobScalingOwnerWriter.deleteWorldFile(id);
+        refreshHuds(); // the deleted file may have parked a HUD in its own corner
         seedWorldForm("", null, null); // never leave the editor pointing at a deleted file
         UICommandBuilder cmd = new UICommandBuilder();
         worldForm.applyValues(cmd, WORLD_FORM_SEL);
@@ -691,11 +689,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             finish(cmd);
             return;
         }
-        String id = WorldSettingsConfig.sanitizeFileId(rawId.isEmpty() ? rawMatch : rawId);
+        String id = OwnerFiles.sanitizeFileId(rawId.isEmpty() ? rawMatch : rawId);
         String rawParent = worldForm.value(F_WORLD_PARENT).trim();
         // Compare through the SAME sanitizer both sides go through for the filename, not the raw
         // typed text - otherwise worldId "a b" + Parent "a b" (both sanitize to "a_b") slips past.
-        if (!rawParent.isEmpty() && WorldSettingsConfig.sanitizeFileId(rawParent).equalsIgnoreCase(id)) {
+        if (!rawParent.isEmpty() && OwnerFiles.sanitizeFileId(rawParent).equalsIgnoreCase(id)) {
             err("mmomobscaling.ui.status.invalid_parent");
             finish(cmd);
             return;
@@ -711,6 +709,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         // enforce here.
         Map<String, Object> leaves = new LinkedHashMap<>(result.leaves());
         leaves.remove(WORLD_ID_LEAF); // the sentinel: never a real codec key on the world file
+        // The two name-key prefixes are TEXT fields where an EMPTY string is a value (no prefix) and it
+        // seeds as the same blank an unauthored prefix does, so a file that deliberately authors an
+        // empty prefix keeps it across a Save instead of falling back to the inherited one.
+        WorldFormLeaves.keepAuthoredEmptyText(leaves, WorldSettingsConfig.getInstance().authoredById(id));
         // The form collects ONE typed pattern; the schema leaf is a LIST. Writing the bare string
         // would produce a body the codec cannot read, and a world file that fails to decode is a
         // rule that silently stops applying - so wrap it here, at the one place that knows both.
@@ -719,6 +721,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             leaves.put(MobScalingOwnerWriter.WHERE_MATCH, List.of(pattern));
         }
         if (MobScalingOwnerWriter.saveWorldFile(id, leaves)) {
+            refreshHuds(); // a per-world HUD corner is one of the leaves this may have changed
             worldForm.seedValue(F_WORLD_ID, id);
             worldForm.applyValue(cmd, WORLD_FORM_SEL, F_WORLD_ID);
             refreshWorldHints(cmd, id);
@@ -751,13 +754,17 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("floor", num(cfg.getDifficultyFloor()));
         seed.put("minCap", num(cfg.getDifficultyMinCap()));
         seed.put("maxCap", num(cfg.getDifficultyMaxCap()));
-        seed.put("intensity", num(cfg.getIntensity()));
-        seed.put("hpPerPoint", num(cfg.getStatCurveHpPerPoint()));
-        seed.put("outPerPoint", num(cfg.getStatCurveOutDamagePerPoint()));
-        seed.put("inReduction", num(cfg.getStatCurveInDamageReductionPerPoint()));
-        seed.put("maxHp", num(cfg.getStatCurveMaxHpMult()));
+        seed.put("ehpPerPoint", num(cfg.getStatCurveEffectiveHpPerPoint()));
+        seed.put("hpShare", num(cfg.getStatCurveVisibleHpShare()));
+        seed.put("outScale", num(cfg.getStatCurveOutDamageScale()));
+        seed.put("outShape", num(cfg.getStatCurveOutDamageShape()));
+        seed.put("maxEhp", num(cfg.getStatCurveMaxEffectiveHpMult()));
         seed.put("maxOut", num(cfg.getStatCurveMaxOutDamageMult()));
-        seed.put("minIn", num(cfg.getStatCurveMinInDamageMult()));
+        seed.put("minHp", num(cfg.getClampMinHpMult()));
+        seed.put("maxIn", num(cfg.getClampMaxInDamageMult()));
+        seed.put("minOut", num(cfg.getClampMinOutDamageMult()));
+        seed.put("minLoot", num(cfg.getClampMinLootMult()));
+        seed.put("maxLoot", num(cfg.getClampMaxLootMult()));
         seed.put("rarity", num(cfg.getRaritySpawnChance()));
         seed.put("escEnabled", onOff(cfg.isDistanceEscalationEnabled()));
         seed.put("escStart", num(cfg.getEscalationStartDistanceBlocks()));
@@ -770,9 +777,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("regionSize", String.valueOf(cfg.getRegionSizeChunks()));
         seed.put("bandWidth", num(cfg.getGroupDeltaBandWidth()));
         seed.put("onlyRaise", onOff(cfg.isOnlyRaiseDifficulty()));
-        seed.put("partyJoin", onOff(cfg.isAllowDifficultyIncreaseOnPartyJoin()));
-        seed.put("lateArrival", num(cfg.getLateArrivalBumpFactor()));
-        seed.put("composition", onOff(cfg.isCompositionEnabled()));
         globalForm.seed(seed);
     }
 
@@ -807,6 +811,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         Difficulty diff = ws == null ? null : ws.getDifficulty();
         DistanceEscalation esc = diff == null ? null : diff.getDistanceEscalation();
         StatCurve curve = diff == null ? null : diff.getStatCurve();
+        Clamps clampsGroup = diff == null ? null : diff.getClamps();
         OpenWorld ow = ws == null ? null : ws.getOpenWorld();
         Hud zoneHud = ws == null ? null : ws.getZoneHud();
         InspectorHud inspHud = ws == null ? null : ws.getInspectorHud();
@@ -820,7 +825,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put(F_WORLD_MATCH, textOrBlank(ws == null ? null : ws.firstMatchPattern()));
         seed.put(F_WORLD_PARENT, textOrBlank(parent));
         seed.put("wEnabled", triOrInherit(ws == null ? null : ws.getEnabled()));
-        seed.put("wIntensity", numOrBlank(ws == null ? null : ws.getIntensity()));
         seed.put("wRarity", numOrBlank(ws == null ? null : ws.getRaritySpawnChance()));
         seed.put("wFloor", numOrBlank(diff == null ? null : diff.getFloor()));
         seed.put("wMinCap", numOrBlank(diff == null ? null : diff.getMinCap()));
@@ -833,17 +837,20 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("wPlayerScaling", triOrInherit(ow == null ? null : ow.getPlayerScalingEnabled()));
         seed.put("wPlayerRing", numOrBlank(ow == null ? null : ow.getPlayerScalingStartRingBlocks()));
         seed.put("wAggregation", dropdownOrInherit(ow == null ? null : ow.getAggregationMode()));
+        seed.put("wRegionSize", intOrBlank(ow == null ? null : ow.getRegionSizeChunks()));
         seed.put("wBandWidth", numOrBlank(ow == null ? null : ow.getGroupDeltaBandWidth()));
         seed.put("wOnlyRaise", triOrInherit(ow == null ? null : ow.getOnlyRaiseDifficulty()));
-        seed.put("wPartyJoin", triOrInherit(ow == null ? null : ow.getAllowDifficultyIncreaseOnPartyJoin()));
-        seed.put("wLateArrival", numOrBlank(ow == null ? null : ow.getLateArrivalBumpFactor()));
-        seed.put("wComposition", triOrInherit(ow == null ? null : ow.getCompositionEnabled()));
-        seed.put("wHpPerPoint", numOrBlank(curve == null ? null : curve.getHpPerPoint()));
-        seed.put("wOutPerPoint", numOrBlank(curve == null ? null : curve.getOutDamagePerPoint()));
-        seed.put("wInReduction", numOrBlank(curve == null ? null : curve.getInDamageReductionPerPoint()));
-        seed.put("wMaxHp", numOrBlank(curve == null ? null : curve.getMaxHpMult()));
+        seed.put("wEhpPerPoint", numOrBlank(curve == null ? null : curve.getEffectiveHpPerPoint()));
+        seed.put("wHpShare", numOrBlank(curve == null ? null : curve.getVisibleHpShare()));
+        seed.put("wOutScale", numOrBlank(curve == null ? null : curve.getOutDamageScale()));
+        seed.put("wOutShape", numOrBlank(curve == null ? null : curve.getOutDamageShape()));
+        seed.put("wMaxEhp", numOrBlank(curve == null ? null : curve.getMaxEffectiveHpMult()));
         seed.put("wMaxOut", numOrBlank(curve == null ? null : curve.getMaxOutDamageMult()));
-        seed.put("wMinIn", numOrBlank(curve == null ? null : curve.getMinInDamageMult()));
+        seed.put("wMinHp", numOrBlank(clampsGroup == null ? null : clampsGroup.getMinHpMult()));
+        seed.put("wMaxIn", numOrBlank(clampsGroup == null ? null : clampsGroup.getMaxInDamageMult()));
+        seed.put("wMinOut", numOrBlank(clampsGroup == null ? null : clampsGroup.getMinOutDamageMult()));
+        seed.put("wMinLoot", numOrBlank(clampsGroup == null ? null : clampsGroup.getMinLootMult()));
+        seed.put("wMaxLoot", numOrBlank(clampsGroup == null ? null : clampsGroup.getMaxLootMult()));
         seed.put("wRarAllow", csvOrBlank(rarities == null ? null : rarities.getAllow()));
         seed.put("wRarDeny", csvOrBlank(rarities == null ? null : rarities.getDeny()));
         seed.put("wVarAllow", csvOrBlank(variants == null ? null : variants.getAllow()));
@@ -853,7 +860,18 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("wAffDeny", csvOrBlank(affixes == null ? null : affixes.getDeny()));
         seed.put("wAffSlots", intOrBlank(affixes == null ? null : affixes.getExtraSlots()));
         seed.put("wZoneHud", triOrInherit(zoneHud == null ? null : zoneHud.getEnabled()));
+        seed.put("wZoneShowLoc", triOrInherit(zoneHud == null ? null : zoneHud.getShowLocationName()));
+        seed.put("wZonePos", dropdownOrInherit(zoneHud == null ? null : zoneHud.getPosition()));
+        seed.put("wZoneOffX", intOrBlank(zoneHud == null ? null : zoneHud.getOffsetX()));
+        seed.put("wZoneOffY", intOrBlank(zoneHud == null ? null : zoneHud.getOffsetY()));
+        seed.put("wZonePrefix", textOrBlank(zoneHud == null ? null : zoneHud.getZoneNameKeyPrefix()));
+        seed.put("wBiomePrefix", textOrBlank(zoneHud == null ? null : zoneHud.getBiomeNameKeyPrefix()));
         seed.put("wInspHud", triOrInherit(inspHud == null ? null : inspHud.getEnabled()));
+        seed.put("wInspPortrait", triOrInherit(inspHud == null ? null : inspHud.getPortraitEnabled()));
+        seed.put("wInspPos", dropdownOrInherit(inspHud == null ? null : inspHud.getPosition()));
+        seed.put("wInspOffX", intOrBlank(inspHud == null ? null : inspHud.getOffsetX()));
+        seed.put("wInspOffY", intOrBlank(inspHud == null ? null : inspHud.getOffsetY()));
+        seed.put("wInspRange", numOrBlank(inspHud == null ? null : inspHud.getRangeBlocks()));
         worldForm.seed(seed);
     }
 
@@ -921,6 +939,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         Difficulty diff = eff == null ? null : eff.getDifficulty();
         DistanceEscalation esc = diff == null ? null : diff.getDistanceEscalation();
         StatCurve curve = diff == null ? null : diff.getStatCurve();
+        Clamps clampsGroup = diff == null ? null : diff.getClamps();
         OpenWorld ow = eff == null ? null : eff.getOpenWorld();
         Hud zoneHud = eff == null ? null : eff.getZoneHud();
         InspectorHud inspHud = eff == null ? null : eff.getInspectorHud();
@@ -932,8 +951,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         Map<String, Message> m = new LinkedHashMap<>();
         m.put("wEnabled", onOffDisplay(
                 eff != null && eff.getEnabled() != null ? eff.getEnabled() : cfg.isWorldScalingEnabled()));
-        m.put("wIntensity", Message.raw(
-                num(eff != null && eff.getIntensity() != null ? eff.getIntensity() : cfg.getIntensity())));
         m.put("wRarity", Message.raw(num(eff != null && eff.getRaritySpawnChance() != null
                 ? eff.getRaritySpawnChance() : cfg.getRaritySpawnChance())));
         m.put("wFloor", Message.raw(
@@ -961,26 +978,32 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                         ? ow.getAggregationMode() : cfg.getOpenWorldAggregationMode()));
         m.put("wBandWidth", Message.raw(num(ow != null && ow.getGroupDeltaBandWidth() != null
                 ? ow.getGroupDeltaBandWidth() : cfg.getGroupDeltaBandWidth())));
+        m.put("wRegionSize", Message.raw(String.valueOf(ow != null && ow.getRegionSizeChunks() != null
+                ? ow.getRegionSizeChunks() : cfg.getRegionSizeChunks())));
         m.put("wOnlyRaise", onOffDisplay(ow != null && ow.getOnlyRaiseDifficulty() != null
                 ? ow.getOnlyRaiseDifficulty() : cfg.isOnlyRaiseDifficulty()));
-        m.put("wPartyJoin", onOffDisplay(ow != null && ow.getAllowDifficultyIncreaseOnPartyJoin() != null
-                ? ow.getAllowDifficultyIncreaseOnPartyJoin() : cfg.isAllowDifficultyIncreaseOnPartyJoin()));
-        m.put("wLateArrival", Message.raw(num(ow != null && ow.getLateArrivalBumpFactor() != null
-                ? ow.getLateArrivalBumpFactor() : cfg.getLateArrivalBumpFactor())));
-        m.put("wComposition", onOffDisplay(ow != null && ow.getCompositionEnabled() != null
-                ? ow.getCompositionEnabled() : cfg.isCompositionEnabled()));
-        m.put("wHpPerPoint", Message.raw(num(curve != null && curve.getHpPerPoint() != null
-                ? curve.getHpPerPoint() : cfg.getStatCurveHpPerPoint())));
-        m.put("wOutPerPoint", Message.raw(num(curve != null && curve.getOutDamagePerPoint() != null
-                ? curve.getOutDamagePerPoint() : cfg.getStatCurveOutDamagePerPoint())));
-        m.put("wInReduction", Message.raw(num(curve != null && curve.getInDamageReductionPerPoint() != null
-                ? curve.getInDamageReductionPerPoint() : cfg.getStatCurveInDamageReductionPerPoint())));
-        m.put("wMaxHp", Message.raw(num(curve != null && curve.getMaxHpMult() != null
-                ? curve.getMaxHpMult() : cfg.getStatCurveMaxHpMult())));
+        m.put("wEhpPerPoint", Message.raw(num(curve != null && curve.getEffectiveHpPerPoint() != null
+                ? curve.getEffectiveHpPerPoint() : cfg.getStatCurveEffectiveHpPerPoint())));
+        m.put("wHpShare", Message.raw(num(curve != null && curve.getVisibleHpShare() != null
+                ? curve.getVisibleHpShare() : cfg.getStatCurveVisibleHpShare())));
+        m.put("wOutScale", Message.raw(num(curve != null && curve.getOutDamageScale() != null
+                ? curve.getOutDamageScale() : cfg.getStatCurveOutDamageScale())));
+        m.put("wOutShape", Message.raw(num(curve != null && curve.getOutDamageShape() != null
+                ? curve.getOutDamageShape() : cfg.getStatCurveOutDamageShape())));
+        m.put("wMaxEhp", Message.raw(num(curve != null && curve.getMaxEffectiveHpMult() != null
+                ? curve.getMaxEffectiveHpMult() : cfg.getStatCurveMaxEffectiveHpMult())));
         m.put("wMaxOut", Message.raw(num(curve != null && curve.getMaxOutDamageMult() != null
                 ? curve.getMaxOutDamageMult() : cfg.getStatCurveMaxOutDamageMult())));
-        m.put("wMinIn", Message.raw(num(curve != null && curve.getMinInDamageMult() != null
-                ? curve.getMinInDamageMult() : cfg.getStatCurveMinInDamageMult())));
+        m.put("wMinHp", Message.raw(num(clampsGroup != null && clampsGroup.getMinHpMult() != null
+                ? clampsGroup.getMinHpMult() : cfg.getClampMinHpMult())));
+        m.put("wMaxIn", Message.raw(num(clampsGroup != null && clampsGroup.getMaxInDamageMult() != null
+                ? clampsGroup.getMaxInDamageMult() : cfg.getClampMaxInDamageMult())));
+        m.put("wMinOut", Message.raw(num(clampsGroup != null && clampsGroup.getMinOutDamageMult() != null
+                ? clampsGroup.getMinOutDamageMult() : cfg.getClampMinOutDamageMult())));
+        m.put("wMinLoot", Message.raw(num(clampsGroup != null && clampsGroup.getMinLootMult() != null
+                ? clampsGroup.getMinLootMult() : cfg.getClampMinLootMult())));
+        m.put("wMaxLoot", Message.raw(num(clampsGroup != null && clampsGroup.getMaxLootMult() != null
+                ? clampsGroup.getMaxLootMult() : cfg.getClampMaxLootMult())));
         m.put("wRarAllow", csvOrFallback(rarities == null ? null : rarities.getAllow(), "mmomobscaling.ui.world.inherits_all"));
         m.put("wRarDeny", csvOrFallback(rarities == null ? null : rarities.getDeny(), "mmomobscaling.ui.world.inherits_none"));
         m.put("wVarAllow", csvOrFallback(variants == null ? null : variants.getAllow(), "mmomobscaling.ui.world.inherits_all"));
@@ -993,21 +1016,41 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 affixes != null && affixes.getExtraSlots() != null ? affixes.getExtraSlots() : cfg.getExtraAffixSlots())));
         m.put("wZoneHud", onOffDisplay(
                 zoneHud != null && zoneHud.getEnabled() != null ? zoneHud.getEnabled() : cfg.isZoneHudEnabled()));
+        m.put("wZoneShowLoc", onOffDisplay(zoneHud != null && zoneHud.getShowLocationName() != null
+                ? zoneHud.getShowLocationName() : cfg.isZoneShowLocationName()));
+        m.put("wZonePos", Message.raw(zoneHud != null && zoneHud.getPosition() != null && !zoneHud.getPosition().isBlank()
+                ? zoneHud.getPosition() : cfg.getZoneHudPosition()));
+        m.put("wZoneOffX", Message.raw(String.valueOf(zoneHud != null && zoneHud.getOffsetX() != null
+                ? zoneHud.getOffsetX() : cfg.getZoneHudOffsetX())));
+        m.put("wZoneOffY", Message.raw(String.valueOf(zoneHud != null && zoneHud.getOffsetY() != null
+                ? zoneHud.getOffsetY() : cfg.getZoneHudOffsetY())));
+        m.put("wZonePrefix", prefixOrNone(zoneHud != null && zoneHud.getZoneNameKeyPrefix() != null
+                ? zoneHud.getZoneNameKeyPrefix() : cfg.getZoneNameKeyPrefix()));
+        m.put("wBiomePrefix", prefixOrNone(zoneHud != null && zoneHud.getBiomeNameKeyPrefix() != null
+                ? zoneHud.getBiomeNameKeyPrefix() : cfg.getBiomeNameKeyPrefix()));
         m.put("wInspHud", onOffDisplay(
                 inspHud != null && inspHud.getEnabled() != null ? inspHud.getEnabled() : cfg.isInspectorHudEnabled()));
+        m.put("wInspPortrait", onOffDisplay(inspHud != null && inspHud.getPortraitEnabled() != null
+                ? inspHud.getPortraitEnabled() : cfg.isInspectorPortraitEnabled()));
+        m.put("wInspPos", Message.raw(inspHud != null && inspHud.getPosition() != null && !inspHud.getPosition().isBlank()
+                ? inspHud.getPosition() : cfg.getInspectorHudPosition()));
+        m.put("wInspOffX", Message.raw(String.valueOf(inspHud != null && inspHud.getOffsetX() != null
+                ? inspHud.getOffsetX() : cfg.getInspectorHudOffsetX())));
+        m.put("wInspOffY", Message.raw(String.valueOf(inspHud != null && inspHud.getOffsetY() != null
+                ? inspHud.getOffsetY() : cfg.getInspectorHudOffsetY())));
+        m.put("wInspRange", Message.raw(num(inspHud != null && inspHud.getRangeBlocks() != null
+                ? inspHud.getRangeBlocks() : cfg.getInspectorRangeBlocks())));
         return m;
     }
 
-    private void refreshHuds(@Nonnull MobScalingConfig cfg) {
-        HudPosition zone = HudPosition.parse(cfg.getZoneHudPosition(), cfg.getZoneHudOffsetX(), cfg.getZoneHudOffsetY());
-        if (zone != null) {
-            ZoneDifficultyHud.refreshPositionForAllOnline(zone);
-        }
-        HudPosition insp = HudPosition.parse(cfg.getInspectorHudPosition(), cfg.getInspectorHudOffsetX(),
-                cfg.getInspectorHudOffsetY());
-        if (insp != null) {
-            MobInspectorHud.refreshPositionForAllOnline(insp);
-        }
+    /**
+     * Re-anchor both overlays for every online player, each to the corner ITS world configures (the
+     * per-world view, falling through to the global). Called after any save that can move a HUD: a
+     * preset swap, a Zone/Inspector tab save, and a world-file save or delete.
+     */
+    private static void refreshHuds() {
+        ZoneDifficultyHud.refreshPositionForAllOnline();
+        MobInspectorHud.refreshPositionForAllOnline();
     }
 
     // ---------------------------------------------------------------------
@@ -1029,10 +1072,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 MobScalingOwnerWriter::savePlayerScalingEnabled, null, "mmomobscaling.ui.status.saved"));
         m.put("onlyRaise", new ToggleDef(globalForm, GLOBAL_FORM_SEL, cfg::isOnlyRaiseDifficulty,
                 v -> MobScalingOwnerWriter.saveLeaf(LEAF_ONLY_RAISE, v), null, "mmomobscaling.ui.status.saved"));
-        m.put("partyJoin", new ToggleDef(globalForm, GLOBAL_FORM_SEL, cfg::isAllowDifficultyIncreaseOnPartyJoin,
-                v -> MobScalingOwnerWriter.saveLeaf(LEAF_PARTY_JOIN, v), null, "mmomobscaling.ui.status.saved"));
-        m.put("composition", new ToggleDef(globalForm, GLOBAL_FORM_SEL, cfg::isCompositionEnabled,
-                v -> MobScalingOwnerWriter.saveLeaf(LEAF_COMPOSITION, v), null, "mmomobscaling.ui.status.saved"));
         m.put("escEnabled", new ToggleDef(globalForm, GLOBAL_FORM_SEL, cfg::isDistanceEscalationEnabled,
                 MobScalingOwnerWriter::saveEscalationEnabled, null, "mmomobscaling.ui.status.saved"));
         m.put("zoneEnabled", new ToggleDef(zoneForm, ZONE_FORM_SEL, cfg::isZoneHudEnabled,
@@ -1054,12 +1093,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
 
     /**
      * Difficulty-first order (round-2 admin-UX hardening): {@code enabled} note, then Difficulty
-     * (floor/caps), then the stat Curve (intensity leads it - intensity is the curve's global slope
-     * multiplier), then rarity + distance escalation (rarity leads it - a rarity roll is exactly what
-     * escalation raises the chance of), then Open World last. The dead {@code PresetMode} dropdown
-     * (nothing reads {@link MobScalingConfig#getPresetMode()} outside the schema/config fold/this class's
-     * own now-removed seeding) is DELIBERATELY not exposed here; the codec field + config fold stay for an
-     * owner who still sets it by hand.
+     * (floor/caps), then the stat Curve (the effective-HP slope leads it: the one tank slope, then how it
+     * splits between the bar and silent reduction, the damage scale and its shape, the two ceilings), then the safety
+
+     * Clamps, then rarity + distance escalation (rarity leads it - a rarity roll is exactly what
+     * escalation raises the chance of), then Open World last.
      */
     @Nonnull
     private static List<FieldSpec> buildGlobalSpecs() {
@@ -1074,20 +1112,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.number("maxCap", LEAF_MAX_CAP, "mmomobscaling.ui.global.max_cap")
                 .withHint("mmomobscaling.ui.hint.max_cap"));
         s.add(FieldSpec.header("hdrCurve", "mmomobscaling.ui.global.stat_curve_header"));
-        s.add(FieldSpec.number("intensity", "Intensity", "mmomobscaling.ui.global.intensity")
-                .withHint("mmomobscaling.ui.hint.intensity"));
-        s.add(FieldSpec.number("hpPerPoint", "Difficulty.StatCurve.HpPerPoint", "mmomobscaling.ui.curve.hp_per_point")
-                .withHint("mmomobscaling.ui.hint.hp_per_point"));
-        s.add(FieldSpec.number("outPerPoint", "Difficulty.StatCurve.OutDamagePerPoint",
-                "mmomobscaling.ui.curve.out_per_point").withHint("mmomobscaling.ui.hint.out_per_point"));
-        s.add(FieldSpec.number("inReduction", "Difficulty.StatCurve.InDamageReductionPerPoint",
-                "mmomobscaling.ui.curve.in_reduction").withHint("mmomobscaling.ui.hint.in_reduction"));
-        s.add(FieldSpec.number("maxHp", "Difficulty.StatCurve.MaxHpMult", "mmomobscaling.ui.curve.max_hp")
-                .withHint("mmomobscaling.ui.hint.max_hp"));
-        s.add(FieldSpec.number("maxOut", "Difficulty.StatCurve.MaxOutDamageMult", "mmomobscaling.ui.curve.max_out")
-                .withHint("mmomobscaling.ui.hint.max_out"));
-        s.add(FieldSpec.number("minIn", "Difficulty.StatCurve.MinInDamageMult", "mmomobscaling.ui.curve.min_in")
-                .withHint("mmomobscaling.ui.hint.min_in"));
+        addCurveSpecs(s, "");
+        s.add(FieldSpec.header("hdrClamps", "mmomobscaling.ui.global.clamps_header"));
+        addClampSpecs(s, "");
         s.add(FieldSpec.header("hdrEsc", "mmomobscaling.ui.global.esc_header"));
         s.add(FieldSpec.chance("rarity", "RaritySpawnChance", "mmomobscaling.ui.global.rarity")
                 .withHint("mmomobscaling.ui.hint.rarity"));
@@ -1112,11 +1139,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.number("bandWidth", "OpenWorld.GroupDeltaBandWidth", "mmomobscaling.ui.global.band_width")
                 .withHint("mmomobscaling.ui.hint.band_width"));
         s.add(FieldSpec.toggle("onlyRaise", "mmomobscaling.ui.global.only_raise").withHint("mmomobscaling.ui.hint.only_raise"));
-        s.add(FieldSpec.toggle("partyJoin", "mmomobscaling.ui.global.party_join").withHint("mmomobscaling.ui.hint.party_join"));
-        s.add(FieldSpec.number("lateArrival", "OpenWorld.LateArrivalBumpFactor", "mmomobscaling.ui.global.late_arrival")
-                .withHint("mmomobscaling.ui.hint.late_arrival"));
-        s.add(FieldSpec.toggle("composition", "mmomobscaling.ui.global.composition")
-                .withHint("mmomobscaling.ui.hint.composition"));
         return List.copyOf(s);
     }
 
@@ -1175,8 +1197,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.tristate("wEnabled", "Enabled", "mmomobscaling.ui.world.enabled")
                 .withHint("mmomobscaling.ui.hint.w_enabled"));
         s.add(FieldSpec.header("wHdrTuning", "mmomobscaling.ui.world.tuning_header"));
-        s.add(FieldSpec.number("wIntensity", "Intensity", "mmomobscaling.ui.world.intensity")
-                .withHint("mmomobscaling.ui.hint.intensity"));
         s.add(FieldSpec.chance("wRarity", "RaritySpawnChance", "mmomobscaling.ui.world.rarity")
                 .withHint("mmomobscaling.ui.hint.rarity"));
         s.add(FieldSpec.header("wHdrDifficulty", "mmomobscaling.ui.global.difficulty_header"));
@@ -1204,30 +1224,16 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 "mmomobscaling.ui.global.player_ring").withHint("mmomobscaling.ui.hint.player_ring"));
         s.add(FieldSpec.dropdown("wAggregation", "OpenWorld.AggregationMode", "mmomobscaling.ui.global.aggregation",
                 AGGREGATION_MODES_INHERIT).withHint("mmomobscaling.ui.hint.aggregation"));
+        s.add(FieldSpec.integer("wRegionSize", "OpenWorld.RegionSizeChunks", "mmomobscaling.ui.global.region_size")
+                .withHint("mmomobscaling.ui.hint.region_size"));
         s.add(FieldSpec.number("wBandWidth", "OpenWorld.GroupDeltaBandWidth", "mmomobscaling.ui.global.band_width")
                 .withHint("mmomobscaling.ui.hint.band_width"));
         s.add(FieldSpec.tristate("wOnlyRaise", LEAF_ONLY_RAISE, "mmomobscaling.ui.global.only_raise")
                 .withHint("mmomobscaling.ui.hint.w_only_raise"));
-        s.add(FieldSpec.tristate("wPartyJoin", LEAF_PARTY_JOIN, "mmomobscaling.ui.global.party_join")
-                .withHint("mmomobscaling.ui.hint.w_party_join"));
-        s.add(FieldSpec.number("wLateArrival", "OpenWorld.LateArrivalBumpFactor", "mmomobscaling.ui.global.late_arrival")
-                .withHint("mmomobscaling.ui.hint.late_arrival"));
-        s.add(FieldSpec.tristate("wComposition", LEAF_COMPOSITION, "mmomobscaling.ui.global.composition")
-                .withHint("mmomobscaling.ui.hint.w_composition"));
-        // NO RegionSizeChunks per-world: it decodes on WorldSettings but the region grid stays global.
         s.add(FieldSpec.header("wHdrCurve", "mmomobscaling.ui.global.stat_curve_header"));
-        s.add(FieldSpec.number("wHpPerPoint", "Difficulty.StatCurve.HpPerPoint", "mmomobscaling.ui.curve.hp_per_point")
-                .withHint("mmomobscaling.ui.hint.hp_per_point"));
-        s.add(FieldSpec.number("wOutPerPoint", "Difficulty.StatCurve.OutDamagePerPoint",
-                "mmomobscaling.ui.curve.out_per_point").withHint("mmomobscaling.ui.hint.out_per_point"));
-        s.add(FieldSpec.number("wInReduction", "Difficulty.StatCurve.InDamageReductionPerPoint",
-                "mmomobscaling.ui.curve.in_reduction").withHint("mmomobscaling.ui.hint.in_reduction"));
-        s.add(FieldSpec.number("wMaxHp", "Difficulty.StatCurve.MaxHpMult", "mmomobscaling.ui.curve.max_hp")
-                .withHint("mmomobscaling.ui.hint.max_hp"));
-        s.add(FieldSpec.number("wMaxOut", "Difficulty.StatCurve.MaxOutDamageMult", "mmomobscaling.ui.curve.max_out")
-                .withHint("mmomobscaling.ui.hint.max_out"));
-        s.add(FieldSpec.number("wMinIn", "Difficulty.StatCurve.MinInDamageMult", "mmomobscaling.ui.curve.min_in")
-                .withHint("mmomobscaling.ui.hint.min_in"));
+        addCurveSpecs(s, "w");
+        s.add(FieldSpec.header("wHdrClamps", "mmomobscaling.ui.global.clamps_header"));
+        addClampSpecs(s, "w");
         s.add(FieldSpec.header("wHdrPool", "mmomobscaling.ui.world.pool_header"));
         s.add(FieldSpec.csv("wRarAllow", "Pool.Rarities.Allow", "mmomobscaling.ui.world.pool_rarities_allow")
                 .withHint("mmomobscaling.ui.hint.pool_rarities_allow"));
@@ -1245,13 +1251,79 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 .withHint("mmomobscaling.ui.hint.pool_affixes_deny"));
         s.add(FieldSpec.integer("wAffSlots", "Pool.Affixes.ExtraSlots", "mmomobscaling.ui.world.pool_extra_slots")
                 .withHint("mmomobscaling.ui.hint.pool_extra_slots"));
-        s.add(FieldSpec.header("wHdrHud", "mmomobscaling.ui.world.hud_header"));
-        s.add(FieldSpec.tristate("wZoneHud", "ZoneHud.Enabled", "mmomobscaling.ui.world.zone_hud")
+        // The two HUD groups, every leaf per world: the tri-states get their own w_* hints (Inherit is a
+        // distinct affordance), the plain dropdown/integer/number/text leaves reuse the global ones.
+        s.add(FieldSpec.header("wHdrZoneHud", "mmomobscaling.ui.world.zone_hud_header"));
+        s.add(FieldSpec.tristate("wZoneHud", "ZoneHud.Enabled", "mmomobscaling.ui.zone.enabled")
                 .withHint("mmomobscaling.ui.hint.w_zone_hud"));
-        s.add(FieldSpec.tristate("wInspHud", "InspectorHud.Enabled", "mmomobscaling.ui.world.inspector_hud")
+        s.add(FieldSpec.tristate("wZoneShowLoc", "ZoneHud.ShowLocationName", "mmomobscaling.ui.zone.show_location")
+                .withHint("mmomobscaling.ui.hint.w_zone_show_location"));
+        s.add(FieldSpec.dropdown("wZonePos", "ZoneHud.Position", "mmomobscaling.ui.hud.position", POSITIONS_INHERIT)
+                .withHint("mmomobscaling.ui.hint.hud_position"));
+        s.add(FieldSpec.integer("wZoneOffX", "ZoneHud.OffsetX", "mmomobscaling.ui.hud.offset_x")
+                .withHint("mmomobscaling.ui.hint.hud_offset_x"));
+        s.add(FieldSpec.integer("wZoneOffY", "ZoneHud.OffsetY", "mmomobscaling.ui.hud.offset_y")
+                .withHint("mmomobscaling.ui.hint.hud_offset_y"));
+        s.add(FieldSpec.text("wZonePrefix", "ZoneHud.ZoneNameKeyPrefix", "mmomobscaling.ui.zone.zone_name_prefix")
+                .withHint("mmomobscaling.ui.hint.zone_name_prefix"));
+        s.add(FieldSpec.text("wBiomePrefix", "ZoneHud.BiomeNameKeyPrefix", "mmomobscaling.ui.zone.biome_name_prefix")
+                .withHint("mmomobscaling.ui.hint.biome_name_prefix"));
+        s.add(FieldSpec.header("wHdrInspHud", "mmomobscaling.ui.world.inspector_hud_header"));
+        s.add(FieldSpec.tristate("wInspHud", "InspectorHud.Enabled", "mmomobscaling.ui.inspector.enabled")
                 .withHint("mmomobscaling.ui.hint.w_inspector_hud"));
+        s.add(FieldSpec.tristate("wInspPortrait", "InspectorHud.PortraitEnabled", "mmomobscaling.ui.inspector.portrait")
+                .withHint("mmomobscaling.ui.hint.w_insp_portrait"));
+        s.add(FieldSpec.dropdown("wInspPos", "InspectorHud.Position", "mmomobscaling.ui.hud.position", POSITIONS_INHERIT)
+                .withHint("mmomobscaling.ui.hint.hud_position"));
+        s.add(FieldSpec.integer("wInspOffX", "InspectorHud.OffsetX", "mmomobscaling.ui.hud.offset_x")
+                .withHint("mmomobscaling.ui.hint.hud_offset_x"));
+        s.add(FieldSpec.integer("wInspOffY", "InspectorHud.OffsetY", "mmomobscaling.ui.hud.offset_y")
+                .withHint("mmomobscaling.ui.hint.hud_offset_y"));
+        s.add(FieldSpec.number("wInspRange", "InspectorHud.RangeBlocks", "mmomobscaling.ui.inspector.range")
+                .withHint("mmomobscaling.ui.hint.insp_range"));
         s.add(FieldSpec.note("wHint", "mmomobscaling.ui.world.hint"));
         return List.copyOf(s);
+    }
+
+    /**
+     * The six {@code Difficulty.StatCurve} leaves, in curve order, appended once for the Global form
+     * ({@code prefix} empty) and once for the per-world form ({@code prefix} {@code "w"}, the id
+     * convention {@link #buildWorldSpecs} uses; a plain NUMBER leaf reuses the global label + hint keys).
+     */
+    private static void addCurveSpecs(@Nonnull List<FieldSpec> s, @Nonnull String prefix) {
+        s.add(FieldSpec.number(fieldId(prefix, "ehpPerPoint"), "Difficulty.StatCurve.EffectiveHpPerPoint",
+                "mmomobscaling.ui.curve.ehp_per_point").withHint("mmomobscaling.ui.hint.ehp_per_point"));
+        s.add(FieldSpec.number(fieldId(prefix, "hpShare"), "Difficulty.StatCurve.VisibleHpShare",
+                "mmomobscaling.ui.curve.hp_share").withHint("mmomobscaling.ui.hint.hp_share"));
+        s.add(FieldSpec.number(fieldId(prefix, "outScale"), "Difficulty.StatCurve.OutDamageScale",
+                "mmomobscaling.ui.curve.out_scale").withHint("mmomobscaling.ui.hint.out_scale"));
+        s.add(FieldSpec.number(fieldId(prefix, "outShape"), "Difficulty.StatCurve.OutDamageShape",
+                "mmomobscaling.ui.curve.out_shape").withHint("mmomobscaling.ui.hint.out_shape"));
+
+        s.add(FieldSpec.number(fieldId(prefix, "maxEhp"), "Difficulty.StatCurve.MaxEffectiveHpMult",
+                "mmomobscaling.ui.curve.max_ehp").withHint("mmomobscaling.ui.hint.max_ehp"));
+        s.add(FieldSpec.number(fieldId(prefix, "maxOut"), "Difficulty.StatCurve.MaxOutDamageMult",
+                "mmomobscaling.ui.curve.max_out").withHint("mmomobscaling.ui.hint.max_out"));
+    }
+
+    /** The five {@code Difficulty.Clamps} leaves, appended the same way as {@link #addCurveSpecs}. */
+    private static void addClampSpecs(@Nonnull List<FieldSpec> s, @Nonnull String prefix) {
+        s.add(FieldSpec.number(fieldId(prefix, "minHp"), "Difficulty.Clamps.MinHpMult",
+                "mmomobscaling.ui.clamps.min_hp").withHint("mmomobscaling.ui.hint.clamp_min_hp"));
+        s.add(FieldSpec.number(fieldId(prefix, "maxIn"), "Difficulty.Clamps.MaxInDamageMult",
+                "mmomobscaling.ui.clamps.max_in").withHint("mmomobscaling.ui.hint.clamp_max_in"));
+        s.add(FieldSpec.number(fieldId(prefix, "minOut"), "Difficulty.Clamps.MinOutDamageMult",
+                "mmomobscaling.ui.clamps.min_out").withHint("mmomobscaling.ui.hint.clamp_min_out"));
+        s.add(FieldSpec.number(fieldId(prefix, "minLoot"), "Difficulty.Clamps.MinLootMult",
+                "mmomobscaling.ui.clamps.min_loot").withHint("mmomobscaling.ui.hint.clamp_min_loot"));
+        s.add(FieldSpec.number(fieldId(prefix, "maxLoot"), "Difficulty.Clamps.MaxLootMult",
+                "mmomobscaling.ui.clamps.max_loot").withHint("mmomobscaling.ui.hint.clamp_max_loot"));
+    }
+
+    /** {@code "ehpPerPoint"} on the Global form, {@code "wEhpPerPoint"} on the per-world form. */
+    @Nonnull
+    private static String fieldId(@Nonnull String prefix, @Nonnull String base) {
+        return prefix.isEmpty() ? base : prefix + Character.toUpperCase(base.charAt(0)) + base.substring(1);
     }
 
     // ---------------------------------------------------------------------
@@ -1288,7 +1360,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         String parent = worlds.parentOf(id);
         if (parent != null) append(sb, "parent " + parent);
         if (ws.getEnabled() != null && !ws.getEnabled()) append(sb, "OFF");
-        if (ws.getIntensity() != null) append(sb, "int " + num(ws.getIntensity()));
         if (ws.getRaritySpawnChance() != null) append(sb, "rarity " + num(ws.getRaritySpawnChance()));
         if (ws.getOpenWorld() != null && ws.getOpenWorld().getPlayerScalingEnabled() != null) {
             append(sb, "scaling " + (ws.getOpenWorld().getPlayerScalingEnabled() ? "on" : "off"));
@@ -1422,6 +1493,16 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     @Nonnull
     private static String csvOrBlank(@Nullable String[] v) {
         return v == null || v.length == 0 ? "" : String.join(", ", v);
+    }
+
+    /**
+     * A name-key prefix for a HINT's "Inherits: X" line: a literal {@link Message#raw} when set, the
+     * localized {@code mmomobscaling.ui.world.inherits_none} when it is the EMPTY prefix (a real value:
+     * the raw zone/biome id is prettified instead of looked up).
+     */
+    @Nonnull
+    private static Message prefixOrNone(@Nonnull String prefix) {
+        return prefix.isBlank() ? tr("mmomobscaling.ui.world.inherits_none") : Message.raw(prefix);
     }
 
     /**

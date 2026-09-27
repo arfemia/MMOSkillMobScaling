@@ -146,7 +146,9 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
      *
      * <p>The single point is the engine's rounding granularity rather than a balance figure, which is
      * why it is not a setting. To make a scaled mob take more or less damage, author
-     * {@code Difficulty.StatCurve.MinInDamageMult}.
+     * {@code Difficulty.StatCurve.VisibleHpShare} (how much of the toughness is silent damage reduction
+     * rather than visible health) and {@code Difficulty.StatCurve.MaxEffectiveHpMult} (the rail on the
+     * whole).
      */
     private static float keepLandingHitsLanding(float incoming, float scaled) {
         if (incoming >= 1f && scaled < 1f) {
