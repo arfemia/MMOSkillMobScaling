@@ -169,9 +169,10 @@ server from failing to load the mod; they never make an older jar a supported on
   (the kill-XP reward hook), `registerKillRarityProvider` (the kill-rarity attribution hook; its
   registration is LinkageError-guarded) and `castNpcAbility(Store, Ref, String)` (the caster
   roster's `ABILITY` entries; `MobScalingCasterTickSystem` latches ability casting off for the
-  whole session with one warning when the method is missing). The settings fold cross-checks
-  `Difficulty.MinCap`/`MaxCap` against the clamp reads and warns on drift (guarded: a jar without
-  the getters validates clean). See the comment blocks in `gradle.properties` and `build.gradle`.
+  whole session with one warning when the method is missing). The BOOT AUDIT (not the settings fold) cross-checks
+  `Difficulty.MinCap` against the MMO's power floor and warns only when `Difficulty.MaxCap` sits BELOW the
+  power ceiling; a cap ABOVE it is a supported choice and draws no warning, since that is the only way mobs
+  out-scale a fully geared group (guarded: a jar without the getters validates clean). See the comment blocks in `gradle.properties` and `build.gradle`.
 
 jsr305 is `implementation` (the `@Nonnull`/`@Nullable` annotations must resolve). No gson dependency of
 its own: the settings decode through the Hytale asset codec (`RawJsonReader` from the server jar), and the
@@ -209,8 +210,10 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   consumes is deleted, never carried), `Difficulty` (`Floor`/`MinCap`/`MaxCap` + nested
   `DistanceEscalation` `Enabled`/`StartDistanceBlocks`/`BlocksPerPoint`/`MaxBonus`/
   `RarityChancePerPoint` + its own nested `Origin` (`EscalationOrigin`: `X`/`Z` block coordinates, nullable
-  per axis, NO `Y` since the measure is horizontal; an unset axis reads the world's spawn point through the
-  live `ISpawnProvider.getSpawnPoint(World, ESCALATION_ORIGIN_UUID)` in `world/ZoneDifficultyResolver`, and
+  per axis, NO `Y` since the measure is horizontal; an unset axis reads the world's own FIRST spawn point through
+  `ISpawnProvider.getSpawnPoints()[0]` in `world/ZoneDifficultyResolver` - deliberately the deprecated call,
+  since it is the only member naming the world's own point AND the surviving one of the pair, the reasoning
+  written at the call site - and
   the shipped Default authors the group EMPTY so no server's gradient moves; the ring under `OpenWorld`
   keeps the spawn point), nested `StatCurve` `EffectiveHpPerPoint`/`VisibleHpShare`/
   `OutDamageScale`/`OutDamageShape`/`MaxEffectiveHpMult`/`MaxOutDamageMult` (the linear tank slope and its
