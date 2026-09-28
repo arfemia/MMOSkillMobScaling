@@ -131,6 +131,23 @@ public final class DifficultyOwnerLayer {
     }
 
     /**
+     * The owner file's OWN leaves for {@code id}, decoded through the schema authority and nothing
+     * else: no overlay on the shipped mapping, no fallback. {@code null} when no owner dir is set, no
+     * file keys to the id, or the file does not decode. This is what an editor seeds from, so a leaf
+     * the file leaves out stays blank there (and inherits) instead of being copied in from the shipped
+     * mapping and authored on the next save; a listing wants {@link DifficultyConfig#resolve} instead.
+     */
+    @Nullable
+    public DifficultyMappingAsset authoredById(@Nonnull String id) {
+        Path dir = this.ownerDir;
+        if (dir == null) {
+            return null;
+        }
+        JsonObject body = OwnerFiles.scanJsonBodies(dir, DifficultyOwnerLayer::warn).get(OwnerFiles.idKey(id));
+        return body == null ? null : decode(id, body);
+    }
+
+    /**
      * Re-scan the owner dir, overlay each file per leaf on the same-id shipped mapping
      * ({@link DifficultyConfig#packMapping}), and publish the result as the owner layer (the derived
      * index rebuilds there). With no owner dir the layer is published EMPTY, so a dropped dir folds
@@ -157,15 +174,15 @@ public final class DifficultyOwnerLayer {
      * One owner body decoded through the ONE schema authority ({@code DifficultyMappingAsset.CODEC})
      * and overlaid per leaf on {@code base}, the same-id shipped mapping (null when nothing ships
      * under this id). An authored leaf wins; an absent leaf inherits; a leaf absent on both sides is
-     * a warning + skip, as is an authored {@code TargetType} the codec does not know.
+     * a warning + skip, as is an authored {@code TargetType} the codec does not know. The mapping's
+     * {@code id} is a DISPLAY name, not a key: an overlay keeps the shipped mapping's authored spelling
+     * ({@code Zone2}, not the lower-cased {@code zone2} the file is keyed by), so a list shows the same
+     * name whether or not an owner file sits on top; a mapping nothing ships under carries the key.
      */
     @Nullable
     static DifficultyMapping overlay(@Nonnull String id, @Nonnull JsonObject body, @Nullable DifficultyMapping base) {
-        DifficultyMappingAsset asset;
-        try {
-            asset = DifficultyMappingAsset.CODEC.decodeJson(RawJsonReader.fromJsonString(body.toString()), new ExtraInfo());
-        } catch (Exception e) {
-            warn("difficulty mapping '" + id + "' is malformed and was skipped: " + e.getMessage());
+        DifficultyMappingAsset asset = decode(id, body);
+        if (asset == null) {
             return null;
         }
         DifficultyMapping.TargetType type;
@@ -197,7 +214,18 @@ public final class DifficultyOwnerLayer {
                     + " file must carry TargetType, TargetId and Floor (missing: " + missing + ")");
             return null;
         }
-        return new DifficultyMapping(id, type, targetId, floor);
+        return new DifficultyMapping(base != null ? base.id() : id, type, targetId, floor);
+    }
+
+    /** One owner body through {@code DifficultyMappingAsset.CODEC}; {@code null} + a warning when it does not decode. */
+    @Nullable
+    private static DifficultyMappingAsset decode(@Nonnull String id, @Nonnull JsonObject body) {
+        try {
+            return DifficultyMappingAsset.CODEC.decodeJson(RawJsonReader.fromJsonString(body.toString()), new ExtraInfo());
+        } catch (Exception e) {
+            warn("difficulty mapping '" + id + "' is malformed and was skipped: " + e.getMessage());
+            return null;
+        }
     }
 
     /** Guarded warn (own logger, unit-JVM safe - the MobScalingConfig pattern). */

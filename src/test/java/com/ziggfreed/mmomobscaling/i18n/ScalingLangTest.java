@@ -10,6 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +67,46 @@ class ScalingLangTest {
                 && lang.get("hud.inspect.hp").contains("{max}"), "hud.inspect.hp keeps {current}/{max}");
     }
 
+    /**
+     * Every locale is key-complete against the authoritative en-US file, with the same placeholders per
+     * key, no empty value (the engine's parser skips {@code key = } as malformed, so the key would render
+     * raw on screen) and no em-dash. A string the page binds a param into must keep that param in every
+     * language or the number silently vanishes there.
+     */
+    @Test
+    void everyLocaleCarriesEveryEnglishKeyWithTheSamePlaceholders() throws Exception {
+        Map<String, String> en = loadLang("en-US");
+        for (String locale : LOCALES) {
+            Map<String, String> lang = loadLang(locale);
+            for (Map.Entry<String, String> e : en.entrySet()) {
+                String key = e.getKey();
+                assertTrue(lang.containsKey(key), locale + " is missing " + key);
+                assertFalse(lang.get(key).isEmpty(), locale + " has an empty value for " + key);
+                assertEquals(placeholders(e.getValue()), placeholders(lang.get(key)),
+                        locale + " changes the placeholders of " + key);
+                // U+2014 by code point: the one literal em-dash this file may carry is the commented one above.
+                assertFalse(lang.get(key).indexOf(0x2014) >= 0, locale + " " + key + " contains an em-dash");
+            }
+            for (String key : lang.keySet()) {
+                assertTrue(en.containsKey(key), locale + " carries a key en-US does not: " + key);
+            }
+        }
+    }
+
+    private static final List<String> LOCALES = List.of(
+            "de-DE", "es-ES", "fr-FR", "hu-HU", "it-IT", "pt-BR", "ru-RU", "tr-TR");
+
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{[^}]+}");
+
+    private static Set<String> placeholders(String value) {
+        Set<String> out = new TreeSet<>();
+        Matcher m = PLACEHOLDER.matcher(value);
+        while (m.find()) {
+            out.add(m.group());
+        }
+        return out;
+    }
+
     @Test
     void textUtilFallsBackToConventionKey() {
         Rarity noKey = rarity("rare", "");
@@ -80,9 +124,14 @@ class ScalingLangTest {
     }
 
     private static Map<String, String> loadLang() throws Exception {
+        return loadLang("en-US");
+    }
+
+    private static Map<String, String> loadLang(String locale) throws Exception {
         Map<String, String> out = new LinkedHashMap<>();
-        try (InputStream in = ScalingLangTest.class.getResourceAsStream("/Server/Languages/en-US/mmomobscaling.lang")) {
-            assertNotNull(in, "mmomobscaling.lang must be on the classpath");
+        try (InputStream in = ScalingLangTest.class.getResourceAsStream(
+                "/Server/Languages/" + locale + "/mmomobscaling.lang")) {
+            assertNotNull(in, locale + " mmomobscaling.lang must be on the classpath");
             for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\\R")) {
                 String s = line.strip();
                 if (s.isEmpty() || s.startsWith("#")) {

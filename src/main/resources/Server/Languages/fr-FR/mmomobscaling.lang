@@ -102,6 +102,7 @@ ui.tab.global = Global
 ui.tab.zone_hud = HUD de zone
 ui.tab.inspector = Inspecteur
 ui.tab.worlds = Mondes
+ui.tab.floors = Planchers
 
 ui.toggle.on = ON
 ui.toggle.off = OFF
@@ -152,9 +153,29 @@ ui.clamps.max_loot = Passes de butin max
 
 # Skeleton preview panel (Global tab, right column).
 ui.global.preview_title = Aperçu : Squelette
-ui.global.preview_note = Une créature ordinaire passée dans la courbe de statistiques de difficulté ci-dessus. Une rareté ou une variante lit la même courbe plus loin, à cette difficulté multipliée par son propre multiplicateur.
-ui.global.preview_row = D{diff}   PV {hp}   Dégâts {out}   Subis {in}
+ui.global.preview_note = Un squelette ordinaire passé dans la courbe de gauche, à cinq difficultés entre votre minimum et votre maximum. Les PV et le coup affichent le vrai nombre dès que le mod en a vu un : les PV avec lesquels un squelette est apparu, le dernier coup que l'un d'eux a porté. Le temps pour tuer dit combien de fois plus long il est à tuer qu'une créature non mise à l'échelle. Une mention ambre de plafond signifie qu'un plafond retient cette ligne ; monter la pente n'y change rien.
+ui.global.preview_row = D{diff}   PV {hp}   Coup {out}   Subis {in}%
 ui.global.preview_custom = Essayer une difficulté
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Temps pour tuer x{ttk}
+ui.global.preview_rail_hp = plafond de robustesse atteint
+ui.global.preview_rail_out = plafond de coup atteint
+ui.global.preview_rail_both = les deux plafonds atteints
+ui.global.ladder_title = Échelle de rareté à D{diff}
+ui.global.ladder_note = Chaque palier lit la même courbe à cette difficulté multipliée par son propre facteur. Tapez une difficulté au-dessus pour déplacer l'échelle ; vide, elle suit le plancher de base.
+ui.global.ladder_row = {name} x{mult}   D{diff}   PV {hp}   Coup {out}   Subis {in}%
+ui.global.ladder_plain = Ordinaire
+ui.number = {n}
+ui.mmo.header = Côté MMO (lecture seule)
+ui.mmo.power = La puissance des joueurs va de {min} à {max}. Une créature ordinaire à la difficulté N est le combat équilibré pour un joueur de puissance N.
+ui.mmo.unavailable = Plage de puissance des joueurs : indisponible. Le jar du MMO que ce mod peut lire manque ou est plus ancien que celui contre lequel il a été compilé.
+ui.mmo.own_power = Votre propre puissance en ce moment : {power}
+ui.mmo.cap_above = Votre difficulté maximale {cap} dépasse le plafond de puissance {max} : les zones lointaines peuvent donc surpasser même un groupe au maximum. C'est la façon prévue de le faire.
+ui.mmo.cap_below = Votre difficulté maximale {cap} est sous le plafond de puissance {max}. Tout groupe au-delà rencontre la même difficulté ; montez le maximum à au moins {max}.
+ui.mmo.cap_equal = Votre difficulté maximale {cap} égale le plafond de puissance {max} : un groupe au maximum trouve en haut un combat équilibré et rien de plus dur.
+ui.mmo.floor_mismatch = Votre difficulté minimale {min} diffère du plancher de puissance {powerMin} ; les deux échelles devraient partir ensemble.
+ui.mmo.where = Ces nombres se modifient côté MMO, pas ici : la page Power Level du menu d'administration du MMO, ou mods/mmoskilltree/power-level.json (Clamp.MinPower et MaxPower). Les plafonds de mitigation des joueurs contre lesquels la courbe de coup est dérivée vivent dans mods/mmoskilltree/ability-clamps.json par-dessus Server/MMOSkillTree/ModifierClamps, et ce mod ne peut pas les lire.
 
 # Shared HUD tab rows.
 ui.hud.position = Position
@@ -181,6 +202,8 @@ ui.world.new = Nouveau monde
 ui.world.id = Nom de fichier
 ui.world.match = Correspondance du monde
 ui.world.parent = Fichier parent
+ui.world.gameplay_configs = Configurations de jeu
+ui.world.exclude_match = Exclure des mondes
 ui.world.enabled = Mise à l'échelle dans ce monde
 ui.world.tuning_header = Réglage
 ui.world.floor = Plancher de difficulté de base
@@ -201,6 +224,18 @@ ui.world.hint = Tous les paramètres ici sont modifiables : réglage, escalade d
 ui.world.inherits = Hérité de : {value}
 ui.world.inherits_all = (tous)
 ui.world.inherits_none = (aucun)
+ui.floor.empty = Aucun plancher de zone ou de biome n'est encore chargé.
+ui.floor.editor_header = Ajouter / modifier un plancher
+ui.floor.new = Nouveau plancher
+ui.floor.id = Nom de fichier
+ui.floor.type = S'applique à
+ui.floor.type_zone = Zone
+ui.floor.type_biome = Biome
+ui.floor.type_inherit = Hériter
+ui.floor.target = Nom de zone ou de biome
+ui.floor.value = Difficulté plancher
+ui.floor.row_sub = {type} {target}, plancher {floor}
+ui.floor.hint = Un plancher est la difficulté d'où part une apparition avant que la distance et les joueurs proches ne s'y ajoutent. La correspondance la plus précise gagne : un nom de zone exact, puis une famille de zones comme Zone2 pour chaque sous-zone Zone2_, puis la même chose pour les biomes, puis les jokers *, puis le plancher de base de l'onglet Global. Laissez un champ vide pour garder ce que dit la correspondance fournie.
 
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits.
@@ -216,7 +251,7 @@ ui.hint.hp_share = Quelle part de cette robustesse apparaît comme santé sur la
 ui.hint.out_scale = Vitesse à laquelle le coup d'une créature grandit avec la difficulté ; avec une forme de 1.0, c'est le surcroît de dégâts par point de difficulté au-dessus de la base.
 ui.hint.out_shape = Comment la courbe des dégâts se plie : 1.0 est une droite ; au-dessus, les basses difficultés frappent à peine plus fort et les hautes beaucoup plus.
 ui.hint.max_ehp = Combien de fois plus longtemps qu'une créature de base une créature peut au plus mettre à mourir, résistance d'un affixe comprise ; gardez-le bien au-dessus du sommet de la courbe, sinon tous les paliers y deviennent identiques.
-ui.hint.max_out = Le plafond maximum auquel la courbe de difficulté peut pousser le multiplicateur de dégâts infligés d'une créature.
+ui.hint.max_out = Le plus grand multiple de son coup de base qu'une créature puisse infliger. Gardez-le bien au-dessus du sommet de la courbe, sinon tous les paliers frappent pareil là-haut.
 ui.hint.clamp_min_hp = Le minimum auquel la santé d'une créature peut être réduite, en fraction de sa base.
 ui.hint.clamp_max_in = Le maximum de dégâts qu'une créature peut être amenée à subir par coup, en multiple du normal ; au-dessus de un autorise un affixe de canon de verre.
 ui.hint.clamp_min_out = Le minimum auquel le coup d'une créature peut être réduit, en fraction de son coup de base.
@@ -231,7 +266,7 @@ ui.hint.esc_rarity = Augmentation supplémentaire de la probabilité d'apparitio
 ui.hint.player_scaling = Si les joueurs à proximité et leur puissance augmentent du tout la difficulté d'une région.
 ui.hint.player_ring = Rayon protégé autour du point d'apparition du monde où la puissance des joueurs proches n'augmente jamais la difficulté. Zéro signifie aucune zone protégée, l'ajustement de groupe s'applique donc partout.
 ui.hint.aggregation = Comment la puissance de plusieurs joueurs à proximité s'accumule en une seule lecture de difficulté régionale.
-ui.hint.region_size = Taille de la grille de proximité utilisée pour grouper les joueurs dans une lecture régionale partagée.
+ui.hint.region_size = Combien de chunks de côté fait une région de puissance de groupe. Les joueurs dans le même carré comptent comme un seul groupe pour la difficulté qu'ils rencontrent.
 ui.hint.band_width = Amplitude maximale d'oscillation de la difficulté régionale au-dessus de sa base par la puissance des joueurs.
 ui.hint.only_raise = Lorsqu'activée, la puissance des joueurs à proximité ne peut qu'augmenter la difficulté régionale, jamais la réduire.
 
@@ -250,9 +285,11 @@ ui.hint.insp_portrait = Si la carte d'inspection affiche l'image du portrait gé
 ui.hint.insp_range = Distance à laquelle le réticule peut détecter une créature à inspecter.
 
 # Worlds tab: world-identity fields, tri-states, and pool gates.
-ui.hint.world_id = Nom du fichier sous lequel les paramètres de ce monde sont enregistrés; laissez vide pour le dériver du modèle de correspondance.
-ui.hint.world_match = Monde auquel ce fichier s'applique : un nom exact, un préfixe joker, ou un joker seul pour tous les mondes.
+ui.hint.world_id = Nom du fichier sous lequel les paramètres de ce monde sont enregistrés; laissez vide pour le nommer d'après le premier motif de monde, ou la première clé de configuration de jeu s'il n'y a pas de motif.
+ui.hint.world_match = Noms de mondes auxquels ce fichier s'applique, séparés par des virgules : noms exacts ou motifs à joker. Laissez les trois champs de ciblage vides pour un fichier de base dont d'autres héritent.
 ui.hint.world_parent = Autre fichier de monde dont hériter les paramètres avant l'application des remplacements de ce fichier.
+ui.hint.world_gameplay_configs = Clés de configuration de jeu auxquelles ce fichier s'applique, séparées par des virgules. La seule prise stable sur un monde d'instance, dont le nom change à chaque création.
+ui.hint.world_exclude_match = Noms ou motifs de mondes auxquels ce fichier ne doit jamais s'appliquer, séparés par des virgules, même quand une correspondance ci-dessus les attraperait.
 ui.hint.w_enabled = Si la mise à l'échelle des créatures s'exécute du tout dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
 ui.hint.w_esc_enabled = Si l'escalade de distance s'applique dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
 ui.hint.w_player_scaling = Si les joueurs à proximité augmentent la difficulté dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
@@ -269,6 +306,10 @@ ui.hint.w_zone_hud = Si la superposition de difficulté de zone est autorisée �
 ui.hint.w_inspector_hud = Si la superposition d'inspecteur de créature est autorisée à s'afficher dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
 ui.hint.w_zone_show_location = Si la superposition affiche également le nom de la zone et du biome actuels dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
 ui.hint.w_insp_portrait = Si la carte d'inspection affiche le portrait de la cible dans ce monde. Héritage suit le fichier parent, puis le paramètre global.
+ui.hint.floor_id = Le fichier sous lequel ce plancher est enregistré dans mods/MmoMobScaling/difficulty. Nommez-le comme une correspondance fournie pour la réajuster ; laissez-le vide pour le nommer d'après la zone ou le biome.
+ui.hint.floor_type = Si le nom ci-dessous est une zone ou un biome. Hériter garde la réponse de la correspondance fournie.
+ui.hint.floor_target = Le nom de zone ou de biome propre au jeu, comme Zone2_Tier1 ou Ocean1. Un nom de famille comme Zone2 couvre chaque sous-zone Zone2_, et * couvre ce que les autres correspondances manquent.
+ui.hint.floor_value = La difficulté d'où part une apparition à cet endroit. L'escalade par la distance et la puissance des joueurs proches s'ajoutent par-dessus, puis le minimum et le maximum la bornent.
 
 # Status line.
 ui.status.saved = Enregistré.
@@ -279,4 +320,9 @@ ui.status.save_failed = Impossible d'écrire le fichier de monde.
 ui.status.invalid_field = Entrez une valeur valide pour {field}. Les nombres doivent être 0 ou supérieur, les chances doivent être entre 0 et 1, et les champs numéro entier doivent être un entier.
 ui.status.invalid_caps = Le maximum doit être au moins le minimum.
 ui.status.unknown_preset = Préréglage inconnu.
-ui.status.id_or_match_required = Entrez d'abord un nom de fichier ou un modèle de correspondance de monde.
+ui.status.id_or_match_required = Entrez d'abord un nom de fichier, un motif de monde ou une clé de configuration de jeu.
+ui.status.floor_deleted = Fichier de plancher supprimé. La correspondance fournie s'applique de nouveau.
+ui.status.floor_incomplete = Un nouveau plancher a besoin des trois : à quoi il s'applique, le nom de zone ou de biome, et le plancher.
+ui.status.floor_id_required = Entrez d'abord un nom de fichier ou un nom de zone ou de biome.
+ui.status.floor_save_failed = Impossible d'écrire le fichier de plancher.
+ui.status.floor_delete_failed = Impossible de supprimer le fichier de plancher.

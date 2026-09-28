@@ -1,10 +1,11 @@
 package com.ziggfreed.mmomobscaling.pages;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
@@ -22,6 +23,8 @@ import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
+import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -31,6 +34,8 @@ import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.form.FieldSpec;
 import com.ziggfreed.common.ui.form.FormResult;
 import com.ziggfreed.common.ui.form.SettingsForm;
+import com.ziggfreed.common.world.WorldSelector;
+import com.ziggfreed.mmomobscaling.asset.DifficultyMappingAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
@@ -39,42 +44,63 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
+import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
+import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
+import com.ziggfreed.mmomobscaling.config.MmoPowerBounds;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
 import com.ziggfreed.mmomobscaling.config.OwnerFiles;
+import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
+import com.ziggfreed.mmomobscaling.i18n.MobScalingTextUtil;
+import com.ziggfreed.mmomobscaling.pages.ScalingPreview.Sample;
+import com.ziggfreed.mmomobscaling.pages.ScalingPreview.Tier;
+import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
+import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
- * The in-game admin config page for MMO Mob Scaling ({@code /mobscaling ui}). SPEC-DRIVEN: four
- * {@link SettingsForm} instances (Global, Zone HUD, Inspector HUD, and a per-world
- * {@code Worlds/*.json} editor) each render from an ordered {@link FieldSpec} list
- * ({@link #buildGlobalSpecs()} / {@link #buildZoneSpecs()} / {@link #buildInspectorSpecs()} /
- * {@link #buildWorldSpecs()}) through the shared ziggfreed-common {@code ui/form} engine - a new knob
- * later is one spec line here plus one lang key, never a new {@code .ui} row or a new codec field on
- * {@link EventData}. The Worlds tab is a TWO-PANEL layout (a scrolling world list on the left, the
- * add/edit editor on the right); every hint/note WRAPS ({@code ZigFormNoteRow}, multi-line).
+ * The in-game admin config page for MMO Mob Scaling ({@code /mobscaling ui}). SPEC-DRIVEN: five
+ * {@link SettingsForm} instances (Global, Zone HUD, Inspector HUD, a per-world {@code Worlds/*.json}
+ * editor and a zone/biome floor editor over {@code Difficulty/*.json}) each render from an ordered
+ * {@link FieldSpec} list ({@link #buildGlobalSpecs()} / {@link #buildZoneSpecs()} /
+ * {@link #buildInspectorSpecs()} / {@link #buildWorldSpecs()} / {@link #buildFloorSpecs()}) through the
+ * shared ziggfreed-common {@code ui/form} engine - a new knob later is one spec line here plus one lang
+ * key, never a new {@code .ui} row or a new codec field on {@link EventData}. The Worlds and Floors tabs
+ * are TWO-PANEL layouts (a scrolling list on the left, the add/edit editor on the right); every
+ * hint/note WRAPS ({@code ZigFormNoteRow}, multi-line).
+ *
+ * <p><b>The Global tab's right column is the one place a consequence is shown</b>, and it is hand-built
+ * because nothing there is a leaf to persist: a plain Skeleton through the CURRENT (uncommitted) curve
+ * at five sample difficulties, a typed probe difficulty, the rarity ladder at the probed difficulty, and
+ * a read-only panel of what this mod can see of the MMO's power scale. Every figure comes out of
+ * {@link ScalingPreview}, which runs the same {@link MobScaleFold} the spawn path runs on a curve and
+ * clamps built through {@link MobScalingConfig#buildCurve} / {@link MobScalingConfig#buildClamps}, the
+ * one constructor pair every layer uses, so the preview can never disagree with a Save.
  *
  * <p><b>Never reopens itself.</b> Every event answers with a PARTIAL {@link #sendUpdate}, so the scroll
- * position never resets. A world-list change (save/remove) clears + re-appends + rebinds the list rows
- * in the SAME update - the official {@code ChangeModelPage} pattern (jar {@code Model} plugin,
+ * position never resets. A list change (save/remove) clears + re-appends + rebinds the list rows in the
+ * SAME update - the official {@code ChangeModelPage} pattern (jar {@code Model} plugin,
  * {@code buildModelList}). {@code EventData} carries exactly five keys: {@code Action}/{@code Tab}/
- * {@code WorldId}/{@code Field}/{@code @Value}; a {@code "field"} action just caches the raw value
- * (no packet), a {@code "press"} flips + persists a toggle, everything else builds a small
- * {@link UICommandBuilder} and finishes with a status line + {@link #sendUpdate}.
+ * {@code Id}/{@code Field}/{@code @Value} ({@code Id} is the row id of whichever list a button sits
+ * in); a {@code "field"} action just caches the raw value (no packet), a {@code "press"} flips +
+ * persists a toggle, everything else builds a small {@link UICommandBuilder} and finishes with a status
+ * line + {@link #sendUpdate}.
  *
  * <p>Global/HUD edits persist through the ONE write-back path ({@link MobScalingOwnerWriter} -> the
  * owner file -> {@code refreshFromDisk}); world edits write their own file
- * ({@link MobScalingOwnerWriter#saveWorldFile}/{@code deleteWorldFile} -> the worlds refold). The world
- * editor seeds from the AUTHORED (pre-{@code Parent}-merge) body
- * ({@link WorldSettingsConfig#authoredById}), NOT the folded-effective view: with ~50 exposed knobs,
- * seeding the Parent-merged view and saving back would materialize the whole parent chain into the
- * child file and silently break inheritance - authored-seeding keeps blank field = inherit faithful.
- * HUD / preset edits live-apply to all online players. All labelled buttons are RICH
- * ({@link ZigRichButton} / {@link SettingsUiUtil#setToggle}); all display text is a client-resolved
- * {@link Message} on {@code .TextSpans}.
+ * ({@link MobScalingOwnerWriter#saveWorldFile}/{@code deleteWorldFile} -> the worlds refold) and floor
+ * edits theirs ({@link MobScalingOwnerWriter#saveDifficultyMapping}/{@code deleteDifficultyMapping}
+ * -> the owner layer refold). Both editors seed from the AUTHORED body of the owner file
+ * ({@link WorldSettingsConfig#authoredById}, {@link DifficultyOwnerLayer#authoredById}), NOT the
+ * folded-effective view: seeding the merged view and saving back would materialize every inherited leaf
+ * into the file and silently break inheritance - authored-seeding keeps blank field = inherit faithful,
+ * and the per-field hint says what a blank field currently inherits. HUD / preset edits live-apply to
+ * all online players. All labelled buttons are RICH ({@link ZigRichButton} /
+ * {@link SettingsUiUtil#setToggle}); all display text is a client-resolved {@link Message} on
+ * {@code .TextSpans}, and every display number is a TYPED param the player's own client formats.
  *
  * <p><b>Access:</b> gated by the {@code /mobscaling ui} command's {@code hytale:Admin} permission group
  * (the only way to open this page).
@@ -95,31 +121,66 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String WORLD_FORM_SEL = "#MmoscalingWorldForm";
     private static final String WORLD_LIST = "#MmoscalingWorldList";
     private static final String WORLD_EMPTY_SEL = "#MmoscalingWorldEmpty";
+    private static final String FLOOR_FORM_SEL = "#MmoscalingFloorForm";
+    private static final String FLOOR_LIST = "#MmoscalingFloorList";
+    private static final String FLOOR_EMPTY_SEL = "#MmoscalingFloorEmpty";
     private static final String PREVIEW_LIST = "#MmoscalingPreviewList";
     private static final String PREVIEW_TITLE_SEL = "#MmoscalingPreviewTitle";
     private static final String PREVIEW_NOTE_SEL = "#MmoscalingPreviewNote";
-    // The manual difficulty-probe row (round-3): a label + TextField below the five fixed samples, plus
-    // the one extra preview line it drives. Wired OUTSIDE globalForm/SettingsForm (its own "previewD"
-    // event, see buildPreviewPanel/handlePreviewDifficulty) since it has no leaf path to persist.
+    // The manual difficulty probe: a label + TextField below the five fixed samples, plus the one extra
+    // preview row it drives (#MmoscalingProbeList holds exactly one appended row and is shown only while
+    // the field parses). Wired OUTSIDE globalForm/SettingsForm (its own "previewD" event, see
+    // buildPreviewPanel/handlePreviewDifficulty) since it has no leaf path to persist.
     private static final String PREVIEW_CUSTOM_LABEL_SEL = "#MmoscalingPreviewCustomLabel";
     private static final String PREVIEW_CUSTOM_FIELD_SEL = "#MmoscalingPreviewCustomField";
-    private static final String PREVIEW_CUSTOM_LINE_SEL = "#MmoscalingCustomPreviewLine";
+    private static final String PROBE_LIST = "#MmoscalingProbeList";
+    // The rarity ladder at the probed difficulty (the baseline floor while nothing is typed): a title, a
+    // note and one appended preview row per rung (plain + every folded tier), re-appended on refresh.
+    private static final String LADDER_TITLE_SEL = "#MmoscalingLadderTitle";
+    private static final String LADDER_NOTE_SEL = "#MmoscalingLadderNote";
+    private static final String LADDER_LIST = "#MmoscalingLadderList";
+    // The read-only MMO panel: what this mod can see of the player power scale, and where it is edited.
+    private static final String MMO_TITLE_SEL = "#MmoscalingMmoTitle";
+    private static final String MMO_POWER_SEL = "#MmoscalingMmoPower";
+    private static final String MMO_OWN_POWER_SEL = "#MmoscalingMmoOwnPower";
+    private static final String MMO_CAP_SEL = "#MmoscalingMmoCap";
+    private static final String MMO_WHERE_SEL = "#MmoscalingMmoWhere";
     // Five evenly-spaced sample difficulties between the current MinCap and MaxCap (the Global-tab preview).
     private static final int PREVIEW_SAMPLES = 5;
     // The preview's fixed sample role (matches mmomobscaling.ui.global.preview_title, "Preview: Skeleton").
     private static final String PREVIEW_ROLE_NAME = "Skeleton";
-    // The per-maintainer style for the per-world hint's "Inherits: X" segment (round-3): white + bold,
-    // label and substituted value alike (Message#color/#bold mutate + return the SAME instance, so both
-    // the wrapping frame message and the nested value param need the call - see inheritsSegment).
+    // The per-maintainer style for an editor hint's "Inherits: X" segment: white + bold, label and
+    // substituted value alike (Message#color/#bold mutate + return the SAME instance, so both the
+    // wrapping frame message and the nested value param need the call - see inheritsSegment).
     private static final String INHERITS_COLOR = "#ffffff";
+    // The colour of a preview row's "rail holding" marker (the zone card's HARD amber, so it reads as a warning).
+    private static final String RAIL_COLOR = "#ffb74d";
 
     // World-form field ids referenced outside the spec table (id derivation, self-Parent check).
     private static final String F_WORLD_ID = "worldId";
     private static final String F_WORLD_MATCH = "worldMatch";
+    private static final String F_WORLD_CONFIGS = "worldConfigs";
+    private static final String F_WORLD_EXCLUDES = "worldExcludes";
     private static final String F_WORLD_PARENT = "worldParent";
-    // The worldId spec's leaf path is a SENTINEL, not a real codec key: popped from the collected
-    // leaves before every save (the world file has no "$Id" field - the filename IS the id).
-    private static final String WORLD_ID_LEAF = "$Id";
+    // Floor-form field ids referenced outside the spec table (id derivation, the completeness check).
+    private static final String F_FLOOR_ID = "floorId";
+    private static final String F_FLOOR_TYPE = "floorType";
+    private static final String F_FLOOR_TARGET = "floorTarget";
+    private static final String F_FLOOR_VALUE = "floorValue";
+    // The two editors' id specs share one SENTINEL leaf path, not a real codec key: popped from the
+    // collected leaves before every save (neither file has an "$Id" field - the filename IS the id).
+    private static final String ID_LEAF = "$Id";
+    // The three leaves of a difficulty mapping file (DifficultyMappingAsset's codec keys).
+    private static final String LEAF_TARGET_TYPE = "TargetType";
+    private static final String LEAF_TARGET_ID = "TargetId";
+    private static final String LEAF_FLOOR = "Floor";
+    // The floor editor's target-type dropdown VALUES: Inherit (keep the shipped mapping's answer), then the
+    // two codec words DifficultyMapping.TargetType.parse accepts. The value is what a save writes; the
+    // label the admin sees is the localized word behind it (targetTypeLabelKey, localizeFloorTypeEntries).
+    private static final String WORD_INHERIT = "inherit";
+    private static final String WORD_ZONE = "Zone";
+    private static final String WORD_BIOME = "Biome";
+    private static final String[] TARGET_TYPES_INHERIT = {WORD_INHERIT, WORD_ZONE, WORD_BIOME};
 
     // Leaf paths shared between two spec tables (global/world) or a spec + its instant-toggle saver,
     // named once so the two call sites can never drift apart.
@@ -149,11 +210,31 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final List<FieldSpec> ZONE_SPECS = buildZoneSpecs();
     private static final List<FieldSpec> INSPECTOR_SPECS = buildInspectorSpecs();
     private static final List<FieldSpec> WORLD_SPECS = buildWorldSpecs();
+    private static final List<FieldSpec> FLOOR_SPECS = buildFloorSpecs();
+
+    /** One tab: its event id, its rich button, the section it shows, its label key. */
+    private record Tab(@Nonnull String id, @Nonnull String buttonSel, @Nonnull String sectionSel,
+            @Nonnull String labelKey) {
+    }
+
+    private static final List<Tab> TABS = List.of(
+            new Tab("global", "#MmoscalingTabGlobal", "#MmoscalingSectionGlobal", "mmomobscaling.ui.tab.global"),
+            new Tab("zonehud", "#MmoscalingTabZoneHud", "#MmoscalingSectionZoneHud", "mmomobscaling.ui.tab.zone_hud"),
+            new Tab("inspector", "#MmoscalingTabInspector", "#MmoscalingSectionInspector", "mmomobscaling.ui.tab.inspector"),
+            new Tab("worlds", "#MmoscalingTabWorlds", "#MmoscalingSectionWorlds", "mmomobscaling.ui.tab.worlds"),
+            new Tab("floors", "#MmoscalingTabFloors", "#MmoscalingSectionFloors", "mmomobscaling.ui.tab.floors"));
+
+    /** The floor list's order: zones before biomes, a wildcard after the named targets, then by name. */
+    private static final Comparator<DifficultyMapping> FLOOR_ORDER = Comparator
+            .comparing(DifficultyMapping::targetType)
+            .thenComparing(DifficultyMapping::isWildcard)
+            .thenComparing(DifficultyMapping::targetId, String.CASE_INSENSITIVE_ORDER);
 
     private final SettingsForm globalForm;
     private final SettingsForm zoneForm;
     private final SettingsForm inspectorForm;
     private final SettingsForm worldForm;
+    private final SettingsForm floorForm;
 
     // Instant-persist toggle registry (global/zone/inspector "press" actions): id -> current-state
     // read, persist call, optional live HUD apply, and the status key to show. Built once in the
@@ -162,9 +243,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
 
     private String activeTab = "global";
 
-    // The manual difficulty-probe field's cached raw text (round-3); lives OUTSIDE every SettingsForm
-    // (it has no leaf path, nothing to persist) but follows the same "cache on field, refresh on demand"
-    // shape. Starts blank (a fresh page open never shows the probe line until the admin types into it).
+    // The manual difficulty-probe field's cached raw text; lives OUTSIDE every SettingsForm (it has no
+    // leaf path, nothing to persist) but follows the same "cache on field, refresh on demand" shape.
+    // Starts blank (a fresh page open shows no probe row, and the ladder follows the baseline floor).
     @Nonnull private String customPreviewInput = "";
 
     @Nullable private Message statusMessage;
@@ -178,12 +259,14 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         this.zoneForm = new SettingsForm(ZONE_SPECS, toggleOn, toggleOff);
         this.inspectorForm = new SettingsForm(INSPECTOR_SPECS, toggleOn, toggleOff);
         this.worldForm = new SettingsForm(WORLD_SPECS, toggleOn, toggleOff);
+        this.floorForm = new SettingsForm(FLOOR_SPECS, toggleOn, toggleOff);
 
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         reseedGlobalFromConfig(cfg);
         reseedZoneFromConfig(cfg);
         reseedInspectorFromConfig(cfg);
         seedWorldForm("", null, null);
+        seedFloorForm("", null);
         this.toggleDefs = buildToggleDefs(cfg);
     }
 
@@ -201,12 +284,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         SettingsUiUtil.bindButton(events, "#CloseButton", "close");
 
         buildTabs(cmd, events);
-        setSectionVisibility(cmd);
 
         buildPresetRow(cmd, events, cfg);
         globalForm.buildRows(cmd, events, GLOBAL_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingGlobalSave", "mmomobscaling.ui.button.save_tab", "saveGlobal");
-        buildPreviewPanel(cmd, events);
+        buildPreviewPanel(cmd, events, MmoPowerBounds.of(store, ref));
 
         zoneForm.buildRows(cmd, events, ZONE_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingZoneSave", "mmomobscaling.ui.button.save_tab", "saveZone");
@@ -221,29 +303,33 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         actionButton(cmd, events, "#MmoscalingWorldSave", "mmomobscaling.ui.button.save_world", "saveWorld");
         actionButton(cmd, events, "#MmoscalingWorldClear", "mmomobscaling.ui.button.clear", "clearWorld");
 
+        buildFloorList(cmd, events);
+        rowLabel(cmd, "#MmoscalingFloorEditorHeader", "mmomobscaling.ui.floor.editor_header");
+        floorForm.buildRows(cmd, events, FLOOR_FORM_SEL, MobScalingAdminPage::tr);
+        localizeFloorTypeEntries(cmd);
+        actionButton(cmd, events, "#MmoscalingFloorNew", "mmomobscaling.ui.floor.new", "clearFloor");
+        actionButton(cmd, events, "#MmoscalingFloorSave", "mmomobscaling.ui.button.save_world", "saveFloor");
+        actionButton(cmd, events, "#MmoscalingFloorClear", "mmomobscaling.ui.button.clear", "clearFloor");
+
         SettingsUiUtil.setStatus(cmd, STATUS_SEL, statusMessage, statusIsError);
     }
 
+    /** Build-time: label + bind every tab button, then paint the active state. */
     private void buildTabs(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
-        label(cmd, "#MmoscalingTabGlobal", "mmomobscaling.ui.tab.global");
-        label(cmd, "#MmoscalingTabZoneHud", "mmomobscaling.ui.tab.zone_hud");
-        label(cmd, "#MmoscalingTabInspector", "mmomobscaling.ui.tab.inspector");
-        label(cmd, "#MmoscalingTabWorlds", "mmomobscaling.ui.tab.worlds");
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabGlobal", activeTab.equals("global"));
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabZoneHud", activeTab.equals("zonehud"));
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabInspector", activeTab.equals("inspector"));
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabWorlds", activeTab.equals("worlds"));
-        SettingsUiUtil.bindButton(events, "#MmoscalingTabGlobal", "tab", "Tab", "global");
-        SettingsUiUtil.bindButton(events, "#MmoscalingTabZoneHud", "tab", "Tab", "zonehud");
-        SettingsUiUtil.bindButton(events, "#MmoscalingTabInspector", "tab", "Tab", "inspector");
-        SettingsUiUtil.bindButton(events, "#MmoscalingTabWorlds", "tab", "Tab", "worlds");
+        for (Tab tab : TABS) {
+            label(cmd, tab.buttonSel(), tab.labelKey());
+            SettingsUiUtil.bindButton(events, tab.buttonSel(), "tab", "Tab", tab.id());
+        }
+        applyTabState(cmd);
     }
 
-    private void setSectionVisibility(@Nonnull UICommandBuilder cmd) {
-        cmd.set("#MmoscalingSectionGlobal.Visible", activeTab.equals("global"));
-        cmd.set("#MmoscalingSectionZoneHud.Visible", activeTab.equals("zonehud"));
-        cmd.set("#MmoscalingSectionInspector.Visible", activeTab.equals("inspector"));
-        cmd.set("#MmoscalingSectionWorlds.Visible", activeTab.equals("worlds"));
+    /** Tint the active tab and show exactly its section (build and every tab switch share this). */
+    private void applyTabState(@Nonnull UICommandBuilder cmd) {
+        for (Tab tab : TABS) {
+            boolean active = activeTab.equals(tab.id());
+            SettingsUiUtil.setTabActive(cmd, tab.buttonSel(), active);
+            cmd.set(tab.sectionSel() + ".Visible", active);
+        }
     }
 
     /** The preset dropdown stays hand-built (its entries are dynamic, unlike every fixed FieldSpec). */
@@ -287,26 +373,73 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             cmd.set(rowSel + " #Badge.TextSpans", tr(isOwner ? "mmomobscaling.ui.world.badge_override"
                     : "mmomobscaling.ui.world.badge_default"));
             ZigRichButton.text(cmd, rowSel + " #EditBtn", tr("mmomobscaling.ui.button.edit"));
-            SettingsUiUtil.bindButton(events, rowSel + " #EditBtn", "editWorld", "WorldId", id);
+            SettingsUiUtil.bindButton(events, rowSel + " #EditBtn", "editWorld", "Id", id);
             // Only an owner-dir FILE is removable (deleting it re-exposes a same-id jar/pack file).
             cmd.set(rowSel + " #RemoveBtn.Visible", isOwner);
             if (isOwner) {
                 ZigRichButton.text(cmd, rowSel + " #RemoveBtn", tr("mmomobscaling.ui.button.remove"));
-                SettingsUiUtil.bindButton(events, rowSel + " #RemoveBtn", "removeWorld", "WorldId", id);
+                SettingsUiUtil.bindButton(events, rowSel + " #RemoveBtn", "removeWorld", "Id", id);
+            }
+        }
+    }
+
+    /**
+     * Clear + re-append + rebind every zone/biome floor row (the same {@code buildModelList} pattern as
+     * the world list, on the same row template): every FOLDED mapping ({@link DifficultyConfig#all},
+     * shipped overlaid by owner), zones before biomes, wildcards last, with its target and floor on the
+     * sub line and a shipped/override badge. Only an owner-dir file is removable (deleting it puts the
+     * shipped mapping of that id back).
+     */
+    private void buildFloorList(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+        cmd.clear(FLOOR_LIST);
+        List<DifficultyMapping> rows = new ArrayList<>();
+        for (DifficultyMapping m : DifficultyConfig.getInstance().all().values()) {
+            if (m != null) {
+                rows.add(m);
+            }
+        }
+        rows.sort(FLOOR_ORDER);
+        Set<String> owned = DifficultyOwnerLayer.getInstance().ownerAuthoredIds();
+        cmd.set(FLOOR_EMPTY_SEL + ".Visible", rows.isEmpty());
+        if (rows.isEmpty()) {
+            cmd.set(FLOOR_EMPTY_SEL + ".TextSpans", tr("mmomobscaling.ui.floor.empty"));
+        }
+        int i = 0;
+        for (DifficultyMapping m : rows) {
+            String rowSel = FLOOR_LIST + "[" + i++ + "]";
+            cmd.append(FLOOR_LIST, ROW);
+            cmd.set(rowSel + " #Title.Text", m.id());
+            cmd.set(rowSel + " #Sub.TextSpans", tr("mmomobscaling.ui.floor.row_sub")
+                    .param("type", targetTypeName(m.targetType()))
+                    .param("target", m.targetId())
+                    .param("floor", oneDecimal(m.floor())));
+            boolean isOwner = owned.contains(OwnerFiles.idKey(m.id()));
+            cmd.set(rowSel + " #Badge.Visible", true);
+            cmd.set(rowSel + " #Badge.TextSpans", tr(isOwner ? "mmomobscaling.ui.world.badge_override"
+                    : "mmomobscaling.ui.world.badge_default"));
+            ZigRichButton.text(cmd, rowSel + " #EditBtn", tr("mmomobscaling.ui.button.edit"));
+            SettingsUiUtil.bindButton(events, rowSel + " #EditBtn", "editFloor", "Id", m.id());
+            cmd.set(rowSel + " #RemoveBtn.Visible", isOwner);
+            if (isOwner) {
+                ZigRichButton.text(cmd, rowSel + " #RemoveBtn", tr("mmomobscaling.ui.button.remove"));
+                SettingsUiUtil.bindButton(events, rowSel + " #RemoveBtn", "removeFloor", "Id", m.id());
             }
         }
     }
 
     // ---------------------------------------------------------------------
-    // Skeleton preview panel (Global tab, right column)
+    // Preview column (Global tab, right): the skeleton samples, the probe, the ladder, the MMO side
     // ---------------------------------------------------------------------
 
     /**
-     * Build-time only: paint the title/note, append the (fixed-count) sample rows, paint + bind the
-     * manual difficulty-probe row (round-3 - a label + TextField OUTSIDE globalForm, its own
-     * {@code "previewD"} event since it has no leaf path to persist), then fill everything.
+     * Build-time only: paint the titles and notes, append the fixed sample rows plus the probe's one
+     * row, paint + bind the manual difficulty-probe field (a label + TextField OUTSIDE globalForm, its
+     * own {@code "previewD"} event since it has no leaf path to persist), paint the MMO panel's
+     * build-time lines ({@code ownPower} is the viewing admin's own power, read once here where the
+     * store is in hand), then fill everything through {@link #refreshPreview}.
      */
-    private void buildPreviewPanel(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
+    private void buildPreviewPanel(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events,
+            @Nullable Double ownPower) {
         cmd.set(PREVIEW_TITLE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.preview_title"));
         cmd.set(PREVIEW_NOTE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.preview_note"));
         for (int i = 0; i < PREVIEW_SAMPLES; i++) {
@@ -318,25 +451,25 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 com.hypixel.hytale.server.core.ui.builder.EventData.of("Action", "previewD")
                         .append("@Value", PREVIEW_CUSTOM_FIELD_SEL + ".Value"),
                 false);
+        cmd.append(PROBE_LIST, PREVIEW_ROW);
+        cmd.set(LADDER_NOTE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.ladder_note"));
+        buildMmoPanel(cmd, ownPower);
         refreshPreview(cmd);
     }
 
     /**
-     * Recompute + push the five sample rows AND the manual probe line (round-3) from the CURRENT
-     * Global-form values (falling back to the live config for a blank/invalid field - never the form's
-     * Save validation, this is a read-only preview). The curve is built through the same
-     * {@code MobScalingConfig.buildCurve} the fold uses ({@link #buildPreviewCurve}), so the preview and
-     * a Save can never disagree on the sanity clamps. Each row shows a plain mob (no rarity/variant) run
-     * through that curve alone - a rarity or variant multiplies the difficulty the curve is read at, so
-     * its row is the plain row further along the same curve. The HP cell additionally shows
-     * the ABSOLUTE health when {@link RoleBaseHealthResolver#baseMaxHealth} resolves the sample role's
-     * declared base (memoized/observed, so this is cheap on every keystroke); damage stays factor-only
-     * (base attack damage lives in weapon/attack assets, out of scope here). Called from every
-     * Global-tab path that can change the curve or the caps (field/press/saveGlobal/selectPreset), which
-     * is exactly why folding the probe-line refresh in here (rather than duplicating a call at each site)
-     * keeps it in sync for free; the probe's OWN {@code "previewD"} event refreshes just that one line
-     * via {@link #refreshCustomPreviewLine} directly (the five fixed rows do not depend on the typed
-     * probe value, no need to repaint them on every keystroke there).
+     * Recompute + push everything on the preview column that depends on the Global form: the five
+     * sample rows (a plain Skeleton at five evenly-spaced difficulties between the CURRENT Min/Max caps),
+     * the probe row, the ladder and the MMO cap line, all from the CURRENT form values (a blank/invalid
+     * field falls back to the live config - never the form's Save validation, this is a read-only
+     * preview). The curve and the clamps are built through the same {@code MobScalingConfig.buildCurve}
+     * / {@code buildClamps} the fold uses ({@link #buildPreviewCurve} / {@link #buildPreviewClamps}) and
+     * every figure comes out of {@link ScalingPreview}, which runs the fold itself, so the column can
+     * never disagree with a Save. A rarity or variant is not a sample row of its own: it reads the same
+     * curve further along, which is what the ladder below the probe shows. Called from every Global-tab
+     * path that can change the curve or the caps (field/press/saveGlobal/selectPreset); the probe's OWN
+     * {@code "previewD"} event repaints just the probe row and the ladder via
+     * {@link #refreshProbeAndLadder} (the five fixed rows do not depend on the typed value).
      */
     private void refreshPreview(@Nonnull UICommandBuilder cmd) {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
@@ -346,20 +479,139 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             max = min; // an inverted cap pair is a footgun, same guard as MobScalingConfig.applyFold
         }
         MobScaleFold.DifficultyStatCurve curve = buildPreviewCurve();
-        OptionalInt baseHealth = RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME);
-
+        Baseline base = previewBaseline();
         for (int i = 1; i <= PREVIEW_SAMPLES; i++) {
             double d = min + (max - min) * i / (double) PREVIEW_SAMPLES;
-            cmd.set(PREVIEW_LIST + "[" + (i - 1) + "] #Line.TextSpans", previewRow(curve, baseHealth, d));
+            paintPreviewRow(cmd, PREVIEW_LIST + "[" + (i - 1) + "]", ScalingPreview.sample(curve, d), base);
         }
-        refreshCustomPreviewLine(cmd, curve, baseHealth);
+        refreshProbeAndLadder(cmd, curve, buildPreviewClamps(), base);
+        refreshMmoCapLine(cmd, min, max);
+    }
+
+    /**
+     * The probe row and the rarity ladder. The probe row shows only while the field parses to a
+     * difficulty &gt;= 1, deliberately UNCLAMPED to the live Min/Max band (it probes an arbitrary
+     * difficulty, not a sample of the operating range; the curve's own rails still bound the result). The
+     * ladder is read at the probed difficulty or, with nothing typed, at the baseline floor from the form,
+     * and its rows are cleared + re-appended each time (a preview row carries no button, so there is
+     * nothing to rebind), so a tier a pack adds takes its place on the ladder without a page reopen.
+     */
+    private void refreshProbeAndLadder(@Nonnull UICommandBuilder cmd, @Nonnull MobScaleFold.DifficultyStatCurve curve,
+            @Nonnull MobScaleFold.Clamps clamps, @Nonnull Baseline base) {
+        Double probe = parseProbeDifficulty(customPreviewInput);
+        cmd.set(PROBE_LIST + ".Visible", probe != null);
+        if (probe != null) {
+            paintPreviewRow(cmd, PROBE_LIST + "[0]", ScalingPreview.sample(curve, probe), base);
+        }
+        double at = probe != null ? probe
+                : Math.max(1.0, previewValue("floor", MobScalingConfig.getInstance().getDifficultyFloor()));
+        // The title's difficulty is the number every rung multiplies, so it is shown as read (one decimal),
+        // never rounded to a whole: a rung's D must be the title times the tier's multiplier by hand.
+        cmd.set(LADDER_TITLE_SEL + ".TextSpans",
+                tr("mmomobscaling.ui.global.ladder_title").param("diff", oneDecimal(at)));
+        cmd.clear(LADDER_LIST);
+        int i = 0;
+        for (Tier tier : ScalingPreview.ladder(curve, clamps, RarityConfig.getInstance().all().values(), at)) {
+            String rowSel = LADDER_LIST + "[" + i++ + "]";
+            cmd.append(LADDER_LIST, PREVIEW_ROW);
+            cmd.set(rowSel + " #Line.TextSpans", ladderLine(tier, base));
+            cmd.set(rowSel + " #Detail.TextSpans", detailLine(tier.sample()));
+        }
+    }
+
+    /** One sample row: the difficulty and the three stamped factors on the line, kill time + rails on the detail. */
+    private static void paintPreviewRow(@Nonnull UICommandBuilder cmd, @Nonnull String rowSel,
+            @Nonnull Sample sample, @Nonnull Baseline base) {
+        cmd.set(rowSel + " #Line.TextSpans", tr("mmomobscaling.ui.global.preview_row")
+                .param("diff", Math.round(sample.difficulty()))
+                .param("hp", multCell(sample.hp(), base.health()))
+                .param("out", multCell(sample.out(), base.hit()))
+                .param("in", Math.round(sample.in() * 100.0)));
+        cmd.set(rowSel + " #Detail.TextSpans", detailLine(sample));
+    }
+
+    /**
+     * A ladder rung's line: the tier's name in its own colour ({@code Plain} for the reference rung), its
+     * difficulty multiplier, the difficulty the curve was read at, then the same cells a sample row shows.
+     * The two leading numbers must multiply out by hand against the ladder title: the multiplier is shown
+     * at the precision a rarity asset authors it ({@link #twoDecimals}, so {@code x1.35} and not
+     * {@code x1.4}), and the rung's difficulty is the exact curve read at one decimal (a title of 30 at
+     * {@code x1.35} reads {@code D40.5}), never rounded to a whole number that would disagree with the
+     * product.
+     */
+    @Nonnull
+    private static Message ladderLine(@Nonnull Tier tier, @Nonnull Baseline base) {
+        Rarity rarity = tier.rarity();
+        Message name = rarity == null ? tr("mmomobscaling.ui.global.ladder_plain")
+                : tr(MobScalingTextUtil.rarityNameKey(rarity)).color(rarity.displayColor());
+        Sample sample = tier.sample();
+        return tr("mmomobscaling.ui.global.ladder_row")
+                .param("name", name)
+                .param("mult", twoDecimals(tier.difficultyMultiplier()))
+                .param("diff", oneDecimal(sample.difficulty()))
+                .param("hp", multCell(sample.hp(), base.health()))
+                .param("out", multCell(sample.out(), base.hit()))
+                .param("in", Math.round(sample.in() * 100.0));
+    }
+
+    /**
+     * A multiplier cell: {@code x2.56}, or {@code x2.56 (179)} with the absolute figure (the role's base
+     * rounded through the EXACT multiplier) when that base resolved. Both numbers are TYPED params the
+     * client formats; the key carries the {@code x} and the parentheses. The multiplier shows two decimals
+     * because the absolute beside it is its product: at one decimal a base of 70 through a factor of 2.56
+     * read {@code x2.6 (179)}, and 70 times 2.6 is 182, so the numbers on one rung did not multiply out
+     * against the rung above. At two decimals the shown product and the real one stay within one of
+     * each other for any base under 100.
+     */
+    @Nonnull
+    private static Message multCell(double mult, @Nonnull OptionalDouble base) {
+        Message cell = tr(base.isPresent() ? "mmomobscaling.ui.global.preview_mult_abs"
+                : "mmomobscaling.ui.global.preview_mult").param("mult", twoDecimals(mult));
+        if (base.isPresent()) {
+            cell.param("abs", Math.round(base.getAsDouble() * mult));
+        }
+        return cell;
+    }
+
+    /**
+     * A row's detail line: the time to kill relative to an unscaled mob ({@code hp / in}, the number the
+     * curve is derived to hold against a player's growth), plus an amber marker when one of the curve's
+     * rails is what decided the row - the one case where turning a slope up changes nothing, which an
+     * owner has no other way to see. The marker is joined at the top level, never nested as a param (a
+     * composite param renders empty).
+     */
+    @Nonnull
+    private static Message detailLine(@Nonnull Sample sample) {
+        Message kill = tr("mmomobscaling.ui.global.preview_detail").param("ttk", oneDecimal(sample.timeToKill()));
+        if (!sample.railed()) {
+            return kill;
+        }
+        String railKey = sample.hpRailed() && sample.outRailed() ? "mmomobscaling.ui.global.preview_rail_both"
+                : sample.hpRailed() ? "mmomobscaling.ui.global.preview_rail_hp"
+                : "mmomobscaling.ui.global.preview_rail_out";
+        return Message.join(kill, Message.raw("   "), tr(railKey).color(RAIL_COLOR));
+    }
+
+    /**
+     * The sample role's resolved bases, either of which may be absent (the cell then shows the
+     * multiplier alone): the health {@link RoleBaseHealthResolver} resolved (an observed spawn, else the
+     * role template) and the last hit {@link RoleBaseHitResolver} saw a mob of that role land.
+     */
+    private record Baseline(@Nonnull OptionalDouble health, @Nonnull OptionalDouble hit) {
+    }
+
+    @Nonnull
+    private static Baseline previewBaseline() {
+        OptionalInt health = RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME);
+        return new Baseline(health.isPresent() ? OptionalDouble.of(health.getAsInt()) : OptionalDouble.empty(),
+                RoleBaseHitResolver.baseHit(PREVIEW_ROLE_NAME));
     }
 
     /**
      * The CURRENT Global-form difficulty stat curve alone (no cap/min/max clamp to a sample range) -
-     * shared by the five fixed sample rows and the manual probe line, so both read the exact same
-     * curve, built through the one {@code MobScalingConfig.buildCurve} the fold itself uses (so an
-     * out-of-range typed value previews exactly how Save will fold it).
+     * shared by the sample rows, the probe and the ladder, built through the one
+     * {@code MobScalingConfig.buildCurve} the fold itself uses (so an out-of-range typed value previews
+     * exactly how Save will fold it).
      */
     @Nonnull
     private MobScaleFold.DifficultyStatCurve buildPreviewCurve() {
@@ -373,32 +625,63 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 previewValue("maxOut", cfg.getStatCurveMaxOutDamageMult()));
     }
 
-    /** One {@code mmomobscaling.ui.global.preview_row} line at difficulty {@code d} (shared: fixed rows + the probe). */
+    /** The CURRENT Global-form safety clamps, built through the one {@code MobScalingConfig.buildClamps} the fold uses. */
     @Nonnull
-    private static Message previewRow(@Nonnull MobScaleFold.DifficultyStatCurve curve,
-            @Nonnull OptionalInt baseHealth, double d) {
-        return tr("mmomobscaling.ui.global.preview_row")
-                .param("diff", String.valueOf(Math.round(d)))
-                .param("hp", formatHp(curve.hpFactor(d), baseHealth))
-                .param("out", formatMult(curve.outFactor(d)))
-                .param("in", formatReduction((1.0 - curve.inFactor(d)) * 100.0));
+    private MobScaleFold.Clamps buildPreviewClamps() {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        return MobScalingConfig.buildClamps(
+                previewValue("minHp", cfg.getClampMinHpMult()),
+                previewValue("maxIn", cfg.getClampMaxInDamageMult()),
+                previewValue("minOut", cfg.getClampMinOutDamageMult()),
+                previewValue("minLoot", cfg.getClampMinLootMult()),
+                previewValue("maxLoot", cfg.getClampMaxLootMult()));
     }
 
     /**
-     * The manual difficulty probe (round-3): ONE extra preview line below the five fixed samples, at
-     * whatever difficulty {@link #customPreviewInput} parses to - UNCLAMPED to the live Min/Max cap band
-     * (it is a deliberate probe of an arbitrary difficulty, not a sample of the live operating range; the
-     * curve's own multiplier caps still bound the resulting HP/damage factors same as any other
-     * difficulty). Hidden whenever the field is blank or not a parseable number &gt;= 1 (never a
-     * negative or zero difficulty).
+     * Build-time lines of the read-only MMO panel: the power floor and ceiling this mod can read through
+     * the frozen API (or one line saying it cannot), the viewing admin's own power, and where the numbers
+     * are edited. Every read is guarded ({@link MmoPowerBounds}): a missing or older MMO jar degrades to
+     * "not available" instead of failing the page. This mod never widens that API and never writes an
+     * MMO file.
      */
-    private void refreshCustomPreviewLine(@Nonnull UICommandBuilder cmd,
-            @Nonnull MobScaleFold.DifficultyStatCurve curve, @Nonnull OptionalInt baseHealth) {
-        Double d = parseProbeDifficulty(customPreviewInput);
-        cmd.set(PREVIEW_CUSTOM_LINE_SEL + ".Visible", d != null);
-        if (d != null) {
-            cmd.set(PREVIEW_CUSTOM_LINE_SEL + ".TextSpans", previewRow(curve, baseHealth, d));
+    private static void buildMmoPanel(@Nonnull UICommandBuilder cmd, @Nullable Double ownPower) {
+        cmd.set(MMO_TITLE_SEL + ".TextSpans", tr("mmomobscaling.ui.mmo.header"));
+        Double min = MmoPowerBounds.min();
+        Double max = MmoPowerBounds.max();
+        cmd.set(MMO_POWER_SEL + ".TextSpans", min != null && max != null
+                ? tr("mmomobscaling.ui.mmo.power").param("min", oneDecimal(min)).param("max", oneDecimal(max))
+                : tr("mmomobscaling.ui.mmo.unavailable"));
+        cmd.set(MMO_OWN_POWER_SEL + ".Visible", ownPower != null);
+        if (ownPower != null) {
+            cmd.set(MMO_OWN_POWER_SEL + ".TextSpans",
+                    tr("mmomobscaling.ui.mmo.own_power").param("power", Math.round(ownPower)));
         }
+        cmd.set(MMO_WHERE_SEL + ".TextSpans", tr("mmomobscaling.ui.mmo.where"));
+    }
+
+    /**
+     * The one MMO-panel line that depends on the form: how the CURRENT Min/Max difficulty caps sit against
+     * the power floor and ceiling, the same comparison the boot audit's caps cross-check makes (a ceiling
+     * above player power is the supported way to let the far zones out-scale a maxed group; one below it
+     * folds every strong group onto one difficulty). Hidden when the bounds are unreadable.
+     */
+    private static void refreshMmoCapLine(@Nonnull UICommandBuilder cmd, double minCap, double maxCap) {
+        Double powerMin = MmoPowerBounds.min();
+        Double powerMax = MmoPowerBounds.max();
+        if (powerMin == null || powerMax == null) {
+            cmd.set(MMO_CAP_SEL + ".Visible", false);
+            return;
+        }
+        String capKey = maxCap < powerMax - 1e-9 ? "mmomobscaling.ui.mmo.cap_below"
+                : maxCap > powerMax + 1e-9 ? "mmomobscaling.ui.mmo.cap_above"
+                : "mmomobscaling.ui.mmo.cap_equal";
+        Message line = tr(capKey).param("cap", oneDecimal(maxCap)).param("max", oneDecimal(powerMax));
+        if (Math.abs(minCap - powerMin) > 1e-9) {
+            line = Message.join(line, Message.raw("\n"), tr("mmomobscaling.ui.mmo.floor_mismatch")
+                    .param("min", oneDecimal(minCap)).param("powerMin", oneDecimal(powerMin)));
+        }
+        cmd.set(MMO_CAP_SEL + ".Visible", true);
+        cmd.set(MMO_CAP_SEL + ".TextSpans", line);
     }
 
     /** A parseable, finite difficulty &gt;= 1, or {@code null} for blank/invalid/out-of-range input. */
@@ -435,33 +718,23 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         }
     }
 
-    /** A multiplier cell, one decimal place: {@code x2.6}. */
-    @Nonnull
-    private static String formatMult(double v) {
-        return "x" + String.format(Locale.ROOT, "%.1f", v);
+    /**
+     * A display figure rounded to one decimal, bound as a TYPED double so the client formats it: a
+     * difficulty, a kill time, a power bound, a floor. Not for a multiplier that sits beside its own
+     * product ({@link #twoDecimals}).
+     */
+    private static double oneDecimal(double v) {
+        return Math.round(v * 10.0) / 10.0;
     }
 
     /**
-     * The HP cell: the multiplier alone ({@code x2.6}) when {@code baseHealth} did not resolve
-     * (multipliers-only fallback), or the multiplier PLUS the absolute health ({@code x2.6 (239)}, the
-     * base rounded through the same multiplier) when {@link RoleBaseHealthResolver} resolved the sample
-     * role's declared base. One formatted param string either way - no lang-key change needed.
+     * A display multiplier rounded to two decimals, the precision the rarity assets author their
+     * {@code DifficultyMultiplier} at, bound as a TYPED double. Used wherever the preview shows a factor
+     * next to the number it produced (a rung's multiplier beside its difficulty, a cell's multiplier
+     * beside its absolute), so an admin multiplying the shown numbers by hand lands on the shown result.
      */
-    @Nonnull
-    private static String formatHp(double mult, @Nonnull OptionalInt baseHealth) {
-        String m = formatMult(mult);
-        return baseHealth.isPresent() ? m + " (" + Math.round(baseHealth.getAsInt() * mult) + ")" : m;
-    }
-
-    /**
-     * An incoming-damage-reduction cell, whole percent: {@code -22%}. Guarded against {@code -0%} (a
-     * rounds-to-zero reduction shows plain {@code 0%}) and a double-minus (a negative input, which the
-     * curve construction in {@link #buildPreviewCurve} should never produce, still renders sanely).
-     */
-    @Nonnull
-    private static String formatReduction(double reductionPct) {
-        long r = Math.round(reductionPct);
-        return r <= 0 ? "0%" : "-" + r + "%";
+    private static double twoDecimals(double v) {
+        return Math.round(v * 100.0) / 100.0;
     }
 
     // ---------------------------------------------------------------------
@@ -482,10 +755,14 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             case "saveGlobal" -> handleSaveGlobal();
             case "saveZone" -> handleSaveZone();
             case "saveInspector" -> handleSaveInspector();
-            case "editWorld" -> handleEditWorld(data.worldId);
-            case "removeWorld" -> handleRemoveWorld(data.worldId);
+            case "editWorld" -> handleEditWorld(data.id);
+            case "removeWorld" -> handleRemoveWorld(data.id);
             case "saveWorld" -> handleSaveWorld();
             case "clearWorld" -> handleClearWorld();
+            case "editFloor" -> handleEditFloor(data.id);
+            case "removeFloor" -> handleRemoveFloor(data.id);
+            case "saveFloor" -> handleSaveFloor();
+            case "clearFloor" -> handleClearFloor();
             default -> { }
         }
     }
@@ -501,8 +778,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             return;
         }
         boolean isGlobal = globalForm.cache(fieldId, value);
-        if (!isGlobal && !zoneForm.cache(fieldId, value) && !inspectorForm.cache(fieldId, value)) {
-            worldForm.cache(fieldId, value);
+        if (!isGlobal && !zoneForm.cache(fieldId, value) && !inspectorForm.cache(fieldId, value)
+                && !worldForm.cache(fieldId, value)) {
+            floorForm.cache(fieldId, value);
         }
         if (isGlobal) {
             UICommandBuilder cmd = new UICommandBuilder();
@@ -512,15 +790,15 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     }
 
     /**
-     * The manual difficulty-probe field's OWN {@code ValueChanged} event (round-3) - cache the typed
-     * text then repaint ONLY {@link #PREVIEW_CUSTOM_LINE_SEL} (the five fixed sample rows never depend
-     * on it, so there is nothing else to refresh here). Lives outside {@code globalForm} entirely: no
-     * leaf path, nothing to persist, never a save-blocking validation error - just show or hide a line.
+     * The manual difficulty-probe field's OWN {@code ValueChanged} event - cache the typed text then
+     * repaint ONLY the probe row and the ladder (the five fixed sample rows never depend on it, so there
+     * is nothing else to refresh here). Lives outside {@code globalForm} entirely: no leaf path, nothing
+     * to persist, never a save-blocking validation error - just show or hide a row and move the ladder.
      */
     private void handlePreviewDifficulty(@Nullable String value) {
         this.customPreviewInput = value == null ? "" : value;
         UICommandBuilder cmd = new UICommandBuilder();
-        refreshCustomPreviewLine(cmd, buildPreviewCurve(), RoleBaseHealthResolver.baseMaxHealth(PREVIEW_ROLE_NAME));
+        refreshProbeAndLadder(cmd, buildPreviewCurve(), buildPreviewClamps(), previewBaseline());
         sendUpdate(cmd, null, false);
     }
 
@@ -530,11 +808,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         }
         this.activeTab = tab;
         UICommandBuilder cmd = new UICommandBuilder();
-        setSectionVisibility(cmd);
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabGlobal", activeTab.equals("global"));
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabZoneHud", activeTab.equals("zonehud"));
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabInspector", activeTab.equals("inspector"));
-        SettingsUiUtil.setTabActive(cmd, "#MmoscalingTabWorlds", activeTab.equals("worlds"));
+        applyTabState(cmd);
         sendUpdate(cmd, null, false);
     }
 
@@ -675,21 +949,24 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     }
 
     /**
-     * Id derives from the World id field, falling back to Match (both sanitized); at least one of the
-     * two must be non-blank (a blank Match with an id is legal - it authors a pool-only BASE file). A
-     * self-{@code Parent} is rejected. On success the id field reflects the final id and the world list
-     * is rebuilt in the same update.
+     * Id derives from the World id field, falling back to the first Match pattern, then the first
+     * GameplayConfig key (all sanitized); at least one of the three must be non-blank (a blank selector
+     * with an id is legal - it authors a pool-only BASE file). A self-{@code Parent} is rejected. On
+     * success the id field reflects the final id and the world list is rebuilt in the same update.
      */
     private void handleSaveWorld() {
         UICommandBuilder cmd = new UICommandBuilder();
         String rawId = worldForm.value(F_WORLD_ID).trim();
-        String rawMatch = worldForm.value(F_WORLD_MATCH).trim();
-        if (rawId.isEmpty() && rawMatch.isEmpty()) {
+        String firstTarget = firstCsvEntry(worldForm.value(F_WORLD_MATCH));
+        if (firstTarget == null) {
+            firstTarget = firstCsvEntry(worldForm.value(F_WORLD_CONFIGS));
+        }
+        if (rawId.isEmpty() && firstTarget == null) {
             err("mmomobscaling.ui.status.id_or_match_required");
             finish(cmd);
             return;
         }
-        String id = OwnerFiles.sanitizeFileId(rawId.isEmpty() ? rawMatch : rawId);
+        String id = OwnerFiles.sanitizeFileId(rawId.isEmpty() ? firstTarget : rawId);
         String rawParent = worldForm.value(F_WORLD_PARENT).trim();
         // Compare through the SAME sanitizer both sides go through for the filename, not the raw
         // typed text - otherwise worldId "a b" + Parent "a b" (both sanitize to "a_b") slips past.
@@ -704,22 +981,15 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             finish(cmd);
             return;
         }
-        // blankIsInherit=true already puts a null Where.Match leaf for a blank field (TEXT
-        // collectLeaves rule), which is exactly "no Where" = a pool-only base - nothing extra to
-        // enforce here.
+        // The three Where leaves are CSV fields, so each collects as the LIST the schema wants, and an
+        // empty one collects as a null leaf (a removal) - three blank selector fields are exactly "no
+        // Where" = a pool-only base. Nothing extra to enforce here.
         Map<String, Object> leaves = new LinkedHashMap<>(result.leaves());
-        leaves.remove(WORLD_ID_LEAF); // the sentinel: never a real codec key on the world file
+        leaves.remove(ID_LEAF); // the sentinel: never a real codec key on the world file
         // The two name-key prefixes are TEXT fields where an EMPTY string is a value (no prefix) and it
         // seeds as the same blank an unauthored prefix does, so a file that deliberately authors an
         // empty prefix keeps it across a Save instead of falling back to the inherited one.
         WorldFormLeaves.keepAuthoredEmptyText(leaves, WorldSettingsConfig.getInstance().authoredById(id));
-        // The form collects ONE typed pattern; the schema leaf is a LIST. Writing the bare string
-        // would produce a body the codec cannot read, and a world file that fails to decode is a
-        // rule that silently stops applying - so wrap it here, at the one place that knows both.
-        Object typedMatch = leaves.get(MobScalingOwnerWriter.WHERE_MATCH);
-        if (typedMatch instanceof String pattern) {
-            leaves.put(MobScalingOwnerWriter.WHERE_MATCH, List.of(pattern));
-        }
         if (MobScalingOwnerWriter.saveWorldFile(id, leaves)) {
             refreshHuds(); // a per-world HUD corner is one of the leaves this may have changed
             worldForm.seedValue(F_WORLD_ID, id);
@@ -742,6 +1012,226 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         refreshWorldHints(cmd, ""); // blank id: every hint resets to static-only
         clearStatus();
         finish(cmd);
+    }
+
+    // ---------------------------------------------------------------------
+    // Floors tab (zone / biome difficulty floors, one owner file per mapping)
+    // ---------------------------------------------------------------------
+
+    /** Seed the floor editor from the owner file's OWN leaves (see the class javadoc) + the id; no status change. */
+    private void handleEditFloor(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        seedFloorForm(id, DifficultyOwnerLayer.getInstance().authoredById(id));
+        UICommandBuilder cmd = new UICommandBuilder();
+        floorForm.applyValues(cmd, FLOOR_FORM_SEL);
+        refreshFloorHints(cmd, id);
+        sendUpdate(cmd, null, false);
+    }
+
+    /**
+     * Remove the owner file behind a floor row. The writer answers whether a file actually went (no
+     * owner dir, no file under that id or a filesystem refusal all answer false, and none of those
+     * refolds), so the status says what happened: only a real removal clears the editor and rebuilds the
+     * list; a refusal leaves both as they were and reports it.
+     */
+    private void handleRemoveFloor(@Nullable String id) {
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        UICommandBuilder cmd = new UICommandBuilder();
+        if (!MobScalingOwnerWriter.deleteDifficultyMapping(id)) {
+            err("mmomobscaling.ui.status.floor_delete_failed");
+            finish(cmd);
+            return;
+        }
+        seedFloorForm("", null); // never leave the editor pointing at a deleted file
+        floorForm.applyValues(cmd, FLOOR_FORM_SEL);
+        refreshFloorHints(cmd, "");
+        UIEventBuilder events = new UIEventBuilder();
+        buildFloorList(cmd, events);
+        ok("mmomobscaling.ui.status.floor_deleted");
+        finish(cmd, events);
+    }
+
+    /**
+     * Id derives from the file-name field, falling back to the zone/biome name (sanitized; the {@code *}
+     * wildcard cannot name a file, so it needs a file name). A file named after a SHIPPED mapping
+     * overlays it per leaf, so it may carry only the leaves the admin authored (a blank field / Inherit
+     * collects as a null leaf and inherits the shipped value); a brand-new id has nothing to inherit
+     * from and is refused unless all three leaves are set, which is the same rule the owner layer
+     * applies to a hand-written file, caught here before a file that would only warn at fold is written.
+     * On success the id field reflects the final id and the floor list is rebuilt in the same update.
+     */
+    private void handleSaveFloor() {
+        UICommandBuilder cmd = new UICommandBuilder();
+        String rawId = floorForm.value(F_FLOOR_ID).trim();
+        String rawTarget = floorForm.value(F_FLOOR_TARGET).trim();
+        if (rawId.isEmpty() && (rawTarget.isEmpty() || "*".equals(rawTarget))) {
+            err("mmomobscaling.ui.status.floor_id_required");
+            finish(cmd);
+            return;
+        }
+        String id = OwnerFiles.sanitizeFileId(rawId.isEmpty() ? rawTarget : rawId);
+        FormResult result = floorForm.collectLeaves(true);
+        if (!result.ok()) {
+            emitInvalidField(result);
+            finish(cmd);
+            return;
+        }
+        Map<String, Object> leaves = new LinkedHashMap<>(result.leaves());
+        leaves.remove(ID_LEAF); // the sentinel: never a real codec key on the mapping file
+        boolean overlaysShipped = DifficultyConfig.getInstance().packMapping(id) != null;
+        if (!overlaysShipped && (leaves.get(LEAF_TARGET_TYPE) == null || leaves.get(LEAF_TARGET_ID) == null
+                || leaves.get(LEAF_FLOOR) == null)) {
+            err("mmomobscaling.ui.status.floor_incomplete");
+            finish(cmd);
+            return;
+        }
+        if (MobScalingOwnerWriter.saveDifficultyMapping(id, leaves)) {
+            floorForm.seedValue(F_FLOOR_ID, id);
+            floorForm.applyValue(cmd, FLOOR_FORM_SEL, F_FLOOR_ID);
+            refreshFloorHints(cmd, id);
+            UIEventBuilder events = new UIEventBuilder();
+            buildFloorList(cmd, events);
+            ok("mmomobscaling.ui.status.saved");
+            finish(cmd, events);
+        } else {
+            err("mmomobscaling.ui.status.floor_save_failed");
+            finish(cmd);
+        }
+    }
+
+    private void handleClearFloor() {
+        seedFloorForm("", null);
+        UICommandBuilder cmd = new UICommandBuilder();
+        floorForm.applyValues(cmd, FLOOR_FORM_SEL);
+        refreshFloorHints(cmd, ""); // blank id: every hint resets to static-only
+        clearStatus();
+        finish(cmd);
+    }
+
+    /**
+     * Seed the floor editor from an (id, owner file's own leaves) pair. {@code authored == null} (a
+     * brand-new / cleared editor, or a shipped mapping no owner file overlays yet) seeds every leaf
+     * blank/Inherit, and the hints then say what each blank field inherits from the shipped mapping.
+     */
+    private void seedFloorForm(@Nonnull String id, @Nullable DifficultyMappingAsset authored) {
+        Map<String, String> seed = new LinkedHashMap<>();
+        seed.put(F_FLOOR_ID, id);
+        seed.put(F_FLOOR_TYPE, targetTypeWord(authored == null ? null : authored.getTargetType()));
+        seed.put(F_FLOOR_TARGET, textOrBlank(authored == null ? null : authored.getTargetId()));
+        seed.put(F_FLOOR_VALUE, numOrBlank(authored == null ? null : authored.getFloor()));
+        floorForm.seed(seed);
+    }
+
+    /**
+     * Recompute + push every floor-editor {@code #Hint}: the spec's static help text alone for an
+     * authored field, or that text PLUS a computed "Inherits: X" line for a field still blank/Inherit
+     * while {@code id} names a SHIPPED mapping ({@link DifficultyConfig#packMapping}, the layer an owner
+     * file overlays). A blank id, or one nothing ships, shows static-only: there is nothing to inherit.
+     */
+    private void refreshFloorHints(@Nonnull UICommandBuilder cmd, @Nonnull String id) {
+        DifficultyMapping shipped = id.isBlank() ? null : DifficultyConfig.getInstance().packMapping(id);
+        for (FieldSpec spec : FLOOR_SPECS) {
+            String hintKey = spec.hintKey();
+            if (hintKey == null) {
+                continue; // the NOTE, or a spec authored with no hint
+            }
+            String fieldId = spec.id();
+            String current = floorForm.value(fieldId).trim();
+            boolean blank = current.isEmpty() || "inherit".equals(current);
+            Message inheritsValue = shipped == null ? null : inheritedFloorLeaf(fieldId, shipped);
+            Message hint = tr(hintKey);
+            if (blank && inheritsValue != null) {
+                hint = Message.join(hint, Message.raw("\n"), inheritsSegment(inheritsValue));
+            }
+            floorForm.applyHint(cmd, FLOOR_FORM_SEL, fieldId, hint);
+        }
+    }
+
+    /**
+     * The shipped mapping's value for one floor-editor field, as a nested {@link Message}: the localized
+     * type word, the literal target name, or the floor bound as a typed number; {@code null} for the
+     * file-name field, which inherits nothing.
+     */
+    @Nullable
+    private static Message inheritedFloorLeaf(@Nonnull String fieldId, @Nonnull DifficultyMapping shipped) {
+        return switch (fieldId) {
+            case F_FLOOR_TYPE -> targetTypeName(shipped.targetType());
+            case F_FLOOR_TARGET -> Message.raw(shipped.targetId());
+            case F_FLOOR_VALUE -> tr("mmomobscaling.ui.number").param("n", oneDecimal(shipped.floor()));
+            default -> null;
+        };
+    }
+
+    /** The localized word for a mapping's target type (the Floors list's sub line and the inherits hint). */
+    @Nonnull
+    private static Message targetTypeName(@Nonnull DifficultyMapping.TargetType type) {
+        return tr(targetTypeLabelKey(codecWord(type)));
+    }
+
+    /** The codec's own word for a target type ({@code Zone} / {@code Biome}), the dropdown value a save writes. */
+    @Nonnull
+    private static String codecWord(@Nonnull DifficultyMapping.TargetType type) {
+        return type == DifficultyMapping.TargetType.ZONE ? WORD_ZONE : WORD_BIOME;
+    }
+
+    /** The lang key behind one floor-type dropdown value: the two codec words, else the Inherit pseudo-value. */
+    @Nonnull
+    private static String targetTypeLabelKey(@Nonnull String value) {
+        return switch (value) {
+            case WORD_ZONE -> "mmomobscaling.ui.floor.type_zone";
+            case WORD_BIOME -> "mmomobscaling.ui.floor.type_biome";
+            default -> "mmomobscaling.ui.floor.type_inherit";
+        };
+    }
+
+    /**
+     * Build-time: relabel the floor editor's type dropdown with the localized words. The shared form
+     * paints a DROPDOWN's entries as literal label == value pairs, so on its own the row would show the
+     * codec words {@code Zone} / {@code Biome} and the {@code inherit} pseudo-value untranslated, one
+     * panel away from the same words localized on the Floors list. Only the labels change: the values
+     * stay the codec's own (what {@code collectLeaves} writes and {@link #seedFloorForm} seeds), and a
+     * later {@code applyValues} touches {@code .Value} alone, so the entries survive every partial update.
+     */
+    private void localizeFloorTypeEntries(@Nonnull UICommandBuilder cmd) {
+        for (int i = 0; i < FLOOR_SPECS.size(); i++) {
+            if (!F_FLOOR_TYPE.equals(FLOOR_SPECS.get(i).id())) {
+                continue;
+            }
+            List<DropdownEntryInfo> entries = new ArrayList<>(TARGET_TYPES_INHERIT.length);
+            for (String value : TARGET_TYPES_INHERIT) {
+                entries.add(new DropdownEntryInfo(LocalizableString.fromMessageId(targetTypeLabelKey(value)), value));
+            }
+            SettingsUiUtil.populate(cmd, FLOOR_FORM_SEL + "[" + i + "] #Dropdown", entries, floorForm.value(F_FLOOR_TYPE));
+            return;
+        }
+    }
+
+    /**
+     * An authored {@code TargetType} string as the floor editor's dropdown value: the codec's own casing
+     * ({@code Zone} / {@code Biome}) whatever case the file used, or {@code inherit} when absent or
+     * unknown (an unknown word is what the owner layer skips with a warning; the editor shows Inherit
+     * rather than a value the dropdown cannot display).
+     */
+    @Nonnull
+    private static String targetTypeWord(@Nullable String raw) {
+        DifficultyMapping.TargetType type = DifficultyMapping.TargetType.parse(raw);
+        return type == null ? WORD_INHERIT : codecWord(type);
+    }
+
+    /** The first non-blank entry of a comma-separated field, trimmed; {@code null} when there is none. */
+    @Nullable
+    private static String firstCsvEntry(@Nonnull String raw) {
+        for (String part : raw.split(",")) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                return trimmed;
+            }
+        }
+        return null;
     }
 
     // ---------------------------------------------------------------------
@@ -820,9 +1310,13 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         WorldSettings.VariantGate variants = pool == null ? null : pool.getVariants();
         WorldSettings.AffixGate affixes = pool == null ? null : pool.getAffixes();
 
+        WorldSelector where = ws == null ? null : ws.getWhere();
+
         Map<String, String> seed = new LinkedHashMap<>();
         seed.put(F_WORLD_ID, id);
-        seed.put(F_WORLD_MATCH, textOrBlank(ws == null ? null : ws.firstMatchPattern()));
+        seed.put(F_WORLD_MATCH, csvOrBlank(where == null ? null : where.getMatch()));
+        seed.put(F_WORLD_CONFIGS, csvOrBlank(where == null ? null : where.getGameplayConfig()));
+        seed.put(F_WORLD_EXCLUDES, csvOrBlank(where == null ? null : where.getExcludeMatch()));
         seed.put(F_WORLD_PARENT, textOrBlank(parent));
         seed.put("wEnabled", triOrInherit(ws == null ? null : ws.getEnabled()));
         seed.put("wRarity", numOrBlank(ws == null ? null : ws.getRaritySpawnChance()));
@@ -929,8 +1423,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
      * {@link MobScalingConfig} value (a Pool gate's global is allow-all / an empty deny list / neutral
      * scale / zero extra slots; a per-world HUD tri-state's global is the zone/inspector enabled flag). A
      * numeric/technical value (a number, a dropdown mode, a comma-joined id list) is NOT translatable
-     * prose, so it wraps as a literal {@link Message#raw}. Carries no entry for the world-identity fields
-     * ({@code worldId}/{@code worldMatch}/{@code worldParent}) - they have no global fallback to inherit.
+     * prose, so it wraps as a literal {@link Message#raw}. Carries no entry for the five world-identity
+     * fields ({@code worldId}, the three {@code Where} fields {@code worldMatch}/{@code worldConfigs}/
+     * {@code worldExcludes}, and {@code worldParent}) - they have no global fallback to inherit.
      */
     @Nonnull
     private static Map<String, Message> effectiveWorldDisplayValues(@Nonnull String id) {
@@ -1182,16 +1677,22 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     /**
      * Hint-reuse convention (round-2 hardening): a world field that reuses a GLOBAL label key (identical
      * meaning, just a per-world override) also reuses that GLOBAL hint key. A TRISTATE, a pool gate, or a
-     * world-identity field (id/match/parent) has no true global equivalent (Inherit is a distinct
+     * world-identity field (id, the three {@code Where} selectors, parent) has no true global equivalent (Inherit is a distinct
      * affordance from a plain toggle, and a pool gate/identity leaf has nothing to reuse from) and gets
      * its OWN {@code w_*}/{@code pool_*}/{@code world_*} key instead.
      */
     @Nonnull
     private static List<FieldSpec> buildWorldSpecs() {
         List<FieldSpec> s = new ArrayList<>();
-        s.add(FieldSpec.text(F_WORLD_ID, WORLD_ID_LEAF, "mmomobscaling.ui.world.id").withHint("mmomobscaling.ui.hint.world_id"));
-        s.add(FieldSpec.text(F_WORLD_MATCH, MobScalingOwnerWriter.WHERE_MATCH, "mmomobscaling.ui.world.match")
+        s.add(FieldSpec.text(F_WORLD_ID, ID_LEAF, "mmomobscaling.ui.world.id").withHint("mmomobscaling.ui.hint.world_id"));
+        // The shared Where selector, every axis: three CSV fields, each collecting the LIST leaf the
+        // codec wants (a blank one collects as a removal, so three blanks author a pool-only base).
+        s.add(FieldSpec.csv(F_WORLD_MATCH, MobScalingOwnerWriter.WHERE_MATCH, "mmomobscaling.ui.world.match")
                 .withHint("mmomobscaling.ui.hint.world_match"));
+        s.add(FieldSpec.csv(F_WORLD_CONFIGS, MobScalingOwnerWriter.WHERE_GAMEPLAY_CONFIG,
+                "mmomobscaling.ui.world.gameplay_configs").withHint("mmomobscaling.ui.hint.world_gameplay_configs"));
+        s.add(FieldSpec.csv(F_WORLD_EXCLUDES, MobScalingOwnerWriter.WHERE_EXCLUDE_MATCH,
+                "mmomobscaling.ui.world.exclude_match").withHint("mmomobscaling.ui.hint.world_exclude_match"));
         s.add(FieldSpec.text(F_WORLD_PARENT, "Parent", "mmomobscaling.ui.world.parent")
                 .withHint("mmomobscaling.ui.hint.world_parent"));
         s.add(FieldSpec.tristate("wEnabled", "Enabled", "mmomobscaling.ui.world.enabled")
@@ -1282,6 +1783,27 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.number("wInspRange", "InspectorHud.RangeBlocks", "mmomobscaling.ui.inspector.range")
                 .withHint("mmomobscaling.ui.hint.insp_range"));
         s.add(FieldSpec.note("wHint", "mmomobscaling.ui.world.hint"));
+        return List.copyOf(s);
+    }
+
+    /**
+     * The floor editor: the file name (the sentinel {@link #ID_LEAF}, popped before a save), then the
+     * three leaves of a {@code DifficultyMappingAsset} - the target type as an Inherit-led dropdown of
+     * the codec's two words, the native zone/biome name, the floor - and the precedence note. A blank
+     * field / Inherit collects as a null leaf, so a file named after a shipped mapping carries only what
+     * the admin authored and inherits the rest per leaf (the owner layer's contract).
+     */
+    @Nonnull
+    private static List<FieldSpec> buildFloorSpecs() {
+        List<FieldSpec> s = new ArrayList<>();
+        s.add(FieldSpec.text(F_FLOOR_ID, ID_LEAF, "mmomobscaling.ui.floor.id").withHint("mmomobscaling.ui.hint.floor_id"));
+        s.add(FieldSpec.dropdown(F_FLOOR_TYPE, LEAF_TARGET_TYPE, "mmomobscaling.ui.floor.type", TARGET_TYPES_INHERIT)
+                .withHint("mmomobscaling.ui.hint.floor_type"));
+        s.add(FieldSpec.text(F_FLOOR_TARGET, LEAF_TARGET_ID, "mmomobscaling.ui.floor.target")
+                .withHint("mmomobscaling.ui.hint.floor_target"));
+        s.add(FieldSpec.number(F_FLOOR_VALUE, LEAF_FLOOR, "mmomobscaling.ui.floor.value")
+                .withHint("mmomobscaling.ui.hint.floor_value"));
+        s.add(FieldSpec.note("floorHint", "mmomobscaling.ui.floor.hint"));
         return List.copyOf(s);
     }
 
@@ -1530,14 +2052,15 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     public static final class EventData {
         public String action;
         public String tab;
-        public String worldId;
+        /** The row id of whichever list the pressed button sits in: a world file id, a floor mapping id. */
+        public String id;
         public String field;
         public String value;
 
         public static final BuilderCodec<EventData> CODEC = BuilderCodec.builder(EventData.class, EventData::new)
                 .append(new KeyedCodec<>("Action", Codec.STRING), (d, v, i) -> d.action = v, (d, i) -> d.action).add()
                 .append(new KeyedCodec<>("Tab", Codec.STRING), (d, v, i) -> d.tab = v, (d, i) -> d.tab).add()
-                .append(new KeyedCodec<>("WorldId", Codec.STRING), (d, v, i) -> d.worldId = v, (d, i) -> d.worldId).add()
+                .append(new KeyedCodec<>("Id", Codec.STRING), (d, v, i) -> d.id = v, (d, i) -> d.id).add()
                 .append(new KeyedCodec<>("Field", Codec.STRING), (d, v, i) -> d.field = v, (d, i) -> d.field).add()
                 .append(new KeyedCodec<>("@Value", Codec.STRING), (d, v, i) -> d.value = v, (d, i) -> d.value).add()
                 .build();

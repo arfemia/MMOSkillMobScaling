@@ -19,9 +19,11 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.mmoskilltree.event.CombatDamageEventSystem;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
+import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
 
 /**
  * The per-hit DAMAGE-MULTIPLY filter: a {@link DamageEventSystem} in {@code DamageModule.getFilterDamageGroup()}
@@ -116,6 +118,7 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
 
             float scaled = amount;
             if (attackerComp != null) {
+                observeBaseHit(store, attackerRef, amount);
                 scaled *= attackerComp.result().outDmgMult(); // mob dealing damage
             }
             if (victimComp != null) {
@@ -155,6 +158,23 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
             return 1f;
         }
         return Math.max(0f, scaled);
+    }
+
+    /**
+     * Feed the admin page's preview the hit a scaled mob dealt as the engine rolled it: {@code amount}
+     * here is the attacker's own number, before this mod's multiply and before armor, which is the
+     * base the preview's "Hit" cell scales (see {@link RoleBaseHitResolver} for why it is observed and
+     * never read off the role template). Display-only; a failed role read simply records nothing.
+     */
+    private static void observeBaseHit(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> attackerRef,
+            float amount) {
+        if (attackerRef == null) {
+            return;
+        }
+        String roleName = EntityIdentifierUtil.roleName(store, attackerRef);
+        if (roleName != null) {
+            RoleBaseHitResolver.recordObserved(roleName, amount);
+        }
     }
 
     @Nullable

@@ -48,6 +48,29 @@ class MobScaleFoldTest {
     }
 
     @Test
+    void railFlagsSayExactlyWhereACeilingDecidesTheFactor() {
+        // Under both rails the flags are clear and the factors are the unclamped lines.
+        assertFalse(CURVE.effectiveHpRailed(100.0));
+        assertFalse(CURVE.outRailed(100.0));
+        assertEquals(1.0 + 99.0 * 0.08, CURVE.effectiveHp(100.0), 1e-12);
+        // Far past both rails the flags are set and the factors sit ON the rails: raising the slope
+        // would change nothing there, which is what the preview marks.
+        assertTrue(CURVE.effectiveHpRailed(300.0));
+        assertTrue(CURVE.outRailed(300.0));
+        assertEquals(CURVE.maxEffectiveHpMult(), CURVE.effectiveHp(300.0), 1e-12);
+        assertEquals(CURVE.maxOutDamageMult(), CURVE.outFactor(300.0), 1e-12);
+        // Each flag flips exactly where its own line crosses its own rail (1 + (d-1)*0.08 > 20 at d > 238.5;
+        // 1 + 0.2*(d-1) > 60 at d > 296), so the two axes rail independently.
+        assertFalse(CURVE.effectiveHpRailed(238.0));
+        assertTrue(CURVE.effectiveHpRailed(239.0));
+        assertFalse(CURVE.outRailed(296.0));
+        assertTrue(CURVE.outRailed(297.0));
+        // The identity curve has no rail to hold anything: never railed, at any difficulty.
+        assertFalse(DifficultyStatCurve.NONE.effectiveHpRailed(1_000_000.0));
+        assertFalse(DifficultyStatCurve.NONE.outRailed(1_000_000.0));
+    }
+
+    @Test
     void identityCurveIsAllOnesWhateverTheDifficultyOrTier() {
         MobScaleResult plain = MobScaleFold.plain(12.0, MobScaleResult.SCOPE_HOSTILE, DifficultyStatCurve.NONE);
         assertEquals(1f, plain.hpMult());

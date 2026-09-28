@@ -135,10 +135,9 @@ public final class WorldSettings {
     }
 
     /**
-     * The first authored {@code Where.Match} pattern, or {@code null}. The admin form edits ONE
-     * pattern, so this is what it seeds from; a rule authored with several patterns keeps them all
-     * on disk and only the first is shown, which is why the form writes back rather than replacing
-     * a whole selector.
+     * The first authored {@code Where.Match} pattern, or {@code null}: the one-word handle a listing or
+     * a test reaches for when a rule is known by its lead pattern. The admin editor edits the whole
+     * list, so this is a read-side convenience only.
      */
     @Nullable
     public String firstMatchPattern() {

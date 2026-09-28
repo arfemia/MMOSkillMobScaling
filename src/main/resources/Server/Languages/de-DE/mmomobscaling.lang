@@ -103,6 +103,7 @@ ui.tab.global = Global
 ui.tab.zone_hud = Zone-HUD
 ui.tab.inspector = Inspektor
 ui.tab.worlds = Welten
+ui.tab.floors = Untergrenzen
 
 ui.toggle.on = AN
 ui.toggle.off = AUS
@@ -140,9 +141,29 @@ ui.global.clamps_header = Sicherheitsgrenzen
 
 # Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
 ui.global.preview_title = Vorschau: Skelett
-ui.global.preview_note = Ein einfacher Mob, durch die obige Schwierigkeits-Statuskurve gerechnet. Eine Seltenheit oder Variante liest dieselbe Kurve weiter vorn, bei dieser Schwierigkeit mal ihrem eigenen Multiplikator.
-ui.global.preview_row = S{diff}   HP {hp}   Schaden {out}   Erlitten {in}
+ui.global.preview_note = Ein einfaches Skelett, durch die Kurve links gerechnet, bei fünf Schwierigkeiten zwischen Ihrem Minimum und Maximum. Leben und Treffer zeigen die echte Zahl, sobald der Mod eine gesehen hat: das Leben, mit dem ein Skelett gespawnt ist, und den letzten Treffer, den eines gelandet hat. Die Tötungszeit sagt, wie viel länger es dauert als bei einem unskalierten Mob. Ein bernsteinfarbener Hinweis auf eine Grenze heißt, dass eine Obergrenze diese Zeile festhält; die Steigung anzuheben ändert dort nichts.
+ui.global.preview_row = S{diff}   HP {hp}   Treffer {out}   Erlitten {in}%
 ui.global.preview_custom = Eine Schwierigkeit testen
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Tötungszeit x{ttk}
+ui.global.preview_rail_hp = Zähigkeitsgrenze greift
+ui.global.preview_rail_out = Treffergrenze greift
+ui.global.preview_rail_both = beide Grenzen greifen
+ui.global.ladder_title = Seltenheitsleiter bei S{diff}
+ui.global.ladder_note = Jede Stufe liest dieselbe Kurve bei dieser Schwierigkeit mal ihrem eigenen Multiplikator. Geben Sie oben eine Schwierigkeit ein, um die Leiter zu verschieben; leer folgt sie der Grundlinie.
+ui.global.ladder_row = {name} x{mult}   S{diff}   HP {hp}   Treffer {out}   Erlitten {in}%
+ui.global.ladder_plain = Einfach
+ui.number = {n}
+ui.mmo.header = MMO-Seite (nur lesen)
+ui.mmo.power = Die Spielermacht reicht von {min} bis {max}. Ein einfacher Mob bei Schwierigkeit N ist der ausgeglichene Kampf für einen Spieler mit Macht N.
+ui.mmo.unavailable = Spielermacht-Bereich: nicht verfügbar. Das MMO-Jar, das dieser Mod lesen kann, fehlt oder ist älter als das, gegen das er gebaut wurde.
+ui.mmo.own_power = Ihre eigene Macht gerade: {power}
+ui.mmo.cap_above = Ihre maximale Schwierigkeit {cap} liegt über der Macht-Obergrenze {max}, also können ferne Zonen selbst eine ausgereizte Gruppe überflügeln. Genau so ist es vorgesehen.
+ui.mmo.cap_below = Ihre maximale Schwierigkeit {cap} liegt unter der Macht-Obergrenze {max}. Jede Gruppe darüber trifft dieselbe Schwierigkeit; heben Sie das Maximum auf mindestens {max}.
+ui.mmo.cap_equal = Ihre maximale Schwierigkeit {cap} entspricht der Macht-Obergrenze {max}: eine ausgereizte Gruppe trifft oben einen ausgeglichenen Kampf und nichts Härteres.
+ui.mmo.floor_mismatch = Ihre minimale Schwierigkeit {min} weicht von der Macht-Untergrenze {powerMin} ab; die beiden Skalen sollten gemeinsam beginnen.
+ui.mmo.where = Diese Zahlen werden auf der MMO-Seite bearbeitet, nicht hier: auf der Seite Power Level im MMO-Adminmenü oder in mods/mmoskilltree/power-level.json (Clamp.MinPower und MaxPower). Die Spieler-Schadensminderungsgrenzen, gegen die die Trefferkurve hergeleitet ist, liegen in mods/mmoskilltree/ability-clamps.json über Server/MMOSkillTree/ModifierClamps, und dieser Mod kann sie nicht lesen.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Zähigkeit pro Punkt
@@ -182,6 +203,8 @@ ui.world.new = Neue Welt
 ui.world.id = Dateiname
 ui.world.match = Weltmatch
 ui.world.parent = Übergeordnete Datei
+ui.world.gameplay_configs = Gameplay-Configs
+ui.world.exclude_match = Welten ausschließen
 ui.world.enabled = Skalierung in dieser Welt
 ui.world.tuning_header = Abstimmung
 ui.world.floor = Basis-Schwierigkeitsuntergrenze
@@ -204,6 +227,18 @@ ui.world.hint = Jede Einstellung hier ist bearbeitbar: Abstimmung, Distanzeskala
 ui.world.inherits = Erbt von: {value}
 ui.world.inherits_all = (alle)
 ui.world.inherits_none = (keine)
+ui.floor.empty = Noch keine Zonen- oder Biom-Untergrenzen geladen.
+ui.floor.editor_header = Untergrenze hinzufügen / bearbeiten
+ui.floor.new = Neue Untergrenze
+ui.floor.id = Dateiname
+ui.floor.type = Gilt für
+ui.floor.type_zone = Zone
+ui.floor.type_biome = Biom
+ui.floor.type_inherit = Erben
+ui.floor.target = Zonen- oder Biomname
+ui.floor.value = Schwierigkeits-Untergrenze
+ui.floor.row_sub = {type} {target}, Untergrenze {floor}
+ui.floor.hint = Eine Untergrenze ist die Schwierigkeit, mit der ein Spawn beginnt, bevor Entfernung und nahe Spieler dazukommen. Die genaueste Zuordnung gewinnt: ein exakter Zonenname, dann eine Zonenfamilie wie Zone2 für jede Zone2_-Unterzone, dann dasselbe für Biome, dann die *-Platzhalter, dann die Grundlinie im Reiter Global. Lassen Sie ein Feld leer, um zu behalten, was die mitgelieferte Zuordnung sagt.
 
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
@@ -222,7 +257,7 @@ ui.hint.hp_share = Wie viel dieser Zähigkeit als Gesundheit auf der Leiste ersc
 ui.hint.out_scale = Wie schnell der Schlag eines Mobs mit der Schwierigkeit wächst; bei einer Form von 1.0 ist das der zusätzliche Schaden pro Schwierigkeitspunkt über dem Grundwert.
 ui.hint.out_shape = Wie sich die Schadenskurve krümmt: 1.0 ist eine Gerade, darüber schlagen niedrige Schwierigkeiten nur wenig härter zu, hohe dagegen sehr viel härter.
 ui.hint.max_ehp = Wie viel mal länger als bei einem Grundwert-Mob das Töten irgendeines Mobs höchstens dauern darf, den Widerstand eines Affixes eingerechnet; lass es deutlich über dem oberen Ende der Kurve, sonst enden dort alle Stufen gleich.
-ui.hint.max_out = Die härteste Obergrenze, auf die die Schwierigkeitskurve einen Mob-Ausgangsschaden-Multiplikator jemals drücken kann.
+ui.hint.max_out = Das Vielfache seines Grundtreffers, das ein Mob höchstens austeilen darf. Halten Sie es deutlich über dem oberen Ende der Kurve, sonst schlagen dort alle Stufen gleich zu.
 ui.hint.clamp_min_hp = Auf wie wenig die Gesundheit eines Mobs höchstens herunterskaliert werden darf, als Anteil des Grundwerts.
 ui.hint.clamp_max_in = Wie viel Schaden ein Mob pro Treffer höchstens erleiden darf, als Vielfaches des Normalen; über eins erlaubt ein Glaskanonen-Affix.
 ui.hint.clamp_min_out = Auf wie wenig der Treffer eines Mobs höchstens herunterskaliert werden darf, als Anteil des Grundtreffers.
@@ -237,7 +272,7 @@ ui.hint.esc_rarity = Wie viel zusätzliche Seltenheits-Spawnchance die Distanzes
 ui.hint.player_scaling = Ob nahegelegene Spieler und ihre Macht die Schwierigkeit einer Region überhaupt erhöhen.
 ui.hint.player_ring = Geschützter Radius um den Weltspawn, in dem die Stärke naher Spieler die Schwierigkeit nie erhöht. Null bedeutet kein Schutzbereich, die Gruppenskalierung gilt also überall.
 ui.hint.aggregation = Wie die Macht mehrerer nahegelegener Spieler in eine Regionschwierigkeit-Anzeige fließt.
-ui.hint.region_size = Die Größe des Nähe-Gitters, das verwendet wird, um Spieler in eine gemeinsame Regionsanzeige einzuordnen.
+ui.hint.region_size = Wie viele Chunks breit eine Gruppenmacht-Region ist. Spieler im selben Quadrat zählen für die Schwierigkeit, die sie antreffen, als eine Gruppe.
 ui.hint.band_width = Wie viel die Schwierigkeit einer Region von ihrer Grundlage durch nahegelegene Spielermacht abweichen kann.
 ui.hint.only_raise = Wenn aktiviert, kann die Macht nahegelegener Spieler die Schwierigkeit einer Region nur erhöhen, niemals unter den Grundwert absenken.
 
@@ -256,9 +291,11 @@ ui.hint.insp_portrait = Ob die Inspektor-Karte das generierte Porträtbild des Z
 ui.hint.insp_range = Wie weit das Fadenkreuz reicht, um einen Mob zum Inspizieren zu erkennen.
 
 # Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
-ui.hint.world_id = Der Dateiname, unter dem die Einstellungen dieser Welt gespeichert werden; leer lassen, um ihn aus dem Match-Muster abzuleiten.
-ui.hint.world_match = Welche Welt diese Datei betrifft: ein genauer Name, ein Platzhalter-Präfix oder ein einfacher Platzhalter für jede Welt.
+ui.hint.world_id = Der Dateiname, unter dem die Einstellungen dieser Welt gespeichert werden; leer lassen, um ihn nach dem ersten Weltmatch-Muster zu benennen, oder nach dem ersten Gameplay-Config-Schlüssel, wenn es kein Muster gibt.
+ui.hint.world_match = Weltnamen, für die diese Datei gilt, durch Kommas getrennt: genaue Namen oder Platzhaltermuster. Lassen Sie alle drei Zielfelder leer für eine Basisdatei, von der andere Dateien erben.
 ui.hint.world_parent = Eine andere Weltdatei, von der Einstellungen geerbt werden, bevor die eigenen Übergrifftionen dieser Datei angewendet werden.
+ui.hint.world_gameplay_configs = Gameplay-Config-Schlüssel, für die diese Datei gilt, durch Kommas getrennt. Der einzige stabile Griff an einer Instanzwelt, deren Name sich bei jeder Erstellung ändert.
+ui.hint.world_exclude_match = Weltnamen oder Muster, für die diese Datei nie gelten darf, durch Kommas getrennt, auch wenn ein Match oben sie erfassen würde.
 ui.hint.w_enabled = Ob die Mob-Skalierung in dieser Welt überhaupt läuft. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
 ui.hint.w_esc_enabled = Ob die Distanzeskalation in dieser Welt angewendet wird. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
 ui.hint.w_player_scaling = Ob nahegelegene Spieler in dieser Welt die Schwierigkeit erhöhen. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
@@ -275,6 +312,10 @@ ui.hint.w_zone_hud = Ob die Zonen-Schwierigkeits-Anzeige in dieser Welt angezeig
 ui.hint.w_inspector_hud = Ob die Mob-Inspektor-Anzeige in dieser Welt angezeigt werden darf. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
 ui.hint.w_zone_show_location = Ob die Anzeige in dieser Welt auch den Namen der aktuellen Zone und des aktuellen Bioms anzeigt. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
 ui.hint.w_insp_portrait = Ob die Inspektor-Karte in dieser Welt das Porträt des Ziels anzeigt. Erben folgt der übergeordneten Datei, dann der globalen Einstellung.
+ui.hint.floor_id = Die Datei, unter der diese Untergrenze in mods/MmoMobScaling/difficulty gespeichert wird. Benennen Sie sie nach einer mitgelieferten Zuordnung, um diese nachzustimmen; leer lassen, um sie nach der Zone oder dem Biom zu benennen.
+ui.hint.floor_type = Ob der Name unten eine Zone oder ein Biom ist. Erben behält die Antwort der mitgelieferten Zuordnung.
+ui.hint.floor_target = Der eigene Zonen- oder Biomname des Spiels, etwa Zone2_Tier1 oder Ocean1. Ein Familienname wie Zone2 deckt jede Zone2_-Unterzone ab, und * deckt ab, was die anderen Zuordnungen auslassen.
+ui.hint.floor_value = Die Schwierigkeit, mit der ein Spawn dort beginnt. Distanz-Eskalation und nahe Spielermacht kommen obendrauf, dann begrenzen Minimum und Maximum sie.
 
 # Status line.
 ui.status.saved = Gespeichert.
@@ -285,4 +326,9 @@ ui.status.save_failed = Die Weltdatei konnte nicht geschrieben werden.
 ui.status.invalid_field = Geben Sie einen gültigen Wert für {field} ein. Zahlen müssen 0 oder höher sein, Chancen müssen zwischen 0 und 1 liegen, und Ganzzahl-Felder müssen eine ganze Zahl sein.
 ui.status.invalid_caps = Maximum muss mindestens dem Minimum entsprechen.
 ui.status.unknown_preset = Unbekanntes Preset.
-ui.status.id_or_match_required = Geben Sie zuerst einen Dateinamen oder ein Weltmatch-Muster ein.
+ui.status.id_or_match_required = Geben Sie zuerst einen Dateinamen, ein Weltmatch-Muster oder einen Gameplay-Config-Schlüssel ein.
+ui.status.floor_deleted = Untergrenzen-Datei entfernt. Die mitgelieferte Zuordnung gilt wieder.
+ui.status.floor_incomplete = Eine neue Untergrenze braucht alle drei: wofür sie gilt, den Zonen- oder Biomnamen und die Untergrenze.
+ui.status.floor_id_required = Geben Sie zuerst einen Dateinamen oder einen Zonen- oder Biomnamen ein.
+ui.status.floor_save_failed = Die Untergrenzen-Datei konnte nicht geschrieben werden.
+ui.status.floor_delete_failed = Die Untergrenzen-Datei konnte nicht entfernt werden.

@@ -102,6 +102,7 @@ ui.tab.global = Genel
 ui.tab.zone_hud = Bölge HUD
 ui.tab.inspector = İnceleme Aracı
 ui.tab.worlds = Dünyalar
+ui.tab.floors = Tabanlar
 
 ui.toggle.on = AÇIK
 ui.toggle.off = KAPALI
@@ -139,9 +140,29 @@ ui.global.clamps_header = Güvenlik sınırları
 
 # Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
 ui.global.preview_title = Ön İzleme: İskelet
-ui.global.preview_note = Yukarıdaki zorluk istatistik eğrisinden geçirilmiş sıradan bir yaratık. Bir nadirlik ya da varyant aynı eğriyi daha ileride, bu zorluğun kendi çarpanıyla çarpılmış hâlinde okur.
-ui.global.preview_row = Z{diff}   HP {hp}   Hasar {out}   Alınan {in}
+ui.global.preview_note = Soldaki eğriden geçirilmiş sıradan bir iskelet, minimumunuz ile maksimumunuz arasında beş zorlukta. Can ve vuruş, mod bir tane gördüğü anda gerçek sayıyı gösterir: bir iskeletin doğduğu can ve birinin indirdiği son vuruş. Öldürme süresi, ölçeklenmemiş bir yaratığa göre kaç kat daha uzun sürdüğünü söyler. Kehribar rengi bir sınır notu, bir tavanın o satırı tuttuğu anlamına gelir; eğimi yükseltmek orada hiçbir şeyi değiştirmez.
+ui.global.preview_row = Z{diff}   HP {hp}   Vuruş {out}   Alınan {in}%
 ui.global.preview_custom = Bir zorluk dene
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Öldürme süresi x{ttk}
+ui.global.preview_rail_hp = dayanıklılık sınırı tutuyor
+ui.global.preview_rail_out = vuruş sınırı tutuyor
+ui.global.preview_rail_both = iki sınır da tutuyor
+ui.global.ladder_title = Z{diff} zorlukta nadirlik merdiveni
+ui.global.ladder_note = Her kademe aynı eğriyi bu zorluğun kendi çarpanıyla çarpımında okur. Merdiveni kaydırmak için yukarıya bir zorluk yazın; boşken temel tabanı izler.
+ui.global.ladder_row = {name} x{mult}   Z{diff}   HP {hp}   Vuruş {out}   Alınan {in}%
+ui.global.ladder_plain = Sıradan
+ui.number = {n}
+ui.mmo.header = MMO tarafı (salt okunur)
+ui.mmo.power = Oyuncu gücü {min} ile {max} arasında. N zorluktaki sıradan bir yaratık, gücü N olan bir oyuncu için dengeli dövüştür.
+ui.mmo.unavailable = Oyuncu gücü aralığı: kullanılamıyor. Bu modun okuyabildiği MMO jar dosyası eksik veya derlendiğinden daha eski.
+ui.mmo.own_power = Şu anki kendi gücünüz: {power}
+ui.mmo.cap_above = Maksimum zorluğunuz {cap}, güç tavanı {max} değerinin üstünde; bu yüzden uzak bölgeler tam güçlü bir grubu bile aşabilir. Desteklenen yol budur.
+ui.mmo.cap_below = Maksimum zorluğunuz {cap}, güç tavanı {max} değerinin altında. Onu aşan her grup aynı zorlukla karşılaşır; maksimumu en az {max} yapın.
+ui.mmo.cap_equal = Maksimum zorluğunuz {cap}, güç tavanı {max} ile aynı: tam güçlü bir grup tepede dengeli bir dövüş bulur, daha sertini değil.
+ui.mmo.floor_mismatch = Minimum zorluğunuz {min}, güç tabanı {powerMin} değerinden farklı; iki ölçek birlikte başlamalı.
+ui.mmo.where = Bu sayılar burada değil, MMO tarafında düzenlenir: MMO yönetim menüsündeki Power Level sayfası ya da mods/mmoskilltree/power-level.json (Clamp.MinPower ve MaxPower). Vuruş eğrisinin türetildiği oyuncu hasar azaltma tavanları, Server/MMOSkillTree/ModifierClamps üzerindeki mods/mmoskilltree/ability-clamps.json dosyasındadır ve bu mod onları okuyamaz.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Nokta başına dayanıklılık
@@ -181,6 +202,8 @@ ui.world.new = Yeni dünya
 ui.world.id = Dosya adı
 ui.world.match = Dünya eşleştir
 ui.world.parent = Üst dosya
+ui.world.gameplay_configs = Oyun yapılandırmaları
+ui.world.exclude_match = Dünyaları hariç tut
 ui.world.enabled = Bu dünyada ölçekleme
 ui.world.tuning_header = İyileştirme
 ui.world.floor = Temel zorluk tabanı
@@ -203,6 +226,18 @@ ui.world.hint = Buradaki her ayar düzenlenebilir: iyileştirme, mesafe kademeli
 ui.world.inherits = Devralıyor: {value}
 ui.world.inherits_all = (tümü)
 ui.world.inherits_none = (hiçbiri)
+ui.floor.empty = Henüz yüklenmiş bölge veya biyom tabanı yok.
+ui.floor.editor_header = Taban ekle / düzenle
+ui.floor.new = Yeni taban
+ui.floor.id = Dosya adı
+ui.floor.type = Uygulandığı yer
+ui.floor.type_zone = Bölge
+ui.floor.type_biome = Biyom
+ui.floor.type_inherit = Devral
+ui.floor.target = Bölge veya biyom adı
+ui.floor.value = Taban zorluğu
+ui.floor.row_sub = {type} {target}, taban {floor}
+ui.floor.hint = Taban, mesafe ve yakındaki oyuncular eklenmeden önce bir doğuşun başladığı zorluktur. En özgül eşleme kazanır: tam bir bölge adı, sonra her Zone2_ alt bölgesi için Zone2 gibi bir bölge ailesi, sonra biyomlar için aynısı, sonra * jokerleri, sonra Genel sekmesindeki temel taban. Yerleşik eşlemenin dediğini korumak için bir alanı boş bırakın.
 
 # Status line.
 ui.status.saved = Kaydedildi.
@@ -213,7 +248,12 @@ ui.status.save_failed = Dünya dosyası yazılamadı.
 ui.status.invalid_field = {field} için geçerli bir değer girin. Sayılar 0 veya daha yüksek olmalı, şanslar 0 ile 1 arasında olmalı ve tam sayı alanları tam sayı olmalıdır.
 ui.status.invalid_caps = Maksimum en az minimum kadar olmalıdır.
 ui.status.unknown_preset = Bilinmeyen ön ayar.
-ui.status.id_or_match_required = Önce bir dosya adı veya dünya eşleştir modeli girin.
+ui.status.id_or_match_required = Önce bir dosya adı, bir dünya deseni veya bir oyun yapılandırma anahtarı girin.
+ui.status.floor_deleted = Taban dosyası kaldırıldı. Yerleşik eşleme yeniden geçerli.
+ui.status.floor_incomplete = Yeni bir taban için üçü de gerekir: neye uygulandığı, bölge veya biyom adı ve taban.
+ui.status.floor_id_required = Önce bir dosya adı veya bir bölge ya da biyom adı girin.
+ui.status.floor_save_failed = Taban dosyası yazılamadı.
+ui.status.floor_delete_failed = Taban dosyası kaldırılamadı.
 
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
@@ -232,7 +272,7 @@ ui.hint.hp_share = Bu dayanıklılığın ne kadarının çubukta sağlık olara
 ui.hint.out_scale = Bir yaratığın vuruşunun zorlukla ne kadar hızlı büyüdüğü; biçim 1.0 iken bu, taban seviyesinin üzerindeki her zorluk noktası için eklenen hasardır.
 ui.hint.out_shape = Hasar eğrisinin nasıl büküldüğü: 1.0 düz bir çizgidir; üzerinde düşük zorluklar yalnızca biraz, yüksek zorluklar ise çok daha sert vurur.
 ui.hint.max_ehp = Herhangi bir yaratığın öldürülmesinin taban bir yaratığa göre en fazla kaç kat daha uzun sürebileceği, bir ekin direnci de sayılarak; eğrinin tepesinin epey üzerinde tutun, yoksa orada tüm kademeler aynı olur.
-ui.hint.max_out = Zorluk eğrisinin bir yaratığın giden hasar çarpanını itebileceği en yüksek sınır.
+ui.hint.max_out = Herhangi bir yaratığın temel vuruşunun en fazla kaç katını vurabileceği. Eğrinin tepesinin epey üstünde tutun, yoksa orada her kademe aynı vurur.
 ui.hint.clamp_min_hp = Bir yaratığın sağlığının indirilebileceği en düşük değer, tabanının bir kesri olarak.
 ui.hint.clamp_max_in = Bir yaratığın vuruş başına almaya zorlanabileceği en fazla hasar, normalin katı olarak; birin üzeri cam top ekine izin verir.
 ui.hint.clamp_min_out = Bir yaratığın vuruşunun indirilebileceği en düşük değer, taban vuruşunun bir kesri olarak.
@@ -247,7 +287,7 @@ ui.hint.esc_rarity = Mesafe kademeli artışının her bir kademeli artış nokt
 ui.hint.player_scaling = Yakındaki oyuncuların ve güçlerinin bir bölgenin zorluğunu hiç yükseltip yükseltmediği.
 ui.hint.player_ring = Dünya canlanma noktası çevresinde, yakındaki oyuncu gücünün zorluğu asla artırmadığı korumalı yarıçap. Sıfır, korumalı alan olmadığı ve grup ölçeklemenin her yerde geçerli olduğu anlamına gelir.
 ui.hint.aggregation = Yakındaki birden fazla oyuncunun gücünün bir bölge zorluk değerine nasıl birleştirildiği.
-ui.hint.region_size = Oyuncuları paylaşılan bir bölge okumasına göre gruplaştırmak için kullanılan yakınlık ızgarasının boyutu.
+ui.hint.region_size = Bir grup gücü bölgesinin kaç chunk genişliğinde olduğu. Aynı karedeki oyuncular, karşılaştıkları zorluk için tek bir grup sayılır.
 ui.hint.band_width = Bir bölgenin zorluğunun yakındaki oyuncu gücü nedeniyle taban seviyesinin üzerine ne kadar sallanabildığinin en yüksek miktarı.
 ui.hint.only_raise = Açık olduğunda, yakındaki oyuncu gücü bir bölgenin zorluğunu yalnızca yükseltebilir, hiçbir zaman taban seviyesinin altına düşüremez.
 
@@ -266,9 +306,11 @@ ui.hint.insp_portrait = İnceleme kartının hedefin oluşturulan portre görün
 ui.hint.insp_range = İmleçin bir yaratığı tespit etmek için ne kadar uzağa ulaştığı.
 
 # Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
-ui.hint.world_id = Bu dünyanın ayarlarının kaydedildiği dosya adı; eşleştirme modelinden türetmek için boş bırakın.
-ui.hint.world_match = Bu dosyanın hangi dünyaya uygulanacağı: tam bir ad, joker ön eki veya her dünya için adi joker.
+ui.hint.world_id = Bu dünyanın ayarlarının kaydedildiği dosya adı; ilk dünya desenine, desen yoksa ilk oyun yapılandırma anahtarına göre adlandırmak için boş bırakın.
+ui.hint.world_match = Bu dosyanın uygulandığı dünya adları, virgülle ayrılmış: tam adlar veya joker desenler. Diğer dosyaların miras aldığı bir temel dosya için üç hedef alanını da boş bırakın.
 ui.hint.world_parent = Bu dosyanın kendi geçersil kılmalarından önce ayarları devralacağı başka bir dünya dosyası.
+ui.hint.world_gameplay_configs = Bu dosyanın uygulandığı oyun yapılandırma anahtarları, virgülle ayrılmış. Adı her oluşturulduğunda değişen bir örnek dünyadaki tek kararlı tutamak.
+ui.hint.world_exclude_match = Yukarıdaki bir eşleşme yakalasa bile bu dosyanın asla uygulanmaması gereken dünya adları veya desenleri, virgülle ayrılmış.
 ui.hint.w_enabled = Yaratık ölçeklemenin bu dünyada hiç çalışıp çalışmadığı. Devral, önce üst dosyayı, sonra genel ayarı izler.
 ui.hint.w_esc_enabled = Mesafe kademeli artışının bu dünyada uygulanıp uygulanmadığı. Devral, önce üst dosyayı, sonra genel ayarı izler.
 ui.hint.w_player_scaling = Yakındaki oyuncuların bu dünyada zorluğu yükseltip yükseltmediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
@@ -285,3 +327,7 @@ ui.hint.w_zone_hud = Bölge zorluğu katmanının bu dünyada gösterilmesine iz
 ui.hint.w_inspector_hud = Yaratık inceleme katmanının bu dünyada gösterilmesine izin verilip verilmediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
 ui.hint.w_zone_show_location = Katmanın bu dünyada ayrıca mevcut bölge ve biome adını görüntüleyip görüntülemediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
 ui.hint.w_insp_portrait = İnceleme kartının bu dünyada hedefin portresini gösterip göstermediği. Devral, önce üst dosyayı, sonra genel ayarı izler.
+ui.hint.floor_id = Bu tabanın mods/MmoMobScaling/difficulty altında kaydedildiği dosya. Yerleşik bir eşlemeyi yeniden ayarlamak için onun adını verin; bölge veya biyoma göre adlandırmak için boş bırakın.
+ui.hint.floor_type = Aşağıdaki adın bölge mi biyom mu olduğu. Miras, yerleşik eşlemenin cevabını korur.
+ui.hint.floor_target = Oyunun kendi bölge veya biyom adı, örneğin Zone2_Tier1 veya Ocean1. Zone2 gibi bir aile adı her Zone2_ alt bölgesini kapsar, * ise diğer eşlemelerin kaçırdığını kapsar.
+ui.hint.floor_value = Orada bir doğuşun başladığı zorluk. Mesafe kademesi ve yakındaki oyuncu gücü üstüne eklenir, sonra minimum ve maksimum onu sınırlar.

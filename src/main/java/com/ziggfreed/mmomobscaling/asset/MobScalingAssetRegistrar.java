@@ -28,6 +28,7 @@ import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
+import com.ziggfreed.mmomobscaling.config.MmoPowerBounds;
 import com.ziggfreed.mmomobscaling.config.LegacyIntensityReport;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
@@ -38,7 +39,6 @@ import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 
 /**
  * Registers this mod's OWN Pattern-A asset stores + their {@code LoadedAssetsEvent} listeners
@@ -232,34 +232,12 @@ public final class MobScalingAssetRegistrar {
             } catch (Throwable ignored) {
                 // log-manager-less JVMs
             }
+            // The caps cross-check treats an unreadable MMO bound (a unit JVM, an older MMO jar) as
+            // clean: it is an advisory calibration check, never a load blocker.
             warnFindings(ScalingContentValidator.validateDifficultyCaps(
                     MobScalingConfig.getInstance().getDifficultyMinCap(),
                     MobScalingConfig.getInstance().getDifficultyMaxCap(),
-                    powerLevelMin(), powerLevelMax()));
-        }
-    }
-
-    /**
-     * The MMO jar's PowerLevel clamp minimum via the frozen API, or null when unreadable
-     * (unit JVMs; an older MMO dev jar without the getter). The caps cross-check treats
-     * null as clean - it is an advisory calibration check, never a load blocker.
-     */
-    @Nullable
-    private static Double powerLevelMin() {
-        try {
-            return MMOSkillTreeAPI.getPowerLevelMin();
-        } catch (Throwable t) {
-            return null;
-        }
-    }
-
-    /** The MMO jar's PowerLevel clamp maximum via the frozen API, or null when unreadable. */
-    @Nullable
-    private static Double powerLevelMax() {
-        try {
-            return MMOSkillTreeAPI.getPowerLevelMax();
-        } catch (Throwable t) {
-            return null;
+                    MmoPowerBounds.min(), MmoPowerBounds.max()));
         }
     }
 
@@ -366,10 +344,15 @@ public final class MobScalingAssetRegistrar {
      * applies nothing), it never fails the load.
      *
      * <p>The same moment names every settings layer still authoring the retired {@code Intensity}
-     * multiplier or a retired curve leaf ({@link LegacyIntensityReport}), rewriting nothing: it reads the
-     * owner file, the owner and pack world bodies and every pack's settings files, and only
-     * {@code BootEvent} sees all of them whatever order the stores load in. It runs enabled or not, since
-     * a disabled mod must still explain what it is ignoring.
+     * multiplier or a retired curve leaf ({@link LegacyIntensityReport}), rewriting nothing, and only
+     * {@code BootEvent} sees all of them whatever order the stores load in. The audit registers outside the
+     * zero-cost gate, so the report runs enabled or not, but what it can see follows the gate: the owner
+     * file, the owner world files (adopted and scanned at {@code setup()}, before the gate) and every pack's
+     * settings files (read raw off each loaded pack's root, no store needed) are reported either way; a jar
+     * or pack WORLD body reaches {@code WorldSettingsConfig} only through the {@code Worlds} store's
+     * {@code LoadedAssetsEvent}, and that store registers in the enabled branch ({@link #registerAll}), so
+     * those are reported only while the mod is enabled. The gate stays: a disabled mod registers nothing
+     * and costs nothing.
      */
     public static void runBootAudit() {
         PackDependencyAudit.run();

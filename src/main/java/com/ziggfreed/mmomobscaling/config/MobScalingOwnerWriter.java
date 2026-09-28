@@ -59,10 +59,12 @@ public final class MobScalingOwnerWriter {
     private static final String INSPECTOR_OFFSET_Y = "InspectorHud.OffsetY";
     private static final String INSPECTOR_RANGE = "InspectorHud.RangeBlocks";
     private static final String INSPECTOR_PORTRAIT = "InspectorHud.PortraitEnabled";
-    // The per-world body's selector field (the page assembles world-file leaves with it). It is a
-    // LIST leaf inside the shared Where group, so a page collecting one typed pattern has to hand
-    // over a list - a bare string would decode as the wrong type and quietly cost the rule.
+    // The per-world body's three selector leaves (the page assembles world-file leaves with them).
+    // Each is a LIST leaf inside the shared Where group, so a page hands over a list (a CSV field
+    // collects one) - a bare string would decode as the wrong type and quietly cost the rule.
     public static final String WHERE_MATCH = "Where.Match";
+    public static final String WHERE_GAMEPLAY_CONFIG = "Where.GameplayConfig";
+    public static final String WHERE_EXCLUDE_MATCH = "Where.ExcludeMatch";
 
     private MobScalingOwnerWriter() {
     }

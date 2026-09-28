@@ -1,6 +1,7 @@
 package com.ziggfreed.mmomobscaling.config;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -11,12 +12,16 @@ import com.ziggfreed.common.asset.AbstractKeyedAssetConfig;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
- * The {@code defaults < pack < owner} fold authority for {@link DifficultyMapping} floors, keyed by
- * lowercase mapping id, plus the DERIVED per-target lookup index the hot resolve path reads. The fold
- * mechanics live in ziggfreed-common's {@link AbstractKeyedAssetConfig}; this singleton overrides the
- * three layer mutators to rebuild a flat {@code (type, nativeName) -> floor} index after every merge,
- * so {@code world/ZoneDifficultyResolver} resolves a floor with two O(1) map reads (exact, then
- * wildcard) instead of scanning mappings per spawn.
+ * The {@code defaults < pack < owner} fold authority for {@link DifficultyMapping} floors, keyed on
+ * EVERY layer by the one owner-file id key ({@link OwnerFiles#idKey}: lower-cased, every separator folded
+ * to {@code _}), so a pack id and the owner file that overlays it meet at one entry however either is
+ * spelled, plus the DERIVED per-target lookup index the hot resolve path reads. The fold mechanics live
+ * in ziggfreed-common's {@link AbstractKeyedAssetConfig}, whose own keying is a plain lower-case; the two
+ * layer mutators here re-key what they are handed through {@code idKey} before the base fold sees it (its
+ * lower-case is then the identity) and {@link #resolve} keys its argument the same way, and both rebuild a
+ * flat {@code (type, nativeName) -> floor} index after every merge, so {@code world/ZoneDifficultyResolver}
+ * resolves a floor with two O(1) map reads (exact, then wildcard) instead of scanning mappings per spawn.
+ * Two distinct ids that meet at one key keep the later one, as two owner files keying alike settle to one.
  *
  * <p>Resolution splits into SPECIFIC (exact match, else the LONGEST segment-boundary PREFIX; the
  * shipped world's zone names are compound like {@code Zone2_Tier1}, so a {@code "Zone2"} mapping is a
@@ -45,9 +50,9 @@ public final class DifficultyConfig extends AbstractKeyedAssetConfig<DifficultyM
     private volatile Index index = new Index(Map.of(), null, Map.of(), null);
 
     /**
-     * The engine-merged jar + pack mappings as last folded, by lower-cased id: what an owner file
-     * overlays per leaf ({@link DifficultyOwnerLayer}), read separately from {@link #resolve} because
-     * that answer already has the owner layer on top.
+     * The engine-merged jar + pack mappings as last folded, by id key: what an owner file overlays per
+     * leaf ({@link DifficultyOwnerLayer}), read separately from {@link #resolve} because that answer
+     * already has the owner layer on top.
      */
     @Nonnull private volatile Map<String, DifficultyMapping> packLayer = Map.of();
 
@@ -56,14 +61,9 @@ public final class DifficultyConfig extends AbstractKeyedAssetConfig<DifficultyM
 
     @Override
     public synchronized void mergePackLayer(@Nonnull Map<String, DifficultyMapping> layer) {
-        super.mergePackLayer(layer);
-        Map<String, DifficultyMapping> lowered = new HashMap<>();
-        for (Map.Entry<String, DifficultyMapping> e : layer.entrySet()) {
-            if (e.getValue() != null) {
-                lowered.put(OwnerFiles.idKey(e.getKey()), e.getValue());
-            }
-        }
-        this.packLayer = Map.copyOf(lowered);
+        Map<String, DifficultyMapping> keyed = keyed(layer);
+        super.mergePackLayer(keyed);
+        this.packLayer = Map.copyOf(keyed);
         rebuildIndex();
     }
 
@@ -71,13 +71,31 @@ public final class DifficultyConfig extends AbstractKeyedAssetConfig<DifficultyM
     @Nullable
     public DifficultyMapping packMapping(@Nonnull String id) {
         return packLayer.get(OwnerFiles.idKey(id));
-
     }
 
     @Override
     public synchronized void mergeOwnerLayer(@Nonnull Map<String, DifficultyMapping> layer) {
-        super.mergeOwnerLayer(layer);
+        super.mergeOwnerLayer(keyed(layer));
         rebuildIndex();
+    }
+
+    /** Resolve by the one id key, so {@code "Zone2 Big"}, {@code "zone2_big"} and the owner file's stem all meet one entry. */
+    @Nullable
+    @Override
+    public DifficultyMapping resolve(@Nonnull String id) {
+        return super.resolve(OwnerFiles.idKey(id));
+    }
+
+    /** {@code layer} re-keyed by {@link OwnerFiles#idKey}, null values dropped; two ids meeting at one key keep the later one. */
+    @Nonnull
+    private static Map<String, DifficultyMapping> keyed(@Nonnull Map<String, DifficultyMapping> layer) {
+        Map<String, DifficultyMapping> out = new LinkedHashMap<>();
+        for (Map.Entry<String, DifficultyMapping> e : layer.entrySet()) {
+            if (e.getValue() != null) {
+                out.put(OwnerFiles.idKey(e.getKey()), e.getValue());
+            }
+        }
+        return out;
     }
 
     /**

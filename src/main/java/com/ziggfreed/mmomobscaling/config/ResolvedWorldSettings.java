@@ -66,14 +66,12 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
         this.variantChanceMultiplier = mult != null ? Math.max(0.0, mult) : g.getVariantChanceMultiplier();
         Integer extra = affixes == null ? null : affixes.getExtraSlots();
         this.extraAffixSlots = extra != null ? Math.max(0, extra) : g.getExtraAffixSlots();
-
         StatCurve c = ws.getDifficulty() == null ? null : ws.getDifficulty().getStatCurve();
         this.statCurve = MobScalingConfig.buildCurve(
                 c != null && c.getEffectiveHpPerPoint() != null ? c.getEffectiveHpPerPoint() : g.getStatCurveEffectiveHpPerPoint(),
                 c != null && c.getVisibleHpShare() != null ? c.getVisibleHpShare() : g.getStatCurveVisibleHpShare(),
                 c != null && c.getOutDamageScale() != null ? c.getOutDamageScale() : g.getStatCurveOutDamageScale(),
                 c != null && c.getOutDamageShape() != null ? c.getOutDamageShape() : g.getStatCurveOutDamageShape(),
-
                 c != null && c.getMaxEffectiveHpMult() != null ? c.getMaxEffectiveHpMult() : g.getStatCurveMaxEffectiveHpMult(),
                 c != null && c.getMaxOutDamageMult() != null ? c.getMaxOutDamageMult() : g.getStatCurveMaxOutDamageMult());
         Clamps k = ws.getDifficulty() == null ? null : ws.getDifficulty().getClamps();

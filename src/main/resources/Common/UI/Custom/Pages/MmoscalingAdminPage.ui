@@ -3,11 +3,12 @@ $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
 
 // MMO Mob Scaling admin config page (com.ziggfreed.mmomobscaling.pages.MobScalingAdminPage).
-// SPEC-DRIVEN: every knob row (Global / Zone HUD / Inspector HUD / Worlds) is appended at runtime by
-// the shared ziggfreed-common ui/form engine (Pages/ZigForm*Row.ui) from a Java FieldSpec list - this
-// file only lays out the STATIC shell (title, tabs, the four scrolling form containers, the two-panel
-// Worlds tab, save/new/clear buttons, the status line) plus the ONE hand-built row that cannot be a
-// FieldSpec (the preset dropdown, whose entries are dynamic). Every #Mmoscaling* id is mod-prefixed
+// SPEC-DRIVEN: every knob row (Global / Zone HUD / Inspector HUD / Worlds / Floors) is appended at
+// runtime by the shared ziggfreed-common ui/form engine (Pages/ZigForm*Row.ui) from a Java FieldSpec
+// list - this file only lays out the STATIC shell (title, tabs, the five scrolling form containers, the
+// two-panel Worlds and Floors tabs, save/new/clear buttons, the status line) plus the ONE hand-built row
+// that cannot be a FieldSpec (the preset dropdown, whose entries are dynamic) and the Global tab's
+// hand-built preview column (nothing there is a leaf to persist). Every #Mmoscaling* id is mod-prefixed
 // (the client UI namespace is flat + cross-mod). ALL display text is pushed from Java on .TextSpans
 // (never .Text) as client-resolved Messages. EVERY labelled button is a RICH ZigRichButton (a Button
 // + inner #Label, label set via ZigRichButton.text) - NEVER a TextButton.Text sink. Smoke-test in-game
@@ -20,9 +21,13 @@ $Z = "../Common/ZigButtons.ui";
 );
 @HeaderStyle = (FontSize: 15, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
 @RowLabelStyle = (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+// The preview column's section titles and wrapping notes (the skeleton preview, the ladder, the MMO side).
+@PreviewTitleStyle = (FontSize: 15, TextColor: #ffaa4a, RenderBold: true);
+@PreviewNoteStyle = (FontSize: 11, TextColor: #8696a8, Wrap: true);
+@PreviewLineStyle = (FontSize: 12, TextColor: #cdd8e6, Wrap: true);
 
-// A label + control row (used only by the hand-built preset row now - every other row comes from the
-// shared ziggfreed-common ui/form row templates).
+// A label + control row (used only by the hand-built preset row and the difficulty probe - every other
+// row comes from the shared ziggfreed-common ui/form row templates).
 @Row = Group {
   LayoutMode: Left;
   Anchor: (Height: 32, Bottom: 5);
@@ -42,12 +47,28 @@ $Z = "../Common/ZigButtons.ui";
   }
 };
 
-// A section header line (used only for the static world-editor header now - every per-knob header
+// A section header line (used only for the static world / floor editor headers - every per-knob header
 // comes from the shared ZigFormHeaderRow.ui template).
 @Header = Label {
   Text: "";
   Anchor: (Height: 24, Top: 6, Bottom: 4);
   Style: @HeaderStyle;
+};
+
+// A scrolling list container (the four spec-driven forms, the two CRUD lists).
+@ScrollList = Group {
+  FlexWeight: 1;
+  LayoutMode: TopScrolling;
+  ScrollbarStyle: $C.@DefaultScrollbarStyle;
+  Padding: (Right: 4);
+};
+
+// The "nothing here yet" line under a CRUD list.
+@EmptyLine = Label {
+  Text: "";
+  Visible: false;
+  Anchor: (Height: 20, Top: 4, Bottom: 4);
+  Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center);
 };
 
 $C.@PageOverlay {}
@@ -71,6 +92,7 @@ $F.@ZigDecoratedFrame {
       @RichBtn #MmoscalingTabZoneHud   { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
       @RichBtn #MmoscalingTabInspector { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
       @RichBtn #MmoscalingTabWorlds    { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
+      @RichBtn #MmoscalingTabFloors    { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
     }
 
     // The tab body: exactly one section is Visible at a time.
@@ -78,7 +100,7 @@ $F.@ZigDecoratedFrame {
       FlexWeight: 1;
       LayoutMode: Top;
 
-      // ================= GLOBAL (two-panel: settings left, live skeleton preview right) =================
+      // ================= GLOBAL (two-panel: settings left, the live preview column right) =================
       Group #MmoscalingSectionGlobal {
         FlexWeight: 1;
         LayoutMode: Left;
@@ -93,12 +115,7 @@ $F.@ZigDecoratedFrame {
             $C.@DropdownBox #MmoscalingPresetDropdown { Anchor: (Width: 200, Height: 30); Style: @DropStyle; }
           }
 
-          Group #MmoscalingGlobalForm {
-            FlexWeight: 1;
-            LayoutMode: TopScrolling;
-            ScrollbarStyle: $C.@DefaultScrollbarStyle;
-            Padding: (Right: 4);
-          }
+          @ScrollList #MmoscalingGlobalForm {}
 
           @RichBtn #MmoscalingGlobalSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 32, Top: 6); }
         }
@@ -106,43 +123,97 @@ $F.@ZigDecoratedFrame {
         // Thin vertical separator (matches the Worlds tab's list/editor divider).
         Group { Anchor: (Width: 1, Left: 8, Right: 8); Background: #1e2a36; }
 
-        // ---- RIGHT: live skeleton preview - a plain mob through the difficulty stat curve only ----
-        // (rarity/variant multipliers stack on top at spawn; not part of this read). Refreshed from
-        // Java on every Global-tab field/press/save/preset event (MobScalingAdminPage.refreshPreview).
+        // ---- RIGHT: the preview column, SCROLLING (it outgrows the frame once the ladder and the MMO
+        // panel are on it). A plain Skeleton through the difficulty stat curve on the left, exactly as
+        // the spawn fold would run it; a rarity or variant reads the same curve further along, which is
+        // what the ladder shows. Refreshed from Java on every Global-tab field/press/save/preset event
+        // (MobScalingAdminPage.refreshPreview); the probe's own event repaints only the probe row and
+        // the ladder (refreshProbeAndLadder).
         Group {
           Anchor: (Width: 300);
-          LayoutMode: Top;
-          Padding: (Left: 10);
+          LayoutMode: TopScrolling;
+          ScrollbarStyle: $C.@DefaultScrollbarStyle;
+          Padding: (Left: 10, Right: 4);
 
           Label #MmoscalingPreviewTitle {
             Text: "";
             Anchor: (Height: 22, Bottom: 4);
-            Style: (FontSize: 15, TextColor: #ffaa4a, RenderBold: true);
+            Style: @PreviewTitleStyle;
           }
           Label #MmoscalingPreviewNote {
             Text: "";
             Anchor: (Bottom: 8);
-            Style: (FontSize: 11, TextColor: #8696a8, Wrap: true);
+            Style: @PreviewNoteStyle;
           }
+          // Five appended Pages/MmoscalingPreviewRow.ui rows (two wrapping lines each): the samples.
           Group #MmoscalingPreviewList {
             LayoutMode: Top;
           }
 
-          // Manual difficulty probe (round-3): type any difficulty >= 1 to preview it directly,
-          // UNCLAMPED to the live Min/Max cap band (the curve's own multiplier caps still bound the
-          // resulting factors) - wired OUTSIDE the spec-driven form, own "previewD" ValueChanged event
-          // (MobScalingAdminPage.buildPreviewPanel/handlePreviewDifficulty). Hidden until the field
-          // holds a parseable difficulty.
+          // Manual difficulty probe: type any difficulty >= 1 to preview it directly, UNCLAMPED to the
+          // live Min/Max cap band (the curve's own rails still bound the resulting factors) - wired
+          // OUTSIDE the spec-driven form, own "previewD" ValueChanged event
+          // (MobScalingAdminPage.buildPreviewPanel/handlePreviewDifficulty). #MmoscalingProbeList holds
+          // ONE appended preview row and is shown only while the field holds a parseable difficulty; the
+          // ladder below follows the same number.
           @Row {
             Anchor: (Height: 30, Top: 6, Bottom: 0);
             Label #MmoscalingPreviewCustomLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
             $C.@TextField #MmoscalingPreviewCustomField { Anchor: (Width: 80, Height: 28); Padding: (Horizontal: 8); }
           }
-          Label #MmoscalingCustomPreviewLine {
-            Text: "";
+          Group #MmoscalingProbeList {
+            LayoutMode: Top;
             Visible: false;
             Anchor: (Top: 4);
-            Style: (FontSize: 12, TextColor: #cdd8e6);
+          }
+
+          // The rarity ladder at the probed difficulty (the baseline floor while nothing is typed): one
+          // appended preview row per rung, the plain mob first, then every folded tier weakest to
+          // strongest. Cleared + re-appended on every refresh (no bindings to redo).
+          Label #MmoscalingLadderTitle {
+            Text: "";
+            Anchor: (Height: 22, Top: 10, Bottom: 4);
+            Style: @PreviewTitleStyle;
+          }
+          Label #MmoscalingLadderNote {
+            Text: "";
+            Anchor: (Bottom: 8);
+            Style: @PreviewNoteStyle;
+          }
+          Group #MmoscalingLadderList {
+            LayoutMode: Top;
+          }
+
+          // The MMO side, READ ONLY: the player power floor and ceiling this mod can read through the
+          // frozen MMOSkillTreeAPI (or one line saying it cannot), the viewing admin's own power, how the
+          // form's Min/Max caps sit against them, and where those numbers are edited. Nothing here writes
+          // an MMO file. (MobScalingAdminPage.buildMmoPanel / refreshMmoCapLine.)
+          Label #MmoscalingMmoTitle {
+            Text: "";
+            Anchor: (Height: 22, Top: 10, Bottom: 4);
+            Style: @PreviewTitleStyle;
+          }
+          Label #MmoscalingMmoPower {
+            Text: "";
+            Anchor: (Bottom: 4);
+            Style: @PreviewLineStyle;
+          }
+          Label #MmoscalingMmoOwnPower {
+            Text: "";
+            Visible: false;
+            Anchor: (Bottom: 4);
+            Style: @PreviewLineStyle;
+          }
+          Label #MmoscalingMmoCap {
+            Text: "";
+            Visible: false;
+            Anchor: (Bottom: 6);
+            Style: @PreviewLineStyle;
+          }
+          Label #MmoscalingMmoWhere {
+            Text: "";
+            Anchor: (Bottom: 8);
+            Style: @PreviewNoteStyle;
           }
         }
       }
@@ -153,12 +224,7 @@ $F.@ZigDecoratedFrame {
         FlexWeight: 1;
         LayoutMode: Top;
 
-        Group #MmoscalingZoneForm {
-          FlexWeight: 1;
-          LayoutMode: TopScrolling;
-          ScrollbarStyle: $C.@DefaultScrollbarStyle;
-          Padding: (Right: 4);
-        }
+        @ScrollList #MmoscalingZoneForm {}
 
         @RichBtn #MmoscalingZoneSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 32, Top: 6); }
       }
@@ -169,12 +235,7 @@ $F.@ZigDecoratedFrame {
         FlexWeight: 1;
         LayoutMode: Top;
 
-        Group #MmoscalingInspectorForm {
-          FlexWeight: 1;
-          LayoutMode: TopScrolling;
-          ScrollbarStyle: $C.@DefaultScrollbarStyle;
-          Padding: (Right: 4);
-        }
+        @ScrollList #MmoscalingInspectorForm {}
 
         @RichBtn #MmoscalingInspectorSave { @Style = $Z.@ZigRichPrimaryBtnStyle; Anchor: (Height: 32, Top: 6); }
       }
@@ -193,18 +254,8 @@ $F.@ZigDecoratedFrame {
           // Appended per-world rows (Pages/MmoscalingWorldRow.ui, a mod-local wrapping row - not the
           // common ZigListRow): #Title = id (wraps to two lines), #Sub = summary, #Badge =
           // shipped/override, rich #EditBtn / #RemoveBtn.
-          Group #MmoscalingWorldList {
-            FlexWeight: 1;
-            LayoutMode: TopScrolling;
-            ScrollbarStyle: $C.@DefaultScrollbarStyle;
-            Padding: (Right: 4);
-          }
-          Label #MmoscalingWorldEmpty {
-            Text: "";
-            Visible: false;
-            Anchor: (Height: 20, Top: 4, Bottom: 4);
-            Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center);
-          }
+          @ScrollList #MmoscalingWorldList {}
+          @EmptyLine #MmoscalingWorldEmpty {}
           @RichBtn #MmoscalingWorldNew { Anchor: (Height: 32, Top: 6); }
         }
 
@@ -213,25 +264,61 @@ $F.@ZigDecoratedFrame {
 
         // ---- RIGHT: add / edit editor ----
         // Blank fields / the Inherit dropdown option inherit the Parent chain then the global fold.
-        // Pool allow/deny lists are comma-separated ids (deny wins); everything is editable here now.
+        // The three Where fields and the pool allow/deny lists are comma-separated (deny wins).
         Group {
           FlexWeight: 1;
           LayoutMode: Top;
 
           @Header #MmoscalingWorldEditorHeader {}
 
-          Group #MmoscalingWorldForm {
-            FlexWeight: 1;
-            LayoutMode: TopScrolling;
-            ScrollbarStyle: $C.@DefaultScrollbarStyle;
-            Padding: (Right: 4);
-          }
+          @ScrollList #MmoscalingWorldForm {}
 
           Group {
             LayoutMode: Left;
             Anchor: (Height: 32, Top: 6);
             @RichBtn #MmoscalingWorldSave  { @Style = $Z.@ZigRichPrimaryBtnStyle; FlexWeight: 1; Anchor: (Height: 32); }
             @RichBtn #MmoscalingWorldClear { FlexWeight: 1; Anchor: (Height: 32, Left: 6); }
+          }
+        }
+      }
+
+      // ================= FLOORS (two-panel: the zone / biome floor list left, add/edit editor right) =================
+      // The same shape as Worlds, on the same row template: every folded Difficulty/*.json mapping,
+      // shipped or owner-authored, and an editor whose blank fields inherit the shipped mapping per leaf.
+      Group #MmoscalingSectionFloors {
+        Visible: false;
+        FlexWeight: 1;
+        LayoutMode: Left;
+
+        // ---- LEFT: the floor list ----
+        Group {
+          Anchor: (Width: 300);
+          LayoutMode: Top;
+
+          // Appended per-mapping rows (Pages/MmoscalingWorldRow.ui): #Title = the mapping id, #Sub = its
+          // target and floor, #Badge = shipped/override, rich #EditBtn / #RemoveBtn (owner files only).
+          @ScrollList #MmoscalingFloorList {}
+          @EmptyLine #MmoscalingFloorEmpty {}
+          @RichBtn #MmoscalingFloorNew { Anchor: (Height: 32, Top: 6); }
+        }
+
+        // Thin vertical separator between the list and the editor.
+        Group { Anchor: (Width: 1, Left: 8, Right: 8); Background: #1e2a36; }
+
+        // ---- RIGHT: add / edit editor ----
+        Group {
+          FlexWeight: 1;
+          LayoutMode: Top;
+
+          @Header #MmoscalingFloorEditorHeader {}
+
+          @ScrollList #MmoscalingFloorForm {}
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 6);
+            @RichBtn #MmoscalingFloorSave  { @Style = $Z.@ZigRichPrimaryBtnStyle; FlexWeight: 1; Anchor: (Height: 32); }
+            @RichBtn #MmoscalingFloorClear { FlexWeight: 1; Anchor: (Height: 32, Left: 6); }
           }
         }
       }

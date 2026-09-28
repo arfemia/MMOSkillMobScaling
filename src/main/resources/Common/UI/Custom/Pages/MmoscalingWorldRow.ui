@@ -6,8 +6,10 @@ $Z = "../Common/ZigButtons.ui";
 // descendant ids below are safe across many rows AND across mods (the ZigListRow rule this is modeled
 // on). MOD-LOCAL (not ziggfreed-common's Pages/ZigListRow.ui): that shared row is single-line-title and
 // truncates a long world id / match pattern in this page's 300px list panel. Here #Title WRAPS to two
-// lines instead (no fixed title height; the row itself carries the fixed height), #Sub stays single-line
-// small, and #Badge/#EditBtn/#RemoveBtn are narrower to leave room for the wider title column. Same
+// lines instead (no fixed title height; the row itself carries the fixed height), #Sub WRAPS too (a
+// floor row's sub line, "<type> <target>, floor <n>", outgrows the text column once the Remove button
+// is showing, and a floor id is short enough to leave the row height for it), and
+// #Badge/#EditBtn/#RemoveBtn are narrower to leave room for the wider title column. Same
 // child ids as ZigListRow, so MobScalingAdminPage.buildWorldList (Java) is unchanged beyond the template
 // path: #Title/#Sub text, #Badge/#RemoveBtn Visible, the rich button labels (ZigRichButton.text on
 // #EditBtn/#RemoveBtn, which keep $Z.@ZigRichRowBtnStyle for click sounds), and the click bindings.
@@ -28,7 +30,7 @@ Group #MmoscalingWorldRow {
     }
     Label #Sub {
       Text: "";
-      Style: (FontSize: 11, TextColor: #93a4b8, VerticalAlignment: Center);
+      Style: (FontSize: 11, TextColor: #93a4b8, Wrap: true);
     }
   }
 

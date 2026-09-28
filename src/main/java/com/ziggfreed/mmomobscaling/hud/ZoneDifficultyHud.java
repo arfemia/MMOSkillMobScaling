@@ -15,8 +15,9 @@ import com.ziggfreed.mmomobscaling.i18n.LocationNameResolver;
  * The ZONE DIFFICULTY overlay: a small always-on card showing the local SPOT difficulty a spawn
  * resolves to (the same {@code MobScalingSpawnHook.resolveSpawnScaling} number {@code /mobscaling
  * inspect} reports, before any rarity multiplies it), a qualitative threat tier RELATIVE to the
- * viewer ({@link ZoneTier}, coloured),
- * the viewer's own power level, and the tracked group (region) power when players share the region.
+ * viewer ({@link ZoneTier}, coloured: how many times faster the viewer dies here than in a matched
+ * fight, read off the world's own difficulty curve), the viewer's own power level, and the tracked
+ * group (region) power when players share the region.
  * Driven by {@code MobScalingHudSystem} on a coarse throttle; hidden whenever mob scaling is off
  * for the world (the numbers would be meaningless). Its corner, its location line and the two
  * name-key prefixes are read off the PER-WORLD settings view the system hands it, so an instance may
@@ -110,7 +111,9 @@ public final class ZoneDifficultyHud extends ScalingHud {
         long diffRounded = Math.round(difficulty);
         long powerRounded = Math.round(playerPower);
         long groupRounded = Math.round(groupPower);
-        ZoneTier tier = ZoneTier.fromDelta(difficulty - playerPower);
+        // The tier word is the derived threat ratio off THIS world's own curve (the one its spawns fold on),
+        // so the word and the mob can never disagree; the number beside it stays the spot difficulty.
+        ZoneTier tier = ZoneTier.classify(settings.statCurveModel(), difficulty, playerPower);
         boolean showLocation = settings.isZoneShowLocationName();
         boolean hasLocation = showLocation && (!zoneName.isBlank() || !biomeName.isBlank());
         // The friendly-name lang-key prefixes are config, so a reload (or a world-file edit) could change

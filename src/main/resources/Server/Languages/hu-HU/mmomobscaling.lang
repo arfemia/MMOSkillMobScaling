@@ -101,6 +101,7 @@ ui.tab.global = Globális
 ui.tab.zone_hud = Zóna HUD
 ui.tab.inspector = Vizsgáló
 ui.tab.worlds = Világok
+ui.tab.floors = Küszöbök
 
 ui.toggle.on = BE
 ui.toggle.off = KI
@@ -138,9 +139,29 @@ ui.global.clamps_header = Biztonsági korlátok
 
 # Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
 ui.global.preview_title = Előnézet: Csontváz
-ui.global.preview_note = Egy sima szörny a fenti nehézségi értékgörbén átfuttatva. Egy ritkaság vagy változat ugyanezt a görbét olvassa előrébb, ennél a nehézségnél a saját szorzójával megszorozva.
-ui.global.preview_row = N{diff}   HP {hp}   Seb {out}   Kapott {in}
+ui.global.preview_note = Egy sima csontváz a bal oldali görbén átvezetve, öt nehézségen a minimum és a maximum között. Az életerő és az ütés az igazi számot mutatja, amint a mod látott egyet: az életerőt, amellyel egy csontváz megjelent, és az utolsó ütést, amelyet egy bevitt. Az ölési idő azt mondja, hányszor tovább tart megölni, mint egy nem skálázott szörnyet. A borostyán korlát-jelzés azt jelenti, hogy egy plafon tartja azt a sort; a meredekség emelése ott semmit sem változtat.
+ui.global.preview_row = N{diff}   HP {hp}   Ütés {out}   Kapott {in}%
 ui.global.preview_custom = Próbálj ki egy nehézséget
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Ölési idő x{ttk}
+ui.global.preview_rail_hp = szívósság-korlát tart
+ui.global.preview_rail_out = ütés-korlát tart
+ui.global.preview_rail_both = mindkét korlát tart
+ui.global.ladder_title = Ritkasági létra N{diff}-nél
+ui.global.ladder_note = Minden szint ugyanazt a görbét olvassa ennél a nehézségnél a saját szorzójával. Írjon fent egy nehézséget a létra mozgatásához; üresen az alap küszöböt követi.
+ui.global.ladder_row = {name} x{mult}   N{diff}   HP {hp}   Ütés {out}   Kapott {in}%
+ui.global.ladder_plain = Sima
+ui.number = {n}
+ui.mmo.header = MMO oldal (csak olvasható)
+ui.mmo.power = A játékoserő {min} és {max} között mozog. Egy sima szörny N nehézségen a kiegyenlített harc egy N erejű játékosnak.
+ui.mmo.unavailable = Játékoserő-tartomány: nem érhető el. Az MMO jar, amelyet ez a mod olvasni tud, hiányzik vagy régebbi annál, amelyhez fordították.
+ui.mmo.own_power = Az Ön ereje most: {power}
+ui.mmo.cap_above = A maximális nehézsége ({cap}) az erőplafon ({max}) fölött van, így a távoli zónák még egy maximális csoportot is túlnőhetnek. Ez a támogatott módja.
+ui.mmo.cap_below = A maximális nehézsége ({cap}) az erőplafon ({max}) alatt van. Minden azon túli csoport ugyanazzal a nehézséggel találkozik; emelje a maximumot legalább {max}-ra.
+ui.mmo.cap_equal = A maximális nehézsége ({cap}) egyezik az erőplafonnal ({max}): egy maximális csoport fent kiegyenlített harcot kap, keményebbet nem.
+ui.mmo.floor_mismatch = A minimális nehézsége ({min}) eltér az erőküszöbtől ({powerMin}); a két skálának együtt kellene indulnia.
+ui.mmo.where = Ezeket a számokat az MMO oldalon szerkesztik, nem itt: az MMO adminmenü Power Level oldalán, vagy a mods/mmoskilltree/power-level.json fájlban (Clamp.MinPower és MaxPower). A játékos-sebzéscsökkentési plafonok, amelyekhez az ütésgörbét levezették, a mods/mmoskilltree/ability-clamps.json fájlban élnek a Server/MMOSkillTree/ModifierClamps fölött, és ez a mod nem tudja olvasni őket.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Szívósság pontonként
@@ -180,6 +201,8 @@ ui.world.new = Új világ
 ui.world.id = Fájlnév
 ui.world.match = Világ egyeztetése
 ui.world.parent = Szülő fájl
+ui.world.gameplay_configs = Játékkonfigurációk
+ui.world.exclude_match = Világok kizárása
 ui.world.enabled = Skálázás ebben a világban
 ui.world.tuning_header = Finomhangolás
 ui.world.floor = Alap nehézségi küszöb
@@ -202,6 +225,18 @@ ui.world.hint = Minden beállítás szerkeszthető: finomhangolás, távolsági 
 ui.world.inherits = Öröklések: {value}
 ui.world.inherits_all = (mind)
 ui.world.inherits_none = (egyik sem)
+ui.floor.empty = Még nincs betöltve zóna- vagy biomküszöb.
+ui.floor.editor_header = Küszöb hozzáadása / szerkesztése
+ui.floor.new = Új küszöb
+ui.floor.id = Fájlnév
+ui.floor.type = Erre vonatkozik
+ui.floor.type_zone = Zóna
+ui.floor.type_biome = Biom
+ui.floor.type_inherit = Öröklés
+ui.floor.target = Zóna- vagy biomnév
+ui.floor.value = Küszöb-nehézség
+ui.floor.row_sub = {type} {target}, küszöb {floor}
+ui.floor.hint = A küszöb az a nehézség, ahonnan egy megjelenés indul, mielőtt a távolság és a közeli játékosok hozzáadnának. A legpontosabb hozzárendelés nyer: pontos zónanév, aztán zónacsalád, mint a Zone2 minden Zone2_ alzónára, aztán ugyanez biomokra, aztán a * helyettesítők, végül az alap küszöb a Globális fülön. Hagyjon üresen egy mezőt, hogy megtartsa, amit a gyári hozzárendelés mond.
 
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
@@ -220,7 +255,7 @@ ui.hint.hp_share = Ebből a szívósságból mennyi látszik életerőként a s�
 ui.hint.out_scale = Milyen gyorsan nő a szörny ütése a nehézséggel; 1.0-s alaknál ez az alap fölötti nehézségi pontonkénti többletsérülés.
 ui.hint.out_shape = Hogyan hajlik a sérülésgörbe: 1.0 egyenes vonal; fölötte az alacsony nehézségek csak kicsit, a magasak jóval erősebben ütnek.
 ui.hint.max_ehp = Legfeljebb hányszor tovább tarthat megölni bármely szörnyet egy alap szörnynél, egy affix ellenállását is beleszámítva; hagyd jóval a görbe teteje fölött, különben ott minden szint egyformává válik.
-ui.hint.max_out = A legkeményebb felső korlát, amelyre a nehézségi görbe egy szörny sérülés-szorzóját tolhatja.
+ui.hint.max_out = Legfeljebb hányszorosát ütheti bármely szörny az alapütésének. Tartsa jóval a görbe teteje fölött, különben ott minden szint egyformán üt.
 ui.hint.clamp_min_hp = A legkevesebb, amire egy szörny életereje leskálázható, az alap hányadaként.
 ui.hint.clamp_max_in = A legtöbb sérülés, amit egy szörny ütésenként kaphat, a normál többszöröseként; egy fölött üvegágyú affixet enged.
 ui.hint.clamp_min_out = A legkevesebb, amire egy szörny ütése leskálázható, az alap ütés hányadaként.
@@ -235,7 +270,7 @@ ui.hint.esc_rarity = Mennyivel nő a ritkasági megjelenési esély eszkaláció
 ui.hint.player_scaling = Hogy a közeli játékosok és erőjük növelik-e egyáltalán egy régió nehézségét.
 ui.hint.player_ring = Védett sugár a világ kezdőpontja körül, ahol a közeli játékosok ereje sosem növeli a nehézséget. A nulla azt jelenti, hogy nincs védett terület, így a csoportos skálázás mindenhol érvényes.
 ui.hint.aggregation = Hogyan egyesül a közeli játékosok ereje egy régió nehézség leolvasásába.
-ui.hint.region_size = A közelség rácsa mérete, amelyet a játékosok közös régió leolvasásba csoportosít.
+ui.hint.region_size = Hány chunk széles egy csoporterő-régió. Az egy négyzetben álló játékosok egy csoportnak számítanak a nehézségnél, amivel találkoznak.
 ui.hint.band_width = Maximálisan mennyire nőhet egy régió nehézsége az alapvetőjétől az közeli játékos ereje miatt.
 ui.hint.only_raise = Ha bekapcsolt, a közeli játékos ereje csak nőheti a régió nehézségét, soha nem csökkenti az alaptól.
 
@@ -254,9 +289,11 @@ ui.hint.insp_portrait = Az vizsgáló kártya megmutatja-e a cél generált port
 ui.hint.insp_range = Milyen messzire ér a célzó egy szörny felderítéséhez, hogy vizsgálja azt.
 
 # Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
-ui.hint.world_id = Az fájlnév, amely alatt a világ beállításai mentésre kerülnek; hagyja üresen, hogy az egyeztetési mintából származtatódjon.
-ui.hint.world_match = Mely világ erre a fájlra vonatkozik: pontos név, helyettesítő előtag, vagy helyettesítő minden világra.
+ui.hint.world_id = A fájlnév, amely alatt a világ beállításai mentésre kerülnek; hagyja üresen, hogy az első világmintáról kapja a nevét, vagy az első játékkonfiguráció-kulcsról, ha nincs minta.
+ui.hint.world_match = Világnevek, amelyekre ez a fájl vonatkozik, vesszővel elválasztva: pontos nevek vagy helyettesítő minták. Hagyja mindhárom célmezőt üresen egy alapfájlhoz, amelyből más fájlok örökölnek.
 ui.hint.world_parent = Egy másik világfájl, amely beállítások mellett ezt a fájlt felülírva kerül alkalmazásra.
+ui.hint.world_gameplay_configs = Játékkonfiguráció-kulcsok, amelyekre ez a fájl vonatkozik, vesszővel elválasztva. Az egyetlen stabil fogódzó egy példányvilágon, amelynek neve minden létrehozáskor változik.
+ui.hint.world_exclude_match = Világnevek vagy minták, amelyekre ez a fájl sosem vonatkozhat, vesszővel elválasztva, akkor sem, ha egy fenti egyezés elkapná őket.
 ui.hint.w_enabled = Az szörnyscálázás egyáltalán működik-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
 ui.hint.w_esc_enabled = Az távolsági eszkalációs alkalmazva van-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
 ui.hint.w_player_scaling = Az közeli játékosok növelik-e a nehézséget ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
@@ -273,6 +310,10 @@ ui.hint.w_zone_hud = Az zóna nehézségi kijelző megengedett-e ebben a világb
 ui.hint.w_inspector_hud = Az szörnyvizsgáló kijelző megengedett-e ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
 ui.hint.w_zone_show_location = A kijelző megnevezi-e az aktuális zónát és biomot is ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
 ui.hint.w_insp_portrait = A vizsgáló kártya megmutatja-e a cél portréját ebben a világban; az öröklés a szülő fájlt, majd a globális beállítást követi.
+ui.hint.floor_id = A fájl, amely alá ez a küszöb a mods/MmoMobScaling/difficulty mappába kerül. Nevezze el egy gyári hozzárendelés után annak áthangolásához; hagyja üresen, hogy a zónáról vagy biomról kapja a nevét.
+ui.hint.floor_type = Az alábbi név zóna vagy biom. Az Öröklés a gyári hozzárendelés válaszát tartja meg.
+ui.hint.floor_target = A játék saját zóna- vagy biomneve, például Zone2_Tier1 vagy Ocean1. Egy családnév, mint a Zone2, minden Zone2_ alzónát lefed, a * pedig azt, amit a többi hozzárendelés kihagy.
+ui.hint.floor_value = A nehézség, ahonnan ott egy megjelenés indul. A távolsági fokozás és a közeli játékoserő erre jön rá, majd a minimum és a maximum korlátozza.
 
 # Status line.
 ui.status.saved = Elmentve.
@@ -283,4 +324,9 @@ ui.status.save_failed = Nem sikerült írni a világfájlt.
 ui.status.invalid_field = Adj meg érvényes értéket a(z) {field} mezőhöz. A számoknak 0 vagy annál nagyobbnak kell lenniük, az esélyek 0 és 1 között kell hogy legyenek, az egész szám mezőkben egész számnak kell lennie.
 ui.status.invalid_caps = A maximális legalább akkora, mint a minimális.
 ui.status.unknown_preset = Ismeretlen előbeállítás.
-ui.status.id_or_match_required = Adjon meg előbb egy fájlnevet vagy világ egyeztetési mintát.
+ui.status.id_or_match_required = Adjon meg előbb egy fájlnevet, egy világmintát vagy egy játékkonfiguráció-kulcsot.
+ui.status.floor_deleted = Küszöbfájl eltávolítva. Újra a gyári hozzárendelés érvényes.
+ui.status.floor_incomplete = Egy új küszöbhöz mindhárom kell: mire vonatkozik, a zóna- vagy biomnév és a küszöb.
+ui.status.floor_id_required = Adjon meg előbb egy fájlnevet vagy egy zóna- vagy biomnevet.
+ui.status.floor_save_failed = A küszöbfájlt nem sikerült kiírni.
+ui.status.floor_delete_failed = A küszöbfájlt nem sikerült eltávolítani.

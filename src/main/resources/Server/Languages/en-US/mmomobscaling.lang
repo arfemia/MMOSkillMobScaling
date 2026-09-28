@@ -114,6 +114,7 @@ ui.tab.global = Global
 ui.tab.zone_hud = Zone HUD
 ui.tab.inspector = Inspector
 ui.tab.worlds = Worlds
+ui.tab.floors = Floors
 
 ui.toggle.on = ON
 ui.toggle.off = OFF
@@ -151,11 +152,36 @@ ui.global.clamps_header = Safety clamps
 
 # Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
 ui.global.preview_title = Preview: Skeleton
-ui.global.preview_note = A plain mob run through the difficulty stat curve above. A rarity or variant reads the same curve further along, at this difficulty times its own multiplier.
-ui.global.preview_row = D{diff}   HP {hp}   Dmg {out}   Taken {in}
+ui.global.preview_note = A plain Skeleton through the curve on the left, at five difficulties between your minimum and maximum. Health and hit show the real number once the mod has seen one: the health a Skeleton spawned with, the last hit one landed. Kill time is how many times longer it takes to kill than an unscaled mob. An amber rail note means a ceiling is holding that row down, so raising the slope changes nothing there.
+ui.global.preview_row = D{diff}   HP {hp}   Hit {out}   Taken {in}%
 # Manual difficulty probe (round-3): a label beside the small TextField that previews one MORE row at
 # whatever difficulty is typed in, unclamped to the Min/Max cap band above.
 ui.global.preview_custom = Try a difficulty
+# The widened preview: a multiplier cell (with the real number once a base resolved), the detail line
+# (kill time relative to an unscaled mob + a rail marker), the rarity ladder, and a bare typed number frame.
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Kill time x{ttk}
+ui.global.preview_rail_hp = toughness rail holding
+ui.global.preview_rail_out = hit rail holding
+ui.global.preview_rail_both = both rails holding
+ui.global.ladder_title = Rarity ladder at D{diff}
+ui.global.ladder_note = Each tier reads the same curve at this difficulty times its own multiplier. Type a difficulty above to move the ladder; blank follows the baseline floor.
+ui.global.ladder_row = {name} x{mult}   D{diff}   HP {hp}   Hit {out}   Taken {in}%
+ui.global.ladder_plain = Plain
+ui.number = {n}
+
+# The read-only MMO panel under the ladder: what this mod can see of the player power scale through the
+# frozen MMOSkillTreeAPI (or that it cannot), how the caps sit against it, and where those numbers are edited.
+ui.mmo.header = MMO side (read only)
+ui.mmo.power = Player power runs from {min} to {max}. A plain mob at difficulty N is the even fight for a player at power N.
+ui.mmo.unavailable = Player power range: not available. The MMO jar this mod can read is missing or older than the one it was built against.
+ui.mmo.own_power = Your own power right now: {power}
+ui.mmo.cap_above = Your maximum difficulty {cap} sits above the power ceiling {max}, so far zones can out-scale even a maxed group. That is the supported way to do it.
+ui.mmo.cap_below = Your maximum difficulty {cap} sits below the power ceiling {max}. Every group past it meets the same difficulty; raise the maximum to at least {max}.
+ui.mmo.cap_equal = Your maximum difficulty {cap} matches the power ceiling {max}: a maxed group meets an even fight at the top and nothing harder.
+ui.mmo.floor_mismatch = Your minimum difficulty {min} differs from the power floor {powerMin}; the two scales should start together.
+ui.mmo.where = Those numbers are edited on the MMO side, not here: the Power Level page of the MMO admin menu, or mods/mmoskilltree/power-level.json (Clamp.MinPower and MaxPower). The player mitigation ceilings the hit curve is derived against live in mods/mmoskilltree/ability-clamps.json over Server/MMOSkillTree/ModifierClamps, and this mod cannot read them.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Toughness per point
@@ -195,6 +221,8 @@ ui.world.new = New world
 ui.world.id = File name
 ui.world.match = World match
 ui.world.parent = Parent file
+ui.world.gameplay_configs = Gameplay configs
+ui.world.exclude_match = Exclude worlds
 ui.world.enabled = Scaling in this world
 ui.world.tuning_header = Tuning
 ui.world.floor = Baseline difficulty floor
@@ -220,6 +248,20 @@ ui.world.inherits = Inherits: {value}
 ui.world.inherits_all = (all)
 ui.world.inherits_none = (none)
 
+# Floors tab: the zone / biome difficulty floors (one owner file per mapping under mods/MmoMobScaling/difficulty).
+ui.floor.empty = No zone or biome floors are loaded yet.
+ui.floor.editor_header = Add / edit floor
+ui.floor.new = New floor
+ui.floor.id = File name
+ui.floor.type = Applies to
+ui.floor.type_zone = Zone
+ui.floor.type_biome = Biome
+ui.floor.type_inherit = Inherit
+ui.floor.target = Zone or biome name
+ui.floor.value = Floor difficulty
+ui.floor.row_sub = {type} {target}, floor {floor}
+ui.floor.hint = A floor is the difficulty a spawn starts from before distance and nearby players add to it. The most specific mapping wins: an exact zone name, then a zone family such as Zone2 for every Zone2_ sub-zone, then the same for biomes, then the * wildcards, then the baseline floor on the Global tab. Leave a field blank to keep what the shipped mapping says.
+
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
 # live in the values themselves / would drift if restated here). A world-form field that mirrors an
@@ -237,7 +279,7 @@ ui.hint.hp_share = How much of that toughness shows as health on the bar; the re
 ui.hint.out_scale = How fast a mob's hit grows with difficulty; with the shape at 1.0 this is the extra damage per point of difficulty above the baseline.
 ui.hint.out_shape = How the damage curve bends: 1.0 is a straight line, above it low difficulties hit only a little harder while high ones hit much harder.
 ui.hint.max_ehp = The most times longer than a baseline mob any mob may take to kill, an affix's resistance counted; keep it well above the top of the curve or every tier ends up identical there.
-ui.hint.max_out = The hardest ceiling the difficulty curve can ever push a mob's outgoing damage multiplier to.
+ui.hint.max_out = The most times its base hit any mob may deal. Keep it well above the top of the curve, or every tier hits alike up there.
 ui.hint.clamp_min_hp = The least a mob's health may ever be scaled to, as a share of its base.
 ui.hint.clamp_max_in = The most damage a mob may be made to take per hit, as a multiple of normal; above one allows a glass-cannon affix.
 ui.hint.clamp_min_out = The least a mob's hit may ever be scaled to, as a share of its base hit.
@@ -252,7 +294,7 @@ ui.hint.esc_rarity = How much extra rarity spawn chance distance escalation adds
 ui.hint.player_scaling = Whether nearby players and their power raise a region's difficulty at all.
 ui.hint.player_ring = Protected radius around the world spawn where nearby player power never raises difficulty. Zero means no protected area, so group scaling applies everywhere.
 ui.hint.aggregation = How the power of multiple nearby players folds into one region difficulty reading.
-ui.hint.region_size = The size of the proximity grid used to bucket players into a shared region reading.
+ui.hint.region_size = How many chunks across one group-power region is. Players inside the same square count as one group for the difficulty they meet.
 ui.hint.band_width = The most a region's difficulty can swing above its baseline from nearby player power.
 ui.hint.only_raise = When on, nearby player power can only raise a region's difficulty, never soften it below the baseline.
 
@@ -271,9 +313,11 @@ ui.hint.insp_portrait = Whether the inspector card shows the target's generated 
 ui.hint.insp_range = How far the crosshair reaches to detect a mob to inspect.
 
 # Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
-ui.hint.world_id = The file name this world's settings are saved under; leave blank to derive it from the match pattern.
-ui.hint.world_match = Which world this file applies to: an exact name, a wildcard prefix, or a bare wildcard for every world.
+ui.hint.world_id = The file name this world's settings are saved under; leave blank to name it after the first world match pattern, or the first gameplay config key when there is no pattern.
+ui.hint.world_match = World names this file applies to, comma-separated: exact names or wildcard patterns. Leave all three targeting fields blank for a base file other files inherit from.
 ui.hint.world_parent = Another world file to inherit settings from before this file's own overrides apply.
+ui.hint.world_gameplay_configs = Gameplay config keys this file applies to, comma-separated. The one stable handle on an instance world, whose name changes every time it is created.
+ui.hint.world_exclude_match = World names or patterns this file must never apply to, comma-separated, even when a match above would catch them.
 ui.hint.w_enabled = Whether mob scaling runs in this world at all. Inherit follows the parent file, then the global setting.
 ui.hint.w_esc_enabled = Whether distance escalation applies in this world. Inherit follows the parent file, then the global setting.
 ui.hint.w_player_scaling = Whether nearby players raise difficulty in this world. Inherit follows the parent file, then the global setting.
@@ -290,6 +334,10 @@ ui.hint.w_zone_hud = Whether the zone difficulty overlay is allowed to show in t
 ui.hint.w_inspector_hud = Whether the mob inspector overlay is allowed to show in this world. Inherit follows the parent file, then the global setting.
 ui.hint.w_zone_show_location = Whether the overlay also names the current zone and biome in this world. Inherit follows the parent file, then the global setting.
 ui.hint.w_insp_portrait = Whether the inspector card shows the target's portrait in this world. Inherit follows the parent file, then the global setting.
+ui.hint.floor_id = The file this floor is saved under in mods/MmoMobScaling/difficulty. Name it after a shipped mapping to retune that one; leave it blank to name it after the zone or biome.
+ui.hint.floor_type = Whether the name below is a zone or a biome. Inherit keeps the shipped mapping's answer.
+ui.hint.floor_target = The game's own zone or biome name, such as Zone2_Tier1 or Ocean1. A family name like Zone2 covers every Zone2_ sub-zone, and * covers whatever the other mappings miss.
+ui.hint.floor_value = The difficulty a spawn there starts from. Distance escalation and nearby player power add on top, then the minimum and maximum clamp it.
 
 # Status line.
 ui.status.saved = Saved.
@@ -300,4 +348,9 @@ ui.status.save_failed = Could not write the world file.
 ui.status.invalid_field = Enter a valid value for {field}. Numbers must be 0 or higher, chances must be between 0 and 1, and whole number fields must be a whole number.
 ui.status.invalid_caps = Maximum must be at least the minimum.
 ui.status.unknown_preset = Unknown preset.
-ui.status.id_or_match_required = Enter a file name or a world match pattern first.
+ui.status.id_or_match_required = Enter a file name, a world match pattern or a gameplay config key first.
+ui.status.floor_deleted = Floor file removed. The shipped mapping applies again.
+ui.status.floor_incomplete = A new floor needs all three: what it applies to, the zone or biome name, and the floor.
+ui.status.floor_id_required = Enter a file name or a zone or biome name first.
+ui.status.floor_save_failed = Could not write the floor file.
+ui.status.floor_delete_failed = Could not remove the floor file.

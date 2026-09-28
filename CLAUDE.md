@@ -26,8 +26,9 @@ tank axis is ONE effective-HP curve split geometrically (`StatCurve.EffectiveHpP
 is a POWER CURVE (`StatCurve.OutDamageScale` + `OutDamageShape`, `out = 1 + scale * (dEff - 1)^shape`, shape
 1.0 being the straight line whose scale is a plain per-point slope; the tank axis stays linear), `Intensity` is
 DELETED and only REPORTED (`config/LegacyIntensityReport`, from the boot audit: one warning per file still
-carrying it or a retired curve leaf, across the owner file, the owner and pack world bodies and every pack's
-settings files, nothing rewritten), and the Java balance constants left `MobScaleFold` for the
+carrying it or a retired curve leaf, across the owner file, the owner world files and every pack's settings
+files enabled or not, plus the jar and pack world bodies while the mod is enabled, since the `Worlds` store
+that carries them registers inside the gate; nothing rewritten), and the Java balance constants left `MobScaleFold` for the
 `Difficulty.Clamps` asset group.
 `MobScaleResult.difficulty` stays the SPOT difficulty everywhere it is read (HUD, inspector, `/mobscaling
 inspect`, the XP underdog gap, the `mob_difficulty` factor, every `MinDifficulty` gate).** The zero-cost registration
@@ -73,7 +74,14 @@ the tracked region power at its SUBJECT's own world and chunk, null on a cold mi
 the key for the presence tick, the factor and the fill alike; a world declaring `DISABLED`, or one no presence tick has declared yet, answers ABSENT to both (`RegionPowerTracker.holdsOpinion`), never a confident zero - `scalarIfTracked` for the seam, `readingFor` for the factor - while the spawn path's `scalarFor` keeps its zero delta), `/mobscaling purge|inspect|hud|preset|worlds|ui` (1.0.2 adds `worlds`, the read-only
 listing of the folded per-world rules, and `ui`, the in-game admin
 config page (full-surface, spec-driven), + full write-back persistence for every runtime edit), content validation, 9-locale `mmomobscaling.lang`, and TWO
-player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card and the
+player-facing HUD overlays (`hud/` package + `MobScalingHudSystem`: the zone-difficulty card, whose tier word
+is `hud/ZoneTier` classified on the derived THREAT RATIO `outFactor(difficulty) / outFactor(power)`, both read
+off the world's own `DifficultyStatCurve` (`SpawnScalingSettings.statCurveModel()`, the curve its spawns fold
+on, so the word and the mob can never disagree): how many times faster the viewer dies here than in a matched
+fight, the bands derived from time-to-die in its javadoc (FAIR within a quarter either way, HARD / EASY out to
+a doubling past that edge, DEADLY / TRIVIAL beyond; the curve is read at the raw power, never clamped to the
+difficulty caps, a power at or below the origin reads as the fresh character, a railed curve reads railed as
+the fold reads it), while the number beside the word stays the SPOT difficulty; and the
 crosshair mob inspector, both codec-configured + live-tunable via `/mobscaling hud`). The 2026-07-03
 concerns pass ADDED: the NATIVE-ZONE floor resolver (`world/ZoneDifficultyResolver`: authored
 `Difficulty/*.json` mappings over the engine's own `Zone.name()`/`Biome.getName()`, precedence zone
@@ -215,8 +223,8 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   Fields are NULLABLE wrappers at EVERY nesting level so an absent key (or a
   partially-filled group) stays `null`, which is what makes the per-leaf partial owner overlay work.
   There is NO slope multiplier: an owner tunes the curve themselves. `config/LegacyIntensityReport`
-  (run once per boot from `MobScalingAssetRegistrar.runBootAudit`, enabled or not, after every store has
-  folded) REWRITES NOTHING: it names, in one warning per file, every layer still authoring `Intensity` or
+  (run once per boot from `MobScalingAssetRegistrar.runBootAudit`, which registers outside the zero-cost
+  gate, after every store has folded) REWRITES NOTHING: it names, in one warning per file, every layer still authoring `Intensity` or
   one of the four retired `StatCurve` leaves (`HpPerPoint`, `InDamageReductionPerPoint`, `MaxHpMult`,
   `MinInDamageMult`, each with its value) - the owner file, every owner world file (by the path its id
   resolves to), every jar or pack world body no owner file shadows (`WorldSettingsConfig.packOnlyIds` /
@@ -225,7 +233,13 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   does not declare) - saying what the file folds to today for the leaves that replaced the multiplier and
   offering one starting point for the damage axis only (`OutDamageScale` times the old `Intensity`, marked
   a suggestion); the tank axis gets no number, because the slopes `Intensity` scaled there no longer exist
-  and any carried value would be a third curve. A pack body is named with the owner-copy route. **1.0.1**: `OpenWorld` gained `PlayerScalingEnabled` (default true; false
+  and any carried value would be a third curve. A pack body is named with the owner-copy route. What the
+  report can SEE follows the gate, which stays (a disabled mod registers nothing and costs nothing): the owner
+  file, the owner world files (adopted and scanned at `setup()`, before the gate) and every pack's settings
+  files (raw off the pack root, no store) are reported enabled or disabled, while the jar and pack WORLD
+  bodies arrive only through the `Worlds` store's `LoadedAssetsEvent`, registered in the enabled branch, so
+  they are reported only while the mod is enabled. An `Intensity` that is not a number is named as the retired
+  key it is, with no starting point offered. **1.0.1**: `OpenWorld` gained `PlayerScalingEnabled` (default true; false
   skips the group delta). **1.0.2**: `Difficulty` gained `Floor` (the world-baseline difficulty floor
   under the zone/biome `Difficulty/*.json` mappings; global default 30.0 in `Settings/Default.json` -
   absorbed from the MMO jar's removed `WorldRules.MobScaling` group), and the 1.0.1 inline

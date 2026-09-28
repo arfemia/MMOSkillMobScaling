@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
 
+import com.google.gson.JsonObject;
 import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
 import com.hypixel.hytale.codec.ExtraInfo;
@@ -64,7 +65,7 @@ class MobScalingAssetCodecTest {
     void decodesShippedDungeonWorldFile() throws Exception {
         WorldSettingsAsset asset = decode("/Server/MmoMobScaling/Worlds/DungeonOfFear_I.json",
                 WorldSettingsAsset.CODEC);
-        com.google.gson.JsonObject body = asset.getPayloadAsJsonObject();
+        JsonObject body = asset.getPayloadAsJsonObject();
         assertNotNull(body, "raw Payload survives for the pre-merge");
         // Dungeon of Fear I ships as a flat, self-contained file (no Parent): it simply turns
         // open-world mob scaling OFF in its instance worlds.

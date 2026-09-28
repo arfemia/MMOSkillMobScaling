@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -79,10 +80,12 @@ class DifficultyOwnerLayerTest {
         assertNotNull(zone2);
         assertEquals(TargetType.ZONE, zone2.targetType(), "TargetType inherited from the shipped mapping");
         assertEquals("Zone2", zone2.targetId(), "TargetId inherited from the shipped mapping");
+        assertEquals("Zone2", zone2.id(), "an overlay keeps the shipped id's authored spelling, not the file key");
         assertEquals(60.0, zone2.floor(), 1e-9, "the owner Floor wins");
         assertEquals(60.0, cfg.zoneFloor("Zone2_Tier1"), 1e-9, "the derived index rebuilt on the owner fold");
         assertEquals(38.0, cfg.zoneFloor("Zone3"), 1e-9, "a shipped mapping no file names is untouched");
         assertEquals(70.0, cfg.zoneFloor("Zone9"), 1e-9, "a complete new file adds a mapping");
+        assertEquals("frontier", cfg.resolve("Frontier").id(), "a mapping nothing ships under carries the file key as its id");
         assertNull(cfg.resolve("orphan"), "a partial file with nothing to inherit from publishes nothing");
         DifficultyMapping ocean = cfg.resolve("ocean");
         assertNotNull(ocean);
@@ -93,6 +96,37 @@ class DifficultyOwnerLayerTest {
                 "only the files that published are badged as owner-authored");
         assertEquals(22.0, cfg.packMapping("Zone2").floor(), 1e-9,
                 "the shipped layer itself is untouched underneath");
+    }
+
+    @Test
+    void authoredByIdReadsTheOwnerFilesOwnLeavesAndNothingElse(@TempDir Path tmp) throws Exception {
+        shipped();
+        Files.writeString(tmp.resolve("Zone2.json"), "{ \"Floor\": 60.0 }", StandardCharsets.UTF_8);
+        Files.writeString(tmp.resolve("Frontier.json"),
+                "{ \"TargetType\": \"zone\", \"TargetId\": \"Zone9\", \"Floor\": 70.0 }", StandardCharsets.UTF_8);
+        DifficultyOwnerLayer layer = layerIn(tmp);
+
+        // A partial file: only the leaf it authors is present, the shipped target is NOT copied in -
+        // which is what lets an editor seeded from it keep the other fields blank (inherit).
+        var zone2 = layer.authoredById("Zone2");
+        assertNotNull(zone2);
+        assertEquals(60.0, zone2.getFloor(), 1e-9);
+        assertNull(zone2.getTargetType(), "the shipped TargetType is inherited at fold, never authored here");
+        assertNull(zone2.getTargetId());
+        // The read keys by the same id key as the fold, so any spelling of the id reaches the file.
+        assertNotNull(layer.authoredById("zone2"));
+        assertNotNull(layer.authoredById("ZONE2"));
+        // A complete file comes back whole, the type word as the file spelled it (the editor re-cases it).
+        var frontier = layer.authoredById("frontier");
+        assertNotNull(frontier);
+        assertEquals("zone", frontier.getTargetType());
+        assertEquals("Zone9", frontier.getTargetId());
+        // A shipped mapping no owner file overlays, and an unknown id, both read as nothing authored.
+        assertNull(layer.authoredById("Zone3"));
+        assertNull(layer.authoredById("nowhere"));
+        // No owner dir at all: nothing authored anywhere.
+        layer.setOwnerDir(null);
+        assertNull(layer.authoredById("Zone2"));
     }
 
     @Test
@@ -236,5 +270,24 @@ class DifficultyOwnerLayerTest {
         DifficultyOwnerLayer.getInstance().setOwnerDir(null);
         assertFalse(MobScalingOwnerWriter.saveDifficultyFloor("Zone2", 55.0), "no owner dir, nothing written");
         assertEquals(22.0, DifficultyConfig.getInstance().zoneFloor("Zone2"), 1e-9);
+    }
+
+    @Test
+    void anIdTheSanitizerRewritesIsOneEntryAcrossTheLayers(@TempDir Path tmp) throws Exception {
+        // A pack ships a mapping under an id with a space in it, and the owner retunes it from a file whose
+        // stem keys the same way. Both layers must meet at the ONE id key (zone2_big): one entry in the fold,
+        // one id listed, the owner floor on top, resolvable by the raw spelling and by the key alike.
+        DifficultyConfig cfg = DifficultyConfig.getInstance();
+        cfg.mergePackLayer(Map.of("Zone2 Big", zone("Zone2 Big", "Zone2_Big", 22.0)));
+        Files.writeString(tmp.resolve("Zone2 Big.json"), "{ \"Floor\": 60.0 }", StandardCharsets.UTF_8);
+        DifficultyOwnerLayer layer = layerIn(tmp);
+
+        assertEquals(List.of("zone2_big"), cfg.ids(), "one id, one entry, under the one key");
+        assertEquals(1, cfg.all().size(), "the pack spelling and the owner spelling did not fork the fold");
+        assertEquals(60.0, cfg.resolve("Zone2 Big").floor(), 1e-9, "resolvable by the raw id");
+        assertEquals(60.0, cfg.resolve("zone2_big").floor(), 1e-9, "and by the key");
+        assertEquals(60.0, cfg.zoneFloor("Zone2_Big"), 1e-9, "the index carries the owner floor");
+        assertEquals(22.0, cfg.packMapping("Zone2 Big").floor(), 1e-9, "the shipped layer is untouched underneath");
+        assertEquals(Set.of("zone2_big"), layer.ownerAuthoredIds());
     }
 }

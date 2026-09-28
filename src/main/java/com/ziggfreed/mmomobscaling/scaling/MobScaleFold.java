@@ -89,8 +89,23 @@ public final class MobScaleFold {
 
         /** The effective-HP multiplier from difficulty alone: {@code clamp(1 + (d-1)*slope, 1, maxEffectiveHpMult)}. */
         public double effectiveHp(double difficulty) {
+            return clamp(unrailedEffectiveHp(difficulty), 1.0, Math.max(1.0, maxEffectiveHpMult));
+        }
+
+        /**
+         * Whether {@code maxEffectiveHpMult} is what decides the tank axis at {@code difficulty}: the
+         * line {@code 1 + (d - 1) * slope} has climbed past the rail, so every difficulty from here up
+         * folds to the same toughness and a steeper slope changes nothing here. What the admin preview
+         * marks so an owner can see a ceiling holding a number down.
+         */
+        public boolean effectiveHpRailed(double difficulty) {
+            return unrailedEffectiveHp(difficulty) > Math.max(1.0, maxEffectiveHpMult);
+        }
+
+        /** The tank line before its rail: {@code 1 + (d - 1) * slope}, floored at difficulty 1. */
+        private double unrailedEffectiveHp(double difficulty) {
             double d = Math.max(1.0, difficulty);
-            return clamp(1.0 + (d - 1.0) * effectiveHpPerPoint, 1.0, Math.max(1.0, maxEffectiveHpMult));
+            return 1.0 + (d - 1.0) * effectiveHpPerPoint;
         }
 
         /** The visible HP multiplier from difficulty alone: {@code ehp ^ visibleHpShare}. */
@@ -109,8 +124,22 @@ public final class MobScaleFold {
          * is 0 whatever the shape, so the curve starts at exactly 1.0.
          */
         public double outFactor(double difficulty) {
+            return clamp(unrailedOut(difficulty), 1.0, Math.max(1.0, maxOutDamageMult));
+        }
+
+        /**
+         * Whether {@code maxOutDamageMult} is what decides the damage axis at {@code difficulty}: the
+         * curve has climbed past the rail, so every difficulty from here up hits alike and a larger
+         * scale or shape changes nothing here. The damage-axis twin of {@link #effectiveHpRailed}.
+         */
+        public boolean outRailed(double difficulty) {
+            return unrailedOut(difficulty) > Math.max(1.0, maxOutDamageMult);
+        }
+
+        /** The damage curve before its rail: {@code 1 + scale * (d - 1) ^ shape}, floored at difficulty 1. */
+        private double unrailedOut(double difficulty) {
             double d = Math.max(1.0, difficulty);
-            return clamp(1.0 + outDamageScale * Math.pow(d - 1.0, outDamageShape), 1.0, Math.max(1.0, maxOutDamageMult));
+            return 1.0 + outDamageScale * Math.pow(d - 1.0, outDamageShape);
         }
 
     }

@@ -104,6 +104,7 @@ ui.tab.global = Globale
 ui.tab.zone_hud = HUD Zona
 ui.tab.inspector = Ispettore
 ui.tab.worlds = Mondi
+ui.tab.floors = Soglie
 
 ui.toggle.on = ON
 ui.toggle.off = OFF
@@ -141,9 +142,29 @@ ui.global.clamps_header = Limiti di sicurezza
 
 # Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
 ui.global.preview_title = Anteprima: Scheletro
-ui.global.preview_note = Una creatura comune fatta passare per la curva di difficoltà qui sopra. Una rarità o una variante legge la stessa curva più avanti, a questa difficoltà moltiplicata per il proprio moltiplicatore.
-ui.global.preview_row = D{diff}   PV {hp}   Dmg {out}   Assorbito {in}
+ui.global.preview_note = Uno scheletro semplice fatto passare per la curva a sinistra, a cinque difficoltà tra il tuo minimo e il tuo massimo. Salute e colpo mostrano il numero reale appena la mod ne ha visto uno: la salute con cui è comparso uno scheletro e l'ultimo colpo che uno ha messo a segno. Il tempo per uccidere dice quante volte più a lungo ci vuole rispetto a una creatura non scalata. Un avviso ambra di limite significa che un tetto trattiene quella riga; alzare la pendenza lì non cambia nulla.
+ui.global.preview_row = D{diff}   PV {hp}   Colpo {out}   Assorbito {in}%
 ui.global.preview_custom = Prova una difficoltà
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Tempo per uccidere x{ttk}
+ui.global.preview_rail_hp = limite di robustezza attivo
+ui.global.preview_rail_out = limite di colpo attivo
+ui.global.preview_rail_both = entrambi i limiti attivi
+ui.global.ladder_title = Scala di rarità a D{diff}
+ui.global.ladder_note = Ogni livello legge la stessa curva a questa difficoltà per il proprio moltiplicatore. Scrivi una difficoltà sopra per spostare la scala; vuota, segue la soglia base.
+ui.global.ladder_row = {name} x{mult}   D{diff}   PV {hp}   Colpo {out}   Assorbito {in}%
+ui.global.ladder_plain = Semplice
+ui.number = {n}
+ui.mmo.header = Lato MMO (sola lettura)
+ui.mmo.power = Il potere dei giocatori va da {min} a {max}. Una creatura semplice a difficoltà N è lo scontro alla pari per un giocatore con potere N.
+ui.mmo.unavailable = Intervallo di potere dei giocatori: non disponibile. Il jar dell'MMO che questa mod può leggere manca o è più vecchio di quello con cui è stata compilata.
+ui.mmo.own_power = Il tuo potere in questo momento: {power}
+ui.mmo.cap_above = La tua difficoltà massima {cap} sta sopra il tetto di potere {max}, quindi le zone lontane possono superare anche un gruppo al massimo. È il modo previsto.
+ui.mmo.cap_below = La tua difficoltà massima {cap} sta sotto il tetto di potere {max}. Ogni gruppo oltre incontra la stessa difficoltà; alza il massimo almeno a {max}.
+ui.mmo.cap_equal = La tua difficoltà massima {cap} coincide con il tetto di potere {max}: un gruppo al massimo trova in cima uno scontro alla pari e niente di più duro.
+ui.mmo.floor_mismatch = La tua difficoltà minima {min} differisce dalla soglia di potere {powerMin}; le due scale dovrebbero partire insieme.
+ui.mmo.where = Quei numeri si modificano sul lato MMO, non qui: la pagina Power Level del menu di amministrazione dell'MMO, oppure mods/mmoskilltree/power-level.json (Clamp.MinPower e MaxPower). I tetti di mitigazione del giocatore contro cui è derivata la curva del colpo vivono in mods/mmoskilltree/ability-clamps.json sopra Server/MMOSkillTree/ModifierClamps, e questa mod non può leggerli.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Robustezza per punto
@@ -183,6 +204,8 @@ ui.world.new = Nuovo mondo
 ui.world.id = Nome file
 ui.world.match = Corrispondenza mondo
 ui.world.parent = File principale
+ui.world.gameplay_configs = Configurazioni di gioco
+ui.world.exclude_match = Escludi mondi
 ui.world.enabled = Ridimensionamento in questo mondo
 ui.world.tuning_header = Regolazione
 ui.world.floor = Soglia di difficoltà di base
@@ -205,6 +228,18 @@ ui.world.hint = Ogni impostazione qui è modificabile: regolazione, escalation d
 ui.world.inherits = Eredita: {value}
 ui.world.inherits_all = (tutti)
 ui.world.inherits_none = (nessuno)
+ui.floor.empty = Nessuna soglia di zona o bioma ancora caricata.
+ui.floor.editor_header = Aggiungi / modifica soglia
+ui.floor.new = Nuova soglia
+ui.floor.id = Nome file
+ui.floor.type = Si applica a
+ui.floor.type_zone = Zona
+ui.floor.type_biome = Bioma
+ui.floor.type_inherit = Eredita
+ui.floor.target = Nome di zona o bioma
+ui.floor.value = Difficoltà soglia
+ui.floor.row_sub = {type} {target}, soglia {floor}
+ui.floor.hint = Una soglia è la difficoltà da cui parte una comparsa prima che distanza e giocatori vicini si aggiungano. Vince la mappatura più specifica: un nome di zona esatto, poi una famiglia di zone come Zone2 per ogni sottozona Zone2_, poi lo stesso per i biomi, poi i jolly *, poi la soglia base della scheda Globale. Lascia vuoto un campo per tenere ciò che dice la mappatura inclusa.
 
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
@@ -223,7 +258,7 @@ ui.hint.hp_share = Quanta parte di quella robustezza appare come salute sulla ba
 ui.hint.out_scale = Quanto in fretta cresce il colpo di una creatura con la difficoltà; con la forma a 1.0 è il danno in più per ogni punto di difficoltà sopra il valore base.
 ui.hint.out_shape = Come si piega la curva del danno: 1.0 è una linea retta; sopra, le difficoltà basse colpiscono solo un po' più forte e quelle alte molto di più.
 ui.hint.max_ehp = Quante volte più a lungo di una creatura base può al massimo resistere qualsiasi creatura, contando la resistenza di un affisso; tienilo ben sopra la cima della curva o lì tutti i livelli diventano identici.
-ui.hint.max_out = Il tetto massimo a cui la curva di difficoltà può spingere il moltiplicatore di danno inflitto di una creatura.
+ui.hint.max_out = Il massimo multiplo del suo colpo base che una creatura può infliggere. Tienilo ben sopra la cima della curva, o lassù tutti i livelli colpiscono uguale.
 ui.hint.clamp_min_hp = Il minimo a cui la salute di una creatura può essere ridotta, come frazione della base.
 ui.hint.clamp_max_in = Il massimo danno che una creatura può essere portata a subire per colpo, come multiplo del normale; sopra uno consente un affisso da cannone di vetro.
 ui.hint.clamp_min_out = Il minimo a cui il colpo di una creatura può essere ridotto, come frazione del colpo base.
@@ -238,7 +273,7 @@ ui.hint.esc_rarity = Quanto la probabilità di rarità aggiuntiva l'escalation d
 ui.hint.player_scaling = Se i giocatori vicini e il loro potere aumentano affatto la difficoltà di una regione.
 ui.hint.player_ring = Raggio protetto attorno al punto di comparsa del mondo in cui la potenza dei giocatori vicini non aumenta mai la difficoltà. Zero significa nessuna area protetta, quindi la scalatura di gruppo si applica ovunque.
 ui.hint.aggregation = Come il potere di più giocatori vicini si combina in una lettura della difficoltà di una regione.
-ui.hint.region_size = La dimensione della griglia di prossimità utilizzata per raggruppare i giocatori in una lettura di regione condivisa.
+ui.hint.region_size = Quanti chunk per lato misura una regione di potere di gruppo. I giocatori nello stesso quadrato contano come un solo gruppo per la difficoltà che incontrano.
 ui.hint.band_width = Il massimo di cui la difficoltà di una regione può oscillare sopra il suo valore base dal potere dei giocatori vicini.
 ui.hint.only_raise = Se attivato, il potere dei giocatori vicini può solo aumentare la difficoltà di una regione, mai ridurla sotto il valore base.
 
@@ -257,9 +292,11 @@ ui.hint.insp_portrait = Se la scheda dell'ispettore mostra l'immagine del ritrat
 ui.hint.insp_range = Fino a che distanza il mirino raggiunge per rilevare una creatura da ispezionare.
 
 # Worlds tab: world-identity fields, tri-states, and pool gates (no global equivalent to reuse).
-ui.hint.world_id = Il nome file in cui vengono salvate le impostazioni di questo mondo; lascia vuoto per derivarlo dal modello di corrispondenza.
-ui.hint.world_match = A quale mondo si applica questo file: un nome esatto, un prefisso con caratteri jolly o un carattere jolly semplice per ogni mondo.
+ui.hint.world_id = Il nome file in cui vengono salvate le impostazioni di questo mondo; lascia vuoto per chiamarlo come il primo schema di mondo, o la prima chiave di configurazione di gioco quando non c'è uno schema.
+ui.hint.world_match = Nomi di mondo a cui si applica questo file, separati da virgole: nomi esatti o schemi con carattere jolly. Lascia vuoti tutti e tre i campi di destinazione per un file base da cui altri ereditano.
 ui.hint.world_parent = Un altro file di mondo da cui ereditare le impostazioni prima che vengano applicate le sostituzioni di questo file.
+ui.hint.world_gameplay_configs = Chiavi di configurazione di gioco a cui si applica questo file, separate da virgole. L'unico appiglio stabile su un mondo istanza, il cui nome cambia a ogni creazione.
+ui.hint.world_exclude_match = Nomi o schemi di mondo a cui questo file non deve mai applicarsi, separati da virgole, anche quando una corrispondenza sopra li catturerebbe.
 ui.hint.w_enabled = Se il ridimensionamento delle creature viene eseguito in questo mondo affatto. L'eredità segue il file principale, quindi l'impostazione globale.
 ui.hint.w_esc_enabled = Se l'escalation della distanza si applica in questo mondo. L'eredità segue il file principale, quindi l'impostazione globale.
 ui.hint.w_player_scaling = Se i giocatori vicini aumentano la difficoltà in questo mondo. L'eredità segue il file principale, quindi l'impostazione globale.
@@ -276,6 +313,10 @@ ui.hint.w_zone_hud = Se l'overlay della difficoltà della zona è consentito mos
 ui.hint.w_inspector_hud = Se l'overlay dell'ispettore di creature è consentito mostrato in questo mondo. L'eredità segue il file principale, quindi l'impostazione globale.
 ui.hint.w_zone_show_location = Se l'overlay nomina anche la zona e il bioma attuali in questo mondo. L'eredità segue il file principale, quindi l'impostazione globale.
 ui.hint.w_insp_portrait = Se la scheda dell'ispettore mostra il ritratto del bersaglio in questo mondo. L'eredità segue il file principale, quindi l'impostazione globale.
+ui.hint.floor_id = Il file sotto cui questa soglia viene salvata in mods/MmoMobScaling/difficulty. Chiamalo come una mappatura inclusa per ritararla; lascialo vuoto per chiamarlo come la zona o il bioma.
+ui.hint.floor_type = Se il nome sotto è una zona o un bioma. Eredita tiene la risposta della mappatura inclusa.
+ui.hint.floor_target = Il nome di zona o bioma proprio del gioco, come Zone2_Tier1 o Ocean1. Un nome di famiglia come Zone2 copre ogni sottozona Zone2_, e * copre ciò che le altre mappature mancano.
+ui.hint.floor_value = La difficoltà da cui parte una comparsa lì. L'escalation per distanza e il potere dei giocatori vicini si aggiungono sopra, poi il minimo e il massimo la limitano.
 
 # Status line.
 ui.status.saved = Salvato.
@@ -286,4 +327,9 @@ ui.status.save_failed = Impossibile scrivere il file del mondo.
 ui.status.invalid_field = Inserisci un valore valido per {field}. I numeri devono essere 0 o superiori, le probabilità devono essere tra 0 e 1, e i campi numero intero devono essere un numero intero.
 ui.status.invalid_caps = Il massimo deve essere almeno il minimo.
 ui.status.unknown_preset = Preset sconosciuto.
-ui.status.id_or_match_required = Inserisci prima un nome file o un modello di corrispondenza mondo.
+ui.status.id_or_match_required = Inserisci prima un nome file, uno schema di mondo o una chiave di configurazione di gioco.
+ui.status.floor_deleted = File di soglia rimosso. La mappatura inclusa si applica di nuovo.
+ui.status.floor_incomplete = Una nuova soglia richiede tutti e tre: a cosa si applica, il nome di zona o bioma e la soglia.
+ui.status.floor_id_required = Inserisci prima un nome file o un nome di zona o bioma.
+ui.status.floor_save_failed = Impossibile scrivere il file della soglia.
+ui.status.floor_delete_failed = Impossibile rimuovere il file della soglia.

@@ -103,6 +103,7 @@ ui.tab.global = Global
 ui.tab.zone_hud = HUD de Zona
 ui.tab.inspector = Inspector
 ui.tab.worlds = Mundos
+ui.tab.floors = Pisos
 
 ui.toggle.on = SÍ
 ui.toggle.off = NO
@@ -140,9 +141,29 @@ ui.global.clamps_header = Límites de seguridad
 
 # Panel de vista previa de esqueleto (pestaña Global, columna derecha). {diff}/{hp}/{out}/{in} son DATOS, no prosa traducida.
 ui.global.preview_title = Vista previa: Esqueleto
-ui.global.preview_note = Una criatura común pasada por la curva de estadísticas de dificultad de arriba. Una rareza o variante lee la misma curva más adelante, a esta dificultad multiplicada por su propio multiplicador.
-ui.global.preview_row = D{diff}   HP {hp}   Daño {out}   Recibido {in}
+ui.global.preview_note = Un esqueleto simple pasado por la curva de la izquierda, a cinco dificultades entre su mínimo y su máximo. Salud y golpe muestran el número real en cuanto el mod ha visto uno: la salud con la que apareció un esqueleto y el último golpe que uno asestó. El tiempo de muerte es cuántas veces más tarda en morir que una criatura sin escalar. Un aviso ámbar de tope significa que un techo sujeta esa fila; subir la pendiente no cambia nada ahí.
+ui.global.preview_row = D{diff}   HP {hp}   Golpe {out}   Recibido {in}%
 ui.global.preview_custom = Prueba una dificultad
+ui.global.preview_mult = x{mult}
+ui.global.preview_mult_abs = x{mult} ({abs})
+ui.global.preview_detail = Tiempo de muerte x{ttk}
+ui.global.preview_rail_hp = tope de dureza activo
+ui.global.preview_rail_out = tope de golpe activo
+ui.global.preview_rail_both = ambos topes activos
+ui.global.ladder_title = Escalera de rareza en D{diff}
+ui.global.ladder_note = Cada nivel lee la misma curva a esta dificultad por su propio multiplicador. Escriba una dificultad arriba para mover la escalera; en blanco sigue el piso base.
+ui.global.ladder_row = {name} x{mult}   D{diff}   HP {hp}   Golpe {out}   Recibido {in}%
+ui.global.ladder_plain = Simple
+ui.number = {n}
+ui.mmo.header = Lado MMO (solo lectura)
+ui.mmo.power = El poder de jugador va de {min} a {max}. Una criatura simple a dificultad N es el combate parejo para un jugador con poder N.
+ui.mmo.unavailable = Rango de poder de jugador: no disponible. El jar del MMO que este mod puede leer falta o es más antiguo que aquel con el que se compiló.
+ui.mmo.own_power = Su propio poder ahora mismo: {power}
+ui.mmo.cap_above = Su dificultad máxima {cap} está por encima del techo de poder {max}, así que las zonas lejanas pueden superar incluso a un grupo al máximo. Así es como está previsto.
+ui.mmo.cap_below = Su dificultad máxima {cap} está por debajo del techo de poder {max}. Todo grupo que lo supere encuentra la misma dificultad; suba el máximo al menos hasta {max}.
+ui.mmo.cap_equal = Su dificultad máxima {cap} coincide con el techo de poder {max}: un grupo al máximo encuentra arriba un combate parejo y nada más duro.
+ui.mmo.floor_mismatch = Su dificultad mínima {min} difiere del piso de poder {powerMin}; las dos escalas deberían empezar juntas.
+ui.mmo.where = Esos números se editan en el lado del MMO, no aquí: la página Power Level del menú de administración del MMO, o mods/mmoskilltree/power-level.json (Clamp.MinPower y MaxPower). Los techos de mitigación del jugador contra los que se deriva la curva de golpe viven en mods/mmoskilltree/ability-clamps.json sobre Server/MMOSkillTree/ModifierClamps, y este mod no puede leerlos.
 
 # Valores de curva de estadísticas de dificultad (compartidos por la pestaña Global y el editor por mundo).
 ui.curve.ehp_per_point = Dureza por punto
@@ -182,6 +203,8 @@ ui.world.new = Nuevo mundo
 ui.world.id = Nombre de archivo
 ui.world.match = Coincidencia de mundo
 ui.world.parent = Archivo padre
+ui.world.gameplay_configs = Configuraciones de juego
+ui.world.exclude_match = Excluir mundos
 ui.world.enabled = Escalado en este mundo
 ui.world.tuning_header = Ajuste
 ui.world.floor = Dificultad mínima base
@@ -204,6 +227,18 @@ ui.world.hint = Cada configuración aquí es editable: ajuste, escalación de di
 ui.world.inherits = Hereda: {value}
 ui.world.inherits_all = (todos)
 ui.world.inherits_none = (ninguno)
+ui.floor.empty = Aún no hay pisos de zona o bioma cargados.
+ui.floor.editor_header = Añadir / editar piso
+ui.floor.new = Nuevo piso
+ui.floor.id = Nombre de archivo
+ui.floor.type = Se aplica a
+ui.floor.type_zone = Zona
+ui.floor.type_biome = Bioma
+ui.floor.type_inherit = Heredar
+ui.floor.target = Nombre de zona o bioma
+ui.floor.value = Dificultad del piso
+ui.floor.row_sub = {type} {target}, piso {floor}
+ui.floor.hint = Un piso es la dificultad desde la que parte una aparición antes de que la distancia y los jugadores cercanos sumen. Gana la asignación más específica: un nombre de zona exacto, luego una familia de zona como Zone2 para cada subzona Zone2_, luego lo mismo para biomas, luego los comodines *, luego el piso base de la pestaña Global. Deje un campo en blanco para conservar lo que dice la asignación incluida.
 
 # Línea de estado.
 ui.status.saved = Guardado.
@@ -214,7 +249,12 @@ ui.status.save_failed = No se pudo escribir el archivo de mundo.
 ui.status.invalid_field = Ingrese un valor válido para {field}. Los números deben ser 0 o superior, las probabilidades deben estar entre 0 y 1, y los campos de número entero deben ser un número entero.
 ui.status.invalid_caps = El máximo debe ser al menos el mínimo.
 ui.status.unknown_preset = Preset desconocido.
-ui.status.id_or_match_required = Ingrese primero un nombre de archivo o patrón de coincidencia de mundo.
+ui.status.id_or_match_required = Ingrese primero un nombre de archivo, un patrón de mundo o una clave de configuración de juego.
+ui.status.floor_deleted = Archivo de piso eliminado. La asignación incluida vuelve a aplicarse.
+ui.status.floor_incomplete = Un piso nuevo necesita las tres cosas: a qué se aplica, el nombre de zona o bioma y el piso.
+ui.status.floor_id_required = Ingrese primero un nombre de archivo o un nombre de zona o bioma.
+ui.status.floor_save_failed = No se pudo escribir el archivo del piso.
+ui.status.floor_delete_failed = No se pudo eliminar el archivo del piso.
 
 # ============================================================================
 # Sugerencias de configuración en línea (endurecimiento UX del administrador round-2). UNA oración cualitativa cada una, sin dígitos
@@ -233,7 +273,7 @@ ui.hint.hp_share = Qué parte de esa dureza se muestra como salud en la barra; e
 ui.hint.out_scale = A qué velocidad crece el golpe de una criatura con la dificultad; con la forma en 1.0 es el daño extra por cada punto de dificultad por encima de la línea base.
 ui.hint.out_shape = Cómo se curva el daño: 1.0 es una línea recta; por encima, las dificultades bajas golpean solo un poco más fuerte y las altas mucho más.
 ui.hint.max_ehp = Cuántas veces más que una criatura base puede tardar en morir cualquier criatura, contando la resistencia de un afijo; déjalo muy por encima del tope de la curva o todos los niveles acaban iguales ahí.
-ui.hint.max_out = El techo más duro al que la curva de dificultad puede empujar el multiplicador de daño infligido de una criatura.
+ui.hint.max_out = Las veces de su golpe base que cualquier criatura puede llegar a asestar. Manténgalo bien por encima del tope de la curva o allí todos los niveles golpean igual.
 ui.hint.clamp_min_hp = Lo mínimo a lo que puede reducirse la salud de una criatura, como fracción de su base.
 ui.hint.clamp_max_in = El máximo de daño que se puede hacer recibir a una criatura por golpe, como múltiplo de lo normal; por encima de uno permite un afijo de cañón de cristal.
 ui.hint.clamp_min_out = Lo mínimo a lo que puede reducirse el golpe de una criatura, como fracción de su golpe base.
@@ -248,7 +288,7 @@ ui.hint.esc_rarity = Cuánta probabilidad de rareza adicional agrega la escalaci
 ui.hint.player_scaling = Si los jugadores cercanos y su poder aumentan la dificultad de una región.
 ui.hint.player_ring = Radio protegido alrededor del punto de aparición del mundo donde el poder de los jugadores cercanos nunca aumenta la dificultad. Cero significa que no hay zona protegida, así que el escalado de grupo se aplica en todas partes.
 ui.hint.aggregation = Cómo el poder de múltiples jugadores cercanos se pliega en una lectura de dificultad de región.
-ui.hint.region_size = El tamaño de la cuadrícula de proximidad utilizada para agrupar jugadores en una lectura de región compartida.
+ui.hint.region_size = Cuántos chunks de lado tiene una región de poder de grupo. Los jugadores dentro del mismo cuadrado cuentan como un grupo para la dificultad que encuentran.
 ui.hint.band_width = Lo máximo que la dificultad de una región puede variar por encima de su línea base por el poder de jugadores cercanos.
 ui.hint.only_raise = Cuando está activado, el poder de los jugadores cercanos solo puede aumentar la dificultad de una región, nunca reducirla por debajo de la línea base.
 
@@ -267,9 +307,11 @@ ui.hint.insp_portrait = Si la tarjeta del inspector muestra la imagen de retrato
 ui.hint.insp_range = Cuán lejos llega la mira para detectar una criatura a inspeccionar.
 
 # Pestaña Mundos: campos de identidad mundial, tri-estados y puertas de grupo (sin equivalente global para reutilizar).
-ui.hint.world_id = El nombre de archivo bajo el que se guardan los ajustes de este mundo; dejar en blanco para derivarlo del patrón de coincidencia.
-ui.hint.world_match = A qué mundo se aplica este archivo: un nombre exacto, un prefijo de comodín, o un comodín simple para cada mundo.
+ui.hint.world_id = El nombre de archivo bajo el que se guardan los ajustes de este mundo; dejar en blanco para nombrarlo según el primer patrón de mundo, o la primera clave de configuración de juego cuando no hay patrón.
+ui.hint.world_match = Nombres de mundo a los que se aplica este archivo, separados por comas: nombres exactos o patrones con comodín. Deje los tres campos de destino en blanco para un archivo base del que otros heredan.
 ui.hint.world_parent = Otro archivo de mundo del que heredar ajustes antes de que se apliquen las anulaciones propias de este archivo.
+ui.hint.world_gameplay_configs = Claves de configuración de juego a las que se aplica este archivo, separadas por comas. El único asidero estable de un mundo de instancia, cuyo nombre cambia cada vez que se crea.
+ui.hint.world_exclude_match = Nombres o patrones de mundo a los que este archivo nunca debe aplicarse, separados por comas, aunque una coincidencia de arriba los capture.
 ui.hint.w_enabled = Si el escalado de criaturas se ejecuta en este mundo en absoluto. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_esc_enabled = Si la escalación de distancia se aplica en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_player_scaling = Si los jugadores cercanos aumentan la dificultad en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
@@ -286,3 +328,7 @@ ui.hint.w_zone_hud = Si se permite que la superposición de dificultad de zona s
 ui.hint.w_inspector_hud = Si se permite que la superposición del inspector de criaturas se muestre en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_zone_show_location = Si la superposición también muestra el nombre de la zona y bioma actual en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
 ui.hint.w_insp_portrait = Si la tarjeta del inspector muestra el retrato del objetivo en este mundo. Heredar sigue el archivo padre, luego el ajuste global.
+ui.hint.floor_id = El archivo bajo el que se guarda este piso en mods/MmoMobScaling/difficulty. Nómbrelo como una asignación incluida para reajustarla; déjelo en blanco para nombrarlo según la zona o el bioma.
+ui.hint.floor_type = Si el nombre de abajo es una zona o un bioma. Heredar conserva la respuesta de la asignación incluida.
+ui.hint.floor_target = El nombre de zona o bioma propio del juego, como Zone2_Tier1 u Ocean1. Un nombre de familia como Zone2 cubre cada subzona Zone2_, y * cubre lo que las demás asignaciones no alcanzan.
+ui.hint.floor_value = La dificultad desde la que parte una aparición allí. La escalada por distancia y el poder de los jugadores cercanos se suman encima, y luego el mínimo y el máximo la acotan.

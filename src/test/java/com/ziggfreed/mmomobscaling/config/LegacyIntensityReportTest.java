@@ -187,10 +187,34 @@ class LegacyIntensityReportTest {
         assertNull(retired.intensity(), "no Intensity to name");
         assertEquals(List.of("HpPerPoint=0.08", "InDamageReductionPerPoint=0.002"), retired.retired(),
                 "the retired leaves, in schema order, with their values");
-        assertTrue(LegacyIntensityReport.inspect(json("{ \"Intensity\": \"high\" }")).isEmpty(),
-                "a non-numeric Intensity was never read by the old fold either");
-        assertEquals(-2.0, LegacyIntensityReport.inspect(json("{ \"Intensity\": -2.0 }")).intensity(), 1e-12,
+        LegacyIntensityReport.Finding text = LegacyIntensityReport.inspect(json("{ \"Intensity\": \"high\" }"));
+        assertFalse(text.isEmpty(), "a non-numeric Intensity is still the retired key sitting in the file");
+        assertNull(text.intensityNumber(), "but it carries no number to build a starting point from");
+        assertTrue(LegacyIntensityReport.inspect(json("{ \"Intensity\": null }")).isEmpty(),
+                "an explicit JSON null is an absent key");
+        assertEquals(-2.0, LegacyIntensityReport.inspect(json("{ \"Intensity\": -2.0 }")).intensityNumber(), 1e-12,
                 "a negative value is reported as written");
+    }
+
+    @Test
+    void aStringIntensityIsNamedAsTheRetiredKeyWithNoStartingPoint() {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        cfg.setConfigPath(null);
+        cfg.load();
+        List<String> notices = LegacyIntensityReport.settingsNotices(List.of(
+                new LegacyIntensityReport.PackSettingsFile("My Pack", "Server/MmoMobScaling/Settings/Default.json",
+                        json("{ \"Intensity\": \"high\", \"Difficulty\": { \"StatCurve\": { \"MaxHpMult\": 20.0 } } }"))), cfg);
+
+        assertEquals(1, notices.size(), notices.toString());
+        String n = notices.get(0);
+        assertTrue(n.contains("Intensity \"high\""), "names the value as written: " + n);
+        assertTrue(n.contains("not a number"), "says why nothing can be suggested: " + n);
+        assertTrue(n.contains("left as it is") && n.contains("Remove it"), n);
+        assertFalse(n.contains("suggestion"), "no damage-axis starting point is conjured from a word: " + n);
+        assertTrue(n.contains("It also authors") && n.contains("MaxHpMult=20.0"),
+                "the retired leaves still ride the same notice: " + n);
+        assertTrue(n.contains("jar or pack file") && n.contains("mods/MmoMobScaling/mob-scaling.json"),
+                "a pack file keeps its owner-file route: " + n);
     }
 
     @Test

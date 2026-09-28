@@ -1,16 +1,28 @@
-// ── mmo-mob-scaling skeleton PREVIEW row (Global tab, right column) ───────────
-// Appended into #MmoscalingPreviewList: cmd.append("#MmoscalingPreviewList", "Pages/MmoscalingPreviewRow.ui");
-// then addressed per row via the INDEXED PARENT (e.g. "#MmoscalingPreviewList[0] #Line"), so the bare
-// #Line id below is safe across many rows AND across mods (the ZigListRow rule). One line per sample
-// difficulty; MobScalingAdminPage.refreshPreview pushes the whole parameterized row text
-// (mmomobscaling.ui.global.preview_row: difficulty + HP/outgoing-damage/incoming-reduction) on .TextSpans
-// every time a Global-tab value changes (field/press/save/preset), never re-appended.
+// ── mmo-mob-scaling PREVIEW row (Global tab, right column) ───────────────────
+// Appended into #MmoscalingPreviewList (the five fixed samples), #MmoscalingProbeList (the one typed
+// probe) and #MmoscalingLadderList (one rung per rarity tier, plain first) by
+// cmd.append("<list>", "Pages/MmoscalingPreviewRow.ui"), then addressed per row via the INDEXED PARENT
+// (e.g. "#MmoscalingPreviewList[0] #Line"), so the bare ids below are safe across many rows AND across
+// mods (the ZigListRow rule). Two wrapping lines per row, both pushed on .TextSpans by
+// MobScalingAdminPage (paintPreviewRow / ladderLine + detailLine), never re-appended for a repaint:
+//   #Line   - the difficulty and the three stamped factors (health, hit, share of a hit taken), each
+//             multiplier followed by the real number when the mod has one for the sample role
+//             (mmomobscaling.ui.global.preview_row / ladder_row);
+//   #Detail - the time to kill relative to an unscaled mob, plus an amber "rail holding" marker when a
+//             ceiling decided the row (mmomobscaling.ui.global.preview_detail + preview_rail_*).
+// No fixed height anywhere: a line that outgrows the 300px column wraps instead of truncating.
 
 Group #MmoscalingPreviewRow {
-  Anchor: (Height: 18, Bottom: 5);
+  LayoutMode: Top;
+  Anchor: (Bottom: 6);
 
   Label #Line {
     Text: "";
-    Style: (FontSize: 12, TextColor: #cdd8e6);
+    Style: (FontSize: 12, TextColor: #cdd8e6, Wrap: true);
+  }
+
+  Label #Detail {
+    Text: "";
+    Style: (FontSize: 11, TextColor: #8fa3b8, Wrap: true);
   }
 }

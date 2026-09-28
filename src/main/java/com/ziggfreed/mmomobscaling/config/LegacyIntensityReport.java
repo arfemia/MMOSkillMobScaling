@@ -39,11 +39,18 @@ import com.hypixel.hytale.server.core.asset.AssetModule;
  * body is inert, since an owner file replaces it wholesale), and every {@code Server/MmoMobScaling/Settings/*.json}
  * in every loaded asset pack, a pack's own preset and a pack's override of {@code Default.json} alike, read
  * raw off the pack because the settings codec keeps no key it does not declare. A file the report cannot
- * read is skipped with a warning.
+ * read is skipped with a warning. An {@code Intensity} that is not a number (a string, say) is named as the
+ * retired key it is, with no starting point offered, since there is no number to scale.
  *
- * <p>Runs from the boot audit ({@code MobScalingAssetRegistrar.runBootAudit}), enabled or not: a disabled
- * mod must still explain what it is ignoring. It keeps reporting at every boot until the owner acts, since
- * nothing else can make the file stop carrying the key.
+ * <p>Runs from the boot audit ({@code MobScalingAssetRegistrar.runBootAudit}), which registers outside the
+ * zero-cost gate, so the report itself runs enabled or not; what it can SEE follows the gate, which stays
+ * as it is (a disabled mod registers nothing and costs nothing). The owner file, the owner world files
+ * (their folder is adopted and scanned at {@code setup()}, before the gate) and every pack's settings files
+ * (read raw off each loaded pack's root, no store needed) are reported enabled or disabled. A jar or pack
+ * WORLD body reaches {@link WorldSettingsConfig} only through the {@code Worlds} store's
+ * {@code LoadedAssetsEvent}, and that store registers in the enabled branch, so those bodies are reported
+ * only while the mod is enabled. It keeps reporting at every boot until the owner acts, since nothing else
+ * can make the file stop carrying the key.
  */
 public final class LegacyIntensityReport {
 
@@ -81,11 +88,21 @@ public final class LegacyIntensityReport {
     public record PackSettingsFile(@Nonnull String pack, @Nonnull String path, @Nonnull JsonObject body) {
     }
 
-    /** What one body authors that nothing reads: its {@code Intensity} (null when none) and its retired leaves as {@code name=value}. */
-    record Finding(@Nullable Double intensity, @Nonnull List<String> retired) {
+    /**
+     * What one body authors that nothing reads: its top-level {@code Intensity} as written (null when absent
+     * or JSON null; a string or any other non-number is kept, since the key is retired whatever its value)
+     * and its retired leaves as {@code name=value}.
+     */
+    record Finding(@Nullable JsonElement intensity, @Nonnull List<String> retired) {
 
         boolean isEmpty() {
             return intensity == null && retired.isEmpty();
+        }
+
+        /** The {@code Intensity} as a finite number, or null when absent or not one (the notice then offers no starting point). */
+        @Nullable
+        Double intensityNumber() {
+            return number(intensity);
         }
     }
 
@@ -175,10 +192,11 @@ public final class LegacyIntensityReport {
         return notices;
     }
 
-    /** What {@code body} authors that nothing reads: a numeric top-level {@code Intensity} and any retired curve leaf. */
+    /** What {@code body} authors that nothing reads: a top-level {@code Intensity} of any type and any retired curve leaf. */
     @Nonnull
     static Finding inspect(@Nonnull JsonObject body) {
-        Double intensity = number(body.get(INTENSITY));
+        JsonElement raw = body.get(INTENSITY);
+        JsonElement intensity = raw == null || raw.isJsonNull() ? null : raw;
         List<String> retired = new ArrayList<>();
         JsonObject curve = curveOf(body);
         if (curve != null) {
@@ -195,14 +213,16 @@ public final class LegacyIntensityReport {
     /**
      * The one notice for a file: what it authors, that nothing was changed, the leaves that replaced what
      * {@code Intensity} scaled with the values the file folds to today, the damage-axis starting point
-     * marked as a suggestion, and for a jar or pack file ({@code ownerCopy} non-null) where an owner
+     * marked as a suggestion (only for a numeric {@code Intensity}; a non-number is named and told to go,
+     * with nothing to scale), and for a jar or pack file ({@code ownerCopy} non-null) where an owner
      * authors the replacement instead.
      */
     @Nonnull
     static String notice(@Nonnull String file, @Nonnull Finding finding, @Nonnull Current now, @Nullable String ownerCopy) {
         StringBuilder sb = new StringBuilder("mob-scaling: ").append(file);
-        if (finding.intensity() != null) {
-            double k = finding.intensity();
+        Double numeric = finding.intensityNumber();
+        if (numeric != null) {
+            double k = numeric;
             sb.append(" authors ").append(INTENSITY).append(' ').append(k)
                     .append(", which nothing reads; the file was left as it is. ").append(INTENSITY)
                     .append(" multiplied the old curve slopes, and those leaves are gone: the tank axis is")
@@ -218,6 +238,14 @@ public final class LegacyIntensityReport {
                     .append(", which scales the curve's growth the way ").append(INTENSITY)
                     .append(" scaled the old slope) with OutDamageShape left at ").append(fmt(now.outDamageShape()))
                     .append(". Author those under Difficulty.StatCurve and remove ").append(INTENSITY).append('.');
+        } else if (finding.intensity() != null) {
+            sb.append(" authors ").append(INTENSITY).append(' ').append(finding.intensity())
+                    .append(", which nothing reads and which is not a number, so there is no starting point to")
+                    .append(" offer for it; the file was left as it is. Remove it: the tank axis is")
+                    .append(" Difficulty.StatCurve.EffectiveHpPerPoint with VisibleHpShare (this file folds to ")
+                    .append(fmt(now.effectiveHpPerPoint())).append(" and ").append(fmt(now.visibleHpShare()))
+                    .append(" today) and the damage axis is OutDamageScale with OutDamageShape (folding to ")
+                    .append(fmt(now.outDamageScale())).append(" and ").append(fmt(now.outDamageShape())).append(").");
         }
         if (!finding.retired().isEmpty()) {
             sb.append(finding.intensity() != null ? " It also authors" : " authors")
