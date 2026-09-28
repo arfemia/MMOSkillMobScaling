@@ -143,6 +143,8 @@ ui.global.min_cap = Minimum difficulty
 ui.global.max_cap = Maximum difficulty
 ui.global.esc_header = Rarity & distance escalation
 ui.global.esc_enabled = Escalation enabled
+ui.global.esc_origin_x = Origin X (blocks)
+ui.global.esc_origin_z = Origin Z (blocks)
 ui.global.esc_start = Start distance (blocks)
 ui.global.esc_blocks = Blocks per point
 ui.global.esc_max_bonus = Max bonus
@@ -244,6 +246,7 @@ ui.world.hint = Every setting here is editable: tuning, distance escalation, ope
 # on/off toggle label, one of the two keys below, or a literal number/id list); shows what it currently
 # resolves to (the parent file, then the global setting) so a blank field is never a mystery.
 ui.world.inherits = Inherits: {value}
+ui.world.inherits_spawn = the world spawn point
 # The {value} fallback for an empty Pool allow/deny list (nested Messages, not literals - see csvOrFallback).
 ui.world.inherits_all = (all)
 ui.world.inherits_none = (none)
@@ -287,7 +290,9 @@ ui.hint.clamp_min_loot = The fewest passes any death loot block is rolled.
 ui.hint.clamp_max_loot = The most passes any death loot block is rolled, whatever the rarity, variant and affix multipliers come to.
 ui.hint.rarity = The chance a hostile mob spawns with a rare or higher tier instead of plain.
 ui.hint.esc_enabled = Whether difficulty climbs the farther a player wanders from the world spawn point.
-ui.hint.esc_start = The distance from spawn a player can travel before distance escalation begins adding difficulty.
+ui.hint.esc_origin_x = The X block coordinate distance escalation is measured from. Leave it blank to measure from the world spawn point; a minus sign is allowed.
+ui.hint.esc_origin_z = The Z block coordinate distance escalation is measured from. Leave it blank to measure from the world spawn point; the protected ring near spawn does not move with it.
+ui.hint.esc_start = The distance from the origin a player can travel before distance escalation begins adding difficulty.
 ui.hint.esc_blocks = How many blocks past the start distance add one more point of difficulty.
 ui.hint.esc_max_bonus = The most extra difficulty distance escalation can ever add.
 ui.hint.esc_rarity = How much extra rarity spawn chance distance escalation adds per escalation point.
@@ -346,6 +351,7 @@ ui.status.world_deleted = World file removed. A shipped file with the same name 
 ui.status.invalid_parent = Enter a different file as the parent (a file cannot inherit from itself).
 ui.status.save_failed = Could not write the world file.
 ui.status.invalid_field = Enter a valid value for {field}. Numbers must be 0 or higher, chances must be between 0 and 1, and whole number fields must be a whole number.
+ui.status.invalid_origin = Enter a block coordinate for {field}, with a minus sign if you need one, or leave it blank to measure from the world spawn point.
 ui.status.invalid_caps = Maximum must be at least the minimum.
 ui.status.unknown_preset = Unknown preset.
 ui.status.id_or_match_required = Enter a file name, a world match pattern or a gameplay config key first.

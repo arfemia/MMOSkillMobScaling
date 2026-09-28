@@ -23,8 +23,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * inside {@code OpenWorld} instead of growing a flat 25-key soup). The nested classes each carry
  * their own {@link BuilderCodec} (the {@code QuestGiverAsset.Offset}/{@code Match} pattern):
  * {@link OpenWorld} (group-power aggregation), {@link Difficulty} (caps + the nested
- * {@link DistanceEscalation}, {@link StatCurve} and {@link Clamps}), {@link Hud} ({@code ZoneHud})
- * and {@link InspectorHud}.
+ * {@link DistanceEscalation} with its own nested {@link EscalationOrigin}, {@link StatCurve} and
+ * {@link Clamps}), {@link Hud} ({@code ZoneHud}) and {@link InspectorHud}.
  *
  * <p><b>Fields are NULLABLE wrappers on purpose, at every nesting level.</b> {@code decodeJson}
  * calls a field's setter ONLY for a key present in the JSON, so decoding the jar Default.json
@@ -241,6 +241,12 @@ public final class MobScalingSettingsAsset
      * still low level". {@code /mobscaling inspect} reports the distance from spawn at your feet along
      * with the base floor and the bonus, so stand where you want the ramp to begin and read the number
      * off that rather than guessing.
+     *
+     * <p><b>Where the distance is measured FROM is the nested {@link EscalationOrigin} ({@code Origin}).</b>
+     * Unset (the shipped default), the origin is the world's own spawn point as its spawn provider answers
+     * it; an authored {@code X} or {@code Z} pins that axis outright. The protected newcomer ring
+     * ({@code OpenWorld.PlayerScalingStartRingBlocks}) is a separate knob measured from the spawn point
+     * and does not move with this origin.
      */
     public static final class DistanceEscalation {
         public static final BuilderCodec<DistanceEscalation> CODEC = BuilderCodec
@@ -248,7 +254,11 @@ public final class MobScalingSettingsAsset
                 .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
                         (e, v) -> e.enabled = v, e -> e.enabled)
                 .add()
-                // Escalation-free radius around the world spawn (blocks, XZ Euclidean).
+                // The point the distance is measured from: unset = the world's spawn point.
+                .append(new KeyedCodec<>("Origin", EscalationOrigin.CODEC, false),
+                        (e, v) -> e.origin = v, e -> e.origin)
+                .add()
+                // Escalation-free radius around the origin (blocks, XZ Euclidean).
                 .append(new KeyedCodec<>("StartDistanceBlocks", Codec.DOUBLE, false),
                         (e, v) -> e.startDistanceBlocks = v, e -> e.startDistanceBlocks)
                 .add()
@@ -267,16 +277,55 @@ public final class MobScalingSettingsAsset
                 .build();
 
         @Nullable private Boolean enabled;
+        @Nullable private EscalationOrigin origin;
         @Nullable private Double startDistanceBlocks;
         @Nullable private Double blocksPerPoint;
         @Nullable private Double maxBonus;
         @Nullable private Double rarityChancePerPoint;
 
         @Nullable public Boolean getEnabled() { return enabled; }
+        @Nullable public EscalationOrigin getOrigin() { return origin; }
         @Nullable public Double getStartDistanceBlocks() { return startDistanceBlocks; }
         @Nullable public Double getBlocksPerPoint() { return blocksPerPoint; }
         @Nullable public Double getMaxBonus() { return maxBonus; }
         @Nullable public Double getRarityChancePerPoint() { return rarityChancePerPoint; }
+    }
+
+    /**
+     * The point distance escalation measures from ({@code Difficulty.DistanceEscalation.Origin}): a block
+     * {@code X} and a block {@code Z}, each a NULLABLE leaf. An unset axis reads the world's own spawn point
+     * on that axis (the spawn provider's answer for the world), so an absent group, or an empty one, keeps
+     * every existing server measuring from exactly where it does today; an authored axis pins it outright,
+     * which is how an owner names the origin on a world whose spawn provider holds several spawn points (the
+     * engine picks one of them for the resolved origin, not necessarily the first) or whose home city is
+     * not where players first appear.
+     *
+     * <p>There is deliberately NO {@code Y}: the distance is horizontal (XZ Euclidean, from the centre of
+     * the chunk a mob spawns in), so a height would be a leaf nothing reads. Coordinates may be negative,
+     * and whole blocks are all the precision the measure has, since it steps a chunk at a time.
+     */
+    public static final class EscalationOrigin {
+        public static final BuilderCodec<EscalationOrigin> CODEC = BuilderCodec
+                .builder(EscalationOrigin.class, EscalationOrigin::new)
+                .append(new KeyedCodec<>("X", Codec.DOUBLE, false),
+                        (o, v) -> o.x = v, o -> o.x)
+                .documentation("The block X coordinate distance escalation is measured from. Leave it out to"
+                        + " measure from the world's spawn point; set it to pin the origin, for instance on a"
+                        + " world with several spawn points or a home city away from where players appear."
+                        + " May be negative.")
+                .add()
+                .append(new KeyedCodec<>("Z", Codec.DOUBLE, false),
+                        (o, v) -> o.z = v, o -> o.z)
+                .documentation("The block Z coordinate distance escalation is measured from. Leave it out to"
+                        + " measure from the world's spawn point. There is no Y: the distance is horizontal.")
+                .add()
+                .build();
+
+        @Nullable private Double x;
+        @Nullable private Double z;
+
+        @Nullable public Double getX() { return x; }
+        @Nullable public Double getZ() { return z; }
     }
 
     /**

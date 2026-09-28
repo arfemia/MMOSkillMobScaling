@@ -17,6 +17,9 @@
     "MaxCap": 200.0,
     "DistanceEscalation": {
       "Enabled": true,
+      "Origin": {
+        "$Comment": "Where the distance is measured from. Left empty, as here, it is the world's own spawn point, so nothing needs setting on a world with one spawn point. Set X and Z, in blocks (a minus sign is fine, and whole blocks are all the precision the ramp has, since it reads the centre of the chunk a mob spawns in), to measure from somewhere else: a world whose spawn provider holds several spawn points reads one of them and not necessarily the first, and a home city away from where players first appear is better measured from the city. An axis you leave out keeps following the spawn point on its own. This moves the escalation ramp only; the protected ring around spawn under OpenWorld.PlayerScalingStartRingBlocks stays centred on the spawn point. /mobscaling inspect reports the distance from spawn where you stand, which is the number to compare against StartDistanceBlocks."
+      },
       "StartDistanceBlocks": 5000.0,
       "BlocksPerPoint": 87.0,
       "MaxBonus": 199.0,

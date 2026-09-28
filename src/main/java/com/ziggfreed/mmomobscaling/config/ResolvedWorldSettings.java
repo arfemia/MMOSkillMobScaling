@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.EscalationOrigin;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
@@ -133,6 +134,23 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
     @Override public boolean isDistanceEscalationEnabled() {
         DistanceEscalation e = esc();
         return e != null && e.getEnabled() != null ? e.getEnabled() : g.isDistanceEscalationEnabled();
+    }
+
+    // The origin overlays per axis like every other leaf: world leaf ?? global, and a global that is unset
+    // too stays null (the world's own spawn point), so a world file may pin one axis and inherit the other.
+    @Override @Nullable public Double getEscalationOriginX() {
+        EscalationOrigin o = escalationOrigin();
+        return o != null && o.getX() != null ? o.getX() : g.getEscalationOriginX();
+    }
+
+    @Override @Nullable public Double getEscalationOriginZ() {
+        EscalationOrigin o = escalationOrigin();
+        return o != null && o.getZ() != null ? o.getZ() : g.getEscalationOriginZ();
+    }
+
+    @Nullable private EscalationOrigin escalationOrigin() {
+        DistanceEscalation e = esc();
+        return e == null ? null : e.getOrigin();
     }
 
     @Override public double getEscalationStartDistanceBlocks() {

@@ -76,6 +76,39 @@ class MobScalingAssetCodecTest {
     }
 
     @Test
+    void escalationOriginDecodesWithNullableAxes() throws Exception {
+        // The Origin group nests under Difficulty.DistanceEscalation with two nullable Double leaves: a
+        // half-authored group keeps the other axis null, an empty group (the shipped shape) keeps both null,
+        // and an absent group decodes to a null group. A negative coordinate is a legal value.
+        MobScalingSettingsAsset half = decodeJson(
+                "{ \"Difficulty\": { \"DistanceEscalation\": { \"Origin\": { \"X\": -1500.25 } } } }",
+                MobScalingSettingsAsset.CODEC);
+        MobScalingSettingsAsset.EscalationOrigin origin = half.getDifficulty().getDistanceEscalation().getOrigin();
+        assertNotNull(origin, "the authored group decodes");
+        assertEquals(-1500.25, origin.getX(), 1e-9, "a negative coordinate decodes as authored");
+        assertNull(origin.getZ(), "the unauthored axis stays null");
+
+        MobScalingSettingsAsset empty = decodeJson(
+                "{ \"Difficulty\": { \"DistanceEscalation\": { \"Origin\": { \"$Comment\": \"note\" } } } }",
+                MobScalingSettingsAsset.CODEC);
+        MobScalingSettingsAsset.EscalationOrigin none = empty.getDifficulty().getDistanceEscalation().getOrigin();
+        assertNotNull(none, "an empty group (comment only) still decodes to a group");
+        assertNull(none.getX(), "empty group: X null");
+        assertNull(none.getZ(), "empty group: Z null");
+
+        MobScalingSettingsAsset absent = decodeJson(
+                "{ \"Difficulty\": { \"DistanceEscalation\": { \"Enabled\": true } } }", MobScalingSettingsAsset.CODEC);
+        assertNull(absent.getDifficulty().getDistanceEscalation().getOrigin(), "an absent group is null");
+
+        // A whole-number literal (what the admin page writes for "-500") decodes through the DOUBLE leaf too.
+        MobScalingSettingsAsset whole = decodeJson(
+                "{ \"Difficulty\": { \"DistanceEscalation\": { \"Origin\": { \"X\": -500, \"Z\": 20 } } } }",
+                MobScalingSettingsAsset.CODEC);
+        assertEquals(-500.0, whole.getDifficulty().getDistanceEscalation().getOrigin().getX(), 1e-9);
+        assertEquals(20.0, whole.getDifficulty().getDistanceEscalation().getOrigin().getZ(), 1e-9);
+    }
+
+    @Test
     void decodesShippedZoneMapping() throws Exception {
         DifficultyMappingAsset asset = decode("/Server/MmoMobScaling/Difficulty/Zone2.json",
                 DifficultyMappingAsset.CODEC);

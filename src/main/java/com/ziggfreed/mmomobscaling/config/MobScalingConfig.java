@@ -23,6 +23,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.EscalationOrigin;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
@@ -146,6 +147,11 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private volatile double difficultyFloor;
     // Distance escalation (spawn-path + presence reads, so volatile).
     private volatile boolean distanceEscalationEnabled;
+    // The authored escalation origin, per axis; null = unset at every layer, and the resolver then reads
+    // the world's own spawn point on that axis. There is no fail-safe number here on purpose: no number
+    // means "the spawn point", so null IS the default every server ships with.
+    @Nullable private volatile Double escalationOriginX;
+    @Nullable private volatile Double escalationOriginZ;
     private volatile double escalationStartDistanceBlocks;
     private volatile double escalationBlocksPerPoint;
     private volatile double escalationMaxBonus;
@@ -392,6 +398,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         this.difficultyMaxCap = Math.max(this.difficultyMinCap, maxCap); // an inverted cap pair is a footgun
         this.distanceEscalationEnabled = or(
                 fold3(owner, store, jar, MobScalingConfig::escalation, DistanceEscalation::getEnabled), false);
+        // The origin folds per axis with NO default: an axis unset at every layer stays null (the spawn point).
+        this.escalationOriginX = fold3(owner, store, jar, MobScalingConfig::escalationOrigin, EscalationOrigin::getX);
+        this.escalationOriginZ = fold3(owner, store, jar, MobScalingConfig::escalationOrigin, EscalationOrigin::getZ);
         this.escalationStartDistanceBlocks = Math.max(0.0, or(
                 fold3(owner, store, jar, MobScalingConfig::escalation, DistanceEscalation::getStartDistanceBlocks), 0.0));
         double blocksPerPoint = or(
@@ -470,6 +479,13 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private static DistanceEscalation escalation(@Nonnull MobScalingSettingsAsset a) {
         Difficulty d = a.getDifficulty();
         return d == null ? null : d.getDistanceEscalation();
+    }
+
+    /** The triply-nested origin group ({@code Difficulty.DistanceEscalation.Origin}); {@code null} when absent. */
+    @Nullable
+    private static EscalationOrigin escalationOrigin(@Nonnull MobScalingSettingsAsset a) {
+        DistanceEscalation e = escalation(a);
+        return e == null ? null : e.getOrigin();
     }
 
     /** The doubly-nested stat-curve group ({@code Difficulty.StatCurve}); {@code null} when absent. */
@@ -706,6 +722,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     @Override public double getVariantChanceMultiplier() { return 1.0; }
     @Override public int getExtraAffixSlots() { return 0; }
     public boolean isDistanceEscalationEnabled() { return distanceEscalationEnabled; }
+    @Override @Nullable public Double getEscalationOriginX() { return escalationOriginX; }
+    @Override @Nullable public Double getEscalationOriginZ() { return escalationOriginZ; }
     public double getEscalationStartDistanceBlocks() { return escalationStartDistanceBlocks; }
     public double getEscalationBlocksPerPoint() { return escalationBlocksPerPoint; }
     public double getEscalationMaxBonus() { return escalationMaxBonus; }

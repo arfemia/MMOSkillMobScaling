@@ -1,6 +1,7 @@
 package com.ziggfreed.mmomobscaling.config;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 
@@ -41,7 +42,20 @@ public interface SpawnScalingSettings {
     /** Whether the distance-from-spawn escalation applies in this world. */
     boolean isDistanceEscalationEnabled();
 
-    /** Escalation-free radius around the world spawn (blocks, XZ Euclidean). */
+    /**
+     * The authored block X of the point distance escalation is measured from
+     * ({@code Difficulty.DistanceEscalation.Origin.X}), or {@code null} when unset at every layer: the
+     * resolver then reads the world's own spawn point on that axis. Per axis, so one axis may be pinned
+     * while the other follows the spawn point.
+     */
+    @Nullable
+    Double getEscalationOriginX();
+
+    /** The authored block Z of the escalation origin, or {@code null} for the world's spawn point (see {@link #getEscalationOriginX()}). */
+    @Nullable
+    Double getEscalationOriginZ();
+
+    /** Escalation-free radius around the escalation origin (blocks, XZ Euclidean). */
     double getEscalationStartDistanceBlocks();
 
     /** Blocks per +1 difficulty past the start radius (>= 1). */

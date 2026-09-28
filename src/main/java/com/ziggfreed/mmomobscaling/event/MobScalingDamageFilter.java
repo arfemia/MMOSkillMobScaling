@@ -37,6 +37,25 @@ import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
  * {@code ArmorDamageReduction} so the scalar applies to the hit as the attacker rolled it rather than to
  * an already-mitigated number.
  *
+ * <p><b>The {@code DamageSystems.ArmorDamageReduction} class literal is a DECISION, not an oversight
+ * (maintainer ruling, 2026-09-28: it stays).</b> The engine marks that class deprecated, and its shared-source
+ * javadoc says exactly "deprecated: Move to modifiers" and names no replacement. What this filter holds is a
+ * class literal used only as an ordering target inside a {@code SystemDependency}: no method of the class is
+ * ever called from here, so the family-wide ban on calling a deprecated engine API is not what this is. There
+ * is no non-deprecated handle on the armor step to point at instead: in the installed 0.6.8 jar the armor math
+ * still lives in {@code ArmorDamageReduction.handle}, {@code DamageModule.setup} still registers that system,
+ * and {@code DamageModule} exposes only its three group getters. The engine's {@code DependencyGraph} admits an
+ * edge into a system only by naming its class, its group or its type, and a group or type edge would land on
+ * all seven of this filter's group peers rather than on the armor step alone, which is a different (and wrong)
+ * ordering. So the class literal stays, with no {@code @SuppressWarnings} and no marker: the reference compiles
+ * clean under {@code -Xlint:removal} because the class is deprecated without {@code forRemoval}. It is revisited
+ * when the engine finishes moving armor to modifiers. If the class ever disappears from a server build, the
+ * failure is LOUD and at boot, never silent wrong ordering: the class literal in the field initializer fails
+ * to resolve while this filter is constructed (or the dependency's {@code validate()} throws if the name
+ * resolves but no such system is registered), and {@code MobScalingPlugin}'s guarded registration of this one
+ * system catches that, logs SEVERE naming the cause, and boots without the filter (scaled mobs then deal and
+ * take ordinary damage for the session; everything else about them still works).
+ *
  * <p>Running first has one consequence worth knowing when tuning: armor subtracts its flat amount after
  * the multiply, so flat resistance weighs more heavily against a scaled mob than it would if the multiply
  * came last (a raw 10 against flat 2 at a 0.45 scalar leaves 2.5 this way and 3.6 the other way), and this
@@ -68,6 +87,8 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
             // Filter-phase peer ordering: our scaling multiply lands before the MMO's own crit/defense math.
             new SystemDependency<>(Order.BEFORE, CombatDamageEventSystem.class),
             // Scale the hit as rolled, before armor subtracts from it (see the class javadoc on what that costs).
+            // ArmorDamageReduction is a deprecated engine class, referenced here as an ORDERING TARGET only
+            // (a class literal, never a call); the class javadoc records why it stays and when it is revisited.
             new SystemDependency<>(Order.BEFORE, DamageSystems.ArmorDamageReduction.class));
 
     @Nonnull

@@ -155,6 +155,35 @@ class ZoneDifficultyResolverTest {
     }
 
     @Test
+    void anUnsetOriginAxisReadsTheWorldSpawnPoint() {
+        // The whole "unset = the spawn point" contract: a null authored axis is the spawn axis, exactly, and an
+        // authored one (negative included) replaces it. Nothing else decides where the ramp is measured from.
+        assertEquals(128.5, ZoneDifficultyResolver.originAxis(null, 128.5), 0.0, "unset: the spawn point");
+        assertEquals(-4000.0, ZoneDifficultyResolver.originAxis(-4000.0, 128.5), 0.0, "authored: pinned");
+        assertEquals(0.0, ZoneDifficultyResolver.originAxis(0.0, 128.5), 0.0,
+                "an authored zero is a real coordinate, not an absence");
+    }
+
+    @Test
+    void distanceIsMeasuredFromTheOriginToTheChunkCentre() {
+        // Chunk (0, 0) is centred at block (16, 16); from an origin AT that centre the distance is zero, and the
+        // measure is XZ Euclidean (no Y anywhere in it), which is why the origin has no Y leaf.
+        assertEquals(0.0, ZoneDifficultyResolver.distanceFrom(16.0, 16.0, 0, 0), 1e-9);
+        assertEquals(32.0, ZoneDifficultyResolver.distanceFrom(16.0, 16.0, 1, 0), 1e-9, "one chunk east: 32 blocks");
+        assertEquals(Math.sqrt(2.0) * 32.0, ZoneDifficultyResolver.distanceFrom(16.0, 16.0, 1, 1), 1e-9,
+                "one chunk diagonally: the hypotenuse");
+        // Moving the origin moves the reading: the same chunk sits 1000 blocks from an origin 1000 blocks west.
+        assertEquals(1000.0, ZoneDifficultyResolver.distanceFrom(16.0 - 1000.0, 16.0, 0, 0), 1e-9);
+        // The unset path and the authored-at-the-spawn-point path are the SAME number, so authoring the origin
+        // at the spawn point changes nothing (and an unset origin measures from where it always did).
+        double spawnX = 512.0;
+        double spawnZ = -768.0;
+        assertEquals(ZoneDifficultyResolver.distanceFrom(spawnX, spawnZ, 40, -30),
+                ZoneDifficultyResolver.distanceFrom(ZoneDifficultyResolver.originAxis(null, spawnX),
+                        ZoneDifficultyResolver.originAxis(null, spawnZ), 40, -30), 0.0);
+    }
+
+    @Test
     void startRingIsIndependentOfTheEscalationStartRadius() {
         // The protected ring reads its OWN radius: 0 (the "no ring" value) is never inside, whatever the
         // distance, so player/group scaling applies everywhere by default.

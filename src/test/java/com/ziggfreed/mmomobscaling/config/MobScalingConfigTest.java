@@ -3,6 +3,7 @@ package com.ziggfreed.mmomobscaling.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -32,6 +33,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.EscalationOrigin;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
@@ -100,6 +102,15 @@ class MobScalingConfigTest {
     private static final Set<String> NOT_BODY_LEAVES = Set.of("Tags", "Name");
 
     /**
+     * Leaves whose ABSENCE is the shipped value rather than a fall-through to a fail-safe: an unset
+     * escalation-origin axis means "the world's spawn point", and no number can stand for that, so the
+     * shipped Default authors the {@code Origin} group (for its owner-facing comment) and leaves both axes
+     * out on purpose. {@link #shippedDefaultAuthorsEveryLeaf} asserts that they ARE unset there.
+     */
+    private static final Set<String> OPTIONAL_LEAVES = Set.of(
+            "Difficulty.DistanceEscalation.Origin.X", "Difficulty.DistanceEscalation.Origin.Z");
+
+    /**
      * Walk every key {@code codec} DECLARES, read it off {@code node} through its conventional {@code get<Key>()},
      * and record the path of each that reads {@code null}, recursing into a nested group through that group's
      * own static {@code CODEC}. The codec is the one schema authority, so asking it (rather than the Java
@@ -116,7 +127,9 @@ class MobScalingConfigTest {
             Object value = node.getClass().getMethod("get" + key).invoke(node);
             String leaf = path + key;
             if (value == null) {
-                out.add(leaf);
+                if (!OPTIONAL_LEAVES.contains(leaf)) {
+                    out.add(leaf);
+                }
             } else if (value.getClass().getEnclosingClass() == MobScalingSettingsAsset.class) {
                 BuilderCodec<?> nested = (BuilderCodec<?>) value.getClass().getField("CODEC").get(null);
                 collectNullLeaves(nested, value, leaf + ".", out);
@@ -168,8 +181,16 @@ class MobScalingConfigTest {
         // One assertion, no magnitudes: the shipped Default.json decodes through the real codec with every
         // leaf present, so nothing the fold reads can fall through to the broken-jar fail-safe.
         List<String> missing = new ArrayList<>();
-        collectNullLeaves(MobScalingSettingsAsset.CODEC, shippedAsset(), "", missing);
+        MobScalingSettingsAsset shipped = shippedAsset();
+        collectNullLeaves(MobScalingSettingsAsset.CODEC, shipped, "", missing);
         assertTrue(missing.isEmpty(), "leaves the shipped Default.json does not author: " + missing);
+        // The one deliberate gap: the escalation origin ships UNSET, so every server keeps measuring from
+        // its world's own spawn point. The group is authored (it carries the owner-facing comment); the axes
+        // are not, because a number there would move every server's difficulty gradient onto that number.
+        EscalationOrigin origin = shipped.getDifficulty().getDistanceEscalation().getOrigin();
+        assertNotNull(origin, "the shipped Default authors the Origin group (empty, with its comment)");
+        assertNull(origin.getX(), "the shipped Default pins no origin X: the world spawn point stands");
+        assertNull(origin.getZ(), "the shipped Default pins no origin Z: the world spawn point stands");
     }
 
     @Test
@@ -414,6 +435,70 @@ class MobScalingConfigTest {
         assertEquals(0.0, cfg.getPlayerScalingStartRingBlocks(), 1e-9, "owner ring override applied");
         assertEquals(1234.0, cfg.getEscalationStartDistanceBlocks(), 1e-9,
                 "the escalation start radius is its own leaf, untouched by the ring");
+    }
+
+    @Test
+    void escalationOriginIsUnsetByDefaultAndFoldsPerAxis(@TempDir Path tmp) throws Exception {
+        // UNSET at every layer folds to null on both axes: the resolver then reads the world spawn point, which
+        // is the behaviour every existing server has. There is no fail-safe number to fall into here.
+        MobScalingConfig cfg = freshDefaults();
+        assertNull(cfg.getEscalationOriginX(), "no layer authors an origin X: null, the spawn point");
+        assertNull(cfg.getEscalationOriginZ(), "no layer authors an origin Z: null, the spawn point");
+
+        // An owner may pin ONE axis: the other stays null (per-leaf fold, like every nested group here).
+        Path configFile = tmp.resolve("mob-scaling.json");
+        Files.writeString(configFile, """
+                { "Difficulty": { "DistanceEscalation": { "Origin": { "Z": -250.0 } } } }
+                """);
+        cfg.setConfigPath(configFile);
+        cfg.load();
+        assertNull(cfg.getEscalationOriginX(), "an unauthored axis stays unset (the spawn point on that axis)");
+        assertEquals(-250.0, cfg.getEscalationOriginZ(), 1e-9, "a negative coordinate is a legal origin");
+
+        // Both axes, and the sibling escalation leaves are untouched by the nested group.
+        double shippedStart = cfg.getEscalationStartDistanceBlocks();
+        Files.writeString(configFile, """
+                { "Difficulty": { "DistanceEscalation": { "Origin": { "X": 1200.5, "Z": -250.0 } } } }
+                """);
+        cfg.load();
+        assertEquals(1200.5, cfg.getEscalationOriginX(), 1e-9, "owner origin X applied");
+        assertEquals(-250.0, cfg.getEscalationOriginZ(), 1e-9, "owner origin Z applied");
+        assertEquals(shippedStart, cfg.getEscalationStartDistanceBlocks(), 1e-9,
+                "the Origin group is nested INSIDE DistanceEscalation and touches no sibling leaf");
+
+        // Removing the group again (the admin page blanks a field -> the leaf is removed) returns to the spawn point.
+        Files.writeString(configFile, "{ }");
+        cfg.load();
+        assertNull(cfg.getEscalationOriginX(), "cleared: back to the spawn point");
+        assertNull(cfg.getEscalationOriginZ(), "cleared: back to the spawn point");
+    }
+
+    @Test
+    void perWorldEscalationOriginOverlaysPerAxis(@TempDir Path tmp) throws Exception {
+        MobScalingConfig cfg = freshDefaults();
+        // A world file pins X alone: its X applies, its Z falls through to the global, which is unset.
+        ownerWorld(tmp, "frontier", """
+                { "Where": { "Match": ["frontier_*"] },
+                  "Difficulty": { "DistanceEscalation": { "Origin": { "X": -4000.0 } } } }
+                """);
+        SpawnScalingSettings frontier = cfg.spawnSettingsFor("frontier_1");
+        assertEquals(-4000.0, frontier.getEscalationOriginX(), 1e-9, "the world's own origin X");
+        assertNull(frontier.getEscalationOriginZ(), "unset in the world AND globally: the spawn point on Z");
+        assertNull(cfg.getEscalationOriginX(), "the world file never leaks into the global view");
+
+        // A global Z now exists: the world inherits it on the axis it left unset, keeps its own X.
+        Path configFile = tmp.resolve("mob-scaling.json");
+        Files.writeString(configFile, """
+                { "Difficulty": { "DistanceEscalation": { "Origin": { "Z": 900.0 } } } }
+                """);
+        cfg.setConfigPath(configFile);
+        cfg.load();
+        frontier = cfg.spawnSettingsFor("frontier_1");
+        assertEquals(-4000.0, frontier.getEscalationOriginX(), 1e-9, "the world's X still wins");
+        assertEquals(900.0, frontier.getEscalationOriginZ(), 1e-9, "the unset world axis reads the global");
+        // A world matching no rule reads the global view itself.
+        assertNull(cfg.spawnSettingsFor("world").getEscalationOriginX(), "global X: unset");
+        assertEquals(900.0, cfg.spawnSettingsFor("world").getEscalationOriginZ(), 1e-9, "global Z");
     }
 
     @Test

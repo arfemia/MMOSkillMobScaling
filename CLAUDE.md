@@ -208,7 +208,11 @@ or hand-roll a JSON parser, STOP and add a codec field instead.
   `PlayerScalingEnabled`/`PlayerScalingStartRingBlocks`; every leaf here is read - a leaf nothing
   consumes is deleted, never carried), `Difficulty` (`Floor`/`MinCap`/`MaxCap` + nested
   `DistanceEscalation` `Enabled`/`StartDistanceBlocks`/`BlocksPerPoint`/`MaxBonus`/
-  `RarityChancePerPoint`, nested `StatCurve` `EffectiveHpPerPoint`/`VisibleHpShare`/
+  `RarityChancePerPoint` + its own nested `Origin` (`EscalationOrigin`: `X`/`Z` block coordinates, nullable
+  per axis, NO `Y` since the measure is horizontal; an unset axis reads the world's spawn point through the
+  live `ISpawnProvider.getSpawnPoint(World, ESCALATION_ORIGIN_UUID)` in `world/ZoneDifficultyResolver`, and
+  the shipped Default authors the group EMPTY so no server's gradient moves; the ring under `OpenWorld`
+  keeps the spawn point), nested `StatCurve` `EffectiveHpPerPoint`/`VisibleHpShare`/
   `OutDamageScale`/`OutDamageShape`/`MaxEffectiveHpMult`/`MaxOutDamageMult` (the linear tank slope and its
   split, the power-curve damage axis `1 + scale * (dEff - 1)^shape` whose shape 1.0 is the straight line,
   and the curve's own two ceilings; `MobScalingConfig.buildCurve` is the ONE constructor every layer and
@@ -479,7 +483,13 @@ its own unfilled posture rather than a fill that answers nothing).
 
 `@Nonnull`/`@Nullable` on params; log via `MobScalingPlugin.LOGGER` (guard the raw
 flogger LOGGER behind a try/catch on any path a unit test could reach - it throws in a
-log-manager-less unit JVM). **No em-dashes anywhere** (use " - ", commas, parens). Localize
+log-manager-less unit JVM). **The `DamageSystems.ArmorDamageReduction` class literal in
+`event/MobScalingDamageFilter` STAYS (maintainer ruling, 2026-09-28; do not reopen):** it is an ORDERING
+target inside a `SystemDependency`, never a call, the engine class is deprecated with no replacement named
+("Move to modifiers"), no non-deprecated handle on the armor step exists in 0.6.8, and a group or type edge
+would land on all seven filter peers; no `@SuppressWarnings`, no marker, the class javadoc carries the
+reasoning, revisited when the engine finishes moving armor to modifiers.
+**No em-dashes anywhere** (use " - ", commas, parens). Localize
 all player-facing text via `Message`/lang keys from day 1 (no raw display strings) when
 that surface lands. Package root `com.ziggfreed.mmomobscaling`.
 

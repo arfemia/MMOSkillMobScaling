@@ -39,6 +39,7 @@ import com.ziggfreed.mmomobscaling.asset.DifficultyMappingAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.DistanceEscalation;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.EscalationOrigin;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
@@ -868,10 +869,18 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             finish(cmd);
             return;
         }
-        Map<String, Object> leaves = result.leaves();
+        Map<String, Object> leaves = new LinkedHashMap<>(result.leaves());
         if (leaves.get(LEAF_MIN_CAP) instanceof Double min && leaves.get(LEAF_MAX_CAP) instanceof Double max
                 && max < min) {
             err("mmomobscaling.ui.status.invalid_caps");
+            finish(cmd);
+            return;
+        }
+        // The two origin fields are TEXT (the only optional, possibly negative number here): a blank becomes
+        // a removed leaf (the world spawn point again), a coordinate its Double, anything else refuses the save.
+        String badOrigin = EscalationOriginLeaves.normalize(leaves);
+        if (badOrigin != null) {
+            err(tr("mmomobscaling.ui.status.invalid_origin").param("field", labelForLeaf(GLOBAL_SPECS, badOrigin)));
             finish(cmd);
             return;
         }
@@ -990,6 +999,13 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         // seeds as the same blank an unauthored prefix does, so a file that deliberately authors an
         // empty prefix keeps it across a Save instead of falling back to the inherited one.
         WorldFormLeaves.keepAuthoredEmptyText(leaves, WorldSettingsConfig.getInstance().authoredById(id));
+        // The origin pair is TEXT here too: blank already collected as inherit, a coordinate parses to its Double.
+        String badOrigin = EscalationOriginLeaves.normalize(leaves);
+        if (badOrigin != null) {
+            err(tr("mmomobscaling.ui.status.invalid_origin").param("field", labelForLeaf(WORLD_SPECS, badOrigin)));
+            finish(cmd);
+            return;
+        }
         if (MobScalingOwnerWriter.saveWorldFile(id, leaves)) {
             refreshHuds(); // a per-world HUD corner is one of the leaves this may have changed
             worldForm.seedValue(F_WORLD_ID, id);
@@ -1257,6 +1273,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("maxLoot", num(cfg.getClampMaxLootMult()));
         seed.put("rarity", num(cfg.getRaritySpawnChance()));
         seed.put("escEnabled", onOff(cfg.isDistanceEscalationEnabled()));
+        // The origin seeds BLANK when unset (the world spawn point), never a number standing in for it.
+        seed.put("escOriginX", numOrBlank(cfg.getEscalationOriginX()));
+        seed.put("escOriginZ", numOrBlank(cfg.getEscalationOriginZ()));
         seed.put("escStart", num(cfg.getEscalationStartDistanceBlocks()));
         seed.put("escBlocks", num(cfg.getEscalationBlocksPerPoint()));
         seed.put("escMaxBonus", num(cfg.getEscalationMaxBonus()));
@@ -1324,6 +1343,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("wMinCap", numOrBlank(diff == null ? null : diff.getMinCap()));
         seed.put("wMaxCap", numOrBlank(diff == null ? null : diff.getMaxCap()));
         seed.put("wEscEnabled", triOrInherit(esc == null ? null : esc.getEnabled()));
+        EscalationOrigin origin = esc == null ? null : esc.getOrigin();
+        seed.put("wEscOriginX", numOrBlank(origin == null ? null : origin.getX()));
+        seed.put("wEscOriginZ", numOrBlank(origin == null ? null : origin.getZ()));
         seed.put("wEscStart", numOrBlank(esc == null ? null : esc.getStartDistanceBlocks()));
         seed.put("wEscBlocks", numOrBlank(esc == null ? null : esc.getBlocksPerPoint()));
         seed.put("wEscMaxBonus", numOrBlank(esc == null ? null : esc.getMaxBonus()));
@@ -1456,6 +1478,13 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 num(diff != null && diff.getMaxCap() != null ? diff.getMaxCap() : cfg.getDifficultyMaxCap())));
         m.put("wEscEnabled", onOffDisplay(
                 esc != null && esc.getEnabled() != null ? esc.getEnabled() : cfg.isDistanceEscalationEnabled()));
+        // An origin axis inherits the world file's own, then the global, then the world spawn point (a
+        // localized phrase, since no number stands for it); an authored one is a TYPED number.
+        EscalationOrigin origin = esc == null ? null : esc.getOrigin();
+        m.put("wEscOriginX", originDisplay(origin != null && origin.getX() != null
+                ? origin.getX() : cfg.getEscalationOriginX()));
+        m.put("wEscOriginZ", originDisplay(origin != null && origin.getZ() != null
+                ? origin.getZ() : cfg.getEscalationOriginZ()));
         m.put("wEscStart", Message.raw(num(esc != null && esc.getStartDistanceBlocks() != null
                 ? esc.getStartDistanceBlocks() : cfg.getEscalationStartDistanceBlocks())));
         m.put("wEscBlocks", Message.raw(num(esc != null && esc.getBlocksPerPoint() != null
@@ -1614,6 +1643,12 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.chance("rarity", "RaritySpawnChance", "mmomobscaling.ui.global.rarity")
                 .withHint("mmomobscaling.ui.hint.rarity"));
         s.add(FieldSpec.toggle("escEnabled", "mmomobscaling.ui.global.esc_enabled").withHint("mmomobscaling.ui.hint.esc_enabled"));
+        // The origin pair is TEXT on purpose: the one optional, possibly negative number on this tab (see
+        // EscalationOriginLeaves, which parses it on save; blank = the world spawn point).
+        s.add(FieldSpec.text("escOriginX", EscalationOriginLeaves.X_LEAF, "mmomobscaling.ui.global.esc_origin_x")
+                .withHint("mmomobscaling.ui.hint.esc_origin_x"));
+        s.add(FieldSpec.text("escOriginZ", EscalationOriginLeaves.Z_LEAF, "mmomobscaling.ui.global.esc_origin_z")
+                .withHint("mmomobscaling.ui.hint.esc_origin_z"));
         s.add(FieldSpec.number("escStart", "Difficulty.DistanceEscalation.StartDistanceBlocks",
                 "mmomobscaling.ui.global.esc_start").withHint("mmomobscaling.ui.hint.esc_start"));
         s.add(FieldSpec.number("escBlocks", "Difficulty.DistanceEscalation.BlocksPerPoint",
@@ -1710,6 +1745,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.header("wHdrEsc", "mmomobscaling.ui.global.esc_header"));
         s.add(FieldSpec.tristate("wEscEnabled", "Difficulty.DistanceEscalation.Enabled",
                 "mmomobscaling.ui.global.esc_enabled").withHint("mmomobscaling.ui.hint.w_esc_enabled"));
+        // Same TEXT pair as the Global tab (blank = inherit here, then the world spawn point); parsed on save.
+        s.add(FieldSpec.text("wEscOriginX", EscalationOriginLeaves.X_LEAF, "mmomobscaling.ui.global.esc_origin_x")
+                .withHint("mmomobscaling.ui.hint.esc_origin_x"));
+        s.add(FieldSpec.text("wEscOriginZ", EscalationOriginLeaves.Z_LEAF, "mmomobscaling.ui.global.esc_origin_z")
+                .withHint("mmomobscaling.ui.hint.esc_origin_z"));
         s.add(FieldSpec.number("wEscStart", "Difficulty.DistanceEscalation.StartDistanceBlocks",
                 "mmomobscaling.ui.global.esc_start").withHint("mmomobscaling.ui.hint.esc_start"));
         s.add(FieldSpec.number("wEscBlocks", "Difficulty.DistanceEscalation.BlocksPerPoint",
@@ -1967,6 +2007,29 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     @Nonnull
     private static Message onOffDisplay(boolean v) {
         return tr(v ? "mmomobscaling.ui.toggle.on" : "mmomobscaling.ui.toggle.off");
+    }
+
+    /**
+     * What an escalation-origin axis resolves to, for an "Inherits:" line: the authored coordinate bound
+     * as a TYPED number the client formats, or the localized "the world spawn point" phrase when no layer
+     * authors one (there is no number that means the spawn point, so none is invented here).
+     */
+    @Nonnull
+    private static Message originDisplay(@Nullable Double authored) {
+        return authored == null
+                ? tr("mmomobscaling.ui.world.inherits_spawn")
+                : tr("mmomobscaling.ui.number").param("n", authored.doubleValue());
+    }
+
+    /** The label key of the spec in {@code specs} that writes {@code leafPath}, or a {@code ?} when none does. */
+    @Nonnull
+    private static Message labelForLeaf(@Nonnull List<FieldSpec> specs, @Nonnull String leafPath) {
+        for (FieldSpec spec : specs) {
+            if (leafPath.equals(spec.leafPath())) {
+                return tr(spec.labelKey());
+            }
+        }
+        return Message.raw("?");
     }
 
     @Nonnull

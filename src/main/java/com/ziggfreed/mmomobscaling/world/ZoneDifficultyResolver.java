@@ -1,5 +1,6 @@
 package com.ziggfreed.mmomobscaling.world;
 
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nonnull;
@@ -22,9 +23,20 @@ import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
  * wildcard {@code *} &gt; the WORLD-BASELINE floor ({@code SpawnScalingSettings.getDifficultyFloor()},
  * 1.0.2: the per-world {@code Difficulty.Floor} or the global default; so a named biome floor beats
  * the zone wildcard). On top of that base an optional DISTANCE ESCALATION adds
- * {@code (distFromSpawn - start) / blocksPerPoint} difficulty (capped at {@code MaxBonus}) and raises
+ * {@code (distFromOrigin - start) / blocksPerPoint} difficulty (capped at {@code MaxBonus}) and raises
  * the rarity spawn chance by {@code RarityChancePerPoint} per point - so far enough from spawn EVERY
  * zone is deadly, configurable in {@code Difficulty.DistanceEscalation}.
+ *
+ * <p><b>The escalation ORIGIN:</b> the point the distance is measured from is, per axis, the authored
+ * {@code Difficulty.DistanceEscalation.Origin.X}/{@code Z} where set, else the world's own first spawn
+ * point as its {@link ISpawnProvider} lists it (read once per
+ * world into the memo). Unset at every layer, the origin is the spawn point on both axes, which is what
+ * every server measured from before the knob existed. The protected newcomer ring
+ * ({@code OpenWorld.PlayerScalingStartRingBlocks}) keeps measuring from the spawn point whatever the
+ * origin says: it is a separate knob about where players first appear, and {@link ResolvedFloor#distanceFromSpawn}
+ * stays that spawn-point distance (the two coincide unless an origin axis is authored). Floors and the
+ * escalation, the authored origin included, are read live per resolve, so an origin edit needs no memo
+ * invalidation.
  *
  * <p><b>Memoization:</b> the native zone/biome NAMES are immutable for a given (world seed, chunk), so
  * they are memoized per world per chunk (one {@code getZoneBiomeResultAt} ever per chunk; the engine
@@ -69,7 +81,8 @@ public final class ZoneDifficultyResolver {
      * the pre-escalation base floor, the additive distance bonus, the cap-clamped effective floor the
      * group delta rides on, the escalation-boosted rarity spawn chance, whether the spawn is INSIDE the
      * player-scaling protected ring ({@code OpenWorld.PlayerScalingStartRingBlocks}, where the group delta
-     * is fully off), the raw distance from world spawn, and the native biome name.
+     * is fully off), the raw distance from the world SPAWN POINT (the ring's centre; the escalation bonus
+     * was measured from the authored origin instead where one is set), and the native biome name.
      */
     public record ResolvedFloor(@Nonnull String zoneName, double baseFloor, double escalationBonus,
             double effectiveFloor, double raritySpawnChance, boolean insideStartRing,
@@ -125,13 +138,17 @@ public final class ZoneDifficultyResolver {
         // and the additive escalation bonus (Difficulty.DistanceEscalation.StartDistanceBlocks). They read
         // DIFFERENT settings, so a large escalation start radius never suppresses player/group scaling.
         WorldMemo memo = memoFor(world);
-        double dx = centerBlock(chunkX) - memo.spawnX;
-        double dz = centerBlock(chunkZ) - memo.spawnZ;
-        double distance = Math.sqrt(dx * dx + dz * dz);
+        double distance = distanceFrom(memo.spawnX, memo.spawnZ, chunkX, chunkZ);
         boolean insideStartRing = insideStartRing(distance, settings.getPlayerScalingStartRingBlocks());
         double bonus = 0.0;
         if (settings.isDistanceEscalationEnabled()) {
-            bonus = escalationBonus(distance, settings.getEscalationStartDistanceBlocks(),
+            // The escalation ramp measures from the authored origin where one is set, per axis, else from
+            // the same spawn point the ring uses (read live, so an origin edit needs no memo invalidation).
+            double originX = originAxis(settings.getEscalationOriginX(), memo.spawnX);
+            double originZ = originAxis(settings.getEscalationOriginZ(), memo.spawnZ);
+            double escalationDistance = originX == memo.spawnX && originZ == memo.spawnZ
+                    ? distance : distanceFrom(originX, originZ, chunkX, chunkZ);
+            bonus = escalationBonus(escalationDistance, settings.getEscalationStartDistanceBlocks(),
                     settings.getEscalationBlocksPerPoint(), settings.getEscalationMaxBonus());
         }
         double effective = clamp(base + bonus, settings.getDifficultyMinCap(), settings.getDifficultyMaxCap());
@@ -190,6 +207,21 @@ public final class ZoneDifficultyResolver {
         return ringRadius > 0.0 && distance <= ringRadius;
     }
 
+    /**
+     * One axis of the escalation origin (pure; unit-tested): the authored coordinate where the settings carry
+     * one, else the world's spawn point on that axis. This is the whole "unset = the spawn point" contract.
+     */
+    static double originAxis(@Nullable Double authored, double spawnAxis) {
+        return authored != null ? authored : spawnAxis;
+    }
+
+    /** The XZ Euclidean distance from an origin to the centre block of a chunk (pure; unit-tested). */
+    static double distanceFrom(double originX, double originZ, int chunkX, int chunkZ) {
+        double dx = centerBlock(chunkX) - originX;
+        double dz = centerBlock(chunkZ) - originZ;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+
     /** The additive distance-escalation bonus (pure; unit-tested): 0 inside the start radius, then linear, capped. */
     static double escalationBonus(double distance, double startDistance, double blocksPerPoint, double maxBonus) {
         if (distance <= startDistance || blocksPerPoint <= 0.0 || maxBonus <= 0.0) {
@@ -212,7 +244,10 @@ public final class ZoneDifficultyResolver {
     // Internals
     // ---------------------------------------------------------------------
 
-    /** One world's immutable memo context: zone capability, seed, spawn anchor, chunk-name memo. */
+    /**
+     * One world's immutable memo context: zone capability, seed, the spawn anchor (the default escalation
+     * origin and the protected ring's centre), chunk-name memo.
+     */
     private static final class WorldMemo {
         final boolean hasZones;
         final int seed;
@@ -244,8 +279,22 @@ public final class ZoneDifficultyResolver {
             seed = (int) world.getWorldConfig().getSeed();
             ISpawnProvider spawnProvider = world.getWorldConfig().getSpawnProvider();
             if (spawnProvider != null) {
+                // getSpawnPoints() is deprecated and is still the right call here, for the same reason the
+                // damage filter keeps its ordering pin. What this mod needs is the world's OWN first spawn
+                // point: one stable origin for the whole world, the same for every player, which is what the
+                // distance ramp measures from. The interface offers nothing else that answers it. Its sibling
+                // getSpawnPoint(World, UUID) answers a point FOR AN ENTITY - a world with several spawn points
+                // hashes the UUID into a choice among them - so it cannot name the world's first point, and a
+                // constant UUID would silently re-centre the ramp on such a world. isWithinSpawnDistance is a
+                // threshold test and yields no coordinates, and World exposes no spawn origin at all.
+                // The deprecation javadoc names no replacement, only that the array shape limits providers
+                // that generate points dynamically. It is also the SURVIVING call of the two: the engine's
+                // next version keeps this one deprecated and removes the synchronous getSpawnPoint(World,
+                // UUID) in favour of an async future, so switching to that sibling would have traded a warning
+                // today for a compile break then. Revisited when the engine exposes a world origin; an owner
+                // who needs a different one authors Difficulty.DistanceEscalation.Origin, which wins outright.
                 Transform[] points = spawnProvider.getSpawnPoints();
-                if (points != null && points.length > 0 && points[0] != null) {
+                if (points != null && points.length > 0 && points[0] != null && points[0].getPosition() != null) {
                     spawnX = points[0].getPosition().x();
                     spawnZ = points[0].getPosition().z();
                 }
