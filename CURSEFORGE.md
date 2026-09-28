@@ -15,8 +15,8 @@ world into a living difficulty curve, zone by zone, without you hand-placing a s
 
 Both load before this mod (drop all three jars in your server `Mods/` folder):
 
-- **MMO Skill Tree >= 1.6.1** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
-- **Ziggfreed's CommonLib >= 2.1.0** - the shared library this mod builds on, including the encounter framework it now reads.
+- **MMO Skill Tree >= 1.6.3** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
+- **Ziggfreed's CommonLib >= 2.1.1** - the shared library this mod builds on, including the encounter framework it now reads.
 
 The three ship together; update them together.
 
@@ -93,7 +93,7 @@ and the mod's asset stores. You never edit Java.
   (gentler curve, rarer specials), `Hardcore` (harsher, denser), or `Playtest` (steep ramp from
   spawn, for testing). Presets are partial overlays; anything you do not set inherits the default.
 - **`mods/MmoMobScaling/mob-scaling.json`** overrides any settings key (master enable, rarity chance,
-  difficulty caps, the distance-escalation curve, the difficulty-to-stats curve and its safety clamps,
+  difficulty caps, the distance-escalation curve and the point it is measured from, the difficulty-to-stats curve and its safety clamps,
   group-power aggregation, and both HUD overlays incl. the zone/biome name-key prefixes and the
   inspector portrait toggle). Only your changes are stored; a partial nested group inherits the rest.
   The curve is a toughness slope, a damage curve and two ceilings: how much longer a mob takes to kill
@@ -204,7 +204,7 @@ remove the jar.
 
 ## Installation
 
-1. Install **MMO Skill Tree >= 1.6.1** and **Ziggfreed's CommonLib >= 2.1.0**.
+1. Install **MMO Skill Tree >= 1.6.3** and **Ziggfreed's CommonLib >= 2.1.1**.
 2. Drop `MmoMobScaling-<version>.jar` in your server's `Mods/` folder.
 3. Start the server. Scaling is on by default with the balanced preset; tune from `mods/MmoMobScaling/`.
 
