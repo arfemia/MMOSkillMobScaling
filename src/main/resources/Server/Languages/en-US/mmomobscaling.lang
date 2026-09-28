@@ -181,7 +181,7 @@ ui.mmo.cap_above = Your maximum difficulty {cap} sits above the power ceiling {m
 ui.mmo.cap_below = Your maximum difficulty {cap} sits below the power ceiling {max}. Every group past it meets the same difficulty; raise the maximum to at least {max}.
 ui.mmo.cap_equal = Your maximum difficulty {cap} matches the power ceiling {max}: a maxed group meets an even fight at the top and nothing harder.
 ui.mmo.floor_mismatch = Your minimum difficulty {min} differs from the power floor {powerMin}; the two scales should start together.
-ui.mmo.where = Those numbers are edited on the MMO side, not here: the Power Level page of the MMO admin menu, or mods/mmoskilltree/power-level.json (Clamp.MinPower and MaxPower). The player mitigation ceilings the hit curve is derived against live in mods/mmoskilltree/ability-clamps.json over Server/MMOSkillTree/ModifierClamps, and this mod cannot read them.
+ui.mmo.where = Those numbers are edited on the MMO side, not here: the Power Level page of the MMO admin menu, or mods/mmoskilltree/power-level.json (Clamp.MinPower and MaxPower). The player mitigation ceilings the hit curve is derived against live on the Modifier Clamps page of that same menu, or in mods/mmoskilltree/ability-clamps.json over Server/MMOSkillTree/ModifierClamps, and this mod cannot read them.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Toughness per point

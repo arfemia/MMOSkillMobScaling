@@ -175,7 +175,7 @@ ui.mmo.cap_above = Votre difficulté maximale {cap} dépasse le plafond de puiss
 ui.mmo.cap_below = Votre difficulté maximale {cap} est sous le plafond de puissance {max}. Tout groupe au-delà rencontre la même difficulté ; montez le maximum à au moins {max}.
 ui.mmo.cap_equal = Votre difficulté maximale {cap} égale le plafond de puissance {max} : un groupe au maximum trouve en haut un combat équilibré et rien de plus dur.
 ui.mmo.floor_mismatch = Votre difficulté minimale {min} diffère du plancher de puissance {powerMin} ; les deux échelles devraient partir ensemble.
-ui.mmo.where = Ces nombres se modifient côté MMO, pas ici : la page Power Level du menu d'administration du MMO, ou mods/mmoskilltree/power-level.json (Clamp.MinPower et MaxPower). Les plafonds de mitigation des joueurs contre lesquels la courbe de coup est dérivée vivent dans mods/mmoskilltree/ability-clamps.json par-dessus Server/MMOSkillTree/ModifierClamps, et ce mod ne peut pas les lire.
+ui.mmo.where = Ces nombres se modifient côté MMO, pas ici : la page Power Level du menu d'administration du MMO, ou mods/mmoskilltree/power-level.json (Clamp.MinPower et MaxPower). Les plafonds de mitigation des joueurs contre lesquels la courbe de coup est dérivée se règlent sur la page Modifier Clamps de ce même menu, ou dans mods/mmoskilltree/ability-clamps.json par-dessus Server/MMOSkillTree/ModifierClamps, et ce mod ne peut pas les lire.
 
 # Shared HUD tab rows.
 ui.hud.position = Position

@@ -162,7 +162,7 @@ ui.mmo.cap_above = Sua dificuldade máxima {cap} fica acima do teto de poder {ma
 ui.mmo.cap_below = Sua dificuldade máxima {cap} fica abaixo do teto de poder {max}. Todo grupo além dele encontra a mesma dificuldade; suba o máximo para pelo menos {max}.
 ui.mmo.cap_equal = Sua dificuldade máxima {cap} coincide com o teto de poder {max}: um grupo no máximo encontra no topo uma luta equilibrada e nada mais duro.
 ui.mmo.floor_mismatch = Sua dificuldade mínima {min} difere do piso de poder {powerMin}; as duas escalas deveriam começar juntas.
-ui.mmo.where = Esses números são editados do lado do MMO, não aqui: a página Power Level do menu de administração do MMO, ou mods/mmoskilltree/power-level.json (Clamp.MinPower e MaxPower). Os tetos de mitigação do jogador contra os quais a curva de golpe é derivada ficam em mods/mmoskilltree/ability-clamps.json sobre Server/MMOSkillTree/ModifierClamps, e este mod não consegue lê-los.
+ui.mmo.where = Esses números são editados do lado do MMO, não aqui: a página Power Level do menu de administração do MMO, ou mods/mmoskilltree/power-level.json (Clamp.MinPower e MaxPower). Os tetos de mitigação do jogador contra os quais a curva de golpe é derivada ficam na página Modifier Clamps desse mesmo menu, ou em mods/mmoskilltree/ability-clamps.json sobre Server/MMOSkillTree/ModifierClamps, e este mod não consegue lê-los.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Resistência por ponto

@@ -161,7 +161,7 @@ ui.mmo.cap_above = A maximális nehézsége ({cap}) az erőplafon ({max}) fölö
 ui.mmo.cap_below = A maximális nehézsége ({cap}) az erőplafon ({max}) alatt van. Minden azon túli csoport ugyanazzal a nehézséggel találkozik; emelje a maximumot legalább {max}-ra.
 ui.mmo.cap_equal = A maximális nehézsége ({cap}) egyezik az erőplafonnal ({max}): egy maximális csoport fent kiegyenlített harcot kap, keményebbet nem.
 ui.mmo.floor_mismatch = A minimális nehézsége ({min}) eltér az erőküszöbtől ({powerMin}); a két skálának együtt kellene indulnia.
-ui.mmo.where = Ezeket a számokat az MMO oldalon szerkesztik, nem itt: az MMO adminmenü Power Level oldalán, vagy a mods/mmoskilltree/power-level.json fájlban (Clamp.MinPower és MaxPower). A játékos-sebzéscsökkentési plafonok, amelyekhez az ütésgörbét levezették, a mods/mmoskilltree/ability-clamps.json fájlban élnek a Server/MMOSkillTree/ModifierClamps fölött, és ez a mod nem tudja olvasni őket.
+ui.mmo.where = Ezeket a számokat az MMO oldalon szerkesztik, nem itt: az MMO adminmenü Power Level oldalán, vagy a mods/mmoskilltree/power-level.json fájlban (Clamp.MinPower és MaxPower). A játékos-sebzéscsökkentési plafonok, amelyekhez az ütésgörbét levezették, ugyanannak a menünek a Modifier Clamps oldalán, vagy a mods/mmoskilltree/ability-clamps.json fájlban élnek a Server/MMOSkillTree/ModifierClamps fölött, és ez a mod nem tudja olvasni őket.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Szívósság pontonként

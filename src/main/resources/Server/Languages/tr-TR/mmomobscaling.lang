@@ -162,7 +162,7 @@ ui.mmo.cap_above = Maksimum zorluğunuz {cap}, güç tavanı {max} değerinin ü
 ui.mmo.cap_below = Maksimum zorluğunuz {cap}, güç tavanı {max} değerinin altında. Onu aşan her grup aynı zorlukla karşılaşır; maksimumu en az {max} yapın.
 ui.mmo.cap_equal = Maksimum zorluğunuz {cap}, güç tavanı {max} ile aynı: tam güçlü bir grup tepede dengeli bir dövüş bulur, daha sertini değil.
 ui.mmo.floor_mismatch = Minimum zorluğunuz {min}, güç tabanı {powerMin} değerinden farklı; iki ölçek birlikte başlamalı.
-ui.mmo.where = Bu sayılar burada değil, MMO tarafında düzenlenir: MMO yönetim menüsündeki Power Level sayfası ya da mods/mmoskilltree/power-level.json (Clamp.MinPower ve MaxPower). Vuruş eğrisinin türetildiği oyuncu hasar azaltma tavanları, Server/MMOSkillTree/ModifierClamps üzerindeki mods/mmoskilltree/ability-clamps.json dosyasındadır ve bu mod onları okuyamaz.
+ui.mmo.where = Bu sayılar burada değil, MMO tarafında düzenlenir: MMO yönetim menüsündeki Power Level sayfası ya da mods/mmoskilltree/power-level.json (Clamp.MinPower ve MaxPower). Vuruş eğrisinin türetildiği oyuncu hasar azaltma tavanları, aynı menüdeki Modifier Clamps sayfasında ya da Server/MMOSkillTree/ModifierClamps üzerindeki mods/mmoskilltree/ability-clamps.json dosyasındadır ve bu mod onları okuyamaz.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Nokta başına dayanıklılık

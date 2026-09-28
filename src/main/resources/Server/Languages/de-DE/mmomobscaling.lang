@@ -163,7 +163,7 @@ ui.mmo.cap_above = Ihre maximale Schwierigkeit {cap} liegt über der Macht-Oberg
 ui.mmo.cap_below = Ihre maximale Schwierigkeit {cap} liegt unter der Macht-Obergrenze {max}. Jede Gruppe darüber trifft dieselbe Schwierigkeit; heben Sie das Maximum auf mindestens {max}.
 ui.mmo.cap_equal = Ihre maximale Schwierigkeit {cap} entspricht der Macht-Obergrenze {max}: eine ausgereizte Gruppe trifft oben einen ausgeglichenen Kampf und nichts Härteres.
 ui.mmo.floor_mismatch = Ihre minimale Schwierigkeit {min} weicht von der Macht-Untergrenze {powerMin} ab; die beiden Skalen sollten gemeinsam beginnen.
-ui.mmo.where = Diese Zahlen werden auf der MMO-Seite bearbeitet, nicht hier: auf der Seite Power Level im MMO-Adminmenü oder in mods/mmoskilltree/power-level.json (Clamp.MinPower und MaxPower). Die Spieler-Schadensminderungsgrenzen, gegen die die Trefferkurve hergeleitet ist, liegen in mods/mmoskilltree/ability-clamps.json über Server/MMOSkillTree/ModifierClamps, und dieser Mod kann sie nicht lesen.
+ui.mmo.where = Diese Zahlen werden auf der MMO-Seite bearbeitet, nicht hier: auf der Seite Power Level im MMO-Adminmenü oder in mods/mmoskilltree/power-level.json (Clamp.MinPower und MaxPower). Die Spieler-Schadensminderungsgrenzen, gegen die die Trefferkurve hergeleitet ist, liegen auf der Seite Modifier Clamps im selben Menü oder in mods/mmoskilltree/ability-clamps.json über Server/MMOSkillTree/ModifierClamps, und dieser Mod kann sie nicht lesen.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Zähigkeit pro Punkt

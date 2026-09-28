@@ -163,7 +163,7 @@ ui.mmo.cap_above = Ваша максимальная сложность {cap} в
 ui.mmo.cap_below = Ваша максимальная сложность {cap} ниже потолка силы {max}. Каждая группа сверх него встречает одну и ту же сложность; поднимите максимум хотя бы до {max}.
 ui.mmo.cap_equal = Ваша максимальная сложность {cap} совпадает с потолком силы {max}: группа на пределе встречает наверху ровный бой и ничего тяжелее.
 ui.mmo.floor_mismatch = Ваша минимальная сложность {min} отличается от порога силы {powerMin}; две шкалы должны начинаться вместе.
-ui.mmo.where = Эти числа правятся на стороне MMO, не здесь: страница Power Level в админ-меню MMO или mods/mmoskilltree/power-level.json (Clamp.MinPower и MaxPower). Потолки снижения урона игрока, под которые выведена кривая удара, лежат в mods/mmoskilltree/ability-clamps.json поверх Server/MMOSkillTree/ModifierClamps, и этот мод их прочитать не может.
+ui.mmo.where = Эти числа правятся на стороне MMO, не здесь: страница Power Level в админ-меню MMO или mods/mmoskilltree/power-level.json (Clamp.MinPower и MaxPower). Потолки снижения урона игрока, под которые выведена кривая удара, лежат на странице Modifier Clamps того же меню или в mods/mmoskilltree/ability-clamps.json поверх Server/MMOSkillTree/ModifierClamps, и этот мод их прочитать не может.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
 ui.curve.ehp_per_point = Живучесть за пункт
