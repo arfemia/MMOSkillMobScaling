@@ -43,6 +43,7 @@ import com.ziggfreed.common.loot.FactorSnapshot;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.reward.RewardKinds;
+import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
 import com.ziggfreed.common.util.SplitMix64;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
@@ -255,14 +256,21 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
             placeholders.put("rarity", result.rarityId());
             placeholders.put("variant", result.variantId());
             builder.commands(CommandRunner.CONSOLE, placeholders);
-
-            UUID killerId = playerUuid(store, killerRef);
-            if (killerId != null) {
-                builder.rewards(RewardKinds.shared(),
-                        new Subject(killerId, username == null ? "" : username, killerPlayerRef));
-            }
+            builder.rewards(RewardKinds.shared(), rewardSubject(killerPlayerRef, username));
         }
         return builder.build();
+    }
+
+    /**
+     * The subject a registered reward kind pays the killer through. Its handle answers for the live
+     * {@link Player} as well as the {@link PlayerRef} ({@link PlayerRefSubjectHandle}): the library's
+     * {@code Item}, {@code Lootable} and {@code Stamped_Item} kinds ask the subject for a
+     * {@code Player}, so a bare {@code PlayerRef} handle left every one of them paying nothing.
+     * Package-private and pure, so a test pins the shape without a store.
+     */
+    @Nonnull
+    static Subject rewardSubject(@Nullable PlayerRef killer, @Nullable String username) {
+        return PlayerRefSubjectHandle.subjectFor(killer, username == null ? "" : username);
     }
 
     /** Spill stacks on the ground through the engine's own drop pipeline. */
@@ -327,13 +335,6 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
         }
         long seed = SplitMix64.mix(SplitMix64.mix(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits()), PULL_ROLL_SALT);
         return new SplitMix64(seed).nextDouble();
-    }
-
-    /** The killer's persisted uuid, the identity a reward kind pays and logs against. */
-    @Nullable
-    private static UUID playerUuid(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        UUIDComponent uuidComp = store.getComponent(ref, UUIDComponent.getComponentType());
-        return uuidComp != null ? uuidComp.getUuid() : null;
     }
 
     /** The world behind the store, or null where the context has none. */
