@@ -5,6 +5,7 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 ## Build and lockstep
 
 - Build with `.\build.ps1` (`-Install:$false` builds only). `ziggfreed-common` and the MMO jar are `compileOnly`, never bundled.
+- `gradle/deprecation-gate.gradle` (run by `check`) is hyMMO's, copied byte for byte: it changes only by copying hyMMO's.
 - The `gradle.properties` pins (`ziggfreedCommonVersion`, `mmoSkillTreeVersion`) and the manifest `>=` floors move together in one change. The `LinkageError` guards are a mis-install net, not older-jar support.
 - Read player power only through the frozen `MMOSkillTreeAPI`; never widen it or write an MMO file.
 

@@ -47,8 +47,9 @@ import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
  * and {@code DamageModule} exposes only its three group getters. The engine's {@code DependencyGraph} admits an
  * edge into a system only by naming its class, its group or its type, and a group or type edge would land on
  * all seven of this filter's group peers rather than on the armor step alone, which is a different (and wrong)
- * ordering. So the class literal stays, with no {@code @SuppressWarnings} and no marker: the reference compiles
- * clean under {@code -Xlint:removal} because the class is deprecated without {@code forRemoval}. It is revisited
+ * ordering. So the class literal stays, with no {@code @SuppressWarnings}: it carries the build's
+ * {@code // DEPRECATION-KEPT} marker, which the deprecation gate requires of a kept call, and it compiles clean
+ * under {@code -Xlint:removal} because the class is deprecated without {@code forRemoval}. It is revisited
  * when the engine finishes moving armor to modifiers. If the class ever disappears from a server build, the
  * failure is LOUD and at boot, never silent wrong ordering: the class literal in the field initializer fails
  * to resolve while this filter is constructed (or the dependency's {@code validate()} throws if the name
@@ -87,8 +88,9 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
             // Filter-phase peer ordering: our scaling multiply lands before the MMO's own crit/defense math.
             new SystemDependency<>(Order.BEFORE, CombatDamageEventSystem.class),
             // Scale the hit as rolled, before armor subtracts from it (see the class javadoc on what that costs).
-            // ArmorDamageReduction is a deprecated engine class, referenced here as an ORDERING TARGET only
-            // (a class literal, never a call); the class javadoc records why it stays and when it is revisited.
+            // A class literal used as an ORDERING TARGET only, never a call; the class javadoc records why it
+            // stays and when it is revisited.
+            // DEPRECATION-KEPT: no replacement system exists for the armor step, and this filter must run before it
             new SystemDependency<>(Order.BEFORE, DamageSystems.ArmorDamageReduction.class));
 
     @Nonnull

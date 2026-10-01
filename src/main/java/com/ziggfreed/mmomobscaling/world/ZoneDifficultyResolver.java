@@ -279,20 +279,17 @@ public final class ZoneDifficultyResolver {
             seed = (int) world.getWorldConfig().getSeed();
             ISpawnProvider spawnProvider = world.getWorldConfig().getSpawnProvider();
             if (spawnProvider != null) {
-                // getSpawnPoints() is deprecated and is still the right call here, for the same reason the
-                // damage filter keeps its ordering pin. What this mod needs is the world's OWN first spawn
-                // point: one stable origin for the whole world, the same for every player, which is what the
-                // distance ramp measures from. The interface offers nothing else that answers it. Its sibling
-                // getSpawnPoint(World, UUID) answers a point FOR AN ENTITY - a world with several spawn points
-                // hashes the UUID into a choice among them - so it cannot name the world's first point, and a
-                // constant UUID would silently re-centre the ramp on such a world. isWithinSpawnDistance is a
-                // threshold test and yields no coordinates, and World exposes no spawn origin at all.
-                // The deprecation javadoc names no replacement, only that the array shape limits providers
-                // that generate points dynamically. It is also the SURVIVING call of the two: the engine's
-                // next version keeps this one deprecated and removes the synchronous getSpawnPoint(World,
-                // UUID) in favour of an async future, so switching to that sibling would have traded a warning
-                // today for a compile break then. Revisited when the engine exposes a world origin; an owner
-                // who needs a different one authors Difficulty.DistanceEscalation.Origin, which wins outright.
+                // Nothing else names one stable origin, the same for every player. The sibling
+                // getSpawnPoint(World, UUID) picks a point FOR AN ENTITY (a world with several spawn points
+                // hashes the UUID into a choice among them), so a constant UUID would silently re-centre the
+                // ramp on such a world; isWithinSpawnDistance is a threshold test with no coordinates; World
+                // exposes no spawn origin at all. The deprecation javadoc names no replacement, only that the
+                // array shape limits providers that generate points dynamically. This is also the call that
+                // survives: the engine's next version keeps it deprecated and removes the synchronous
+                // getSpawnPoint(World, UUID) for an async future, so that sibling would trade a warning today
+                // for a compile break then. Revisited when the engine exposes a world origin; an owner who
+                // needs a different one authors Difficulty.DistanceEscalation.Origin, which wins outright.
+                // DEPRECATION-KEPT: no successor exists in both the installed server and the shared source, and the distance ramp measures from the world's first spawn point
                 Transform[] points = spawnProvider.getSpawnPoints();
                 if (points != null && points.length > 0 && points[0] != null && points[0].getPosition() != null) {
                     spawnX = points[0].getPosition().x();
