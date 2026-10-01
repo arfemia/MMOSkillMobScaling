@@ -15,8 +15,8 @@ world into a living difficulty curve, zone by zone, without you hand-placing a s
 
 Both load before this mod (drop all three jars in your server `Mods/` folder):
 
-- **MMO Skill Tree >= 1.6.3** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
-- **Ziggfreed's CommonLib >= 2.1.1** - the shared library this mod builds on, including the encounter framework it now reads.
+- **MMO Skill Tree >= 1.7.0** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
+- **Ziggfreed's CommonLib >= 2.2.0** - the shared library this mod builds on, including the encounter framework it now reads.
 
 The three ship together; update them together.
 
@@ -204,7 +204,7 @@ remove the jar.
 
 ## Installation
 
-1. Install **MMO Skill Tree >= 1.6.3** and **Ziggfreed's CommonLib >= 2.1.1**.
+1. Install **MMO Skill Tree >= 1.7.0** and **Ziggfreed's CommonLib >= 2.2.0**.
 2. Drop `MmoMobScaling-<version>.jar` in your server's `Mods/` folder.
 3. Start the server. Scaling is on by default with the balanced preset; tune from `mods/MmoMobScaling/`.
 
