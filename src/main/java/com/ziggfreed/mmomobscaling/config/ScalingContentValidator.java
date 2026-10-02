@@ -388,7 +388,9 @@ public final class ScalingContentValidator {
      * ladder and grants, its reward kinds checked against {@code kinds}. A referenced table's existence
      * is the {@code Loot.Lootables} check above, so the shared rule's own unknown-table line is dropped
      * rather than said twice, and so is a NOTE (content that works, with a remark about it): every line
-     * here is logged as a warning. An audit that cannot run says nothing, never a false warning.
+     * here is logged as a warning. A {@code Loot} pass carries no collector, so a reward kind that only
+     * another kind of pass can collect, written inline in a roll, is reported as the library words it.
+     * An audit that cannot run says nothing, never a false warning.
      */
     @Nonnull
     private static List<String> sharedLootFindings(@Nonnull String at, @Nonnull LootRef loot,
@@ -396,7 +398,7 @@ public final class ScalingContentValidator {
         List<String> out = new ArrayList<>();
         List<Finding> findings;
         try {
-            findings = LootableValidator.auditRef(loot, at + " Loot", kinds);
+            findings = LootableValidator.auditRef(loot, at + " Loot", kinds, Set.of());
         } catch (Throwable t) {
             return out;
         }

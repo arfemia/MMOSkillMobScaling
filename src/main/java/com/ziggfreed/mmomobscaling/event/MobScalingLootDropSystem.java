@@ -20,7 +20,6 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
@@ -52,8 +51,6 @@ import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.variant.Variant;
-
-import org.joml.Vector3d;
 
 /**
  * The LOOT half of the risk/reward loop (the XP half is {@link MobScalingXpReward}): when a mob carrying a
@@ -166,14 +163,6 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
                 return;
             }
 
-            TransformComponent transform = archetypeChunk.getComponent(index, TransformComponent.getComponentType());
-            HeadRotation headRotation = archetypeChunk.getComponent(index, HeadRotation.getComponentType());
-            if (transform == null || headRotation == null) {
-                return; // guaranteed by the query, but guard anyway
-            }
-            Vector3d dropPosition = new Vector3d(transform.getPosition()).add(0, 1, 0);
-            Rotation3f dropRotation = new Rotation3f(headRotation.getRotation());
-
             Ref<EntityStore> victimRef = archetypeChunk.getReferenceTo(index);
             Ref<EntityStore> killerRef = resolveKillerRef(archetypeChunk, index);
             PlayerRef killerPlayerRef = killerRef != null
@@ -191,9 +180,9 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
             FactorLookup lookup = new FactorSnapshot(MobScalingFactors.registry(), about);
 
             rollHost(rarityLoot, rarity != null ? "rarity:" + rarity.id() : "rarity", passes, lookup,
-                    store, commandBuffer, dropPosition, dropRotation, killerRef, killerPlayerRef, r);
+                    store, commandBuffer, victimRef, killerRef, killerPlayerRef, r);
             rollHost(variantLoot, variant != null ? "variant:" + variant.id() : "variant", passes, lookup,
-                    store, commandBuffer, dropPosition, dropRotation, killerRef, killerPlayerRef, r);
+                    store, commandBuffer, victimRef, killerRef, killerPlayerRef, r);
         } catch (Throwable t) {
             safeWarn("bonus loot drop failed: " + t);
         }
@@ -202,9 +191,9 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
     /** Roll ONE host's authored block {@code passes} times through the shared engine. */
     private static void rollHost(@Nullable LootRef loot, @Nonnull String label, int passes,
             @Nonnull FactorLookup lookup, @Nonnull Store<EntityStore> store,
-            @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Vector3d dropPosition,
-            @Nonnull Rotation3f dropRotation, @Nullable Ref<EntityStore> killerRef,
-            @Nullable PlayerRef killerPlayerRef, @Nonnull MobScaleResult result) {
+            @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> victimRef,
+            @Nullable Ref<EntityStore> killerRef, @Nullable PlayerRef killerPlayerRef,
+            @Nonnull MobScaleResult result) {
         if (loot == null) {
             return;
         }
@@ -212,8 +201,8 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
         if (resolved.rolls().isEmpty() && resolved.pools().isEmpty()) {
             return;
         }
-        LootEngine.Sinks sinks = sinks(store, commandBuffer, dropPosition, dropRotation, killerRef,
-                killerPlayerRef, result, label);
+        LootEngine.Sinks sinks = sinks(store, commandBuffer, victimRef, killerRef, killerPlayerRef,
+                result, label);
         for (int pass = 0; pass < passes; pass++) {
             LootEngine.rollAndGrant(resolved.rolls(), resolved.pools(), null, lookup, Math::random, sinks);
         }
@@ -221,17 +210,19 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
 
     /**
      * Where a scaled mob's death loot goes: items and native drop tables spill on the ground at the corpse
-     * (so a mob killed by anything at all still drops them) through the library's ground-spill preset, one
-     * pile per hand-over, every spilled stack counted as landed; commands and registered reward kinds are
-     * paid to the KILLER and are wired only when the killer resolves to a player.
+     * (so a mob killed by anything at all still drops them) through the library's corpse ground
+     * ({@link GroundSpillSinks#atEntity}: the victim's position and facing read when the pile drops, lifted as
+     * the engine lifts a dying entity's items; this system ticks before {@code CorpseRemoval}, so the corpse is
+     * still there), one pile per hand-over, every spilled stack counted as landed; commands and registered
+     * reward kinds are paid to the KILLER and are wired only when the killer resolves to a player.
      */
     @Nonnull
     private static LootEngine.Sinks sinks(@Nonnull Store<EntityStore> store,
-            @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Vector3d dropPosition,
-            @Nonnull Rotation3f dropRotation, @Nullable Ref<EntityStore> killerRef,
-            @Nullable PlayerRef killerPlayerRef, @Nonnull MobScaleResult result, @Nonnull String label) {
+            @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Ref<EntityStore> victimRef,
+            @Nullable Ref<EntityStore> killerRef, @Nullable PlayerRef killerPlayerRef,
+            @Nonnull MobScaleResult result, @Nonnull String label) {
 
-        LootEngine.Sinks.Builder builder = GroundSpillSinks.at(store, commandBuffer, dropPosition, dropRotation)
+        LootEngine.Sinks.Builder builder = GroundSpillSinks.atEntity(store, commandBuffer, victimRef)
                 .countFailedDrops(true)
                 .warn(MobScalingLootDropSystem::safeWarn)
                 .build()

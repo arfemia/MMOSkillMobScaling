@@ -20,6 +20,7 @@ import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.Roll;
+import com.ziggfreed.common.loot.reward.MomentItems;
 import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
@@ -538,6 +539,43 @@ class ScalingContentValidatorTest {
         assertTrue(ScalingContentValidator.validateVariantReferences(List.of(v),
                 ScalingContentValidator.ReferenceResolvers.permissive()).isEmpty(),
                 "with no vocabulary to ask, no reward kind is reported unknown");
+    }
+
+    /** A vocabulary holding the collecting {@code Moment_Item} kind, which no {@code Loot} pass can collect. */
+    private static RewardKindRegistry kindsWithMomentItem() {
+        RewardKindRegistry kinds = new RewardKindRegistry();
+        MomentItems.registerInto(kinds);
+        return kinds;
+    }
+
+    @Test
+    void aCollectingKindInARaritysLootIsFlaggedAsPassOnly() {
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(tierWithLoot(LootRef.of(null, new Roll[] {rewarding(MomentItems.KIND)}))),
+                payingThrough(kindsWithMomentItem()));
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).startsWith("rarity 'epic' Loot roll 0: "), findings.toString());
+        assertTrue(findings.get(0).contains(MomentItems.KIND), findings.toString());
+        assertTrue(findings.get(0).contains("pays only inside a pass"), findings.toString());
+    }
+
+    @Test
+    void aCollectingKindInAVariantsLootIsFlaggedAsPassOnly() {
+        Variant v = new Variant("horrific", "", 0.15, 0, 1, 1, 1, 1, List.of("*"), List.of("*"), null, "",
+                FamilyFilter.ALLOW_ALL, LootRef.of(null, new Roll[] {rewarding(MomentItems.KIND)}));
+        List<String> findings = ScalingContentValidator.validateVariantReferences(
+                List.of(v), payingThrough(kindsWithMomentItem()));
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).startsWith("variant 'horrific' Loot roll 0: "), findings.toString());
+        assertTrue(findings.get(0).contains("pays only inside a pass"), findings.toString());
+    }
+
+    @Test
+    void aCollectingKindIsNotJudgedWithoutAVocabulary() {
+        assertTrue(ScalingContentValidator.validateRarityReferences(
+                List.of(tierWithLoot(LootRef.of(null, new Roll[] {rewarding(MomentItems.KIND)}))),
+                ScalingContentValidator.ReferenceResolvers.permissive()).isEmpty(),
+                "with no vocabulary to ask, no kind is known to collect");
     }
 
     @Test
