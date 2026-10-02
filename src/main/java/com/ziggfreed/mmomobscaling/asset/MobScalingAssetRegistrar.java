@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.npc.NPCPlugin;
 import com.ziggfreed.common.asset.AssetStoreRegistrar;
 import com.ziggfreed.common.loot.LootableConfig;
+import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
@@ -436,7 +437,8 @@ public final class MobScalingAssetRegistrar {
                 id -> exists(() -> NPCGroup.getAssetMap().getIndex(id) != AssetMapWithIndexes.NOT_FOUND),
                 id -> exists(() -> NPCPlugin.get().getIndex(id) != AssetMapWithIndexes.NOT_FOUND),
                 id -> exists(() -> RootInteraction.getAssetMap().getAsset(id) != null),
-                id -> exists(() -> LootableConfig.getInstance().resolve(id) != null));
+                id -> exists(() -> LootableConfig.getInstance().resolve(id) != null),
+                RewardKinds.shared());
     }
 
     /** Evaluate one guarded existence lookup; an engine throw (store absent, unit JVM) means "cannot tell". */

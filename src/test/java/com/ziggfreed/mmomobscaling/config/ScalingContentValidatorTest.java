@@ -16,9 +16,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.ziggfreed.common.factor.FactorFormula;
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.Roll;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
@@ -491,6 +493,81 @@ class ScalingContentValidatorTest {
         assertEquals(1, findings.size(),
                 "only the native chain is checkable here; abilities live in the MMO jar: " + findings);
         assertTrue(findings.get(0).contains("NativeChain"), findings.toString());
+    }
+
+    // ==================== The shared loot rules on a Loot block ====================
+
+    /** Resolvers that accept every id and check rewards against {@code kinds}. */
+    private static ScalingContentValidator.ReferenceResolvers payingThrough(RewardKindRegistry kinds) {
+        Predicate<String> yes = id -> true;
+        return new ScalingContentValidator.ReferenceResolvers(yes, yes, yes, yes, yes, yes, kinds);
+    }
+
+    private static Rarity tierWithLoot(LootRef loot) {
+        return new Rarity("epic", "", 25, 25, 1, 1, 1, 2, null, List.of("*"), "", FamilyFilter.ALLOW_ALL, loot);
+    }
+
+    private static Roll rewarding(String kind) {
+        return Roll.of(null, null, null, null, LootGrants.of(null, null, null,
+                new LootGrants.Reward[] {LootGrants.Reward.of(kind, null)}), null);
+    }
+
+    @Test
+    void anInlineRollThatCanNeverFireIsFlaggedWithItsPlace() {
+        Roll never = Roll.of(null, null, FactorFormula.of(0.0, null, null), null, LootGrants.ofItem("Coin", 1), null);
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(tierWithLoot(LootRef.of(null, new Roll[] {never}))),
+                ScalingContentValidator.ReferenceResolvers.permissive());
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).startsWith("rarity 'epic' Loot roll 0: "), findings.toString());
+        assertTrue(findings.get(0).contains("can never fire"), findings.toString());
+    }
+
+    @Test
+    void anUnknownRewardKindIsFlaggedOnlyAgainstAVocabulary() {
+        RewardKindRegistry kinds = new RewardKindRegistry();
+        kinds.register("Known_Kind", (spec, subject) -> { });
+        Variant v = new Variant("horrific", "", 0.15, 0, 1, 1, 1, 1, List.of("*"), List.of("*"), null, "",
+                FamilyFilter.ALLOW_ALL, LootRef.of(null, new Roll[] {rewarding("Known_Kind"), rewarding("No_Such_Kind")}));
+
+        List<String> checked = ScalingContentValidator.validateVariantReferences(List.of(v), payingThrough(kinds));
+        assertEquals(1, checked.size(), checked.toString());
+        assertTrue(checked.get(0).startsWith("variant 'horrific' Loot roll 1: "), checked.toString());
+        assertTrue(checked.get(0).contains("No_Such_Kind"), checked.toString());
+
+        assertTrue(ScalingContentValidator.validateVariantReferences(List.of(v),
+                ScalingContentValidator.ReferenceResolvers.permissive()).isEmpty(),
+                "with no vocabulary to ask, no reward kind is reported unknown");
+    }
+
+    @Test
+    void aMissingTableIsReportedOnceInThisValidatorsOwnWords() {
+        Predicate<String> yes = id -> true;
+        var noSuchTable = new ScalingContentValidator.ReferenceResolvers(yes, yes, yes, yes, yes,
+                id -> !id.equals("nosuchtable"), new RewardKindRegistry());
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(tierWithLoot(LootRef.of(new String[] {"nosuchtable"}, null))), noSuchTable);
+        assertEquals(1, findings.size(), "the existence line, never a second unknown-table line: " + findings);
+        assertTrue(findings.get(0).contains("Loot.Lootables 'nosuchtable' does not resolve"), findings.toString());
+    }
+
+    @Test
+    void aBlankTableReferenceIsFlagged() {
+        List<String> findings = ScalingContentValidator.validateRarityReferences(
+                List.of(tierWithLoot(LootRef.of(new String[] {" "}, null))),
+                ScalingContentValidator.ReferenceResolvers.permissive());
+        assertEquals(1, findings.size(), findings.toString());
+        assertTrue(findings.get(0).startsWith("rarity 'epic' Loot: "), findings.toString());
+    }
+
+    @Test
+    void aNoteIsNotAFinding() {
+        // A chance that is always 100 percent still works; the shared rule only remarks on it.
+        Roll certain = Roll.of(null, null, FactorFormula.of(100.0, null, null), null, LootGrants.ofItem("Coin", 1),
+                null);
+        assertTrue(ScalingContentValidator.validateRarityReferences(
+                List.of(tierWithLoot(LootRef.of(null, new Roll[] {certain}))),
+                ScalingContentValidator.ReferenceResolvers.permissive()).isEmpty());
     }
 
     // ==================== Match-pattern ambiguity ====================

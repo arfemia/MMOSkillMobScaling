@@ -14,7 +14,9 @@ import javax.annotation.Nullable;
 
 import com.ziggfreed.common.loot.LootGrants;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.LootableValidator;
 import com.ziggfreed.common.loot.Roll;
+import com.ziggfreed.common.loot.reward.RewardKindRegistry;
 import com.ziggfreed.common.match.NamePattern.Kind;
 import com.ziggfreed.common.validation.Finding;
 import com.ziggfreed.common.world.MatchRank;
@@ -271,6 +273,9 @@ public final class ScalingContentValidator {
      * <p>Deliberately independent predicates rather than one lookup object: a caller may be able to
      * answer some questions and not others, and a new reference kind adds a field without disturbing the
      * rest.
+     *
+     * <p>{@code rewardKinds} is the reward vocabulary a {@code Loot} block's rewards are checked against
+     * (the shared one at boot); {@code null} means "cannot tell", so no reward kind is reported unknown.
      */
     public record ReferenceResolvers(
             @Nonnull Predicate<String> effectExists,
@@ -278,7 +283,16 @@ public final class ScalingContentValidator {
             @Nonnull Predicate<String> npcGroupExists,
             @Nonnull Predicate<String> roleExists,
             @Nonnull Predicate<String> interactionExists,
-            @Nonnull Predicate<String> lootableExists) {
+            @Nonnull Predicate<String> lootableExists,
+            @Nullable RewardKindRegistry rewardKinds) {
+
+        /** The six existence lookups with no reward vocabulary to check against. */
+        public ReferenceResolvers(@Nonnull Predicate<String> effectExists,
+                @Nonnull Predicate<String> dropListExists, @Nonnull Predicate<String> npcGroupExists,
+                @Nonnull Predicate<String> roleExists, @Nonnull Predicate<String> interactionExists,
+                @Nonnull Predicate<String> lootableExists) {
+            this(effectExists, dropListExists, npcGroupExists, roleExists, interactionExists, lootableExists, null);
+        }
 
         /** Resolvers that answer "exists" to everything - the engine-absent / unit-test no-op. */
         @Nonnull
@@ -324,10 +338,11 @@ public final class ScalingContentValidator {
     }
 
     /**
-     * Existence findings for one authored {@code Loot} block: every shared table it names by id, and every
-     * native drop table any of its inline rolls grants (top level and ladder floors alike). Both are the
-     * silent-failure shape this sweep exists for - a mistyped id costs the player loot with no error
-     * anywhere - so each is named at boot rather than at whatever future kill first touches it.
+     * Findings for one authored {@code Loot} block. First EXISTENCE: every shared table it names by id, and
+     * every native drop table any of its inline rolls grants (top level and ladder floors alike). Both are
+     * the silent-failure shape this sweep exists for - a mistyped id costs the player loot with no error
+     * anywhere - so each is named at boot rather than at whatever future kill first touches it. Then the
+     * library's shared loot rules ({@link #sharedLootFindings}).
      *
      * @param subject how to refer to the owner in the consequence clause, e.g. {@code "the tier"}
      */
@@ -363,7 +378,34 @@ public final class ScalingContentValidator {
                 }
             }
         }
+        findings.addAll(sharedLootFindings(at, loot, resolvers.rewardKinds()));
         return findings;
+    }
+
+    /**
+     * The library's own rules for a {@code LootRef} ({@link LootableValidator#auditRef}), in this
+     * validator's string shape: a blank table reference, and each inline roll's conditions, chance,
+     * ladder and grants, its reward kinds checked against {@code kinds}. A referenced table's existence
+     * is the {@code Loot.Lootables} check above, so the shared rule's own unknown-table line is dropped
+     * rather than said twice, and so is a NOTE (content that works, with a remark about it): every line
+     * here is logged as a warning. An audit that cannot run says nothing, never a false warning.
+     */
+    @Nonnull
+    private static List<String> sharedLootFindings(@Nonnull String at, @Nonnull LootRef loot,
+            @Nullable RewardKindRegistry kinds) {
+        List<String> out = new ArrayList<>();
+        List<Finding> findings;
+        try {
+            findings = LootableValidator.auditRef(loot, at + " Loot", kinds);
+        } catch (Throwable t) {
+            return out;
+        }
+        for (Finding finding : findings) {
+            if (finding.isProblem() && !LootableValidator.UNKNOWN_TABLE.equals(finding.code())) {
+                out.add(finding.sourceId() + ": " + finding.message());
+            }
+        }
+        return out;
     }
 
     /** One finding per native drop-table id in a grants group that names no {@code ItemDropList}. */
