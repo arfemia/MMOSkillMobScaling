@@ -1,8 +1,6 @@
 package com.ziggfreed.mmomobscaling.event;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -25,7 +23,6 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
@@ -37,11 +34,12 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.command.CommandRunner;
 import com.ziggfreed.common.factor.FactorContext;
-import com.ziggfreed.common.instance.reward.NativeLootService;
 import com.ziggfreed.common.loot.FactorLookup;
 import com.ziggfreed.common.loot.FactorSnapshot;
+import com.ziggfreed.common.loot.GroundSpillSinks;
 import com.ziggfreed.common.loot.LootEngine;
 import com.ziggfreed.common.loot.LootRef;
+import com.ziggfreed.common.loot.StochasticCount;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.common.subject.PlayerRefSubjectHandle;
 import com.ziggfreed.common.subject.Subject;
@@ -95,6 +93,12 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
 
     /** Salt folded into the per-UUID seed so the pull roll decorrelates from the spawn-time rarity roll. */
     private static final long PULL_ROLL_SALT = 0x4C4F4F54524F4C4CL; // "LOOTROLL"
+
+    /**
+     * The first loot multiplier whose pass count no longer fits an int ({@code 2^31}). At or past it a death
+     * pays no passes at all, which is what this system has always done there.
+     */
+    private static final double PULLS_CEILING = 0x1p31;
 
     /** Warn-once set for a loot table id nothing answers to, so one typo costs one line, not one per kill. */
     private static final Set<String> WARNED_TABLES = ConcurrentHashMap.newKeySet();
@@ -217,7 +221,8 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
 
     /**
      * Where a scaled mob's death loot goes: items and native drop tables spill on the ground at the corpse
-     * (so a mob killed by anything at all still drops them), while commands and registered reward kinds are
+     * (so a mob killed by anything at all still drops them) through the library's ground-spill preset, one
+     * pile per hand-over, every spilled stack counted as landed; commands and registered reward kinds are
      * paid to the KILLER and are wired only when the killer resolves to a player.
      */
     @Nonnull
@@ -226,26 +231,11 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
             @Nonnull Rotation3f dropRotation, @Nullable Ref<EntityStore> killerRef,
             @Nullable PlayerRef killerPlayerRef, @Nonnull MobScaleResult result, @Nonnull String label) {
 
-        LootEngine.Sinks.Builder builder = LootEngine.Sinks.builder()
-                .items((itemId, count) -> {
-                    spill(store, commandBuffer, dropPosition, dropRotation,
-                            List.of(new ItemStack(itemId, count)));
-                    return count;
-                })
-                .dropLists(dropListId -> {
-                    List<ItemStack> rolled = NativeLootService.rollNative(dropListId);
-                    if (rolled.isEmpty()) {
-                        return Map.of();
-                    }
-                    spill(store, commandBuffer, dropPosition, dropRotation, rolled);
-                    Map<String, Integer> landed = new LinkedHashMap<>();
-                    for (ItemStack stack : rolled) {
-                        if (stack != null && stack.getItemId() != null) {
-                            landed.merge(stack.getItemId(), Math.max(1, stack.getQuantity()), Integer::sum);
-                        }
-                    }
-                    return landed;
-                })
+        LootEngine.Sinks.Builder builder = GroundSpillSinks.at(store, commandBuffer, dropPosition, dropRotation)
+                .countFailedDrops(true)
+                .warn(MobScalingLootDropSystem::safeWarn)
+                .build()
+                .into(LootEngine.Sinks.builder())
                 .sourceId("mobscaling:" + label)
                 .warn(MobScalingLootDropSystem::safeWarn);
 
@@ -273,16 +263,6 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
         return PlayerRefSubjectHandle.subjectFor(killer, username == null ? "" : username);
     }
 
-    /** Spill stacks on the ground through the engine's own drop pipeline. */
-    private static void spill(@Nonnull Store<EntityStore> store,
-            @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Vector3d position,
-            @Nonnull Rotation3f rotation, @Nonnull List<ItemStack> items) {
-        if (items.isEmpty()) {
-            return;
-        }
-        NativeLootService.spawnInWorld(store, commandBuffer, position, rotation, new ArrayList<>(items));
-    }
-
     /**
      * The entity that dealt the killing blow, resolved off the corpse's {@link DeathComponent#getDeathInfo()}
      * (still resident in memory here - this system ticks BEFORE {@code CorpseRemoval} removes the component,
@@ -308,18 +288,16 @@ public final class MobScalingLootDropSystem extends EntityTickingSystem<EntitySt
 
     /**
      * The pass count the folded loot multiplier buys: {@code floor(lootMult)} guaranteed, plus one more when
-     * {@code roll01} lands under the fractional part. Non-positive mults buy nothing. Pure, unit-tested.
+     * {@code roll01} lands under the fractional part (the library's {@link StochasticCount} rule, the per-mob
+     * roll as its one draw). Non-positive and non-finite mults buy nothing, and so does a mult at or past
+     * {@link #PULLS_CEILING}: a count that size is a misconfigured clamp, never two billion passes over a
+     * corpse. Pure, unit-tested.
      */
     static int lootPulls(double lootMult, double roll01) {
-        if (lootMult <= 0.0) {
+        if (lootMult >= PULLS_CEILING) {
             return 0;
         }
-        int pulls = (int) Math.floor(lootMult);
-        double frac = lootMult - pulls;
-        if (frac > 0.0 && roll01 < frac) {
-            pulls++;
-        }
-        return pulls;
+        return StochasticCount.resolve(lootMult, () -> roll01);
     }
 
     /**
