@@ -233,5 +233,5 @@ rarity, variant, and affixes: look at the mob and read the crosshair card.
 ## Links & Support
 
 - Companion mod: [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree)
-- Full developer changelog: [CHANGELOG.md](CHANGELOG.md)
+- Full developer changelog: [patch-notes/](https://github.com/arfemia/MMOSkillMobScaling/tree/main/patch-notes)
 - Website: [wintergreen-solutions.com](https://wintergreen-solutions.com)
