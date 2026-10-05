@@ -9,12 +9,12 @@
     }
   ],
   "Website": "${website}",
-  "ServerVersion": ">=0.6.0-pre.13 <0.7.0",
+  "ServerVersion": ">=0.7.0-pre.0 <0.8.0",
   "DisabledByDefault": false,
   "Main": "${entry_point}",
   "IncludesAssetPack": true,
   "Dependencies": {
-    "Ziggfreed:ZiggfreedCommon": ">=2.2.0",
-    "Ziggfreed:MMOSkillTree": ">=1.7.0"
+    "Ziggfreed:ZiggfreedCommon": ">=2.3.0",
+    "Ziggfreed:MMOSkillTree": ">=1.7.1"
   }
 }
