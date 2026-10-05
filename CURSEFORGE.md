@@ -5,11 +5,12 @@ affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
 world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
 
-> **v1.2.0.** Plays alongside the boss fights Ziggfreed's CommonLib runs: a boss an encounter
-> script raises is the fight's own, so this mod leaves it and its adds alone, and a bound fight
-> can harden with the power of the region it stands in. Everything else is the full scaling
-> system and the signature moves of 1.1.0. Numbers are still being tuned in-game and may shift
-> between builds; everything is data-driven, so you can retune any of it.
+> **v1.2.1 (unreleased, held).** Fixes a scaled mob that could be immune to a weapon, and far
+> zones that never got any harder. Mobs are less spongy and hit harder, retuned beside the lower
+> defense caps in MMO Skill Tree 1.7.0, so mob numbers change on every server. The old `Intensity`
+> setting is gone; the start-up log names any file of yours that still sets it. Scripted boss
+> fights are still left to their own script, as in 1.2.0. Numbers are still being tuned in-game
+> and may shift between builds; everything is data-driven, so you can retune any of it.
 
 ## Requirements
 
@@ -32,7 +33,7 @@ Every hostile open-world mob, as it spawns, is scaled to a difficulty resolved f
 2. **Distance-from-spawn escalation.** Past a configurable radius, every stretch of blocks adds
    difficulty AND raises the chance of rare, affixed mobs, so the deep frontier is deadly in every
    zone. A lone traveler far from home should feel it.
-3. **The players actually there.** A region's difficulty tracks the real power of the group standing
+3. **Whoever is there.** A region's difficulty tracks the real power of the group standing
    in it (their full MMO Skill Tree build: combat, stat rewards, abilities, mastery, achievements),
    not just the highest level present. Roll up with a strong party and the zone answers.
 
@@ -65,8 +66,9 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
   (the zone shows its real in-game name, e.g. "Cinder Wastes", not an internal id; the biome is shown
   alongside).
 - **Mob Inspector card.** Look at any mob and see a **portrait** of it, its name, rarity tag, scaled
-  difficulty, a live health bar, and its affixes as **icon chips**. Affix icons are data-driven (an
-  item id or a texture), so a content pack can theme them.
+  difficulty, a live health bar, and its affixes as **icon chips**. It also shows what the scaling
+  did: the mob's health, the share of a hit it takes and how hard it hits, each as a percentage.
+  Affix icons are data-driven (an item id or a texture), so a content pack can theme them.
 
 ## Commands
 
@@ -80,7 +82,7 @@ subcommand comes first; any extra values are passed by NAME (e.g. `--hudTarget=z
 | `hud --hudTarget=<zone\|inspector> --hudValue=<on\|off\|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
 | `worlds` | List every loaded per-world settings file: its match pattern, parent, shipped-vs-owner origin, and on/off state. |
 | `ui` | Open the in-game admin config page: every knob across five tabs (global settings, Zone HUD, Mob Inspector HUD, a two-panel editor over the per-world files, and a two-panel editor over the zone and biome floors - list on the left, add/edit on the right). Every setting that applies per world is editable here, including which worlds a file targets (by name pattern, by gameplay config key for an instance world, and by exclusion), a world's spawn pool, difficulty stat curve, open-world scaling group (its region grid size too), and where each of the two HUD overlays sits in that world, or whether it shows at all. The Floors tab lists every zone and biome floor, shipped or your own, and edits one in place; a blank field keeps what the shipped mapping says. The Global tab is difficulty-first and shows a live "Preview: Skeleton" column beside your settings: a plain mob run through your current curve at five sample levels, updating as you type, with the skeleton's real health and real hit beside the multipliers once the mod has seen one, how many times longer it takes to kill than an unscaled mob, an amber note when a ceiling is holding a row down, a rarity ladder at any difficulty you type, and a read-only panel of the player power range the MMO gives this mod and how your caps sit against it. Every field has a short help line, and a blank/Inherit field in either editor tells you exactly what it is inheriting. List rows wrap instead of cutting off long names. Each edit is saved and applied live. |
-| `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. Run this per world before uninstalling. |
+| `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. From the server console it sweeps every loaded world and reports each one in the log. Run it before uninstalling. |
 
 Every change made in `/mobscaling ui` or via the `hud` / `preset` subcommands is SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
 
@@ -199,8 +201,8 @@ path is printed on every start; search the log for `mob-scaling config:`.
 
 While the mod is enabled it reconciles scaled mobs every time they load, so a retune or a removal is
 picked up cleanly. A fully removed mod cannot self-heal saved mobs, so for a clean uninstall run
-`/mobscaling purge` in each world first (that command works even when scaling is disabled), then
-remove the jar.
+`/mobscaling purge` first, from the server console to sweep every loaded world or in each world as a
+player (it works even when scaling is disabled), then remove the jar.
 
 ## Installation
 
