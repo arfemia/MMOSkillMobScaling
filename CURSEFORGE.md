@@ -20,12 +20,12 @@ world into a living difficulty curve, zone by zone, without you hand-placing a s
 
 Both load before this mod (drop all three jars in your server `Mods/` folder):
 
-- **MMO Skill Tree >= 1.7.0** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
-- **Ziggfreed's CommonLib >= 2.2.0** - the shared library this mod builds on, including the encounter framework it now reads.
+- **MMO Skill Tree >= 1.7.1** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
+- **Ziggfreed's CommonLib >= 2.3.0** - the shared library this mod builds on, including the encounter framework it now reads.
 
 The three ship together; update them together.
 
-Targets Hytale server `0.6.x` (Update 6). Zero client install: everything is server-side.
+Targets Hytale server `0.7.x` (Update 7). Zero client install: everything is server-side.
 
 ## What it does
 
@@ -163,7 +163,7 @@ skipped entirely):
   "Group": "YourName",
   "Name": "YourPack",
   "Version": "1.0.0",
-  "ServerVersion": ">=0.6.0-pre.13 <0.7.0",
+  "ServerVersion": ">=0.7.0-pre.0 <0.8.0",
   "IncludesAssetPack": true,
   "Dependencies": { "Ziggfreed:MmoMobScaling": ">=1.1.0" }
 }
@@ -218,7 +218,7 @@ player (it works even when scaling is disabled), then remove the jar.
 
 ## Installation
 
-1. Install **MMO Skill Tree >= 1.7.0** and **Ziggfreed's CommonLib >= 2.2.0**.
+1. Install **MMO Skill Tree >= 1.7.1** and **Ziggfreed's CommonLib >= 2.3.0**.
 2. Drop `MmoMobScaling-<version>.jar` in your server's `Mods/` folder.
 3. Start the server. Scaling is on by default with the balanced preset; tune from `mods/MmoMobScaling/`.
 
