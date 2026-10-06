@@ -1,3 +1,4 @@
+$ZT = "../Common/ZigType.ui";
 // ── mmo-mob-scaling PREVIEW row (Global tab, right column) ───────────────────
 // Appended into #MmoscalingPreviewList (the five fixed samples), #MmoscalingProbeList (the one typed
 // probe) and #MmoscalingLadderList (one rung per rarity tier, plain first) by
@@ -18,11 +19,11 @@ Group #MmoscalingPreviewRow {
 
   Label #Line {
     Text: "";
-    Style: (FontSize: 12, TextColor: #cdd8e6, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #cdd8e6, Wrap: true);
   }
 
   Label #Detail {
     Text: "";
-    Style: (FontSize: 11, TextColor: #8fa3b8, Wrap: true);
+    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8fa3b8, Wrap: true);
   }
 }

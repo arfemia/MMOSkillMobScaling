@@ -1,6 +1,7 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // MMO Mob Scaling admin config page (com.ziggfreed.mmomobscaling.pages.MobScalingAdminPage).
 // SPEC-DRIVEN: every knob row (Global / Zone HUD / Inspector HUD / Worlds / Floors) is appended at
@@ -19,12 +20,12 @@ $Z = "../Common/ZigButtons.ui";
   ...$C.@DefaultDropdownBoxStyle,
   LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
 );
-@HeaderStyle = (FontSize: 15, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
-@RowLabelStyle = (FontSize: 13, TextColor: #cdd8e6, VerticalAlignment: Center);
+@HeaderStyle = (FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
+@RowLabelStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
 // The preview column's section titles and wrapping notes (the skeleton preview, the ladder, the MMO side).
-@PreviewTitleStyle = (FontSize: 15, TextColor: #ffaa4a, RenderBold: true);
-@PreviewNoteStyle = (FontSize: 11, TextColor: #8696a8, Wrap: true);
-@PreviewLineStyle = (FontSize: 12, TextColor: #cdd8e6, Wrap: true);
+@PreviewTitleStyle = (FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true);
+@PreviewNoteStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, Wrap: true);
+@PreviewLineStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #cdd8e6, Wrap: true);
 
 // A label + control row (used only by the hand-built preset row and the difficulty probe - every other
 // row comes from the shared ziggfreed-common ui/form row templates).
@@ -43,7 +44,7 @@ $Z = "../Common/ZigButtons.ui";
   Label #Label {
     FlexWeight: 1;
     Text: "";
-    Style: (FontSize: 13, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
   }
 };
 
@@ -68,7 +69,7 @@ $Z = "../Common/ZigButtons.ui";
   Text: "";
   Visible: false;
   Anchor: (Height: 20, Top: 4, Bottom: 4);
-  Style: (FontSize: 12, TextColor: #8696a8, HorizontalAlignment: Center);
+  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
 };
 
 $C.@PageOverlay {}
@@ -81,7 +82,7 @@ $F.@ZigDecoratedFrame {
     Label #MmoscalingTitle {
       Text: "";
       Anchor: (Height: 28, Bottom: 6);
-      Style: (FontSize: 20, TextColor: #ffd97a, RenderBold: true);
+      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
     }
 
     // Tab bar (rich buttons; active tab tinted from Java via SettingsUiUtil.setTabActive).
@@ -328,7 +329,7 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Visible: false;
       Anchor: (Height: 20, Top: 6);
-      Style: (FontSize: 12, TextColor: #4aff7f, HorizontalAlignment: Center);
+      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #4aff7f, HorizontalAlignment: Center);
     }
   }
 }

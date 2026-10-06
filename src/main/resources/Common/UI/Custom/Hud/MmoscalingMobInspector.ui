@@ -1,4 +1,5 @@
 $Z = "../Common/ZigButtons.ui";
+$ZT = "../Common/ZigType.ui";
 
 // Styled to MATCH the native Hytale objective HUD (client ObjectivePanel + ObjectiveCommon): the
 // ObjectivePanelContainer frame plus the bold + LetterSpacing 1 family and the gray/gold palette. Both
@@ -7,15 +8,15 @@ $Z = "../Common/ZigButtons.ui";
 // below finds the copy the library ships into this same Hud/ folder, and "../Common/ZigButtons.ui"
 // reaches its sibling Common/ folder. An ItemGrid with no Style lays out its width and draws nothing.
 
-@InspectNameStyle = (FontSize: 14, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
+@InspectNameStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center, Wrap: true);
 
-@InspectRarityStyle = (FontSize: 12, TextColor: #ffffff, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+@InspectRarityStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #ffffff, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@InspectLevelStyle = (FontSize: 12, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+@InspectLevelStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
-@InspectHpTextStyle = (FontSize: 11, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
+@InspectHpTextStyle = (FontSize: $ZT.@ZigFontMicro, TextColor: #eceff1, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Center, VerticalAlignment: Center);
 
-@InspectAffixStyle = (FontSize: 13, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
+@InspectAffixStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
 // Bar dressing that makes the fill read as a real bar rather than a coloured rectangle, all colour-agnostic
 // so it works over any mob health bar colour. A dark well behind the fill, a highlight across its top, and
