@@ -33,6 +33,11 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  * may roll it, which never may, and which ALWAYS get at least it. It holds only pure data - the
  * engine-coupled evaluation against a spawning mob is {@code family/MobFamilyMatcher}. Absent =
  * {@link FamilyFilter#ALLOW_ALL} (every mob eligible, nothing forced).
+ *
+ * <p>{@link #decorateName} is whether the tier's name goes into the mob's display name (the rarity frame
+ * {@code mmomobscaling.name.decorated}, which death messages and the kill feed read). A tier that is part of
+ * the creature's identity rather than news about it, such as the boss tier, turns it off, so an Ember Dragon
+ * reads "Ember Dragon" there; the tier still shows on the mob inspector's rarity tag either way.
  */
 public record Rarity(
         @Nonnull String id,
@@ -47,13 +52,23 @@ public record Rarity(
         @Nonnull List<String> allowedAffixes,
         @Nonnull String nameColor,
         @Nonnull FamilyFilter familyFilter,
-        @Nullable LootRef loot) {
+        @Nullable LootRef loot,
+        boolean decorateName) {
 
     /** The fallback display colour when a tier authors no {@code NameColor} (plain white). */
     public static final String DEFAULT_NAME_COLOR = "#ffffff";
 
     public Rarity {
         allowedAffixes = List.copyOf(allowedAffixes);
+    }
+
+    /** Convenience constructor for a tier that decorates the mob's display name (the default). */
+    public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
+            double difficultyMultiplier, double lootMult, double xpMult,
+            int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
+            @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter, @Nullable LootRef loot) {
+        this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
+                xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, loot, true);
     }
 
     /**

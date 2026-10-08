@@ -264,7 +264,7 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
         return h != null && h.getShowLocationName() != null ? h.getShowLocationName() : g.isZoneShowLocationName();
     }
 
-    // An EMPTY prefix is a real value (prettify the raw id), so only an absent leaf inherits.
+    // An EMPTY prefix is a real value (no lookup, and no biome line), so only an absent leaf inherits.
     @Nonnull @Override public String getZoneNameKeyPrefix() {
         Hud h = zoneHud();
         return h != null && h.getZoneNameKeyPrefix() != null ? h.getZoneNameKeyPrefix() : g.getZoneNameKeyPrefix();

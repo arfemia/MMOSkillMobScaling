@@ -2083,7 +2083,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     /**
      * A name-key prefix for a HINT's "Inherits: X" line: a literal {@link Message#raw} when set, the
      * localized {@code mmomobscaling.ui.world.inherits_none} when it is the EMPTY prefix (a real value:
-     * the raw zone/biome id is prettified instead of looked up).
+     * the zone's raw id is prettified instead of looked up, and no biome line shows).
      */
     @Nonnull
     private static Message prefixOrNone(@Nonnull String prefix) {

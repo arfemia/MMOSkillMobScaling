@@ -162,10 +162,11 @@ public final class MobScalingAssetRegistrar {
     }
 
     /**
-     * Fold the loaded caster-roster assets (same all-entries fold as rarities: this mod ships jar
-     * defaults, so the bundled demo roster IS a default, not just an example) into
-     * {@link CasterRosterConfig}'s pack layer, rebuild {@link Rosters#casterRosters()}, and run the
-     * roster-shape content checks.
+     * Fold the loaded caster-roster assets (same all-entries fold as rarities, the jar's own files
+     * included) into {@link CasterRosterConfig}'s pack layer, rebuild {@link Rosters#casterRosters()},
+     * and run the roster-shape content checks. The bundled demo roster folds like any other but ships
+     * {@code Enabled: false}, so it is validated and never armed until a pack's same-id copy switches it
+     * on.
      */
     static void onCasterRostersLoaded(
             LoadedAssetsEvent<String, CasterRosterAsset, DefaultAssetMap<String, CasterRosterAsset>> event) {

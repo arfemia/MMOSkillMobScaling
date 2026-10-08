@@ -91,18 +91,15 @@ public final class ZoneDifficultyHud extends ScalingHud {
         cmd.set("#MmoscalingZonePanel.Visible", false);
     }
 
-    /** Neutral placeholder shown for the biome sub-line when no biome name is available. */
-    private static final String NO_LOCATION_PLACEHOLDER = "-";
-
     /**
      * Push the zone readout. {@code settings} is the view of the world the player stands in: its
-     * {@code ZoneHud.ShowLocationName} decides whether the location row shows at all and its two
+     * {@code ZoneHud.ShowLocationName} decides whether the card names the location at all and its two
      * name-key prefixes decide how the zone and biome names resolve. {@code visible} false (mob
      * scaling off for this world, or the HUD admin-disabled) hides the whole card; {@code groupPower
-     * <= 0} (cold region) hides the group row. Blank {@code zoneName}/{@code biomeName} hide the
-     * location row too (the caller has nothing to show); an empty {@code zoneName} with a non-blank
-     * pair still renders (falls back to {@value #NO_LOCATION_PLACEHOLDER} for the missing half)
-     * rather than a blank label. Skips the packet when nothing changed since the last push.
+     * <= 0} (cold region) hides the group row. The zone name is the card's title (the generic title
+     * when the location is off or there is no zone); the biome sub-line shows only under an authored
+     * biome key family ({@link LocationNameResolver#biomeName}), so the shipped blank prefix shows the
+     * zone alone rather than a raw biome id. Skips the packet when nothing changed since the last push.
      */
     public void pushUpdate(@Nonnull SpawnScalingSettings settings, double difficulty, double playerPower,
             double groupPower, boolean visible, @Nonnull String zoneName, @Nonnull String biomeName) {
@@ -144,20 +141,20 @@ public final class ZoneDifficultyHud extends ScalingHud {
                         Message.translation("mmomobscaling.hud.zone.group").param("power", groupRounded));
             }
             // The ZONE name is the panel TITLE (the redundant static "ZONE DIFFICULTY" header is gone); the
-            // BIOME is the sub-line below it. Both resolve to CLIENT-resolved friendly names (nested
-            // Messages, never pre-resolved Strings): the zone via the base game's own "server.map.region.<id>"
-            // keys, the biome prettified (vanilla ships no biome name key). When the zone name is unavailable
-            // (a zoneless world, or the location toggle is off) the title falls back to the generic label.
+            // BIOME is the sub-line below it. Both are CLIENT-resolved names (nested Messages, never
+            // pre-resolved Strings): the zone via the base game's own "server.map.region.<id>" keys, the biome
+            // only through an owner's own key family, since vanilla names no biome and a raw worldgen id is no
+            // name to show a player. When the zone name is unavailable (a zoneless world, or the location
+            // toggle is off) the title falls back to the generic label.
             boolean hasZone = showLocation && !zoneName.isBlank();
-            boolean hasBiome = showLocation && !biomeName.isBlank();
+            Message biome = showLocation ? LocationNameResolver.biomeName(biomeName, biomePrefix) : null;
             Message zoneTitle = hasZone
                     ? LocationNameResolver.displayName(zoneName, zonePrefix, Message.translation("mmomobscaling.hud.zone.title"))
                     : Message.translation("mmomobscaling.hud.zone.title");
             cmd.set("#MmoscalingZoneTitle.TextSpans", zoneTitle);
-            cmd.set("#MmoscalingZoneName.Visible", hasBiome);
-            if (hasBiome) {
-                cmd.set("#MmoscalingZoneName.TextSpans",
-                        LocationNameResolver.displayName(biomeName, biomePrefix, Message.raw(NO_LOCATION_PLACEHOLDER)));
+            cmd.set("#MmoscalingZoneName.Visible", biome != null);
+            if (biome != null) {
+                cmd.set("#MmoscalingZoneName.TextSpans", biome);
             }
         }
         update(false, cmd);

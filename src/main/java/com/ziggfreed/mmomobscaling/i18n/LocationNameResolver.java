@@ -1,6 +1,7 @@
 package com.ziggfreed.mmomobscaling.i18n;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.server.core.Message;
 
@@ -18,8 +19,10 @@ import com.hypixel.hytale.server.core.Message;
  * (the safe fallback where no lang key exists - a missing key would otherwise render the literal key text).
  *
  * <p><b>Biome:</b> vanilla ships NO biome name key ({@code server.map.biome.*} does not exist; {@code /zone}
- * prints the raw id). So {@code BiomeNameKeyPrefix} defaults to BLANK - we prettify {@code Biome.getName()}
- * ("Forest_Birch_Trork" -> "Forest Birch Trork"). An owner who authors biome keys sets the prefix.
+ * prints the raw id), and a prettified id ("Ocean1", "Forest Birch Trork") is worldgen's label, not a name a
+ * player should read. So {@link #biomeName} answers a biome only under an authored key family: with the
+ * default BLANK {@code BiomeNameKeyPrefix} the zone card shows the zone alone, and an owner who authors biome
+ * keys sets the prefix to show them.
  *
  * <p>The prefixes live on the {@code ZoneHud} settings group ({@code MobScalingConfig.getZoneNameKeyPrefix()}
  * / {@code getBiomeNameKeyPrefix()}), so the resolution is codec-driven, not hardcoded.
@@ -27,6 +30,19 @@ import com.hypixel.hytale.server.core.Message;
 public final class LocationNameResolver {
 
     private LocationNameResolver() {
+    }
+
+    /**
+     * The biome's display name, or {@code null} when there is none to show: a blank {@code biomeId} (no biome
+     * here) or a blank {@code keyPrefix} (no authored key family, the shipped default) shows no biome at all,
+     * never the raw id; otherwise a nested {@code Message.translation(keyPrefix + biomeId)}, client-resolved.
+     */
+    @Nullable
+    public static Message biomeName(@Nonnull String biomeId, @Nonnull String keyPrefix) {
+        if (biomeId.isBlank() || keyPrefix.isBlank()) {
+            return null;
+        }
+        return Message.translation(keyPrefix + biomeId);
     }
 
     /**

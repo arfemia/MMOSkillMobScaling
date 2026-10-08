@@ -84,27 +84,27 @@ hud.inspect.mults = Health {hp}%, takes {taken}%, deals {dealt}%
 affix.armored.name = Armored
 affix.armored.desc = Clad in heavy plating that turns aside blows.
 affix.stalwart.name = Stalwart
-affix.stalwart.desc = Rooted like old stone; nothing knocks it back.
+affix.stalwart.desc = Hard to knock down, and harder to knock back.
 affix.swift.name = Swift
-affix.swift.desc = Moves with unnatural quickness.
+affix.swift.desc = Faster on its feet than it has any right to be.
 affix.vampiric.name = Vampiric
-affix.vampiric.desc = Drains life from its foes with every strike.
+affix.vampiric.desc = Heals a little with every hit it lands.
 affix.freezing.name = Freezing
-affix.freezing.desc = Its chilling touch numbs and slows the unwary.
+affix.freezing.desc = Its hits leave you cold and slow for a moment.
 affix.venomous.name = Venomous
-affix.venomous.desc = Its bite courses with burning venom.
+affix.venomous.desc = Its bite hits harder than a spider's should.
 affix.ward_fire.name = Fireward
-affix.ward_fire.desc = Wrapped in a shimmering ward that quenches scorching blows.
+affix.ward_fire.desc = Takes less damage from fire.
 affix.ward_ice.name = Iceward
-affix.ward_ice.desc = Wrapped in a shimmering ward that thaws icy blows.
-affix.ward_arcane.name = Arcaneward
-affix.ward_arcane.desc = Bound in a shimmering ward that unravels arcane force.
+affix.ward_ice.desc = Takes less damage from ice.
+affix.ward_arcane.name = Spellward
+affix.ward_arcane.desc = Takes less damage from arcane magic.
 affix.ward_void.name = Voidward
-affix.ward_void.desc = Cloaked in a shimmering ward that seals off the void's touch.
+affix.ward_void.desc = Takes less damage from the void.
 affix.ward_lightning.name = Stormward
-affix.ward_lightning.desc = Wrapped in a shimmering ward that grounds crackling blows.
+affix.ward_lightning.desc = Takes less damage from lightning.
 affix.ward_water.name = Waterward
-affix.ward_water.desc = Cloaked in a shimmering ward that dampens surging blows.
+affix.ward_water.desc = Takes less damage from water.
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
@@ -305,12 +305,12 @@ ui.hint.only_raise = When on, nearby player power can only raise a region's diff
 
 # Zone HUD tab (hud_position/hud_offset_x/hud_offset_y are shared with the Inspector HUD tab below).
 ui.hint.zone_enabled = Whether the zone difficulty overlay shows on screen at all.
-ui.hint.zone_show_location = Whether the overlay also names the current zone and biome.
+ui.hint.zone_show_location = Whether the overlay names the current zone, and its biome too when a biome name key prefix is set.
 ui.hint.hud_position = Which screen corner the overlay anchors to.
 ui.hint.hud_offset_x = Fine pixel adjustment from the anchored horizontal edge.
 ui.hint.hud_offset_y = Fine pixel adjustment from the anchored vertical edge.
 ui.hint.zone_name_prefix = The lang key prefix used to look up a friendly name for the current zone.
-ui.hint.biome_name_prefix = The lang key prefix used to look up a friendly name for the current biome.
+ui.hint.biome_name_prefix = The lang key prefix used to look up a friendly name for the current biome. The base game names no biomes, so leave it blank to keep the biome off the overlay, or set it and add a key for every biome.
 
 # Inspector HUD tab.
 ui.hint.insp_enabled = Whether the crosshair mob inspector overlay shows on screen at all.
@@ -337,7 +337,7 @@ ui.hint.pool_affixes_deny = Affixes forbidden from rolling here; denial always w
 ui.hint.pool_extra_slots = Extra affix slots granted on top of whatever the rarity and variant already allow.
 ui.hint.w_zone_hud = Whether the zone difficulty overlay is allowed to show in this world. Inherit follows the parent file, then the global setting.
 ui.hint.w_inspector_hud = Whether the mob inspector overlay is allowed to show in this world. Inherit follows the parent file, then the global setting.
-ui.hint.w_zone_show_location = Whether the overlay also names the current zone and biome in this world. Inherit follows the parent file, then the global setting.
+ui.hint.w_zone_show_location = Whether the overlay names the current zone in this world, and its biome too when a biome name key prefix is set. Inherit follows the parent file, then the global setting.
 ui.hint.w_insp_portrait = Whether the inspector card shows the target's portrait in this world. Inherit follows the parent file, then the global setting.
 ui.hint.floor_id = The file this floor is saved under in mods/MmoMobScaling/difficulty. Name it after a shipped mapping to retune that one; leave it blank to name it after the zone or biome.
 ui.hint.floor_type = Whether the name below is a zone or a biome. Inherit keeps the shipped mapping's answer.

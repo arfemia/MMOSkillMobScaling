@@ -129,14 +129,14 @@ public interface SpawnScalingSettings {
     /** Pixel offset of the zone-difficulty HUD from its anchored vertical edge in this world. */
     int getZoneHudOffsetY();
 
-    /** Whether the zone-difficulty HUD names the current zone and biome in this world. */
+    /** Whether the zone-difficulty HUD names the current zone (and biome, when keyed) in this world. */
     boolean isZoneShowLocationName();
 
     /** Lang-key prefix the zone name is looked up under in this world (blank = prettify the raw id). */
     @Nonnull
     String getZoneNameKeyPrefix();
 
-    /** Lang-key prefix the biome name is looked up under in this world (blank = prettify the raw id). */
+    /** Lang-key prefix the biome name is looked up under in this world (blank = no biome line). */
     @Nonnull
     String getBiomeNameKeyPrefix();
 

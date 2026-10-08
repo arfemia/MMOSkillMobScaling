@@ -14,6 +14,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.ziggfreed.common.asset.EditorSchema;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 
@@ -30,9 +31,10 @@ import com.ziggfreed.mmomobscaling.caster.CasterRoster;
  * <p><b>Cohesive field groups are NESTED sub-objects</b>: the role selector is {@code Role} (its own
  * {@link BuilderCodec}); each {@code Abilities[]} element is its own {@link AbilityEntry} group.
  *
- * <p>Pack JSON shape:
+ * <p>Pack JSON shape ({@code Enabled} is optional and on when absent; the shipped demo authors false):
  * <pre>{@code
  * { "Name": "Demo_Boss_Caster",
+ *   "Enabled": true,
  *   "Role": { "Id": "Dragon_Fire" },
  *   "Abilities": [
  *     { "AbilityId": "fireball", "MinDifficulty": 20, "Scope": "BOSS",
@@ -63,6 +65,7 @@ public final class CasterRosterAsset
     private String id;
     private AssetExtraInfo.Data data;
 
+    @Nullable private Boolean enabled;
     @Nullable private RoleSelector role;
     @Nullable private AbilityEntry[] abilities;
 
@@ -78,6 +81,14 @@ public final class CasterRosterAsset
             .append(new KeyedCodec<>("Name", Codec.STRING, false),
                     (a, name) -> { /* no-op - id comes from the filename */ },
                     a -> a.id)
+            .add()
+            // Whether this roster arms anything at all. Absent = true.
+            .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false), (a, v) -> a.enabled = v, a -> a.enabled)
+            .metadata(EditorSchema.defaultValue(true))
+            .documentation("Whether this roster arms its mobs. Set it false to keep the file as an example or a"
+                    + " draft that does nothing: no mob is armed from it, and another roster for the same role"
+                    + " still applies. To switch on a roster that ships off, copy its file into your own pack at"
+                    + " the same path and set this to true.")
             .add()
             // Which mob role(s) this roster targets: exactly one of Id (exact) / Glob (wildcard).
             .append(new KeyedCodec<>("Role", RoleSelector.CODEC, false), (a, v) -> a.role = v, a -> a.role)
@@ -100,7 +111,8 @@ public final class CasterRosterAsset
      * Build the runtime {@link CasterRoster}. Absent {@code Role} -&gt; neither selector authored (the
      * roster never matches anything; validator-flagged). An {@code Abilities[]} element missing exactly
      * one of {@code AbilityId}/{@code NativeChain} decodes with {@link CasterEntry.Kind#INVALID} (kept,
-     * not dropped, so the validator can see and flag it) rather than vanishing silently.
+     * not dropped, so the validator can see and flag it) rather than vanishing silently. An absent
+     * {@code Enabled} is on.
      */
     @Nonnull
     public CasterRoster toDomain() {
@@ -114,7 +126,8 @@ public final class CasterRosterAsset
                 }
             }
         }
-        return new CasterRoster(id, roleId, roleGlob, entries);
+        boolean on = enabled == null || enabled;
+        return new CasterRoster(id, roleId, roleGlob, entries, on);
     }
 
     @Nullable

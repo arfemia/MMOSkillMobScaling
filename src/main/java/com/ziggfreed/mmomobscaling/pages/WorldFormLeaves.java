@@ -15,7 +15,7 @@ import com.ziggfreed.mmomobscaling.asset.WorldSettings;
  *
  * <p>The world form collects with {@code blankIsInherit}: a blank TEXT field becomes a {@code null}
  * leaf, which removes the leaf from the file so it inherits again. For the two name-key prefixes an
- * EMPTY string is itself a value ("no prefix: prettify the raw id"), and it seeds the form as the same
+ * EMPTY string is itself a value ("no prefix": no lookup, no biome line), and it seeds the form as the same
  * blank field an unauthored prefix does. Without this step a Save of a world that deliberately authors
  * an empty prefix would remove it and quietly switch that world back to the inherited prefix.
  * {@link #keepAuthoredEmptyText} puts an authored empty string back where the form left a blank, so an

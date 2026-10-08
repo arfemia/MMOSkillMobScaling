@@ -811,9 +811,11 @@ public final class ScalingContentValidator {
      * of {@code AbilityId}/{@code NativeChain} ({@link CasterEntry.Kind#INVALID}, never armed), an
      * unrecognised {@code Scope} value, a {@code CadenceSeconds} below the {@link CasterCadence#MIN_CADENCE_MS}
      * floor (including an absent/zero value), a negative {@code JitterSeconds}, a negative
-     * {@code MinDifficulty}, two DIFFERENT rosters authoring the exact same {@code Role.Glob}
+     * {@code MinDifficulty}, two DIFFERENT rosters that are on authoring the exact same {@code Role.Glob}
      * pattern OR the exact same {@code Role.Id} (matcher precedence silently picks one - the same
-     * "duplicate Match" shape as {@link #validateWorldSettings}), a blank {@code Windup.Animation} on an
+     * "duplicate Match" shape as {@link #validateWorldSettings}; a roster authoring {@code Enabled: false}
+     * never reaches the matcher, so it is checked for everything else but never counted as a duplicate),
+     * a blank {@code Windup.Animation} on an
      * otherwise-present {@code Windup} group, a {@code Windup} authored on a {@code NativeChain} entry
      * (wind-ups only apply to {@code AbilityId} entries - a native chain arms once at spawn and carries
      * its own animation nodes), and an unrecognised {@code Windup.Slot} name. Empty = clean.
@@ -834,14 +836,16 @@ public final class ScalingContentValidator {
                 findings.add(at + ": Role needs exactly one of Id or Glob (got Id='" + nullToEmpty(r.roleId())
                         + "', Glob='" + nullToEmpty(r.roleGlob()) + "') - this roster will never match any mob");
             }
-            if (r.hasRoleGlob()) {
+            // A roster that is off never reaches the matcher, so it competes with no other roster for a
+            // role; its shape is still checked below, so its mistakes show before it is switched on.
+            if (r.enabled() && r.hasRoleGlob()) {
                 String glob = r.roleGlob().trim().toLowerCase(Locale.ROOT);
                 if (!seenGlob.add(glob)) {
                     findings.add(at + ": duplicate Role.Glob '" + r.roleGlob()
                             + "' across roster files (matcher precedence silently picks one)");
                 }
             }
-            if (r.hasRoleId()) {
+            if (r.enabled() && r.hasRoleId()) {
                 String id = r.roleId().trim().toLowerCase(Locale.ROOT);
                 if (!seenRoleId.add(id)) {
                     findings.add(at + ": duplicate Role.Id '" + r.roleId()

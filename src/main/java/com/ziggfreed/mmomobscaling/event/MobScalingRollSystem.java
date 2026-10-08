@@ -315,7 +315,8 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
      * frame {@code mmomobscaling.name.variant_decorated} ({@code {variant} {inner}}) wraps THAT. Reads
      * the base name {@code RoleBuilderSystem} stamped at the add, so a reload never double-decorates.
      * SKIPS a mob carrying {@code PersistentDisplayName} (a player-authored custom name is never
-     * overwritten), the same guard {@code RoleBuilderSystem} itself uses.
+     * overwritten), the same guard {@code RoleBuilderSystem} itself uses, and stamps nothing when
+     * {@link #decoratedName} leaves the base as it is.
      */
     private static void decorateDisplayName(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull CommandBuffer<EntityStore> cb, @Nullable Rarity rarity, @Nullable Variant variant) {
@@ -327,8 +328,21 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
         if (base == null) {
             return; // no base name to decorate (nameless archetype)
         }
+        Message decorated = decoratedName(base, rarity, variant);
+        if (decorated != base) {
+            cb.putComponent(ref, DisplayNameComponent.getComponentType(), new DisplayNameComponent(decorated));
+        }
+    }
+
+    /**
+     * The decorated display name, pure: the rarity frame wraps {@code base} when the tier decorates
+     * ({@link Rarity#decorateName}; the shipped boss tier does not, so a boss keeps its own name), then the
+     * variant frame wraps that. Answers {@code base} itself, the same instance, when neither frame applies.
+     */
+    @Nonnull
+    static Message decoratedName(@Nonnull Message base, @Nullable Rarity rarity, @Nullable Variant variant) {
         Message decorated = base;
-        if (rarity != null) {
+        if (rarity != null && rarity.decorateName()) {
             decorated = Message.translation("mmomobscaling.name.decorated")
                     .param("rarity", Message.translation(MobScalingTextUtil.rarityNameKey(rarity)))
                     .param("base", decorated);
@@ -338,7 +352,7 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
                     .param("variant", Message.translation(MobScalingTextUtil.variantNameKey(variant)))
                     .param("inner", decorated);
         }
-        cb.putComponent(ref, DisplayNameComponent.getComponentType(), new DisplayNameComponent(decorated));
+        return decorated;
     }
 
     /**

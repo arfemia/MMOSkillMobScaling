@@ -493,8 +493,9 @@ public final class MobScalingSettingsAsset
                         (h, v) -> h.zoneNameKeyPrefix = v, h -> h.zoneNameKeyPrefix)
                 .add()
                 // Lang-key prefix for the friendly BIOME name. Vanilla ships NO biome name key, so this
-                // defaults BLANK (the raw Biome.getName() id is prettified). An owner who authors biome keys
-                // sets this (e.g. "mmomobscaling.biome."). (Meaningful only on ZoneHud.)
+                // defaults BLANK, and a blank prefix shows no biome line at all (the card names the zone
+                // alone; a raw Biome.getName() id is never shown). An owner who authors biome keys sets this
+                // (e.g. "mmomobscaling.biome.") with a key for every biome. (Meaningful only on ZoneHud.)
                 .append(new KeyedCodec<>("BiomeNameKeyPrefix", Codec.STRING, false),
                         (h, v) -> h.biomeNameKeyPrefix = v, h -> h.biomeNameKeyPrefix)
                 .add()

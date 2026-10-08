@@ -2,8 +2,11 @@ package com.ziggfreed.mmomobscaling.asset;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -21,6 +24,7 @@ import com.hypixel.hytale.assetstore.JsonAsset;
 import com.hypixel.hytale.assetstore.codec.AssetBuilderCodec;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.BooleanSchema;
 import com.hypixel.hytale.codec.schema.config.NumberSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
@@ -30,9 +34,13 @@ import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
+import com.ziggfreed.mmomobscaling.caster.CasterRosterMatcher;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
+import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
+import com.ziggfreed.mmomobscaling.config.ScalingContentValidator;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
+import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 import com.ziggfreed.common.icon.IconSpec;
@@ -44,6 +52,9 @@ import com.ziggfreed.common.icon.IconSpec;
  * {@code AssetCodecInitTest}.
  */
 class MobScalingAssetCodecTest {
+
+    /** The shipped example caster roster. */
+    private static final String DEMO_ROSTER = "/Server/MmoMobScaling/CasterRosters/Demo_Boss_Caster.json";
 
     @Test
     void codecsStaticInitializeWithoutThrowing() {
@@ -195,6 +206,31 @@ class MobScalingAssetCodecTest {
         assertTrue(!asset.toRarity().familyFilter().hasForce(), "no Families block -> nothing forced");
         assertEquals(1.0, asset.toRarity().difficultyMultiplier(), 1e-9,
                 "an absent DifficultyMultiplier is the plain 1.0 (the tier reads the curve where a plain mob does)");
+    }
+
+    @Test
+    void rarityDecorateNameDefaultsOnAndCanBeTurnedOff() throws Exception {
+        // FIXTURE assets: an unauthored DecorateName puts the tier in the mob's display name, as every tier
+        // did before the leaf existed, and false leaves that one tier out of it.
+        RarityAsset plain = decodeJson("{ \"Name\": \"fixture_plain\", \"Roll\": { \"Weight\": 1 } }",
+                RarityAsset.CODEC);
+        assertTrue(plain.toRarity().decorateName(), "an absent DecorateName decorates");
+
+        RarityAsset off = decodeJson(
+                "{ \"Name\": \"fixture_undecorated\", \"Roll\": { \"Weight\": 0 }, \"DecorateName\": false }",
+                RarityAsset.CODEC);
+        assertFalse(off.toRarity().decorateName(), "DecorateName false decodes and reaches the runtime tier");
+
+        RarityAsset on = decodeJson(
+                "{ \"Name\": \"fixture_decorated\", \"Roll\": { \"Weight\": 1 }, \"DecorateName\": true }",
+                RarityAsset.CODEC);
+        assertTrue(on.toRarity().decorateName(), "DecorateName true decodes");
+
+        BooleanSchema leaf = (BooleanSchema) RarityAsset.CODEC.toSchema(new SchemaContext())
+                .getProperties().get("DecorateName");
+        assertEquals(Boolean.TRUE, leaf.getDefault(),
+                "an unauthored DecorateName is true, and the exported schema must say so or the editor renders an "
+                        + "unchecked box that lies about the effective value");
     }
 
     @Test
@@ -352,51 +388,128 @@ class MobScalingAssetCodecTest {
     }
 
     @Test
-    void decodesShippedDemoBossCasterRoster() throws Exception {
-        CasterRoster r = decode("/Server/MmoMobScaling/CasterRosters/Demo_Boss_Caster.json", CasterRosterAsset.CODEC)
-                .toDomain();
-        assertEquals("Dragon_Fire", r.roleId(), "Role.Id");
-        assertNull(r.roleGlob(), "no Role.Glob authored");
+    void theShippedDemoCasterRosterShipsOffAndIsCleanContent() throws Exception {
+        // The demo is an example: it ships switched off, and its content is clean, so an owner who switches it
+        // on meets no content warning. What it casts, how often and on which role is content its own $Comment
+        // describes, not a mechanic, so none of it is pinned here.
+        CasterRoster r = decode(DEMO_ROSTER, CasterRosterAsset.CODEC).toDomain();
+        assertFalse(r.enabled(), "the shipped demo authors Enabled false");
         assertTrue(r.hasValidRoleSelector(), "exactly one of Id/Glob authored");
-        assertEquals(3, r.abilities().size(), "two ABILITY entries + one NATIVE_CHAIN entry");
+        assertFalse(r.abilities().isEmpty(), "switched on, the example arms something");
+        for (CasterEntry e : r.abilities()) {
+            assertNotEquals(CasterEntry.Kind.INVALID, e.kind(), "every entry names exactly one of AbilityId/NativeChain");
+            assertFalse(e.scopeUnknown(), "every entry's Scope is a known value");
+        }
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(r));
+        assertTrue(findings.isEmpty(), "the shipped example is clean content: " + findings);
+    }
 
-        CasterEntry ability = r.abilities().get(0);
+    @Test
+    void theDemoRosterArmsNothingUntilAPackCopySwitchesItOn() throws Exception {
+        // A pack switches the example on by shipping its own copy at the same path with Enabled true: the store
+        // replaces a same-id asset whole, so the copy is the shipped body with that one leaf flipped.
+        String shipped = resourceText(DEMO_ROSTER);
+        String packCopy = shipped.replaceFirst("\"Enabled\"\\s*:\\s*false", "\"Enabled\": true");
+        assertNotEquals(shipped, packCopy, "the shipped demo authors Enabled false");
+        CasterRoster off = keyed("demo_boss_caster", decodeJson(shipped, CasterRosterAsset.CODEC).toDomain());
+        CasterRoster on = keyed("demo_boss_caster", decodeJson(packCopy, CasterRosterAsset.CODEC).toDomain());
+        assertTrue(on.enabled(), "the pack's copy is on");
+        String role = off.roleId();
+        assertNotNull(role, "the demo names one role by Id");
+        CasterRoster anyMob = new CasterRoster("pack_any_mob", null, "*", List.of());
+
+        CasterRosterConfig cfg = CasterRosterConfig.getInstance();
+        try {
+            cfg.mergePackLayer(Map.of("demo_boss_caster", off, "pack_any_mob", anyMob));
+            Rosters.rebuild();
+            assertEquals(List.of(anyMob), Rosters.casterRosters(), "a roster that is off never reaches the arm set");
+            assertSame(anyMob, CasterRosterMatcher.match(role, Rosters.casterRosters()),
+                    "and shadows nothing: a broader roster still arms the demo's role");
+
+            cfg.mergePackLayer(Map.of("demo_boss_caster", on, "pack_any_mob", anyMob));
+            Rosters.rebuild();
+            assertTrue(Rosters.casterRosters().contains(on), "the pack's copy, switched on, reaches the arm set");
+            assertSame(on, CasterRosterMatcher.match(role, Rosters.casterRosters()),
+                    "and arms the role it names, ahead of the broader roster");
+        } finally {
+            cfg.mergePackLayer(Map.of());
+            Rosters.rebuild();
+        }
+    }
+
+    @Test
+    void casterRosterEnabledDefaultsOnAndCanBeTurnedOff() throws Exception {
+        CasterRosterAsset plain = decodeJson("{ \"Role\": { \"Id\": \"Test_Role\" } }", CasterRosterAsset.CODEC);
+        assertTrue(plain.toDomain().enabled(), "an absent Enabled is on, as every roster was before the leaf existed");
+
+        CasterRosterAsset off = decodeJson("{ \"Enabled\": false, \"Role\": { \"Id\": \"Test_Role\" } }",
+                CasterRosterAsset.CODEC);
+        assertFalse(off.toDomain().enabled(), "Enabled false decodes and reaches the runtime roster");
+
+        CasterRosterAsset on = decodeJson("{ \"Enabled\": true, \"Role\": { \"Id\": \"Test_Role\" } }",
+                CasterRosterAsset.CODEC);
+        assertTrue(on.toDomain().enabled(), "Enabled true decodes");
+
+        BooleanSchema leaf = (BooleanSchema) CasterRosterAsset.CODEC.toSchema(new SchemaContext())
+                .getProperties().get("Enabled");
+        assertEquals(Boolean.TRUE, leaf.getDefault(),
+                "an unauthored Enabled is true, and the exported schema must say so or the editor renders an "
+                        + "unchecked box that lies about the effective value");
+    }
+
+    @Test
+    void casterEntryDecodesItsGatesAndConvertsSecondsToMillis() throws Exception {
+        // FIXTURE roster: the seconds-to-milliseconds conversion and the Scope decode on both entry kinds.
+        CasterRosterAsset asset = decodeJson("""
+                { "Role": { "Id": "Test_Role" },
+                  "Abilities": [
+                    { "AbilityId": "fireball", "Scope": "BOSS", "CadenceSeconds": 14.0, "JitterSeconds": 3.0 },
+                    { "NativeChain": "Test_Chain", "Scope": "HOSTILE", "CadenceSeconds": 6.5, "JitterSeconds": 0.25 }
+                  ] }
+                """, CasterRosterAsset.CODEC);
+        List<CasterEntry> entries = asset.toDomain().abilities();
+        assertEquals(2, entries.size());
+
+        CasterEntry ability = entries.get(0);
         assertEquals(CasterEntry.Kind.ABILITY, ability.kind());
         assertEquals("fireball", ability.abilityId());
         assertNull(ability.nativeChain());
         assertEquals(CasterEntry.Scope.BOSS, ability.scope());
-        assertTrue(!ability.scopeUnknown());
+        assertFalse(ability.scopeUnknown());
         assertEquals(14_000L, ability.cadenceMs(), "CadenceSeconds 14.0 -> 14000ms");
         assertEquals(3_000L, ability.jitterMs(), "JitterSeconds 3.0 -> 3000ms");
-        // 1.1.0: the fireball entry's Windup plays the Dragon_Fire model's own "Hurt" AnimationSets key
-        // (a model-level cue, no ItemAnimations pair, no Slot override -> default Status slot at play time).
-        assertNotNull(ability.windup(), "fireball entry carries a Windup");
-        assertEquals("Hurt", ability.windup().animation(), "Windup.Animation");
-        assertNull(ability.windup().itemAnimations(), "no ItemAnimations authored (model-level key)");
-        assertNull(ability.windup().slot(), "no Slot override authored (defaults to Status at play time)");
-        assertTrue(!ability.windup().isItemAnim(), "a bare model-level Animation is not an item-anim pair");
 
-        CasterEntry chain = r.abilities().get(1);
+        CasterEntry chain = entries.get(1);
         assertEquals(CasterEntry.Kind.NATIVE_CHAIN, chain.kind());
-        assertEquals("Mmoscaling_Demo_Dodge", chain.nativeChain(),
-                "retargeted to this mod's own Attack-tagged NPC-only demo root, not the MMO's player-facing MMO_Dodge");
+        assertEquals("Test_Chain", chain.nativeChain());
         assertNull(chain.abilityId());
-        assertEquals(CasterEntry.Scope.BOSS, chain.scope());
-        assertEquals(6_000L, chain.cadenceMs());
-        assertEquals(2_000L, chain.jitterMs());
-        assertNull(chain.windup(), "the NATIVE_CHAIN entry authors no Windup (its own chain carries its own nodes)");
+        assertEquals(CasterEntry.Scope.HOSTILE, chain.scope());
+        assertFalse(chain.scopeUnknown());
+        assertEquals(6_500L, chain.cadenceMs(), "CadenceSeconds 6.5 -> 6500ms");
+        assertEquals(250L, chain.jitterMs(), "JitterSeconds 0.25 -> 250ms");
+        assertNull(chain.windup(), "no Windup authored");
+    }
 
-        // 1.6.0 Phase H: dragon_arcana, the MMO's NPC-only NATIVE_CHAIN exemplar - a second
-        // ABILITY entry, rarer cadence than the fireball.
-        CasterEntry arcana = r.abilities().get(2);
-        assertEquals(CasterEntry.Kind.ABILITY, arcana.kind());
-        assertEquals("dragon_arcana", arcana.abilityId());
-        assertNull(arcana.nativeChain());
-        assertEquals(CasterEntry.Scope.BOSS, arcana.scope());
-        assertTrue(!arcana.scopeUnknown());
-        assertEquals(20_000L, arcana.cadenceMs(), "CadenceSeconds 20.0 -> 20000ms");
-        assertEquals(3_000L, arcana.jitterMs(), "JitterSeconds 3.0 -> 3000ms");
-        assertNull(arcana.windup(), "dragon_arcana authors no Windup (its own NativeChain step carries its own nodes)");
+    @Test
+    void windupBareAnimationIsAModelLevelKeyWithNoSlotOverride() throws Exception {
+        CasterRosterAsset asset = decodeJson("""
+                { "Role": { "Id": "Test_Role" },
+                  "Abilities": [
+                    { "AbilityId": "fireball", "Windup": { "Animation": "Hurt" } }
+                  ] }
+                """, CasterRosterAsset.CODEC);
+        CasterEntry.Windup w = asset.toDomain().abilities().get(0).windup();
+        assertNotNull(w, "Windup group decodes");
+        assertEquals("Hurt", w.animation(), "Windup.Animation");
+        assertNull(w.itemAnimations(), "no ItemAnimations authored (a model-level AnimationSets key)");
+        assertNull(w.slot(), "no Slot override authored (defaults to Status at play time)");
+        assertFalse(w.isItemAnim(), "a bare model-level Animation is not an item-anim pair");
+    }
+
+    /** The decoded roster under the id the asset store gives it (its filename); a bare decode carries none. */
+    @Nonnull
+    private static CasterRoster keyed(@Nonnull String id, @Nonnull CasterRoster r) {
+        return new CasterRoster(id, r.roleId(), r.roleGlob(), r.abilities(), r.enabled());
     }
 
     @Test
@@ -509,10 +622,14 @@ class MobScalingAssetCodecTest {
     }
 
     private static <T extends JsonAsset<String>> T decode(String resource, AssetBuilderCodec<String, T> codec) throws Exception {
+        return codec.decodeJson(RawJsonReader.fromJsonString(resourceText(resource)), new ExtraInfo());
+    }
+
+    @Nonnull
+    private static String resourceText(@Nonnull String resource) throws Exception {
         try (InputStream in = MobScalingAssetCodecTest.class.getResourceAsStream(resource)) {
             assertNotNull(in, "resource on classpath: " + resource);
-            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            return codec.decodeJson(RawJsonReader.fromJsonString(json), new ExtraInfo());
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 

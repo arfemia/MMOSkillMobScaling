@@ -321,6 +321,28 @@ class ScalingContentValidatorTest {
         assertTrue(findings.get(0).contains("duplicate Role.Id"), findings.toString());
     }
 
+    @Test
+    void aRosterThatIsOffIsCheckedButNeverCountedAsADuplicate() {
+        // An off roster never reaches the matcher, so an owner's own roster for the same role competes with
+        // nothing: no duplicate finding for an Id or a Glob.
+        CasterRoster idOff = new CasterRoster("example", "Dragon_Fire", null, List.of(), false);
+        CasterRoster idOn = new CasterRoster("mine", "dragon_fire", null, List.of());
+        assertTrue(ScalingContentValidator.validateCasterRosters(List.of(idOff, idOn)).isEmpty(),
+                "an off roster's Role.Id is not a duplicate of a live one");
+        CasterRoster globOff = new CasterRoster("example_glob", null, "Dragon_*", List.of(), false);
+        CasterRoster globOn = new CasterRoster("mine_glob", null, "Dragon_*", List.of());
+        assertTrue(ScalingContentValidator.validateCasterRosters(List.of(globOff, globOn)).isEmpty(),
+                "an off roster's Role.Glob is not a duplicate of a live one");
+
+        // Its own shape is still checked, so a mistake shows before it is switched on.
+        CasterEntry invalid = new CasterEntry(CasterEntry.Kind.INVALID, null, null, 0.0, List.of(),
+                CasterEntry.Scope.ANY, false, 10_000L, 0L, null);
+        CasterRoster draft = new CasterRoster("draft", "Some_Role", null, List.of(invalid), false);
+        List<String> findings = ScalingContentValidator.validateCasterRosters(List.of(draft));
+        assertEquals(1, findings.size(), "an off roster's INVALID entry is still flagged: " + findings);
+        assertTrue(findings.get(0).contains("AbilityId"), findings.toString());
+    }
+
     @AfterEach
     void resetWorlds() {
         WorldSettingsConfig worlds = WorldSettingsConfig.getInstance();

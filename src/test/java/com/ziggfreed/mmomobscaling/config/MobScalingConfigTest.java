@@ -560,7 +560,7 @@ class MobScalingConfigTest {
         assertEquals(8, view.getZoneHudOffsetY(), "world ZoneHud.OffsetY applied");
         assertFalse(view.isZoneShowLocationName(), "world ZoneHud.ShowLocationName applied");
         assertEquals("my.zone.", view.getZoneNameKeyPrefix(), "world ZoneHud.ZoneNameKeyPrefix applied");
-        assertEquals("", view.getBiomeNameKeyPrefix(), "an authored EMPTY prefix is a value (prettify), not an absence");
+        assertEquals("", view.getBiomeNameKeyPrefix(), "an authored EMPTY prefix is a value (no biome line), not an absence");
         assertEquals(cfg.isZoneHudEnabled(), view.isZoneHudEnabled(), "unauthored ZoneHud.Enabled inherits the global");
         assertEquals(cfg.getInspectorHudPosition(), view.getInspectorHudPosition(),
                 "a blank InspectorHud.Position is not a corner and falls through to the global");

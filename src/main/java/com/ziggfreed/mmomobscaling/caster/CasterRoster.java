@@ -17,15 +17,28 @@ import javax.annotation.Nullable;
  * not a decode failure - matching {@code ScalingContentValidator}'s existing "surface as a finding,
  * degrade at the consumption site" convention (a roster with no valid selector simply never matches
  * via {@code CasterRosterMatcher}).
+ *
+ * <p>{@link #enabled} false (the authored {@code Enabled: false}) switches the whole roster off:
+ * {@code roster/Rosters} leaves it out of the set the arm system matches, so it arms nothing and
+ * shadows nothing (another roster for the same role still applies), and it does not count toward the
+ * validator's duplicate {@code Role} check. Its shape is still validated, so a mistake shows before
+ * it is switched on.
  */
 public record CasterRoster(
         @Nonnull String id,
         @Nullable String roleId,
         @Nullable String roleGlob,
-        @Nonnull List<CasterEntry> abilities) {
+        @Nonnull List<CasterEntry> abilities,
+        boolean enabled) {
 
     public CasterRoster {
         abilities = List.copyOf(abilities);
+    }
+
+    /** A roster that is on, as every roster is unless its file authors {@code Enabled: false}. */
+    public CasterRoster(@Nonnull String id, @Nullable String roleId, @Nullable String roleGlob,
+            @Nonnull List<CasterEntry> abilities) {
+        this(id, roleId, roleGlob, abilities, true);
     }
 
     /** True when exactly one of {@link #roleId} / {@link #roleGlob} is authored (non-blank). */

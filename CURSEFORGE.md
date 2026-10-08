@@ -50,6 +50,8 @@ punching above your weight) and pulls extra loot from a per-rarity drop table.
 - **Signature moves.** A boss or rare mob can cast real MMO Skill Tree abilities, or fire native
   attack moves, on its own schedule - each with an optional wind-up animation so the hit
   telegraphs. Authored per role in a small file; a content pack can arm any mob the same way.
+  One example ships switched off: turned on, it has the Ember Dragon cast Fireball and throw ice at
+  you. The Extension packs section below says how.
 - Deterministic rolls: a mob's rarity and affixes are seeded from its identity, so the same mob
   reproduces identically across chunk reloads with no reroll churn.
 - Native-first everywhere: difficulty rides Hytale's own worldgen zones, effects, NPC-group
@@ -63,8 +65,8 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
 
 - **Zone Difficulty card.** The local spawn difficulty, a threat tier read RELATIVE to you (Trivial
   through Deadly, colored), your own power, the tracked group power, and the **friendly location name**
-  (the zone shows its real in-game name, e.g. "Cinder Wastes", not an internal id; the biome is shown
-  alongside).
+  (the zone shows its real in-game name, e.g. "Cinder Wastes", not an internal id). Hytale has no names
+  for its biomes, so the card leaves them off unless you add your own.
 - **Mob Inspector card.** Look at any mob and see a **portrait** of it, its name, rarity tag, scaled
   difficulty, a live health bar, and its affixes as **icon chips**. It also shows what the scaling
   did: the mob's health, the share of a hit it takes and how hard it hits, each as a percentage.
@@ -125,8 +127,8 @@ and the mod's asset stores. You never edit Java.
   Kweebec Nightmare worlds ship pre-tuned via a shared parent base. (A pre-1.0.2 inline
   `WorldOverrides` list migrates to files automatically on first start.)
 
-Content packs can add or replace rarities, affixes, zone floors, per-world files, and drop tables; the
-fold order is `mod defaults < content pack < server owner`.
+Content packs can add or replace rarities, affixes, caster rosters, zone floors, per-world files, and
+drop tables; the fold order is `mod defaults < content pack < server owner`.
 
 ### Where the files live
 
@@ -180,6 +182,11 @@ Things worth knowing before you ship a pack:
   copy the shipped list first if you want to keep it. Entries are NPC **role ids** (glob patterns
   allowed), not display names, and a role id that does not exist is a harmless warning in the log, never
   an error.
+- The one caster roster the mod ships, `Server/MmoMobScaling/CasterRosters/Demo_Boss_Caster.json`, is
+  an example and starts switched off. To turn it on, copy it out of the mod's jar (a jar is a zip) into
+  your pack at the same path and set `"Enabled": true`; your copy replaces the shipped one. Any roster
+  switches off the same way with `"Enabled": false`, and a mob it would have armed falls to any other
+  roster that matches it.
 
 ## Troubleshooting
 

@@ -63,6 +63,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     @Nullable private Families families;
     @Nullable private String auraEffectId;
     @Nullable private LootRef loot;
+    @Nullable private Boolean decorateName;
 
     public static final AssetBuilderCodec<String, RarityAsset> CODEC = AssetBuilderCodec.builder(
                     RarityAsset.class,
@@ -83,6 +84,16 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
             // Display colour (#rrggbb) for this tier's name on the mob-inspector HUD (and any future
             // rarity-coloured render site). Absent = plain white at render time.
             .append(new KeyedCodec<>("NameColor", Codec.STRING, false), (a, v) -> a.nameColor = v, a -> a.nameColor)
+            .add()
+            // Whether the tier's name goes into the mob's display name ("Epic Skeleton" in death messages
+            // and the kill feed). Absent = true.
+            .append(new KeyedCodec<>("DecorateName", Codec.BOOLEAN, false),
+                    (a, v) -> a.decorateName = v, a -> a.decorateName)
+            .metadata(EditorSchema.defaultValue(true))
+            .documentation("Whether this tier's name is put in front of the mob's own name in death messages"
+                    + " and the kill feed, as in \"Epic Skeleton\". Turn it off for a tier that is part of what"
+                    + " the creature is, such as a boss tier, so the message names the creature alone. The"
+                    + " mob inspector shows the tier either way.")
             .add()
             // The roll gate: how often this tier is picked and from which difficulty band on.
             .append(new KeyedCodec<>("Roll", Roll.CODEC, false), (a, v) -> a.roll = v, a -> a.roll)
@@ -137,7 +148,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
      * slots). An absent {@code Affixes.Allowed} means "allow all" ({@code ["*"]}); an explicit empty list
      * means "allow none". An absent display key stays {@code ""} so the text util falls back to the
      * convention key. An absent or empty {@code Loot} block folds to {@code null} (this tier pays nothing
-     * extra).
+     * extra). An absent {@code DecorateName} decorates the display name.
      */
     @Nonnull
     public Rarity toRarity() {
@@ -152,8 +163,9 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
         LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
+        boolean decorates = decorateName == null || decorateName;
         return new Rarity(id, nameKey, weight, minDifficulty, difficultyMult,
-                lootMult, xp, slots, auraEffectId, allowed, color, filter, deathLoot);
+                lootMult, xp, slots, auraEffectId, allowed, color, filter, deathLoot, decorates);
     }
 
     private static double mult(@Nullable Double v) {

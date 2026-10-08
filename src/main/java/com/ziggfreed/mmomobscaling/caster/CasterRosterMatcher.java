@@ -27,6 +27,9 @@ import com.ziggfreed.mmomobscaling.family.FamilyGlob;
  * <p>A roster with neither/both of {@code Role.Id}/{@code Role.Glob} authored
  * ({@code !roster.hasValidRoleSelector()}, a validator-flagged content bug) never matches anything
  * here - it is silently skipped, not an error.
+ *
+ * <p>The matcher does not read {@link CasterRoster#enabled()}: its one caller passes
+ * {@code Rosters.casterRosters()}, which already holds only the rosters that are on.
  */
 public final class CasterRosterMatcher {
 

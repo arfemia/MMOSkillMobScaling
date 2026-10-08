@@ -24,6 +24,9 @@ import com.ziggfreed.mmomobscaling.variant.VariantRoster;
  * <p>{@link #casterRosters()} is the same lock-free idiom for the {@link CasterRoster} set, but sorted
  * (by id) rather than weight-bucketed - {@code CasterRosterMatcher}'s "first" tie-break needs a stable,
  * deterministic input order, which the id sort gives it regardless of the folded map's iteration order.
+ * It holds only the rosters that are on ({@link CasterRoster#enabled()}): a roster authoring
+ * {@code Enabled: false} never reaches the matcher, so it arms nothing and shadows no other roster, and a
+ * server whose only roster is off (the shipped demo) takes the arm system's empty-set exit at every spawn.
  */
 public final class Rosters {
 
@@ -40,7 +43,12 @@ public final class Rosters {
         rarity = RarityRoster.build(RarityConfig.getInstance().all().values());
         variant = VariantRoster.build(VariantConfig.getInstance().all().values());
         affix = AffixRoster.build(AffixConfig.getInstance().all().values());
-        List<CasterRoster> cr = new ArrayList<>(CasterRosterConfig.getInstance().all().values());
+        List<CasterRoster> cr = new ArrayList<>();
+        for (CasterRoster r : CasterRosterConfig.getInstance().all().values()) {
+            if (r.enabled()) {
+                cr.add(r);
+            }
+        }
         cr.sort(Comparator.comparing(CasterRoster::id));
         casterRosters = List.copyOf(cr);
     }
@@ -60,7 +68,10 @@ public final class Rosters {
         return affix;
     }
 
-    /** The folded caster rosters, id-sorted for a deterministic {@code CasterRosterMatcher} tie-break. */
+    /**
+     * The folded caster rosters that are on, id-sorted for a deterministic {@code CasterRosterMatcher}
+     * tie-break.
+     */
     @Nonnull
     public static List<CasterRoster> casterRosters() {
         return casterRosters;
