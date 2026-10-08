@@ -8,7 +8,11 @@ world into a living difficulty curve, zone by zone, without you hand-placing a s
 > **v1.2.1 (unreleased, held).** Fixes a scaled mob that could be immune to a weapon, and far
 > zones that never got any harder. Mobs are less spongy and hit harder, retuned beside the lower
 > defense caps in MMO Skill Tree 1.7.0, so mob numbers change on every server. The old `Intensity`
-> setting is gone; the start-up log names any file of yours that still sets it. Scripted boss
+> setting is gone; the start-up log names any file of yours that still sets it. In your own
+> rarity files, `Hp`, `OutDamage` and `InDamage` are gone: move each tier's strength onto its
+> `DifficultyMultiplier`. A file with the old keys still loads, and the log names each one. Four
+> settings that did nothing are gone too; a config that still has them keeps working. Bosses keep
+> their own name in death messages and the kill feed. Scripted boss
 > fights are still left to their own script, as in 1.2.0. Numbers are still being tuned in-game
 > and may shift between builds; everything is data-driven, so you can retune any of it.
 
@@ -46,7 +50,9 @@ punching above your weight) and pulls extra loot from a per-rarity drop table.
   colored nameplate, a body-tint aura, a difficulty multiplier, affix slots, bonus XP, and a bonus loot table.
 - **Affixes** on native Hytale effects (no client mod): **Armored** (damage resistance), **Stalwart**
   (knockback immunity + extra health), **Swift** (faster movement), **Vampiric** (life-steal on hit),
-  and **Freezing** (a chilling on-hit slow). Author your own in a content pack.
+  **Freezing** (a chilling on-hit slow), **Venomous** (a harder bite, on Horrific spiders only), and
+  six elemental wards that each take less damage from one school: Fireward, Iceward, Stormward,
+  Waterward, Spellward (arcane) and Voidward. Author your own in a content pack.
 - **Signature moves.** A boss or rare mob can cast real MMO Skill Tree abilities, or fire native
   attack moves, on its own schedule - each with an optional wind-up animation so the hit
   telegraphs. Authored per role in a small file; a content pack can arm any mob the same way.
