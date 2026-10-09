@@ -63,7 +63,7 @@ and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.p
 Gradle runs via PowerShell (Java 25). Self-contained `build.ps1` builds + installs:
 
 ```powershell
-cd 'D:\dev\business\hyMMO\additional-mods\mmo-mob-scaling'; .\build.ps1
+cd 'D:\dev\business\hytale-dev\hyMMO\additional-mods\mmo-mob-scaling'; .\build.ps1
 .\build.ps1 -Install:$false     # build only
 .\build.ps1 -ModsDir <path>     # explicit install target (else $env:HYTALE_MODS_DIR)
 ```
