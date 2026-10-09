@@ -79,7 +79,6 @@ hud.zone.tier.deadly = Deadly
 # Mob-inspector HUD (name + rarity render from their own keys; these are the fixed frames).
 hud.inspect.difficulty = Difficulty {value}
 hud.inspect.hp = {current} / {max}
-hud.inspect.mults = Health {hp}%, takes {taken}%, deals {dealt}%
 
 affix.armored.name = Armored
 affix.armored.desc = Clad in heavy plating that turns aside blows.

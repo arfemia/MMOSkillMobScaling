@@ -107,20 +107,6 @@ Group {
         }
       }
 
-      // What the scaling did to this mob, as whole percentages (health carried, share of a hit taken,
-      // share of a hit dealt). One label, pushed as a single localized line, so the row costs the same
-      // layout as the tag row above it. Hidden entirely on a mob this mod never rolled.
-      Group {
-        Anchor: (Height: 16);
-        LayoutMode: Left;
-
-        Label #MmoscalingInspectMults {
-          Text: "";
-          Anchor: (Height: 16);
-          Style: @InspectLevelStyle;
-        }
-      }
-
       // Affix chips wrap onto a second line. Each chip is a fixed-width icon + name so the wrap is
       // predictable (two 100-wide chips fit the 214 info column); the two sibling icon widgets
       // (#IcoItem, a one-slot ItemGrid for an item id, and #IcoTex, an AssetImage for a texture
