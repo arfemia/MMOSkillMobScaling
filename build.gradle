@@ -64,6 +64,12 @@ def familyPath = { String key ->
 def ziggfreedCommonJar = new File(familyPath('repo.ziggfreed-common'), "build/libs/ZiggfreedCommon-${ziggfreedCommonVersion}.jar")
 // The MMO mod jar (the mmo-skills repo's build/libs), the release this mod ships beside.
 def mmoSkillTreeJar    = new File(familyPath('repo.mmo-skills'), "build/libs/MMOSkillTree-${mmoSkillTreeVersion}.jar")
+// Inside the family's umbrella build (the workspace root's settings.gradle includes this one, so it
+// has a parent build), each sibling is its coordinate, which the umbrella substitutes with the
+// project that builds that jar in the same run. Built alone, each is the jar above.
+def inFamilyBuild = gradle.parent != null
+def ziggfreedCommon = inFamilyBuild ? "ziggfreed:ZiggfreedCommon:${ziggfreedCommonVersion}" : files(ziggfreedCommonJar)
+def mmoSkillTree    = inFamilyBuild ? "ziggfreed:MMOSkillTree:${mmoSkillTreeVersion}" : files(mmoSkillTreeJar)
 
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
@@ -78,8 +84,8 @@ dependencies {
     // Dependencies), so we NEVER bundle any of them - bundling would double-load
     // engine-touching classes under two classloaders and break class identity.
     compileOnly(files(hytaleServerJar))
-    compileOnly(files(ziggfreedCommonJar))
-    compileOnly(files(mmoSkillTreeJar))
+    compileOnly(ziggfreedCommon)
+    compileOnly(mmoSkillTree)
 
     // Config is driven by a Hytale asset codec (MobScalingSettingsAsset, decoded via
     // CODEC.decodeJson from the HytaleServer codec classes) - no gson needed.
@@ -88,8 +94,8 @@ dependencies {
     // RawJsonReader classes) on the TEST classpath, plus the common + MMO jars for the
     // rest of the mod. These are testImplementation (real, on the test classpath).
     testImplementation(files(hytaleServerJar))
-    testImplementation(files(ziggfreedCommonJar))
-    testImplementation(files(mmoSkillTreeJar))
+    testImplementation(ziggfreedCommon)
+    testImplementation(mmoSkillTree)
 }
 
 // Never call a deprecated engine API (family-wide rule, the workspace's
