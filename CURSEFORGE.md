@@ -12,7 +12,8 @@ world into a living difficulty curve, zone by zone, without you hand-placing a s
 > rarity files, `Hp`, `OutDamage` and `InDamage` are gone: move each tier's strength onto its
 > `DifficultyMultiplier`. A file with the old keys still loads, and the log names each one. Four
 > settings that did nothing are gone too; a config that still has them keeps working. Bosses keep
-> their own name in death messages and the kill feed. Scripted boss
+> their own name in death messages and the kill feed. Ember Dragons no longer cast the example
+> spells by default; the Extension packs section says how to turn them back on. Scripted boss
 > fights are still left to their own script, as in 1.2.0. Numbers are still being tuned in-game
 > and may shift between builds; everything is data-driven, so you can retune any of it.
 
@@ -148,6 +149,7 @@ find them.
 | `mods/MmoMobScaling/_reference/defaults-mob-scaling.json` | The complete default settings, rewritten every start so it always matches your installed version. Read it, copy the keys you want into `mob-scaling.json`. Editing this file does nothing. |
 | `mods/MmoMobScaling/worlds/` | One file per world rule (see the per-world section above). Created empty on first start, with a `README.txt` describing the format. |
 | `mods/MmoMobScaling/difficulty/` | One file per zone or biome floor you retune (a file named after a shipped mapping with just a `Floor` in it is enough). Created empty on first start, with a `README.txt` describing the format. |
+| `mods/MmoMobScaling/casters/` | One file per caster roster you switch on, switch off or add (a file named after a shipped roster with just `"Enabled": true` in it is enough). Created empty on first start, with a `README.txt` describing the format. |
 
 ### Extension packs
 
@@ -188,10 +190,13 @@ Things worth knowing before you ship a pack:
   allowed), not display names, and a role id that does not exist is a harmless warning in the log, never
   an error.
 - The one caster roster the mod ships, `Server/MmoMobScaling/CasterRosters/Demo_Boss_Caster.json`, is
-  an example and starts switched off. To turn it on, copy it out of the mod's jar (a jar is a zip) into
-  your pack at the same path and set `"Enabled": true`; your copy replaces the shipped one. Any roster
-  switches off the same way with `"Enabled": false`, and a mob it would have armed falls to any other
-  roster that matches it.
+  an example and starts switched off. To turn it on, save `demo_boss_caster.json` holding
+  `{"Enabled": true}` in your server's `mods/MmoMobScaling/casters/` folder; it keeps the shipped file's
+  role and spells, and no pack is needed. A pack can do the same: copy the file out of the mod's jar (a
+  jar is a zip) into your pack at the same path and set `"Enabled": true`; your copy replaces the
+  shipped one. Any roster switches off the same way with `"Enabled": false`, and a mob it would have
+  armed falls to any other roster that matches it. A file in the casters folder with a new name adds a
+  roster of your own.
 
 ## Troubleshooting
 

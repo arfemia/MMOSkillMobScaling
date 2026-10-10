@@ -27,9 +27,10 @@ import com.google.gson.JsonParser;
  * stem is the id, a bare codec body is canonical and a pack-style {@code {"Payload": {...}}} wrapper
  * is accepted (peeled), a malformed file is skipped with a warning and never poisons the fold, the
  * folder is scaffolded up front with a {@code README.txt} the scan ignores, and a file is written
- * atomically (temp sibling + move). {@link WorldSettingsConfig} ({@code worlds/}) and
- * {@link DifficultyOwnerLayer} ({@code difficulty/}) both read and write through here, so an owner
- * who has learned one folder has learned the other.
+ * atomically (temp sibling + move). {@link WorldSettingsConfig} ({@code worlds/}),
+ * {@link DifficultyOwnerLayer} ({@code difficulty/}) and {@link CasterOwnerLayer} ({@code casters/}) all
+ * read through here (the first two write through it too), so an owner who has learned one folder has
+ * learned the others.
  *
  * <p><b>ONE keying function.</b> {@link #idKey} turns a raw id, a match pattern or a filename stem
  * into the key a body is filed under: lower-cased, the trailing {@code *} dropped, every character

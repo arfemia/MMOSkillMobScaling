@@ -80,7 +80,6 @@ command.arg.hud_offset_x = Sabitlenmiş yatay kenardan isteğe bağlı piksel ka
 command.arg.hud_offset_y = Sabitlenmiş dikey kenardan isteğe bağlı piksel kayması.
 
 hud.zone.title = BÖLGE ZORLUĞU
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Zorluk {value}
 hud.zone.power = Gücün: {power}
 hud.zone.group = Grup gücü: {power}

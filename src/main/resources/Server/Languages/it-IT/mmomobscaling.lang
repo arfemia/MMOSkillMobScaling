@@ -82,7 +82,6 @@ command.arg.hud_offset_x = Scostamento in pixel opzionale dal bordo orizzontale 
 command.arg.hud_offset_y = Scostamento in pixel opzionale dal bordo verticale ancorato.
 
 hud.zone.title = DIFFICOLTÀ ZONA
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Difficoltà {value}
 hud.zone.power = Il tuo potere: {power}
 hud.zone.group = Potere del gruppo: {power}

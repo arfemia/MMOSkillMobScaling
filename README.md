@@ -40,6 +40,8 @@ start (search the log for `mob-scaling config:`).
 - `worlds/` - one file per world rule, with a `README.txt` describing the format.
 - `difficulty/` - one file per zone or biome floor you want to retune (a file named after a shipped
   mapping with just a `Floor` in it is enough), with a `README.txt` describing the format.
+- `casters/` - one file per caster roster you switch on, switch off or add (a file named after a
+  shipped roster with just `"Enabled": true` in it is enough), with a `README.txt` describing the format.
 
 ## Extension packs
 

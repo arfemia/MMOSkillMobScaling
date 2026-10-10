@@ -17,6 +17,7 @@ import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
+import com.ziggfreed.mmomobscaling.config.CasterOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
@@ -122,6 +123,9 @@ public class MobScalingPlugin extends JavaPlugin {
             // The zone/biome floor owner folder is scaffolded here too; it is scanned when the shipped
             // mappings it overlays arrive (the difficulty store's LoadedAssetsEvent), not at setup.
             DifficultyOwnerLayer.getInstance().setOwnerDir(Paths.get("mods", "MmoMobScaling", "difficulty"));
+            // The caster roster owner folder likewise: scanned on the caster store's LoadedAssetsEvent,
+            // where the shipped rosters a partial file inherits from have landed.
+            CasterOwnerLayer.getInstance().setOwnerDir(Paths.get("mods", "MmoMobScaling", "casters"));
         } catch (Throwable t) {
             safeWarn("Failed to load mob-scaling config, using defaults: " + t.getMessage());
         }

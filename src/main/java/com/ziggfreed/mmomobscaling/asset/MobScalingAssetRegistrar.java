@@ -26,6 +26,7 @@ import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
+import com.ziggfreed.mmomobscaling.config.CasterOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
@@ -163,10 +164,13 @@ public final class MobScalingAssetRegistrar {
 
     /**
      * Fold the loaded caster-roster assets (same all-entries fold as rarities, the jar's own files
-     * included) into {@link CasterRosterConfig}'s pack layer, rebuild {@link Rosters#casterRosters()},
-     * and run the roster-shape content checks. The bundled demo roster folds like any other but ships
-     * {@code Enabled: false}, so it is validated and never armed until a pack's same-id copy switches it
-     * on.
+     * included) into {@link CasterRosterConfig}'s pack layer, refold the OWNER layer over it
+     * ({@link CasterOwnerLayer}: a partial {@code mods/MmoMobScaling/casters/<id>.json} inherits the
+     * shipped roster's leaves, so it can only resolve once these have landed), rebuild
+     * {@link Rosters#casterRosters()}, and run the roster-shape content checks over the FOLDED set, owner
+     * files included. The bundled demo roster folds like any other but ships {@code Enabled: false}, so it
+     * is validated and never armed until an owner file or a pack's same-id copy switches it on. The boot
+     * line counts the rosters that are on and those that are off apart.
      */
     static void onCasterRostersLoaded(
             LoadedAssetsEvent<String, CasterRosterAsset, DefaultAssetMap<String, CasterRosterAsset>> event) {
@@ -177,10 +181,20 @@ public final class MobScalingAssetRegistrar {
                 layer.put(entry.getKey(), asset.toDomain());
             }
         }
-        CasterRosterConfig.getInstance().mergePackLayer(layer);
+        CasterRosterConfig config = CasterRosterConfig.getInstance();
+        config.mergePackLayer(layer);
+        CasterOwnerLayer.getInstance().refold();
         Rosters.rebuild();
-        logApplied("caster rosters", layer.size());
-        warnFindings(ScalingContentValidator.validateCasterRosters(layer.values()));
+        int folded = config.all().size();
+        int on = Rosters.casterRosters().size();
+        try {
+            MobScalingPlugin.LOGGER.atInfo().log(
+                    "Mob-scaling caster rosters loaded: %d on, %d off (%d from mods/MmoMobScaling/casters).",
+                    on, folded - on, CasterOwnerLayer.getInstance().ownerAuthoredIds().size());
+        } catch (Throwable ignored) {
+            // log-manager-less JVMs
+        }
+        warnFindings(ScalingContentValidator.validateCasterRosters(config.all().values()));
     }
 
     /**

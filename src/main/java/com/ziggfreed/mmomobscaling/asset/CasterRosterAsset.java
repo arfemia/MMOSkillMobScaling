@@ -87,8 +87,9 @@ public final class CasterRosterAsset
             .metadata(EditorSchema.defaultValue(true))
             .documentation("Whether this roster arms its mobs. Set it false to keep the file as an example or a"
                     + " draft that does nothing: no mob is armed from it, and another roster for the same role"
-                    + " still applies. To switch on a roster that ships off, copy its file into your own pack at"
-                    + " the same path and set this to true.")
+                    + " still applies. To switch on a roster that ships off, save a file holding only"
+                    + " {\"Enabled\": true} under the roster's name in the server's mods/MmoMobScaling/casters/"
+                    + " folder, or copy its file into your own pack at the same path and set this to true.")
             .add()
             // Which mob role(s) this roster targets: exactly one of Id (exact) / Glob (wildcard).
             .append(new KeyedCodec<>("Role", RoleSelector.CODEC, false), (a, v) -> a.role = v, a -> a.role)
@@ -128,6 +129,32 @@ public final class CasterRosterAsset
         }
         boolean on = enabled == null || enabled;
         return new CasterRoster(id, roleId, roleGlob, entries, on);
+    }
+
+    /**
+     * An owner file's roster ({@code mods/MmoMobScaling/casters/<id>.json}) laid over {@code base}, the
+     * same-id roster the jar or a pack ships: each of {@code Enabled}, {@code Role} and {@code Abilities}
+     * this file authors wins whole (an authored {@code Abilities} replaces the shipped list, it never
+     * merges into it), and each it leaves out keeps the shipped value. So a file holding only
+     * {@code {"Enabled": true}} switches a shipped roster on as it ships. With no {@code base} this is the
+     * file on its own, under {@code key}; with one, the roster keeps the shipped id's spelling.
+     */
+    @Nonnull
+    public CasterRoster overlayOn(@Nonnull String key, @Nullable CasterRoster base) {
+        CasterRoster own = toDomain();
+        if (base == null) {
+            return new CasterRoster(key, own.roleId(), own.roleGlob(), own.abilities(), own.enabled());
+        }
+        boolean on = enabled != null ? enabled : base.enabled();
+        String roleId = role != null ? own.roleId() : base.roleId();
+        String roleGlob = role != null ? own.roleGlob() : base.roleGlob();
+        List<CasterEntry> entries = abilities != null ? own.abilities() : base.abilities();
+        return new CasterRoster(base.id(), roleId, roleGlob, entries, on);
+    }
+
+    /** True when this file authors a {@code Role} group, which an owner file with no shipped roster under its id needs. */
+    public boolean authorsRole() {
+        return role != null;
     }
 
     @Nullable

@@ -81,7 +81,6 @@ command.arg.hud_offset_y = Необязательное смещение в пи
 command.preset.saved = Сохранено: активный пресет теперь сохраняется при перезапуске.
 
 hud.zone.title = СЛОЖНОСТЬ ЗОНЫ
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Сложность {value}
 hud.zone.power = Ваша сила: {power}
 hud.zone.group = Сила группы: {power}

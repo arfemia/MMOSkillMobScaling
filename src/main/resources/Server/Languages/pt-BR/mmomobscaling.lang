@@ -80,7 +80,6 @@ command.arg.hud_offset_x = Deslocamento opcional em pixels a partir da borda hor
 command.arg.hud_offset_y = Deslocamento opcional em pixels a partir da borda vertical ancorada.
 
 hud.zone.title = DIFICULDADE DA ZONA
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Dificuldade {value}
 hud.zone.power = Seu poder: {power}
 hud.zone.group = Poder do grupo: {power}

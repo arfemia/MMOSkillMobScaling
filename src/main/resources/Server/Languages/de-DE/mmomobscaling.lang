@@ -81,7 +81,6 @@ command.arg.hud_offset_x = Optionaler Pixelversatz von der verankerten horizonta
 command.arg.hud_offset_y = Optionaler Pixelversatz von der verankerten vertikalen Kante.
 
 hud.zone.title = ZONEN-SCHWIERIGKEIT
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Schwierigkeit {value}
 hud.zone.power = Deine Macht: {power}
 hud.zone.group = Gruppenmacht: {power}

@@ -64,9 +64,6 @@ command.arg.hud_offset_y = Optional pixel offset from the anchored vertical edge
 
 # Zone-difficulty HUD (the tier words are qualitative threat reads relative to the viewer).
 hud.zone.title = ZONE DIFFICULTY
-# Location line: {0} = zone name, {1} = biome name. A pure separator template (translators reorder /
-# reglyph the separator per locale); no English words so it reads cleanly in every locale.
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Difficulty {value}
 hud.zone.power = Your power: {power}
 hud.zone.group = Group power: {power}

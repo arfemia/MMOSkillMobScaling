@@ -79,7 +79,6 @@ command.arg.hud_offset_x = Opcionális pixel-eltolás a rögzített vízszintes 
 command.arg.hud_offset_y = Opcionális pixel-eltolás a rögzített függőleges szélétől.
 
 hud.zone.title = ZÓNA NEHÉZSÉGE
-hud.zone.location = {0} - {1}
 hud.zone.difficulty = Nehézség {value}
 hud.zone.power = Erőd: {power}
 hud.zone.group = Csoport ereje: {power}
