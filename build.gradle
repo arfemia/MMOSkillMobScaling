@@ -32,10 +32,29 @@ repositories {
 
 // Compile against the SAME jar the server runs (path in gradle.properties).
 def hytaleServerJar  = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
-// The shared primitive lib (sibling submodule), local jar until a remote gitlink exists.
-def ziggfreedCommonJar = new File("${rootDir}/../ziggfreed-common/build/libs/ZiggfreedCommon-${ziggfreedCommonVersion}.jar")
-// The hyMMO mod jar (the umbrella repo's build/libs), the release this mod ships beside.
-def mmoSkillTreeJar    = new File("${rootDir}/../../build/libs/MMOSkillTree-${mmoSkillTreeVersion}.jar")
+// The workspace's path map: family.properties at workspaceRoot (gradle.properties, relative to this
+// project dir) names every family repo and pack by its path under that root. Read on first use.
+def workspaceDir = rootProject.file(workspaceRoot)
+def familyMap = null
+def familyPath = { String key ->
+    if (familyMap == null) {
+        def mapFile = new File(workspaceDir, 'family.properties')
+        if (!mapFile.isFile()) {
+            throw new GradleException("no family.properties at ${workspaceDir.canonicalPath} (workspaceRoot=${workspaceRoot} in gradle.properties)")
+        }
+        familyMap = new Properties()
+        mapFile.withReader('UTF-8') { familyMap.load(it) }
+    }
+    String rel = familyMap.getProperty(key)?.trim()
+    if (!rel) {
+        throw new GradleException("family.properties at ${workspaceDir.canonicalPath} has no ${key}")
+    }
+    new File(workspaceDir, rel)
+}
+// The shared primitive lib: the ziggfreed-common repo's own build output.
+def ziggfreedCommonJar = new File(familyPath('repo.ziggfreed-common'), "build/libs/ZiggfreedCommon-${ziggfreedCommonVersion}.jar")
+// The MMO mod jar (the mmo-skills repo's build/libs), the release this mod ships beside.
+def mmoSkillTreeJar    = new File(familyPath('repo.mmo-skills'), "build/libs/MMOSkillTree-${mmoSkillTreeVersion}.jar")
 
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
