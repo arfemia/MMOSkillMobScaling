@@ -1,6 +1,6 @@
 # MMO Mob Scaling
 
-Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD overlays). The family-wide rules apply here; this file adds only what is specific to this mod. Power-difficulty derivation: `.claude/plans/power-difficulty-parity.md`.
+Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD overlays). The family-wide rules apply here; this file adds only what is specific to this mod. Power-difficulty derivation: hyMMO's `git show archive/claude-infra-2026-10:.claude/plans/power-difficulty-parity.md`.
 
 ## Build and lockstep
 
