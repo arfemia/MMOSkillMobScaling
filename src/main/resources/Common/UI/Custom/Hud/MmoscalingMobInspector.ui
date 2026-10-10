@@ -18,6 +18,13 @@ $ZT = "../Common/ZigType.ui";
 
 @InspectAffixStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #b7b8b9, RenderBold: true, LetterSpacing: 1, HorizontalAlignment: Start, VerticalAlignment: Center);
 
+// An affix's description, under its name: the caption step (13, the floor), regular weight and a shade dimmer
+// than the name, wrapping onto a second line so the longest translation shows whole, set from the top so a
+// one-line description sits right under the name. WrapMaxLines 2 is safe ONLY because #Desc has a fixed Width
+// of the chip's full 292 and is never FlexWeight: the client crashes laying out a wrap-2 label once its width
+// drops under one ellipsis, and a fixed 292 never can.
+@InspectAffixDescStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #9a9b9c, HorizontalAlignment: Start, VerticalAlignment: Start, Wrap: true, WrapMaxLines: 2);
+
 // Bar dressing that makes the fill read as a real bar rather than a coloured rectangle, all colour-agnostic
 // so it works over any mob health bar colour. A dark well behind the fill, a highlight across its top, and
 // a shade along its bottom.
@@ -27,130 +34,125 @@ $ZT = "../Common/ZigType.ui";
 @GlossAnchor = (Left: 0, Right: 0, Top: 0, Height: 3);
 @BaseAnchor = (Left: 0, Right: 0, Bottom: 0, Height: 1);
 
+// An affix chip: the icon and the name on one line, the description under them across the chip's full width.
+// The name and the description resolve through Ziggfreed Common's ContentKeys, so a pack's bare key reads as text.
+// The two sibling icon widgets (#IcoItem, a one-slot ItemGrid for an item id, and #IcoTex, an AssetImage for a
+// texture path) are toggled by the shared ui/icon/IconRenderer, exactly one of them ever visible; #Desc hides
+// for an affix whose description key no loaded language carries.
+@AffixChip = Group {
+  LayoutMode: Top;
+
+  Group {
+    Anchor: (Height: 18);
+    LayoutMode: Left;
+    ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
+    AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
+    Group #IcoGap { Anchor: (Width: 4); }
+    Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
+  }
+
+  // Two caption lines (2x16) at the chip's fixed full width, so every chip keeps the height MobInspectorHud sizes the card by.
+  Label #Desc { Text: ""; Visible: false; Anchor: (Width: 292, Height: 32); Style: @InspectAffixDescStyle; }
+};
+
 Group {
   Group #MmoscalingInspectPanel {
     // Static fallback anchor only - the runtime applyConfiguredPosition (MobInspectorHud.defaultPosition)
-    // always wins. Left-anchored (NO Horizontal). The native ObjectivePanelContainer frame + padding to
-    // clear its ~15px decorative border.
-    Anchor: (Top: 216, Left: 16, Width: 320, Height: 126);
-    LayoutMode: Left;
+    // always wins, and MobInspectorHud grows the Height to fit the affix chips under the header. Left-anchored
+    // (NO Horizontal). The native ObjectivePanelContainer frame + padding to clear its ~15px decorative border.
+    Anchor: (Top: 216, Left: 16, Width: 320, Height: 92);
+    LayoutMode: Top;
     Padding: (Horizontal: 14, Vertical: 10);
     Background: (TexturePath: "ObjectivePanelContainer.png", Border: 15);
 
-    // LEFT column: the target mob's generated portrait (Icons/ModelsGenerated/<role>.png), pushed by Java.
-    // Toggled whole via .Visible; when hidden the Left layout collapses it and the info column takes the room.
-    AssetImage #MmoscalingInspectPortrait {
-      Anchor: (Width: 72, Height: 72);
-      Visible: false;
-      FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+    // HEADER: the portrait column beside the info column, as tall as the portrait.
+    Group #MmoscalingInspectHeader {
+      Anchor: (Height: 72);
+      LayoutMode: Left;
+
+      // LEFT column: the target mob's generated portrait (Icons/ModelsGenerated/<role>.png), pushed by Java.
+      // Toggled whole via .Visible; when hidden the Left layout collapses it and the info column takes the room.
+      AssetImage #MmoscalingInspectPortrait {
+        Anchor: (Width: 72, Height: 72);
+        Visible: false;
+        FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png";
+      }
+
+      Group #MmoscalingInspectPortraitGap { Anchor: (Width: 6); }
+
+      // RIGHT column: name / rarity+difficulty / HP bar.
+      Group #MmoscalingInspectInfo {
+        FlexWeight: 1;
+        LayoutMode: Top;
+
+        Label #MmoscalingInspectName {
+          Text: "";
+          Anchor: (Height: 30);
+          Style: @InspectNameStyle;
+        }
+
+        Group {
+          Anchor: (Height: 16);
+          LayoutMode: Left;
+
+          // Variant tag (leftmost, matching the "{variant} {rarity} {base}" name order); its TextColor is
+          // pushed per-target from Variant.displayColor(). Hidden when the mob has no variant overlay.
+          Label #MmoscalingInspectVariant {
+            Text: "";
+            Anchor: (Height: 16);
+            Padding: (Right: 8);
+            Style: @InspectRarityStyle;
+          }
+
+          Label #MmoscalingInspectRarity {
+            Text: "";
+            Anchor: (Height: 16);
+            Padding: (Right: 8);
+            Style: @InspectRarityStyle;
+          }
+
+          Label #MmoscalingInspectLevel {
+            Text: "";
+            Anchor: (Height: 16);
+            Style: @InspectLevelStyle;
+          }
+        }
+
+        // Fixed width so the Java-pushed fill (a fixed 212 = 214 - 2 pad) always fills the BAR exactly,
+        // independent of the info column width (which widens when the portrait column is hidden). The bar
+        // then stays 214 left-aligned rather than stretching to the column edge.
+        Group #MmoscalingInspectHpBg {
+          Anchor: (Width: 214, Height: 14);
+          Padding: (Full: 1);
+          Background: @TrackWell;
+
+          Group #MmoscalingInspectHpFill {
+            Anchor: (Left: 0, Top: 0, Bottom: 0, Width: 0);
+            Background: #c94f4f;
+            Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
+            Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
+          }
+
+          Label #MmoscalingInspectHp {
+            Text: "";
+            Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
+            Style: @InspectHpTextStyle;
+          }
+        }
+      }
     }
 
-    Group #MmoscalingInspectPortraitGap { Anchor: (Width: 6); }
-
-    // RIGHT column: name / rarity+difficulty / HP bar / affix chips.
-    Group #MmoscalingInspectInfo {
-      FlexWeight: 1;
+    // AFFIX CHIPS under the header, one per line across the panel's full inner width (292), so a description
+    // has the whole card to run in. Each chip is its name line (18) plus, when shown, its two-line description
+    // (32), with a 4 gap between chips; MobInspectorHud's height constants mirror these numbers.
+    Group #MmoscalingInspectAffixRow {
+      Anchor: (Top: 6);
       LayoutMode: Top;
 
-      Label #MmoscalingInspectName {
-        Text: "";
-        Anchor: (Height: 30);
-        Style: @InspectNameStyle;
-      }
-
-      Group {
-        Anchor: (Height: 16);
-        LayoutMode: Left;
-
-        // Variant tag (leftmost, matching the "{variant} {rarity} {base}" name order); its TextColor is
-        // pushed per-target from Variant.displayColor(). Hidden when the mob has no variant overlay.
-        Label #MmoscalingInspectVariant {
-          Text: "";
-          Anchor: (Height: 16);
-          Padding: (Right: 8);
-          Style: @InspectRarityStyle;
-        }
-
-        Label #MmoscalingInspectRarity {
-          Text: "";
-          Anchor: (Height: 16);
-          Padding: (Right: 8);
-          Style: @InspectRarityStyle;
-        }
-
-        Label #MmoscalingInspectLevel {
-          Text: "";
-          Anchor: (Height: 16);
-          Style: @InspectLevelStyle;
-        }
-      }
-
-      // Fixed width so the Java-pushed fill (a fixed 212 = 214 - 2 pad) always fills the BAR exactly,
-      // independent of the info column width (which widens when the portrait column is hidden). The bar
-      // then stays 214 left-aligned rather than stretching to the column edge.
-      Group #MmoscalingInspectHpBg {
-        Anchor: (Width: 214, Height: 14);
-        Padding: (Full: 1);
-        Background: @TrackWell;
-
-        Group #MmoscalingInspectHpFill {
-          Anchor: (Left: 0, Top: 0, Bottom: 0, Width: 0);
-          Background: #c94f4f;
-          Group #Gloss { Anchor: @GlossAnchor; Background: @Gloss; }
-          Group #Base { Anchor: @BaseAnchor; Background: @BaseShade; }
-        }
-
-        Label #MmoscalingInspectHp {
-          Text: "";
-          Anchor: (Left: 0, Right: 0, Top: 0, Bottom: 0);
-          Style: @InspectHpTextStyle;
-        }
-      }
-
-      // Affix chips wrap onto a second line. Each chip is a fixed-width icon + name so the wrap is
-      // predictable (two 100-wide chips fit the 214 info column); the two sibling icon widgets
-      // (#IcoItem, a one-slot ItemGrid for an item id, and #IcoTex, an AssetImage for a texture
-      // path) are toggled by the shared ui/icon/IconRenderer, exactly one of them ever visible.
-      Group #MmoscalingInspectAffixRow {
-        Anchor: (Height: 40);
-        LayoutMode: LeftCenterWrap;
-
-        Group #Affix0 {
-          Anchor: (Width: 100, Height: 18);
-          LayoutMode: Left;
-          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 4); }
-          Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
-        }
-
-        Group #Affix1 {
-          Anchor: (Width: 100, Height: 18);
-          LayoutMode: Left;
-          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 4); }
-          Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
-        }
-
-        Group #Affix2 {
-          Anchor: (Width: 100, Height: 18);
-          LayoutMode: Left;
-          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 4); }
-          Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
-        }
-
-        Group #Affix3 {
-          Anchor: (Width: 100, Height: 18);
-          LayoutMode: Left;
-          ItemGrid #IcoItem { Visible: false; Anchor: (Width: 18, Height: 18); SlotsPerRow: 1; AreItemsDraggable: false; DisplayItemQuantity: false; Style: $Z.@ZigIconGrid18; }
-          AssetImage #IcoTex { Visible: false; Anchor: (Width: 18, Height: 18); FallbackTexturePath: "UI/Custom/Pages/Memories/MissingIcon.png"; }
-          Group #IcoGap { Anchor: (Width: 4); }
-          Label #Name { Text: ""; FlexWeight: 1; Style: @InspectAffixStyle; }
-        }
-      }
+      @AffixChip #Affix0 {}
+      @AffixChip #Affix1 { Anchor: (Top: 4); }
+      @AffixChip #Affix2 { Anchor: (Top: 4); }
+      @AffixChip #Affix3 { Anchor: (Top: 4); }
     }
   }
 }

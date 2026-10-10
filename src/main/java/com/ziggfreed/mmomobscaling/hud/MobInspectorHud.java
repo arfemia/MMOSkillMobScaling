@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.ziggfreed.common.i18n.ContentKeys;
 import com.ziggfreed.common.icon.Portraits;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.common.ui.icon.IconRenderer;
@@ -25,14 +26,15 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * mob PORTRAIT ({@code Icons/ModelsGenerated/<role>.png}, the native Memories still) plus its display name
  * (already rarity-decorated by the spawn hook for scaled mobs), a coloured rarity tag
  * ({@code Rarity.NameColor}, pack-authorable), the frozen scaled difficulty, a live HP bar (fill width +
- * {@code current / max} text), and the rolled affixes as separate icon CHIPS (a codec-driven
- * {@link com.ziggfreed.common.icon.IconSpec} icon + the localized name, never a joined string - no
- * English grammar in params). Unscaled targets still get portrait + name + HP (a plain inspector); the
- * rarity/difficulty/affix rows hide. Driven by {@code MobScalingHudSystem}, which resolves the target via
- * the engine's own {@code TargetUtil.getTargetEntity} crosshair raycast at the reach the player's world
- * configures, and which leaves {@code modelRole} null when that world's {@code InspectorHud.PortraitEnabled}
- * is off - so this card reads no config of its own: the corner comes off the per-world view through
- * {@link #positionFrom}, everything else arrives in the snapshot.
+ * {@code current / max} text), and the rolled affixes as separate icon CHIPS under that header (a
+ * codec-driven {@link com.ziggfreed.common.icon.IconSpec} icon + the localized name, with the localized
+ * description on a line under them; never a joined string - no English grammar in params). The card's
+ * height follows its chips ({@link #panelHeightFor}). Unscaled targets still get portrait + name + HP (a
+ * plain inspector); the rarity/difficulty/affix rows hide. Driven by {@code MobScalingHudSystem}, which
+ * resolves the target via the engine's own {@code TargetUtil.getTargetEntity} crosshair raycast at the
+ * reach the player's world configures, and which leaves {@code modelRole} null when that world's
+ * {@code InspectorHud.PortraitEnabled} is off - so this card reads no config of its own: the corner comes
+ * off the per-world view through {@link #positionFrom}, everything else arrives in the snapshot.
  *
  * <p>All text lands on {@code .TextSpans} (never {@code .Text}); the HP fill is an {@code Anchor}
  * width push, the exact pattern the MMO's {@code AbilityCooldownHud} pip fill ships on. Layout
@@ -43,15 +45,38 @@ public final class MobInspectorHud extends ScalingHud {
     public static final String HUD_KEY = "mmoscaling:mob_inspector";
 
     /**
-     * Panel size in pixels - must match {@code #MmoscalingInspectPanel} in the {@code .ui}. A two-column
-     * card: a LEFT portrait column (the mob's {@code Icons/ModelsGenerated/<role>.png} still) and a RIGHT
-     * info column with a name row that WRAPS to two lines ({@code Wrap: true}, so a long decorated name
-     * never clips), rarity + difficulty tags, an HP bar with the {@code current / max} readout OVERLAID on
-     * the fill (the ability-HUD pip layering: a later sibling paints on top), and an affix chip row that
-     * wraps onto a second line ({@code LayoutMode: LeftCenterWrap}); each chip is an icon + the affix name.
+     * Panel width in pixels - must match {@code #MmoscalingInspectPanel} in the {@code .ui}. The card is a
+     * HEADER of two columns, a LEFT portrait column (the mob's {@code Icons/ModelsGenerated/<role>.png}
+     * still) and a RIGHT info column with a name row that WRAPS to two lines ({@code Wrap: true}, so a long
+     * decorated name never clips), rarity + difficulty tags and an HP bar with the {@code current / max}
+     * readout OVERLAID on the fill (the ability-HUD pip layering: a later sibling paints on top); under the
+     * header, one affix chip per line across the card's full inner width (292): the icon + the affix name,
+     * then the affix description on up to two lines at that fixed width, so no translation is cut.
      */
     private static final int PANEL_WIDTH_PX = 320;
-    private static final int PANEL_HEIGHT_PX = 126;
+
+    /**
+     * The card's height with no affix chips: 2x10 vertical frame padding + the 72 header (the portrait's
+     * height). The height constants below MUST stay in sync with {@code #MmoscalingInspectPanel},
+     * {@code #MmoscalingInspectHeader}, {@code #MmoscalingInspectAffixRow} and the {@code @AffixChip}
+     * template in the {@code .ui}: the client sizes the chips from the document, the frame from this sum.
+     */
+    private static final int PANEL_BASE_HEIGHT_PX = 92;
+
+    /** The gap between the header and the first chip ({@code #MmoscalingInspectAffixRow}'s Top margin). */
+    private static final int AFFIX_ROW_TOP_PX = 6;
+
+    /** A chip's name line: the 18 icon beside the affix name. */
+    private static final int AFFIX_NAME_LINE_PX = 18;
+
+    /**
+     * A chip's description ({@code #Desc}), counted only when it shows: a fixed two caption lines (2x16),
+     * whether the text takes one line or two, at the chip's fixed 292 width.
+     */
+    private static final int AFFIX_DESC_LINE_PX = 32;
+
+    /** The gap between two chips (the Top margin on {@code #Affix1..#Affix3}). */
+    private static final int AFFIX_CHIP_GAP_PX = 4;
 
     /**
      * Inner HP-bar width available for the fill - must match {@code #MmoscalingInspectHpBg} inside the
@@ -69,6 +94,12 @@ public final class MobInspectorHud extends ScalingHud {
     /** Last pushed render state; an identical recompute skips the packet. */
     @Nullable
     private volatile String lastState;
+
+    /**
+     * The card's height as last anchored: every anchor push ({@code build()}, a target push, a live
+     * reposition) reads it through {@link #panelHeight()}, so the frame keeps fitting the chips it shows.
+     */
+    private volatile int panelHeightPx = PANEL_BASE_HEIGHT_PX;
 
     /**
      * One resolved crosshair target, precomputed on the world thread by the ticking system.
@@ -126,7 +157,7 @@ public final class MobInspectorHud extends ScalingHud {
 
     @Override
     protected int panelHeight() {
-        return PANEL_HEIGHT_PX;
+        return panelHeightPx;
     }
 
     @Override
@@ -225,9 +256,17 @@ public final class MobInspectorHud extends ScalingHud {
                         .param("current", Math.max(0, Math.round(target.hp())))
                         .param("max", Math.round(max)));
 
-        // Affixes: one chip per affix (a codec-driven icon + the localized name), no string joining.
+        // Affixes: one chip per affix (a codec-driven icon, the localized name, and the localized
+        // description under it), no string joining. Both keys go through ContentKeys, so a pack's bare
+        // authored key reaches the client as its registered id. The name always shows (a key nothing
+        // ships stays the traceable raw key, ContentKeys' own fallback, rather than an unnamed icon); the
+        // description is the affix's own key (MobScalingTextUtil.affixDescKey: its DescriptionKey, else
+        // mmomobscaling.affix.<id>.desc), and a key no loaded language carries (a pack's affix that
+        // authors none) hides the line, never a raw key.
         List<Affix> affixes = target.affixes();
         cmd.set("#MmoscalingInspectAffixRow.Visible", !affixes.isEmpty());
+        int chips = 0;
+        int descLines = 0;
         for (int i = 0; i < MAX_AFFIX_LABELS; i++) {
             String sel = "#MmoscalingInspectAffixRow #Affix" + i;
             if (i >= affixes.size()) {
@@ -236,12 +275,41 @@ public final class MobInspectorHud extends ScalingHud {
             }
             Affix affix = affixes.get(i);
             cmd.set(sel + ".Visible", true);
-            cmd.set(sel + " #Name.TextSpans",
-                    Message.translation(MobScalingTextUtil.affixNameKey(affix)));
+            cmd.set(sel + " #Name.TextSpans", ContentKeys.tr(MobScalingTextUtil.affixNameKey(affix)));
+            String descKey = MobScalingTextUtil.affixDescKey(affix);
+            boolean hasDesc = ContentKeys.known(descKey);
+            cmd.set(sel + " #Desc.Visible", hasDesc);
+            if (hasDesc) {
+                cmd.set(sel + " #Desc.TextSpans", ContentKeys.tr(descKey));
+                descLines++;
+            }
             IconRenderer.applyIcon(cmd, sel, affix.iconItemId(), affix.iconTexturePath());
+            chips++;
+        }
+
+        // The frame follows the chips: a new height re-sends the anchor at the configured corner.
+        int height = panelHeightFor(chips, descLines);
+        if (height != panelHeightPx) {
+            panelHeightPx = height;
+            applyConfiguredPosition(cmd);
         }
 
         update(false, cmd);
+    }
+
+    /**
+     * The card's height for {@code chips} shown affix chips, {@code descLines} of which show their
+     * description line: the header alone with no chips, else the header, the gap above the chips, each
+     * chip's name line, each shown description line, and the gaps between chips.
+     */
+    static int panelHeightFor(int chips, int descLines) {
+        if (chips <= 0) {
+            return PANEL_BASE_HEIGHT_PX;
+        }
+        return PANEL_BASE_HEIGHT_PX + AFFIX_ROW_TOP_PX
+                + chips * AFFIX_NAME_LINE_PX
+                + descLines * AFFIX_DESC_LINE_PX
+                + (chips - 1) * AFFIX_CHIP_GAP_PX;
     }
 
     /**
@@ -267,7 +335,10 @@ public final class MobInspectorHud extends ScalingHud {
                 // Portrait role (null when the world's portrait toggle is off, so a flip repaints).
                 .append('|').append(t.modelRole() != null ? t.modelRole() : "");
         for (Affix affix : t.affixes()) {
-            // id + icon leaves: a hot content reload may fold a new icon under an unchanged affix id.
+            // id + icon leaves: a hot content reload may fold a new icon under an unchanged affix id. The
+            // name and the description add no leaf: each key is the affix's authored key or the id's
+            // convention key, and the client resolves the text, so the id keys both; an authored key
+            // edited under an unchanged id repaints with the next HP or target change.
             sb.append('+').append(affix.id())
                     .append('=').append(affix.iconItemId()).append('~').append(affix.iconTexturePath());
         }

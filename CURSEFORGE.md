@@ -75,8 +75,8 @@ Two lightweight, per-player, always-current overlays (both toggle on or off and 
   (the zone shows its real in-game name, e.g. "Cinder Wastes", not an internal id). Hytale has no names
   for its biomes, so the card leaves them off unless you add your own.
 - **Mob Inspector card.** Look at any mob and see a **portrait** of it, its name, rarity tag, scaled
-  difficulty, a live health bar, and its affixes as **icon chips**. Affix icons are data-driven (an
-  item id or a texture), so a content pack can theme them.
+  difficulty, a live health bar, and its affixes as **icon chips**, each with a line on what the affix
+  does. Affix icons are data-driven (an item id or a texture), so a content pack can theme them.
 
 ## Commands
 
