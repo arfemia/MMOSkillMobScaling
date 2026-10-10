@@ -1,11 +1,11 @@
 # MMO Mob Scaling
 
-Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD overlays). The family-wide rules apply here; this file adds only what is specific to this mod. Power-difficulty derivation: hyMMO's `git show archive/claude-infra-2026-10:.claude/plans/power-difficulty-parity.md`.
+Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD overlays). The family-wide rules apply here; this file adds only what is specific to this mod. Power-difficulty derivation: the MMO repo's `git -C mmo-family/mmo-skills show archive/claude-infra-2026-10:.claude/plans/power-difficulty-parity.md`.
 
 ## Build and lockstep
 
 - Build with `.\build.ps1` (`-Install:$false` builds only). `ziggfreed-common` and the MMO jar are `compileOnly`, never bundled.
-- `gradle/deprecation-gate.gradle` (run by `check`) is hyMMO's, copied byte for byte: it changes only by copying hyMMO's.
+- `gradle/deprecation-gate.gradle` (run by `check`) is the MMO's (`mmo-family/mmo-skills`), copied byte for byte: it changes only by copying the MMO's.
 - The `gradle.properties` pins (`ziggfreedCommonVersion`, `mmoSkillTreeVersion`) and the manifest `>=` floors move together in one change. The `LinkageError` guards are a mis-install net, not older-jar support.
 - Read player power only through the frozen `MMOSkillTreeAPI`; never widen it or write an MMO file.
 
