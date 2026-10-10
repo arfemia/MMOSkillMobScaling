@@ -39,7 +39,19 @@ repositories {
 //   jar a supported one.
 // ============================================================================
 
-// Compile against the SAME jar the server runs (path in gradle.properties).
+// Compile against the SAME jar the server runs. In a workspace, its family.properties (at
+// workspaceRoot) names hytaleHome, patchline and game_build once for every family build; built
+// alone, with no family.properties there, this repo's gradle.properties gives them. These locals
+// shadow the gradle.properties values of the same names for the rest of this script.
+def familyBuildKeys = new Properties()
+def familyBuildKeysFile = new File(rootProject.file(workspaceRoot), 'family.properties')
+if (familyBuildKeysFile.isFile()) {
+    familyBuildKeysFile.withReader('UTF-8') { familyBuildKeys.load(it) }
+}
+def buildKey = { String key -> familyBuildKeys.getProperty(key)?.trim() ?: property(key).toString() }
+def hytaleHome = buildKey('hytaleHome')
+def patchline = buildKey('patchline')
+def game_build = buildKey('game_build')
 def hytaleServerJar  = new File("${hytaleHome}/${patchline}/package/game/${game_build}/Server/HytaleServer.jar")
 // The workspace's path map: family.properties at workspaceRoot (gradle.properties, relative to this
 // project dir) names every family repo and pack by its path under that root. Read on first use.
