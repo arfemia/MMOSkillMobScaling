@@ -5,10 +5,12 @@ affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
 world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
 
-> **v1.2.2**, for Hytale Update 7 (0.7.x). Nothing about how mobs scale changes. It needs Ziggfreed's
+> **v1.2.2**, for Hytale Update 7 (0.7.x). It needs Ziggfreed's
 > CommonLib 2.3.0 and MMO Skill Tree 1.7.1, so update all three together: with an older one
 > installed, the server refuses to load mob scaling and names the mod to update. The mob inspector
-> shows what each affix does, on a line under its name. Added a casters folder for server owners: to
+> shows what each affix does, on a line under its name. A ward now covers every hit of its type,
+> Lantern Bombs and MMO Skill Tree's abilities included, Armored resists Crush too, and a scaled
+> mob's extra damage comes after your armor. Added a casters folder for server owners: to
 > give the Ember Dragon its example spells back, save `demo_boss_caster.json` holding
 > `{"Enabled": true}` in `mods/MmoMobScaling/casters/`, with no content pack needed.
 >
@@ -56,11 +58,12 @@ punching above your weight) and pulls extra loot from a per-rarity drop table.
 
 - **Rarity ladder.** Rare, Epic, Legendary, plus a forced Boss tier for tagged mobs. Each tier is a
   colored nameplate, a body-tint aura, a difficulty multiplier, affix slots, bonus XP, and a bonus loot table.
-- **Affixes** on native Hytale effects (no client mod): **Armored** (damage resistance), **Stalwart**
+- **Affixes** on native Hytale effects (no client mod): **Armored** (resistance to physical, crushing and projectile hits), **Stalwart**
   (knockback immunity + extra health), **Swift** (faster movement), **Vampiric** (life-steal on hit),
   **Freezing** (a chilling on-hit slow), **Venomous** (a harder bite, on Horrific spiders only), and
-  six elemental wards that each take less damage from one school: Fireward, Iceward, Stormward,
-  Waterward, Spellward (arcane) and Voidward. Author your own in a content pack.
+  six elemental wards that each take less damage from one damage type, whoever deals it:
+  Fireward, Iceward, Stormward (lightning), Waterward, Spellward (arcane) and Voidward. Author your own
+  in a content pack.
 - **Signature moves.** A boss or rare mob can cast real MMO Skill Tree abilities, or fire native
   attack moves, on its own schedule - each with an optional wind-up animation so the hit
   telegraphs. Authored per role in a small file; a content pack can arm any mob the same way.
