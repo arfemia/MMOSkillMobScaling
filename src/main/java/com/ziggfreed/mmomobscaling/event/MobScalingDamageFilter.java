@@ -26,60 +26,44 @@ import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
 
 /**
- * The per-hit DAMAGE-MULTIPLY filter: a {@link DamageEventSystem} in {@code DamageModule.getFilterDamageGroup()}
- * (so it sees ALL damage), reading the FROZEN {@code ScaledMobComponent} mults - zero affix walk on the common
- * path. A scaled ATTACKER scales its OUTGOING damage by {@code outDmgMult}; a scaled VICTIM scales INCOMING
- * damage by {@code inDmgMult}. Both directions are handled by checking attacker + victim independently.
+ * The per-hit INCOMING damage multiply: a {@link DamageEventSystem} in {@code DamageModule.getFilterDamageGroup()}
+ * (so it sees all damage) that scales a hit on a scaled VICTIM by the frozen {@code inDmgMult} on its
+ * {@code ScaledMobComponent}, with zero affix walk. It also feeds the admin preview the hit a scaled ATTACKER
+ * rolled ({@link #observeBaseHit}).
  *
- * <p><b>Ordering ({@link #getDependencies}):</b> pinned {@code BEFORE} the MMO's
- * {@code CombatDamageEventSystem} (crit multiplier + defense reduction - the other FILTER-GROUP damage
- * MODIFIER) so our scaling multiply lands before that math, and {@code BEFORE} the vanilla
- * {@code ArmorDamageReduction} so the scalar applies to the hit as the attacker rolled it rather than to
- * an already-mitigated number.
+ * <p><b>The split: outgoing is native, incoming is here.</b> A scaled mob's OUTGOING multiply
+ * ({@code outDmgMult}) is a native {@code OutgoingDamage} effect the roll's effect reconcile puts on the mob
+ * ({@link OutgoingDamageEffect}, one shared runtime asset per percent from ziggfreed-common's effect grid),
+ * keyed on the three root damage types, which the engine's own outgoing step applies in this group after
+ * armor. The INCOMING side stays in Java because the engine's inbound lookup matches a hit's exact type, so a
+ * native body would have to key every type there is, vanilla's and every pack's.
+ *
+ * <p><b>Ordering ({@link #getDependencies}).</b> Pinned BEFORE the MMO's {@code CombatDamageEventSystem}
+ * (its crit and defense math, the other Filter-group modifier) and BEFORE the vanilla
+ * {@code ArmorDamageReduction}, so both the incoming multiply and the preview's observation see the hit as
+ * the attacker rolled it. Armor then subtracts its flat amount after the multiply, so flat resistance weighs
+ * more against a tough scaled mob than it would if the multiply came last (a raw 10 against flat 2 at a 0.45
+ * scalar leaves 2.5 this way and 3.6 the other way); {@link #keepLandingHitsLanding} keeps the multiply itself
+ * from scaling a landing hit to nothing. The MMO edge named {@code CombatXpEventSystem} until 1.1.0, when that
+ * system moved to the Inspect group; it targets the Filter-group peer so a removed class never throws at
+ * {@code SystemDependency.validate()}.
  *
  * <p><b>The {@code DamageSystems.ArmorDamageReduction} class literal is a DECISION, not an oversight
- * (maintainer ruling, 2026-09-28: it stays).</b> The engine marks that class deprecated, and its shared-source
- * javadoc says exactly "deprecated: Move to modifiers" and names no replacement. What this filter holds is a
- * class literal used only as an ordering target inside a {@code SystemDependency}: no method of the class is
- * ever called from here, so the family-wide ban on calling a deprecated engine API is not what this is. There
- * is no non-deprecated handle on the armor step to point at instead: in the installed 0.6.8 jar the armor math
- * still lives in {@code ArmorDamageReduction.handle}, {@code DamageModule.setup} still registers that system,
- * and {@code DamageModule} exposes only its three group getters. The engine's {@code DependencyGraph} admits an
- * edge into a system only by naming its class, its group or its type, and a group or type edge would land on
- * all seven of this filter's group peers rather than on the armor step alone, which is a different (and wrong)
- * ordering. So the class literal stays, with no {@code @SuppressWarnings}: it carries the build's
- * {@code // DEPRECATION-KEPT} marker, which the deprecation gate requires of a kept call, and it compiles clean
- * under {@code -Xlint:removal} because the class is deprecated without {@code forRemoval}. It is revisited
- * when the engine finishes moving armor to modifiers. If the class ever disappears from a server build, the
- * failure is LOUD and at boot, never silent wrong ordering: the class literal in the field initializer fails
- * to resolve while this filter is constructed (or the dependency's {@code validate()} throws if the name
- * resolves but no such system is registered), and {@code MobScalingPlugin}'s guarded registration of this one
- * system catches that, logs SEVERE naming the cause, and boots without the filter (scaled mobs then deal and
- * take ordinary damage for the session; everything else about them still works).
+ * (maintainer ruling, 2026-09-28: it stays).</b> The engine marks the class deprecated ("Move to modifiers")
+ * and names no replacement. Here it is only an ordering target inside a {@code SystemDependency}, never a call,
+ * and there is no other handle on the armor step: the engine's {@code DependencyGraph} admits an edge by class,
+ * group or type, and a group or type edge would land on every Filter-group peer rather than on the armor step
+ * alone. So it stays with the build's {@code // DEPRECATION-KEPT} marker and no {@code @SuppressWarnings} (the
+ * class is deprecated without {@code forRemoval}), revisited when the engine finishes moving armor to
+ * modifiers. If the class ever leaves a server build the failure is LOUD at boot, never silent wrong ordering:
+ * constructing this filter (or the dependency's {@code validate()}) throws, and {@code MobScalingPlugin}'s
+ * guarded registration logs SEVERE and boots without it (scaled mobs then take ordinary damage for the
+ * session; their own hits still scale through the effect).
  *
- * <p>Running first has one consequence worth knowing when tuning: armor subtracts its flat amount after
- * the multiply, so flat resistance weighs more heavily against a scaled mob than it would if the multiply
- * came last (a raw 10 against flat 2 at a 0.45 scalar leaves 2.5 this way and 3.6 the other way), and this
- * is the order in which a small hit can be driven to nothing - see {@link #keepLandingHitsLanding}.
- *
- * <p><b>1.1.0 retarget (was {@code CombatXpEventSystem}):</b> the MMO moved {@code CombatXpEventSystem}
- * out of the Filter group into the INSPECT group (a passive XP-read, not a damage modifier - it now
- * reads {@code damage.getAmount()} post-{@code ApplyDamage}, the same FINAL value
- * {@link MobScalingOnHitSystem} reads). {@code SystemDependency} resolves purely by CLASS across the
- * whole store's dependency graph (group-agnostic - see {@code SystemDependency.resolveGraphEdge} in the
- * shared source), so the OLD dependency kept validating and resolving correctly even after that move
- * (Filter always structurally precedes Inspect, so XP crediting still observed the scaled amount) - it
- * was not broken, just redundant and pointed at a system no longer in this phase. Retargeting to
- * {@code CombatDamageEventSystem} (confirmed still Filter-group) restores a same-phase ordering
- * guarantee against this filter's actual peer and drops the latent risk of {@code SystemDependency
- * .validate()} throwing {@code IllegalArgumentException} if a future MMO build removes/renames
- * {@code CombatXpEventSystem} outright rather than just moving its group.
- *
- * <p><b>Behavioral affixes are NOT here.</b> Lifesteal + the Freezing on-hit slow moved to
+ * <p><b>Behavioral affixes are NOT here.</b> Vampiric lifesteal and the Freezing on-hit slow live in
  * {@link MobScalingOnHitSystem} (the INSPECT group), where {@code damage.getAmount()} is the FINAL applied value
- * (post-armor, post-MMO-defense, post-rounding, dead-victim already cancelled) - so Vampiric heals off real
- * damage and Freezing never fires on a fully-blocked hit. This system does the scalar multiply only.
- * Whole body try-guarded; never initiates damage.
+ * (post-armor, post-MMO-defense, post-rounding, dead-victim already cancelled). Whole body try-guarded; never
+ * initiates damage.
  */
 public final class MobScalingDamageFilter extends DamageEventSystem {
 
@@ -126,28 +110,18 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
             Ref<EntityStore> victimRef = chunk.getReferenceTo(index);
             ScaledMobComponent victimComp = validComp(store, victimRef);
             Ref<EntityStore> attackerRef = attackerOf(damage);
-            ScaledMobComponent attackerComp = validComp(store, attackerRef);
 
-            // Self-hit (a scaled mob caught in its own AoE): treat as victim-only so it is not DOUBLE-scaled
-            // (out * in on the same mob) and behavioral affixes never fire on self. Identity compare is correct
-            // (Ref does not override equals; the chunk + engine source pass the canonical stored Ref instance).
-            if (attackerRef == victimRef) {
-                attackerComp = null;
-            }
-
-            if (victimComp == null && attackerComp == null) {
-                return; // neither party is a scaled mob - untouched
-            }
-
-            float scaled = amount;
-            if (attackerComp != null) {
+            // A scaled attacker's hit as rolled, for the admin preview. A self-hit (a scaled mob caught in its
+            // own AoE) is not one of its attacks, so it is not observed. Identity compare is correct (Ref does
+            // not override equals; the chunk + engine source pass the canonical stored Ref instance).
+            if (attackerRef != victimRef && validComp(store, attackerRef) != null) {
                 observeBaseHit(store, attackerRef, amount);
-                scaled *= attackerComp.result().outDmgMult(); // mob dealing damage
             }
-            if (victimComp != null) {
-                scaled *= victimComp.result().inDmgMult(); // mob taking damage (tankiness)
+
+            if (victimComp == null) {
+                return; // the victim is not a scaled mob: nothing to multiply here
             }
-            scaled = keepLandingHitsLanding(amount, scaled);
+            float scaled = keepLandingHitsLanding(amount, amount * victimComp.result().inDmgMult());
             if (scaled != amount) {
                 damage.setAmount(scaled);
             }
@@ -166,9 +140,10 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
      * moves, and nothing anywhere says why. So when the hit arriving here was already worth at least a
      * point, the hit leaving here is too.
      *
-     * <p>This is a floor on what THIS mod's own multiply may do. The mob's armor and its resistance
-     * effects are subtracted afterwards by the engine and can still take a hit to zero, which is
-     * ordinary armor behaviour and is readable from the mob's own resistances.
+     * <p>This is a floor on what this filter's incoming multiply may do. The mob's armor and its
+     * resistance effects are subtracted afterwards by the engine and can still take a hit to zero, which
+     * is ordinary armor behaviour and is readable from the mob's own resistances. The outgoing multiply is
+     * the engine's own effect step, after armor, and carries no such floor.
      *
      * <p>The single point is the engine's rounding granularity rather than a balance figure, which is
      * why it is not a setting. To make a scaled mob take more or less damage, author
@@ -185,9 +160,9 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
 
     /**
      * Feed the admin page's preview the hit a scaled mob dealt as the engine rolled it: {@code amount}
-     * here is the attacker's own number, before this mod's multiply and before armor, which is the
-     * base the preview's "Hit" cell scales (see {@link RoleBaseHitResolver} for why it is observed and
-     * never read off the role template). Display-only; a failed role read simply records nothing.
+     * here is the attacker's own number, before its outgoing-damage effect and before armor, which is
+     * the base the preview's "Hit" cell scales (see {@link RoleBaseHitResolver} for why it is observed
+     * and never read off the role template). Display-only; a failed role read simply records nothing.
      */
     private static void observeBaseHit(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> attackerRef,
             float amount) {

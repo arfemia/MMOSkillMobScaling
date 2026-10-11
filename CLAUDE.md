@@ -29,7 +29,8 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 
 ## Effects and damage
 
-- Kept mod-side on purpose: difficulty and multipliers on the transient `ScaledMobComponent`, the general in-damage multiply in the pipeline, the folded `hpMult` (Stalwart's `FoldDeltas.Hp` included) on `HealthUtil`'s reconcile, Vampiric lifesteal in `MobScalingOnHitSystem`.
+- Kept mod-side on purpose: difficulty and multipliers on the transient `ScaledMobComponent`, the incoming multiply in the pipeline (`MobScalingDamageFilter`: the engine's inbound lookup needs an exact type match), the folded `hpMult` (Stalwart's `FoldDeltas.Hp` included) on `HealthUtil`'s reconcile, Vampiric lifesteal in `MobScalingOnHitSystem`.
+- The outgoing multiply (`outDmgMult`, affix `FoldDeltas.OutDamage` folded in) rides a native `OutgoingDamage` effect from zc's runtime effect grid, put on at roll by the effect reconcile (`event/OutgoingDamageEffect`: `Mmoscaling_OutDamage_All_<percent>`, keyed on the `Physical`, `Projectile` and `Elemental` roots); the engine applies it after armour.
 - The rarity aura owns the body-tint channel; affix effects carry no tint, and a variant's aura is only a fallback.
 - Speed effects author `HorizontalSpeedMultiplier` (NPCs) and `MovementEffects.SpeedMultiplier` (players) together.
 - The `mmoscaling_hp` modifier persists with saved mobs: run `/mobscaling purge` before an uninstall (the console sweeps every loaded world).

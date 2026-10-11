@@ -47,8 +47,9 @@ import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
  * (the gates and the classification at the pre-add holder) with its roll one tick later,
  * {@code MobScalingRollSystem} (rarity/affixes + the HP reconcile on the live ref, skipping a
  * scripted spawn and an encounter's bound boss), the effect-reconcile {@code MobScalingEffectApplySystem}
- * (applies + sweeps the native aura / affix effects), the {@code MobScalingDamageFilter}
- * (the damage-multiply, pinned before armor + the MMO combat-XP read), and the
+ * (applies + sweeps the native aura / affix effects and the outgoing-damage effect), the
+ * {@code MobScalingDamageFilter} (the incoming damage multiply, pinned before armor and the MMO's combat
+ * damage math), and the
  * {@code MobScalingOnHitSystem} (lifesteal + the Freezing on-hit slow, in the inspect group), and
  * (1.1.0) the NPC caster roster - {@code MobScalingCasterArmSystem} (arms a matching, gate-eligible
  * mob's {@code Server/MmoMobScaling/CasterRosters/*.json} abilities at spawn) +
@@ -177,12 +178,13 @@ public class MobScalingPlugin extends JavaPlugin {
         // constructing or registering it throws, and an unguarded throw here would fail the whole
         // plugin - taking /mobscaling purge down with it, which is the command a server owner needs
         // most at exactly that moment. So it is registered on its own: scaled mobs then keep their
-        // health, loot and abilities and simply stop scaling damage, and the log says so.
+        // health, loot, abilities and their outgoing-damage effect and simply stop scaling the damage
+        // they take, and the log says so.
         try {
             getEntityStoreRegistry().registerSystem(new MobScalingDamageFilter());
         } catch (Throwable t) {
-            safeSevere("Mob scaling could not install its damage filter, so scaled mobs deal and take "
-                    + "ORDINARY damage this session; everything else about them still works. This means a "
+            safeSevere("Mob scaling could not install its damage filter, so scaled mobs take ORDINARY "
+                    + "damage this session; everything else about them still works. This means a "
                     + "system it orders itself against is missing, so check that the MMO Skill Tree jar is "
                     + "installed and is at least the version this mod's manifest asks for. Cause: " + t);
         }
