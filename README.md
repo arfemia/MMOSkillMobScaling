@@ -9,7 +9,8 @@ tougher, rarer enemies while a lone newcomer is not overwhelmed.
 
 ## Status
 
-**v1.2.0 is the current public build, released 2026-09-12.** The full scaling system is in:
+**v1.2.2 is the current public build, the Update 7 release; a server still on Update 6 stays on
+v1.2.1.** The full scaling system is in:
 layered native zone/biome difficulty floors + a distance-from-spawn escalation + a group-power
 delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix catalog on native
 `EntityEffect` assets, deterministic per-UUID rolls, bonus kill-XP + native drop-list loot, the
@@ -22,11 +23,11 @@ is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 
 ## Install
 
-Drop the built jar in your server's `Mods/` folder alongside its dependencies. Both are
-loaded before this mod:
+Drop the built jar in your server's `Mods/` folder alongside its dependencies, on a Hytale
+Update 7 server (`>=0.7.0-pre.0 <0.8.0`). Both are loaded before this mod:
 
-- **ZiggfreedCommon >= 2.1.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
-- **MMOSkillTree >= 1.6.1** - the MMO Skill Tree mod (supplies the player-power / combat-level API and the ability-casting API).
+- **ZiggfreedCommon >= 2.3.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
+- **MMOSkillTree >= 1.7.1** - the MMO Skill Tree mod (supplies the player-power / combat-level API and the ability-casting API).
 
 ## Configuration
 
@@ -53,9 +54,9 @@ exactly which line to add. Full authoring notes and troubleshooting: [CURSEFORGE
 
 ## Version story
 
-The family moves in lockstep. This mod is compiled against the LOCAL `MMOSkillTree-1.6.1.jar`
-and `ZiggfreedCommon-2.1.0.jar` dev jars (the pins in `gradle.properties`), and its manifest's
-RUNTIME floors are those same versions: MMOSkillTree `>=1.6.1` and ZiggfreedCommon `>=2.1.0`. When
+The family moves in lockstep. This mod is compiled against the LOCAL `MMOSkillTree-1.7.1.jar`
+and `ZiggfreedCommon-2.3.0.jar` dev jars (the pins in `gradle.properties`), and its manifest's
+RUNTIME floors are those same versions: MMOSkillTree `>=1.7.1` and ZiggfreedCommon `>=2.3.0`. When
 either dependency ships, the pin and the floor move together. Both jars are loaded before this mod
 and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.properties` and
 `build.gradle`.

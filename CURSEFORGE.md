@@ -5,7 +5,14 @@ affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to
 [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
 world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
 
-> **v1.2.1.** Fixes a scaled mob that could be immune to a weapon, and far
+> **v1.2.2**, for Hytale Update 7 (0.7.x). Nothing about how mobs scale changes. It needs Ziggfreed's
+> CommonLib 2.3.0 and MMO Skill Tree 1.7.1, so update all three together: with an older one
+> installed, the server refuses to load mob scaling and names the mod to update. The mob inspector
+> shows what each affix does, on a line under its name. Added a casters folder for server owners: to
+> give the Ember Dragon its example spells back, save `demo_boss_caster.json` holding
+> `{"Enabled": true}` in `mods/MmoMobScaling/casters/`, with no content pack needed.
+>
+> **From v1.2.1:** Fixes a scaled mob that could be immune to a weapon, and far
 > zones that never got any harder. Mobs are less spongy and hit harder, retuned beside the lower
 > defense caps in MMO Skill Tree 1.7.0, so mob numbers change on every server. The old `Intensity`
 > setting is gone; the start-up log names any file of yours that still sets it. In your own
