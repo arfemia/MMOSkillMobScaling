@@ -1,5 +1,5 @@
 {
-  "$Comment": "Requires the Void DamageCause asset (Server/Entity/Damage/Void.json), shipped by the MMO Skill Tree jar's elemental damage-school roster (or any pack authoring it), NOT by this mod. Without it, this effect fails asset validation at load and Ward_Void logs a warn-once at apply until that asset is present.",
+  "$Comment": "Void is ziggfreed-common's damage type, beside the game's own; this mod depends on that library, so the type is always loaded.",
   "DamageResistance": {
     "Void": [
       {

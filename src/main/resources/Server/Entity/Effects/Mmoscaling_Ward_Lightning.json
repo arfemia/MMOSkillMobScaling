@@ -1,5 +1,4 @@
 {
-  "$Comment": "Requires the Lightning DamageCause asset (Server/Entity/Damage/Lightning.json), shipped by the MMO Skill Tree jar's elemental damage-school roster (or any pack authoring it), NOT by this mod. Without it, this effect fails asset validation at load and Ward_Lightning logs a warn-once at apply until that asset is present.",
   "DamageResistance": {
     "Lightning": [
       {
