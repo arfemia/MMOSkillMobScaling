@@ -24,7 +24,7 @@ is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 ## Install
 
 Drop the built jar in your server's `Mods/` folder alongside its dependencies, on a Hytale
-Update 7 server (`>=0.7.0-pre.0 <0.8.0`). Both are loaded before this mod:
+Update 7 (0.7.x) server. Both are loaded before this mod:
 
 - **ZiggfreedCommon >= 2.3.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
 - **MMOSkillTree >= 1.7.1** - the MMO Skill Tree mod (supplies the player-power / combat-level API and the ability-casting API).
