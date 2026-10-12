@@ -7,24 +7,9 @@ world into a living difficulty curve, zone by zone, without you hand-placing a s
 
 > **v1.2.2**, for Hytale Update 7 (0.7.x). It needs Ziggfreed's
 > CommonLib 2.3.0 and MMO Skill Tree 1.7.1, so update all three together: with an older one
-> installed, the server refuses to load mob scaling and names the mod to update. The mob inspector
-> shows what each affix does, on a line under its name. A ward now covers every hit of its type,
-> Lantern Bombs and MMO Skill Tree's abilities included, Armored resists Crush too, and a scaled
-> mob's extra damage comes after your armor. Added a casters folder for server owners: to
-> give the Ember Dragon its example spells back, save `demo_boss_caster.json` holding
-> `{"Enabled": true}` in `mods/MmoMobScaling/casters/`, with no content pack needed.
->
-> **From v1.2.1:** Fixes a scaled mob that could be immune to a weapon, and far
-> zones that never got any harder. Mobs are less spongy and hit harder, retuned beside the lower
-> defense caps in MMO Skill Tree 1.7.0, so mob numbers change on every server. The old `Intensity`
-> setting is gone; the start-up log names any file of yours that still sets it. In your own
-> rarity files, `Hp`, `OutDamage` and `InDamage` are gone: move each tier's strength onto its
-> `DifficultyMultiplier`. A file with the old keys still loads, and the log names each one. Four
-> settings that did nothing are gone too; a config that still has them keeps working. Bosses keep
-> their own name in death messages and the kill feed. Ember Dragons no longer cast the example
-> spells by default; the Extension packs section says how to turn them back on. Scripted boss
-> fights are still left to their own script, as in 1.2.0. Numbers are still being tuned in-game
-> and may shift between builds; everything is data-driven, so you can retune any of it.
+> installed, the server refuses to load mob scaling and names the mod to update. Numbers are still
+> being tuned in-game and may shift between builds; everything is data-driven, so you can retune
+> any of it.
 
 ## Requirements
 
@@ -262,5 +247,5 @@ rarity, variant, and affixes: look at the mob and read the crosshair card.
 ## Links & Support
 
 - Companion mod: [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree)
-- Full developer changelog: [patch-notes/](https://github.com/arfemia/MMOSkillMobScaling/tree/main/patch-notes)
+- Patch notes for every version: [patch-notes/](https://github.com/arfemia/MMOSkillMobScaling/tree/main/patch-notes)
 - Website: [wintergreen-solutions.com](https://wintergreen-solutions.com)
