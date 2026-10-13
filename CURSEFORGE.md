@@ -6,6 +6,14 @@ The deeper the zone and the farther you roam from spawn, the harder the monsters
 
 A companion to [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree). It needs MMO Skill Tree 1.7.1 and [Ziggfreed's CommonLib](https://www.curseforge.com/hytale/mods/ziggfreeds-commonlib) 2.3.0 on a Hytale Update 7 (0.7.x) server, so update all three together.
 
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/5NFdZsUxHZ) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ziggfreed) [![Documentation](https://img.shields.io/badge/Docs-Read%20More-0ea5e9?style=for-the-badge)](https://mmo-skill-tree-docs.ziggfreed.com)
+
+---
+
+[![Host your own Hytale server with Kinetic Hosting](https://i.imgur.com/UHn3FzW.png)](https://billing.kinetichosting.com/aff.php?aff=1262)
+
+---
+
 ## What you'll see
 
 - Rare, Epic and Legendary mobs, each tougher than the last, plus Boss for the world's roaming bosses. A rarer mob gives more MMO Skill Tree XP, more still if it outranks you, and rolls extra loot.
