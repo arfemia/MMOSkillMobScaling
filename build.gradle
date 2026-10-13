@@ -31,9 +31,9 @@ repositories {
 // ============================================================================
 // VERSION STORY (the lockstep rule; the full statement is in gradle.properties):
 //   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar and
-//   ZiggfreedCommon-<ziggfreedCommonVersion>.jar, and its manifest's RUNTIME floors are
-//   those same versions. The family ships together: when either dependency ships, the
-//   pin and the floor move in the same change. The LinkageError guards around the newer
+//   ZiggfreedCommon-<ziggfreedCommonVersion>.jar, each pin following its sibling's version
+//   in lockstep; its manifest's RUNTIME floors are the oldest versions it really needs and
+//   move only for newer API, never above a pin (R364). The LinkageError guards around the newer
 //   seams (registerKillRarityProvider, the encounter runtime, the encounter power seam)
 //   keep a mis-installed server from failing to load the mod; they do not make an older
 //   jar a supported one.
