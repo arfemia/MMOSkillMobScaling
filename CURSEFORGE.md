@@ -1,159 +1,34 @@
 # MMO Mob Scaling
 
-**Open-world mobs that scale to the players around them.** A high-power group meets tougher, rarer,
-affixed enemies; a lone newcomer is never overwhelmed. A standalone companion to the
-[MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod that turns Hytale's open
-world into a living difficulty curve, zone by zone, without you hand-placing a single spawn.
+**Adds rare, tougher monsters to Hytale's open world, scaled to the players nearby.**
 
-> **v1.2.2**, for Hytale Update 7 (0.7.x). It needs Ziggfreed's
-> CommonLib 2.3.0 and MMO Skill Tree 1.7.1, so update all three together: with an older one
-> installed, the server refuses to load mob scaling and names the mod to update. Numbers are still
-> being tuned in-game and may shift between builds; everything is data-driven, so you can retune
-> any of it.
+The deeper the zone and the farther you roam from spawn, the harder the monsters get. A strong group meets stronger mobs, and a new player is never swamped. Some mobs spawn Rare, Epic or Legendary: they glow in their rarity's colour, hit harder, carry extra powers, and pay more XP and loot.
 
-## Requirements
+A companion to [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree). It needs MMO Skill Tree 1.7.1 and [Ziggfreed's CommonLib](https://www.curseforge.com/hytale/mods/ziggfreeds-commonlib) 2.3.0 on a Hytale Update 7 (0.7.x) server, so update all three together.
 
-Both load before this mod (drop all three jars in your server `Mods/` folder):
+## What you'll see
 
-- **MMO Skill Tree >= 1.7.1** - supplies the player-power / combat-level API the scaling reads and the ability-casting API signature moves use.
-- **Ziggfreed's CommonLib >= 2.3.0** - the shared library this mod builds on, including the encounter framework it now reads.
+- Rare, Epic and Legendary mobs, each tougher than the last, plus Boss for the world's roaming bosses. A rarer mob gives more MMO Skill Tree XP, more still if it outranks you, and rolls extra loot.
+- Affixes. A rare mob can be Armored, Swift, Stalwart (hard to knock back, with extra health), Vampiric (it heals when it hits you) or Freezing (its hits slow you). Or it can be warded against one damage type, like Fireward or Spellward. Horrific spiders can be Venomous.
+- The Zone Difficulty card shows how dangerous the area is for you, from Trivial to Deadly, with the zone's name and your power.
+- Look at a mob and the Mob Inspector card shows its portrait, rarity, health and affixes, with a line on what each affix does.
 
-The three ship together; update them together.
+Bosses from Hytale's own boss fights, such as the Feastmaster, are left alone. The fight sets their health.
 
-Targets Hytale server `0.7.x` (Update 7). Zero client install: everything is server-side.
+## For Server Owners
 
-## What it does
+- Scaling is on as soon as you install it, with the balanced preset. Switch with `/mobscaling preset --presetName=Hardcore` (or `Default`, `Casual`, `Playtest`).
+- `/mobscaling ui` opens a settings page with every option, a live preview of how tough a skeleton gets, and editors for each world and each zone. Changes save and apply at once.
+- `/mobscaling inspect` reports the difficulty where you stand.
+- These commands need the `hytale:Admin` role, or OP when permissions are off.
+- Your files are in `mods/MmoMobScaling/`, inside the folder your server runs from. The log prints the full path on every start: search it for `mob-scaling config:`.
+- A file in `mods/MmoMobScaling/worlds/` turns scaling off in a world or gives it its own difficulty. The folder's `README.txt` shows how. Kweebec Nightmare and the Dungeon of Fear worlds come tuned.
+- Mobs can cast MMO Skill Tree spells. One example ships switched off: save `demo_boss_caster.json` holding `{"Enabled": true}` in `mods/MmoMobScaling/casters/` and the Ember Dragon casts Fireball and throws ice.
+- Before you uninstall, run `/mobscaling purge` from the server console to strip scaling off every loaded world, then remove the jar.
 
-Every hostile open-world mob, as it spawns, is scaled to a difficulty resolved from three layers:
+## For Mod and Pack Authors
 
-1. **Native zone + biome floors.** Each of Hytale's own worldgen zones carries a baseline difficulty
-   (a gentle starter gradient ships out of the box, Zone 0 through Zone 4). The deeper the zone, the
-   harder its mobs. You retune one small file per zone or biome; no zone registry to invent.
-2. **Distance-from-spawn escalation.** Past a configurable radius, every stretch of blocks adds
-   difficulty AND raises the chance of rare, affixed mobs, so the deep frontier is deadly in every
-   zone. A lone traveler far from home should feel it.
-3. **Whoever is there.** A region's difficulty tracks the real power of the group standing
-   in it (their full MMO Skill Tree build: combat, stat rewards, abilities, mastery, achievements),
-   not just the highest level present. Roll up with a strong party and the zone answers.
-
-The tougher a mob, the better it pays: a scaled kill grants bonus MMO XP (with an underdog bonus for
-punching above your weight) and pulls extra loot from a per-rarity drop table.
-
-## Features
-
-- **Rarity ladder.** Rare, Epic, Legendary, plus a forced Boss tier for tagged mobs. Each tier is a
-  colored nameplate, a body-tint aura, a difficulty multiplier, affix slots, bonus XP, and a bonus loot table.
-- **Affixes** on native Hytale effects (no client mod): **Armored** (resistance to physical, crushing and projectile hits), **Stalwart**
-  (knockback immunity + extra health), **Swift** (faster movement), **Vampiric** (life-steal on hit),
-  **Freezing** (a chilling on-hit slow), **Venomous** (a harder bite, on Horrific spiders only), and
-  six elemental wards that each take less damage from one damage type, whoever deals it:
-  Fireward, Iceward, Stormward (lightning), Waterward, Spellward (arcane) and Voidward. Author your own
-  in a content pack.
-- **Signature moves.** A boss or rare mob can cast real MMO Skill Tree abilities, or fire native
-  attack moves, on its own schedule - each with an optional wind-up animation so the hit
-  telegraphs. Authored per role in a small file; a content pack can arm any mob the same way.
-  One example ships switched off: turned on, it has the Ember Dragon cast Fireball and throw ice at
-  you. The Extension packs section below says how.
-- Deterministic rolls: a mob's rarity and affixes are seeded from its identity, so the same mob
-  reproduces identically across chunk reloads with no reroll churn.
-- Native-first everywhere: difficulty rides Hytale's own worldgen zones, effects, NPC-group
-  tagsets, and item-drop lists, so your existing world and other mods keep working.
-- Two player HUD overlays (see below).
-- Ready-made presets, and per-file tuning for everything.
-
-## HUD overlays
-
-Two lightweight, per-player, always-current overlays (both toggle on or off and reposition live):
-
-- **Zone Difficulty card.** The local spawn difficulty, a threat tier read RELATIVE to you (Trivial
-  through Deadly, colored), your own power, the tracked group power, and the **friendly location name**
-  (the zone shows its real in-game name, e.g. "Cinder Wastes", not an internal id). Hytale has no names
-  for its biomes, so the card leaves them off unless you add your own.
-- **Mob Inspector card.** Look at any mob and see a **portrait** of it, its name, rarity tag, scaled
-  difficulty, a live health bar, and its affixes as **icon chips**, each with a line on what the affix
-  does. Affix icons are data-driven (an item id or a texture), so a content pack can theme them.
-
-## Commands
-
-`/mobscaling <subcommand>` (requires the `hytale:Admin` role, or OP when permissions are off). The
-subcommand comes first; any extra values are passed by NAME (e.g. `--hudTarget=zone`), not by position:
-
-| Subcommand | What it does |
-| --- | --- |
-| `inspect` | Report the difficulty inputs at your position (zone floor, distance bonus, effective difficulty, region power, rarity chance). |
-| `preset [--presetName=<name>]` | Switch the active settings preset live: `Default`, `Casual`, `Hardcore`, `Playtest`. With no value, report the active preset. |
-| `hud --hudTarget=<zone\|inspector> --hudValue=<on\|off\|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]` | Toggle or reposition either overlay live for all players (positions: `TOP_LEFT` ... `BOTTOM_RIGHT`). |
-| `worlds` | List every loaded per-world settings file: its match pattern, parent, shipped-vs-owner origin, and on/off state. |
-| `ui` | Open the in-game admin config page: every knob across five tabs (global settings, Zone HUD, Mob Inspector HUD, a two-panel editor over the per-world files, and a two-panel editor over the zone and biome floors - list on the left, add/edit on the right). Every setting that applies per world is editable here, including which worlds a file targets (by name pattern, by gameplay config key for an instance world, and by exclusion), a world's spawn pool, difficulty stat curve, open-world scaling group (its region grid size too), and where each of the two HUD overlays sits in that world, or whether it shows at all. The Floors tab lists every zone and biome floor, shipped or your own, and edits one in place; a blank field keeps what the shipped mapping says. The Global tab is difficulty-first and shows a live "Preview: Skeleton" column beside your settings: a plain mob run through your current curve at five sample levels, updating as you type, with the skeleton's real health and real hit beside the multipliers once the mod has seen one, how many times longer it takes to kill than an unscaled mob, an amber note when a ceiling is holding a row down, a rarity ladder at any difficulty you type, and a read-only panel of the player power range the MMO gives this mod and how your caps sit against it. Every field has a short help line, and a blank/Inherit field in either editor tells you exactly what it is inheriting. List rows wrap instead of cutting off long names. Each edit is saved and applied live. |
-| `purge` | Strip all scaling residue (the health modifier + `Mmoscaling_*` effects) off loaded mobs in your world. From the server console it sweeps every loaded world and reports each one in the log. Run it before uninstalling. |
-
-Every change made in `/mobscaling ui` or via the `hud` / `preset` subcommands is SAVED to `mods/MmoMobScaling/mob-scaling.json` and applied live to all players (no restart needed, except toggling the master enable).
-
-## Configuration
-
-Everything is a proper Hytale asset (owner-overridable, pack-extendable), under `mods/MmoMobScaling/`
-and the mod's asset stores. You never edit Java.
-
-- **Presets.** Set `ActivePreset` (or use `/mobscaling preset`) to `Default` (balanced), `Casual`
-  (gentler curve, rarer specials), `Hardcore` (harsher, denser), or `Playtest` (steep ramp from
-  spawn, for testing). Presets are partial overlays; anything you do not set inherits the default.
-- **`mods/MmoMobScaling/mob-scaling.json`** overrides any settings key (master enable, rarity chance,
-  difficulty caps, the distance-escalation curve and the point it is measured from, the difficulty-to-stats curve and its safety clamps,
-  group-power aggregation, and both HUD overlays incl. the zone/biome name-key prefixes and the
-  inspector portrait toggle). Only your changes are stored; a partial nested group inherits the rest.
-  The curve is a toughness slope, a damage curve and two ceilings: how much longer a mob takes to kill
-  per point of difficulty (and how much of that shows as health rather than quiet damage reduction), and
-  how much harder it hits as difficulty rises, as a scale and a shape (the shape bends the damage curve
-  so it climbs gently at low difficulty and steeply at high; 1.0 makes it a straight line), each axis
-  with a rail well above the top of the scale so the rarity ladder keeps its shape up there.
-- **Zone / biome floors** are one small file each under the mod's `Difficulty/` assets
-  (`TargetType` Zone or Biome, the native name or a `*` wildcard, and a `Floor`). To retune one on your
-  server, drop a file with the same name into `mods/MmoMobScaling/difficulty/` holding just the
-  `Floor` you want; it keeps the shipped target. A file with a new name needs all three keys. Delete
-  yours to get the shipped floor back.
-- **Rarities and affixes** are one file each (roll weight, difficulty band, the tier's difficulty
-  multiplier, loot and XP multipliers, affix slots, the native effect, bonus drop table, display color,
-  and the inspector icon). A tier's strength is one number: a Legendary is folded at its multiplier
-  times the spot's difficulty, so it stays the same step above a plain mob wherever it spawns.
-- **Per-world control: one file per world.** Drop a file in `mods/MmoMobScaling/worlds/` (or ship
-  `Server/MmoMobScaling/Worlds/*.json` in a pack): a `Match` pattern (exact, a `Prefix_*`, or `*`, so
-  suffixed instance worlds are caught) plus just the settings that world changes. A world can switch
-  scaling off entirely (`Enabled: false`), set its own baseline difficulty floor, rarity
-  chance, caps, escalation, stat curve and clamps, the whole group-scaling behavior (how nearby players' power
-  folds and how big a region is), place or hide the two HUD overlays, and
-  gate its spawn `Pool` (allow/deny rarities, variants, and affixes, scale variant chance, extra affix
-  slots). A file may name a `"Parent"` file and inherit everything it does not set; anything still
-  unset falls back to the global settings. A file in `worlds/` with the same name as a shipped one
-  replaces it; deleting yours brings the shipped one back. Three Dungeon of Fear instances plus the
-  Kweebec Nightmare worlds ship pre-tuned via a shared parent base. (A pre-1.0.2 inline
-  `WorldOverrides` list migrates to files automatically on first start.)
-
-Content packs can add or replace rarities, affixes, caster rosters, zone floors, per-world files, and
-drop tables; the fold order is `mod defaults < content pack < server owner`.
-
-### Where the files live
-
-All owner files are created under `mods/MmoMobScaling/`, **relative to the folder your server runs
-from** (its working directory), not next to the jar. They are generated on first start, and the server
-log prints the absolute paths on every start, so search the log for `mob-scaling config:` if you cannot
-find them.
-
-| Path | What it is |
-| --- | --- |
-| `mods/MmoMobScaling/mob-scaling.json` | Your overrides. Starts empty; every key you do not set inherits the default. |
-| `mods/MmoMobScaling/_reference/defaults-mob-scaling.json` | The complete default settings, rewritten every start so it always matches your installed version. Read it, copy the keys you want into `mob-scaling.json`. Editing this file does nothing. |
-| `mods/MmoMobScaling/worlds/` | One file per world rule (see the per-world section above). Created empty on first start, with a `README.txt` describing the format. |
-| `mods/MmoMobScaling/difficulty/` | One file per zone or biome floor you retune (a file named after a shipped mapping with just a `Floor` in it is enough). Created empty on first start, with a `README.txt` describing the format. |
-| `mods/MmoMobScaling/casters/` | One file per caster roster you switch on, switch off or add (a file named after a shipped roster with just `"Enabled": true` in it is enough). Created empty on first start, with a `README.txt` describing the format. |
-
-### Extension packs
-
-A content pack that authors mob-scaling content **must declare this mod as a dependency**. Without it,
-Hytale loads your pack in an earlier wave than the mod, the mod's own defaults are applied on top, and
-every one of your overrides is silently discarded with no error anywhere.
-
-A minimal `manifest.json`, which must sit at the **root of the zip** (no wrapper folder, or the pack is
-skipped entirely):
+A content pack can add or replace rarities, affixes, caster rosters, zone floors, world files and drop tables. It must list this mod in its `manifest.json`, or the mod's defaults load after your pack and replace everything in it:
 
 ```json
 {
@@ -166,83 +41,15 @@ skipped entirely):
 }
 ```
 
-Things worth knowing before you ship a pack:
-
-- The id is exactly `Ziggfreed:MmoMobScaling` and it is **case-sensitive**. `Ziggfreed:MMOMobScaling`
-  or a bare `MmoMobScaling` does not resolve, and an unresolved dependency aborts the server's ENTIRE
-  asset load (see Troubleshooting below). The version RANGE is not enforced, only the id.
-- With scaling switched off in `mob-scaling.json`, the mod registers no asset stores at all, so
-  everything under your pack's `Server/MmoMobScaling/` is ignored. That is not a pack bug.
-- On every start, this mod audits the loaded packs and logs a line naming any pack whose mob-scaling
-  content is being shadowed, plus the exact dependency line to add. A correctly layered pack gets a
-  confirmation line instead. It also lists any rarity, variant, affix, or caster roster that points at
-  an effect, drop list, NPC group, role, or interaction id that does not exist, so a typo shows up at
-  start instead of the first time a mob happens to spawn. These are warnings only and never stop the
-  server.
-- `Server/NPC/Groups/Mmoscaling_Bosses.json` and `Mmoscaling_Excluded.json` are overridable the same
-  way. An override **replaces** the mod's `IncludeRoles` list wholesale, it does not merge into it, so
-  copy the shipped list first if you want to keep it. Entries are NPC **role ids** (glob patterns
-  allowed), not display names, and a role id that does not exist is a harmless warning in the log, never
-  an error.
-- The one caster roster the mod ships, `Server/MmoMobScaling/CasterRosters/Demo_Boss_Caster.json`, is
-  an example and starts switched off. To turn it on, save `demo_boss_caster.json` holding
-  `{"Enabled": true}` in your server's `mods/MmoMobScaling/casters/` folder; it keeps the shipped file's
-  role and spells, and no pack is needed. A pack can do the same: copy the file out of the mod's jar (a
-  jar is a zip) into your pack at the same path and set `"Enabled": true`; your copy replaces the
-  shipped one. Any roster switches off the same way with `"Enabled": false`, and a mob it would have
-  armed falls to any other roster that matches it. A file in the casters folder with a new name adds a
-  roster of your own.
-
-## Troubleshooting
-
-**The server dies with `IllegalStateException: Missing default DamageCause assets`.** No asset pack
-loaded at all, which means the pack sort failed before anything was read. Scroll UP in the log for
-`Failed to calculate asset pack load order` and `Missing required dependencies`, and fix the offending
-`Dependencies` id in that pack's `manifest.json` (usually a case or spelling mistake, see above). This
-crash is not caused by a bad id inside a rarity or affix file: a dangling `EffectId` or drop list only
-warns and no-ops.
-
-**A content pack's changes do nothing.** Check the start-up log for the pack audit line described above.
-The usual causes are a missing `Ziggfreed:MmoMobScaling` dependency, a `manifest.json` that is not at
-the zip root, or scaling being disabled.
-
-**I cannot find the config.** It is created relative to the server's working directory. The absolute
-path is printed on every start; search the log for `mob-scaling config:`.
-
-## Uninstall note
-
-While the mod is enabled it reconciles scaled mobs every time they load, so a retune or a removal is
-picked up cleanly. A fully removed mod cannot self-heal saved mobs, so for a clean uninstall run
-`/mobscaling purge` first, from the server console to sweep every loaded world or in each world as a
-player (it works even when scaling is disabled), then remove the jar.
+- The id is exactly `Ziggfreed:MmoMobScaling`, capitals included. A misspelt id stops the server loading any assets, and the log shows `Missing default DamageCause assets`. Scroll up from it to `Missing required dependencies` to find the pack.
+- `manifest.json` sits at the root of the zip, with no folder around it, or the pack is skipped.
+- On every start the mod logs any pack it is overriding, with the line to add, and any rarity or affix that names an effect or drop list that doesn't exist.
 
 ## Installation
 
-1. Install **MMO Skill Tree >= 1.7.1** and **Ziggfreed's CommonLib >= 2.3.0**.
-2. Drop `MmoMobScaling-<version>.jar` in your server's `Mods/` folder.
-3. Start the server. Scaling is on by default with the balanced preset; tune from `mods/MmoMobScaling/`.
-
-## Compatibility
-
-Native-asset-first by design: scaling rides Hytale's own worldgen, effects, NPC groups, and drop
-lists, so it coexists with other content mods. A world using a non-standard worldgen (flat/void/custom)
-falls back to a distance-and-proximity grid with the world's baseline floor.
-
-**Scripted boss fights.** A boss (and its adds) raised by a Hytale encounter script, or bound to a
-live encounter through Ziggfreed's CommonLib, is left alone: no rarity, no affixes, no health
-modifier from this mod. The fight owns its own health, scaled per party member and per power point by
-the encounter framework, and this mod feeds that framework the power of the region the boss stands
-in. The `Mmoscaling_Bosses` group is for the world's own roaming bosses; an encounter boss listed
-there changes nothing. A freshly spawned mob is rolled on the first tick after it appears, so it stands
-at its base health for that one tick before its scaled maximum lands.
-
-**Third-party nameplate mods.** The rarity and variant decoration is written to a mob's display name,
-the value Hytale uses for logs and kill feeds, as a localized message so each player reads it in their
-own language. It is not the overhead nameplate, which this mod never touches. A mod that adds its own
-overhead nameplate and copies the display name into it can flatten that localized message and print the
-raw template (something like `{rarity} {base}`) instead of the finished text. That comes from the other
-mod, and nothing can be changed here to fix it. The Mob Inspector overlay always shows the correct
-rarity, variant, and affixes: look at the mob and read the crosshair card.
+1. Install MMO Skill Tree 1.7.1 and Ziggfreed's CommonLib 2.3.0 (or newer).
+2. Drop `MmoMobScaling-<version>.jar` into your server's `Mods/` folder.
+3. Start the server.
 
 ## Links & Support
 
