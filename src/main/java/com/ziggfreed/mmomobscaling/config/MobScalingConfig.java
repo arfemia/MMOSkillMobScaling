@@ -160,9 +160,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // records the fold reads (spawn-path reads, so the records are volatile).
     @Nonnull private volatile MobScaleFold.DifficultyStatCurve statCurve = MobScaleFold.DifficultyStatCurve.NONE;
     @Nonnull private volatile MobScaleFold.Clamps clamps = MobScaleFold.Clamps.NONE;
-    // HUD settings: read every tick by the HUD system + on install, so all volatile. The enabled flags
-    // and positions also take a RUNTIME override from /mobscaling hud (live tuning; lost on restart -
-    // the owner file is the persistent authority, and the command says so).
+    // HUD settings: read every tick by the HUD system + on install, so all volatile. /mobscaling hud and
+    // the admin page change them only by writing the owner file through MobScalingOwnerWriter, which
+    // refolds them here.
     private volatile boolean zoneHudEnabled;
     @Nonnull private volatile String zoneHudPosition = "";
     private volatile int zoneHudOffsetX;
@@ -181,7 +181,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
 
     // Per-world resolved-view cache: worldName -> ResolvedWorldSettings overlay (or this on no
     // match). The rules themselves live in WorldSettingsConfig (Worlds/*.json, Parent-merged); this cache
-    // is cleared on any refold (global OR worlds) and by invalidateWorldViews().
+    // is cleared on any refold (global OR worlds) and by invalidateWorldViews(), and a removed world's
+    // entry goes through onWorldRemoved().
     @Nonnull private final ConcurrentHashMap<String, SpawnScalingSettings> worldViewCache = new ConcurrentHashMap<>();
     // The same cache for a lookup made from a world NAME alone, which can score fewer axes (no
     // GameplayConfig) and so must never share an entry with the full-world lookup.
@@ -809,29 +810,6 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     @Override public boolean isInspectorPortraitEnabled() { return inspectorPortraitEnabled; }
 
     // ---------------------------------------------------------------------
-    // Runtime HUD overrides (/mobscaling hud - live tuning only)
-    // ---------------------------------------------------------------------
-    // These mutate the folded runtime value directly and are LOST on restart or on the next
-    // applyStoreLayer refold; the owner file (mods/MmoMobScaling/mob-scaling.json) is the
-    // persistent authority and the command reminds the admin of that.
-
-    public void setZoneHudEnabledRuntime(boolean value) { this.zoneHudEnabled = value; }
-    public void setZoneShowLocationNameRuntime(boolean value) { this.zoneShowLocationName = value; }
-    public void setInspectorHudEnabledRuntime(boolean value) { this.inspectorHudEnabled = value; }
-
-    public void setZoneHudPositionRuntime(@Nonnull String position, int offsetX, int offsetY) {
-        this.zoneHudPosition = position;
-        this.zoneHudOffsetX = offsetX;
-        this.zoneHudOffsetY = offsetY;
-    }
-
-    public void setInspectorHudPositionRuntime(@Nonnull String position, int offsetX, int offsetY) {
-        this.inspectorHudPosition = position;
-        this.inspectorHudOffsetX = offsetX;
-        this.inspectorHudOffsetY = offsetY;
-    }
-
-    // ---------------------------------------------------------------------
     // Per-world settings overlay (Worlds/*.json via WorldSettingsConfig)
     // ---------------------------------------------------------------------
 
@@ -895,5 +873,14 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     public void invalidateWorldViews() {
         this.worldViewCache.clear();
         this.nameOnlyViewCache.clear();
+    }
+
+    /**
+     * Drop one world's cached views when the world is removed (the plugin registers this on
+     * ziggfreed-common's {@code WorldEvictors}), so an instance world leaves no entry behind.
+     */
+    public void onWorldRemoved(@Nonnull String worldName) {
+        this.worldViewCache.remove(worldName);
+        this.nameOnlyViewCache.remove(worldName);
     }
 }

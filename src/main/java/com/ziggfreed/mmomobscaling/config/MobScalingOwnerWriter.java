@@ -35,17 +35,10 @@ public final class MobScalingOwnerWriter {
     // Top-level leaves.
     private static final String ENABLED = "Enabled";
     private static final String ACTIVE_PRESET = "ActivePreset";
-    private static final String RARITY_SPAWN_CHANCE = "RaritySpawnChance";
     // OpenWorld group.
     private static final String PLAYER_SCALING = "OpenWorld.PlayerScalingEnabled";
-    // Difficulty group (+ nested DistanceEscalation).
-    private static final String MIN_CAP = "Difficulty.MinCap";
-    private static final String MAX_CAP = "Difficulty.MaxCap";
+    // Difficulty group (nested DistanceEscalation).
     private static final String ESC_ENABLED = "Difficulty.DistanceEscalation.Enabled";
-    private static final String ESC_START = "Difficulty.DistanceEscalation.StartDistanceBlocks";
-    private static final String ESC_BLOCKS_PER_POINT = "Difficulty.DistanceEscalation.BlocksPerPoint";
-    private static final String ESC_MAX_BONUS = "Difficulty.DistanceEscalation.MaxBonus";
-    private static final String ESC_RARITY_PER_POINT = "Difficulty.DistanceEscalation.RarityChancePerPoint";
     // ZoneHud group.
     private static final String ZONE_ENABLED = "ZoneHud.Enabled";
     private static final String ZONE_POSITION = "ZoneHud.Position";
@@ -57,7 +50,6 @@ public final class MobScalingOwnerWriter {
     private static final String INSPECTOR_POSITION = "InspectorHud.Position";
     private static final String INSPECTOR_OFFSET_X = "InspectorHud.OffsetX";
     private static final String INSPECTOR_OFFSET_Y = "InspectorHud.OffsetY";
-    private static final String INSPECTOR_RANGE = "InspectorHud.RangeBlocks";
     private static final String INSPECTOR_PORTRAIT = "InspectorHud.PortraitEnabled";
     // The per-world body's three selector leaves (the page assembles world-file leaves with them).
     // Each is a LIST leaf inside the shared Where group, so a page hands over a list (a CSV field
@@ -108,15 +100,8 @@ public final class MobScalingOwnerWriter {
 
     public static boolean saveEnabled(boolean v) { return saveLeaf(ENABLED, v); }
     public static boolean saveActivePreset(@Nonnull String name) { return saveLeaf(ACTIVE_PRESET, name); }
-    public static boolean saveRaritySpawnChance(double v) { return saveLeaf(RARITY_SPAWN_CHANCE, v); }
     public static boolean savePlayerScalingEnabled(boolean v) { return saveLeaf(PLAYER_SCALING, v); }
-    public static boolean saveDifficultyMinCap(double v) { return saveLeaf(MIN_CAP, v); }
-    public static boolean saveDifficultyMaxCap(double v) { return saveLeaf(MAX_CAP, v); }
     public static boolean saveEscalationEnabled(boolean v) { return saveLeaf(ESC_ENABLED, v); }
-    public static boolean saveEscalationStart(double v) { return saveLeaf(ESC_START, v); }
-    public static boolean saveEscalationBlocksPerPoint(double v) { return saveLeaf(ESC_BLOCKS_PER_POINT, v); }
-    public static boolean saveEscalationMaxBonus(double v) { return saveLeaf(ESC_MAX_BONUS, v); }
-    public static boolean saveEscalationRarityPerPoint(double v) { return saveLeaf(ESC_RARITY_PER_POINT, v); }
 
     // ---------------------------------------------------------------------
     // Typed ZoneHud wrappers
@@ -140,7 +125,6 @@ public final class MobScalingOwnerWriter {
 
     public static boolean saveInspectorHudEnabled(boolean v) { return saveLeaf(INSPECTOR_ENABLED, v); }
     public static boolean saveInspectorPortraitEnabled(boolean v) { return saveLeaf(INSPECTOR_PORTRAIT, v); }
-    public static boolean saveInspectorRange(double v) { return saveLeaf(INSPECTOR_RANGE, v); }
 
     /** Persist the inspector HUD position preset + pixel offsets (offsets as INTEGER leaves) in one write. */
     public static boolean saveInspectorHudPosition(@Nonnull String preset, int x, int y) {

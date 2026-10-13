@@ -44,19 +44,6 @@ class MobScalingOwnerWriterTest {
     }
 
     @Test
-    void saveRaritySpawnChancePersistsRefoldsAndKeepsComment(@TempDir Path tmp) throws Exception {
-        Path file = tmp.resolve("mob-scaling.json");
-        MobScalingConfig cfg = loaded(file);
-
-        assertTrue(MobScalingOwnerWriter.saveRaritySpawnChance(0.5));
-
-        String body = Files.readString(file, StandardCharsets.UTF_8);
-        assertTrue(body.contains("\"RaritySpawnChance\": 0.5"), body);
-        assertTrue(body.contains("$Comment"), "scaffold $Comment preserved: " + body);
-        assertEquals(0.5, cfg.getRaritySpawnChance(), 1e-9, "live config reflects the persisted value");
-    }
-
-    @Test
     void saveZoneHudPositionWritesIntegerOffsetsAndRefolds(@TempDir Path tmp) throws Exception {
         Path file = tmp.resolve("mob-scaling.json");
         MobScalingConfig cfg = loaded(file);

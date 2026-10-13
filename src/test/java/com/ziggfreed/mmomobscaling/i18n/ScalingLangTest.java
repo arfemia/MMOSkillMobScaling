@@ -22,8 +22,9 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
 
 /**
  * Enforces the two lang invariants for this mod's {@code mmomobscaling.lang}: affix {@code .desc} values are
- * QUALITATIVE (no digits - magnitudes live in the EntityEffect assets) and there are no em-dashes. Also
- * covers {@link MobScalingTextUtil}'s explicit-else-convention key resolution (the C-loc1 fix).
+ * QUALITATIVE (no digits - magnitudes live in the EntityEffect assets) and there are no em-dashes; and that
+ * each translated key keeps en-US's placeholders and has a value. Also covers {@link MobScalingTextUtil}'s
+ * explicit-else-convention key resolution (the C-loc1 fix).
  */
 class ScalingLangTest {
 
@@ -50,45 +51,30 @@ class ScalingLangTest {
         }
     }
 
-    @Test
-    void hudKeysArePresent() throws Exception {
-        Map<String, String> lang = loadLang();
-        for (String key : List.of(
-                "hud.zone.title", "hud.zone.difficulty", "hud.zone.power", "hud.zone.group",
-                "hud.zone.tier.trivial", "hud.zone.tier.easy", "hud.zone.tier.fair",
-                "hud.zone.tier.hard", "hud.zone.tier.deadly",
-                "hud.inspect.difficulty", "hud.inspect.hp",
-                "command.hud.usage", "command.hud.persist_hint")) {
-            assertTrue(lang.containsKey(key), "en-US mmomobscaling.lang must carry " + key);
-        }
-        // The frame keys must keep their placeholders (the HUD substitutes them client-side).
-        assertTrue(lang.get("hud.zone.power").contains("{power}"), "hud.zone.power keeps {power}");
-        assertTrue(lang.get("hud.inspect.hp").contains("{current}")
-                && lang.get("hud.inspect.hp").contains("{max}"), "hud.inspect.hp keeps {current}/{max}");
-    }
-
     /**
-     * Every locale is key-complete against the authoritative en-US file, with the same placeholders per
-     * key, no empty value (the engine's parser skips {@code key = } as malformed, so the key would render
-     * raw on screen) and no em-dash. A string the page binds a param into must keep that param in every
-     * language or the number silently vanishes there.
+     * Each key a locale file carries keeps the placeholders en-US gives it, has a value (the engine's
+     * parser skips {@code key = } as malformed, so the key would render raw on screen) and holds no
+     * em-dash. A string the page binds a param into must keep that param in every language or the number
+     * silently vanishes there. Missing and extra keys are not checked here: the MMO's
+     * {@code LangKeyParityTest} reports them across the family and fails on them at the release gate
+     * ({@code -PlangGate}), so a key new in en-US waits for the release's lang wave without failing this
+     * build.
      */
     @Test
-    void everyLocaleCarriesEveryEnglishKeyWithTheSamePlaceholders() throws Exception {
+    void everyTranslatedKeyKeepsItsPlaceholdersAndHasAValue() throws Exception {
         Map<String, String> en = loadLang("en-US");
         for (String locale : LOCALES) {
-            Map<String, String> lang = loadLang(locale);
-            for (Map.Entry<String, String> e : en.entrySet()) {
+            for (Map.Entry<String, String> e : loadLang(locale).entrySet()) {
                 String key = e.getKey();
-                assertTrue(lang.containsKey(key), locale + " is missing " + key);
-                assertFalse(lang.get(key).isEmpty(), locale + " has an empty value for " + key);
-                assertEquals(placeholders(e.getValue()), placeholders(lang.get(key)),
-                        locale + " changes the placeholders of " + key);
+                String value = e.getValue();
+                assertFalse(value.isEmpty(), locale + " has an empty value for " + key);
                 // U+2014 by code point: the one literal em-dash this file may carry is the commented one above.
-                assertFalse(lang.get(key).indexOf(0x2014) >= 0, locale + " " + key + " contains an em-dash");
-            }
-            for (String key : lang.keySet()) {
-                assertTrue(en.containsKey(key), locale + " carries a key en-US does not: " + key);
+                assertFalse(value.indexOf(0x2014) >= 0, locale + " " + key + " contains an em-dash");
+                String english = en.get(key);
+                if (english != null) {
+                    assertEquals(placeholders(english), placeholders(value),
+                            locale + " changes the placeholders of " + key);
+                }
             }
         }
     }

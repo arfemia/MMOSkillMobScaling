@@ -67,16 +67,15 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *   <li>{@code hud --hudTarget=<zone|inspector> --hudValue=<on|off|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]} - LIVE-tune the two
  *       player-facing overlays: flip one on/off for everyone, or re-anchor it to a named corner
  *       preset with optional pixel offsets, applied to all online players without a reconnect.
- *       RUNTIME ONLY: the change is lost on restart; the persistent authority is the
- *       {@code ZoneHud*}/{@code InspectorHud*} keys in {@code mods/MmoMobScaling/mob-scaling.json}
- *       (the command reminds the admin).</li>
+ *       The change is saved to the {@code ZoneHud}/{@code InspectorHud} keys of
+ *       {@code mods/MmoMobScaling/mob-scaling.json} through {@code MobScalingOwnerWriter}, so it
+ *       survives a restart (the command says so).</li>
  *   <li>{@code preset [--presetName=<name>]} - with no name, report the active preset + the presets available in
  *       the loaded settings store. With a name, LIVE-swap the active preset (re-folds config from
  *       that preset asset over the jar {@code Default}), clears the memoized zone-difficulty floors
  *       so new spawns pick up the new numbers immediately, and refreshes both HUDs for all online
- *       players. RUNTIME ONLY: the swap is lost on restart; the persistent authority is the
- *       {@code ActivePreset} key in {@code mods/MmoMobScaling/mob-scaling.json} (the command reminds
- *       the admin).</li>
+ *       players. The swap is saved to the {@code ActivePreset} key of
+ *       {@code mods/MmoMobScaling/mob-scaling.json}, so it survives a restart (the command says so).</li>
  *   <li>{@code worlds} - list the folded per-world settings rules ({@code Worlds/*.json} across jar +
  *       pack + owner dir, 1.0.2): id, Match (or a pool-only base), Parent, owner-vs-shipped origin, and
  *       the per-world kill-switch. Read-only; authoring happens in the files or {@code /mobscaling ui}.</li>
@@ -148,7 +147,7 @@ public final class MobScalingCommand extends CommandBase {
         });
     }
 
-    /** Report or live-swap the active preset (owner-file persistence needs a restart-free hint). */
+    /** Report or live-swap the active preset; a swap is saved to the owner file. */
     private void preset(@Nonnull CommandContext ctx) {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         if (!ctx.provided(presetNameArg)) {
@@ -176,7 +175,7 @@ public final class MobScalingCommand extends CommandBase {
         ctx.sendMessage(Message.translation("mmomobscaling.command.preset.saved"));
     }
 
-    /** Live-tune one HUD overlay: on/off for everyone, or a named-corner reposition (runtime only). */
+    /** Live-tune one HUD overlay: on/off for everyone, or a named-corner reposition, saved to the owner file. */
     private void hud(@Nonnull CommandContext ctx) {
         if (!ctx.provided(hudTargetArg) || !ctx.provided(hudValueArg)) {
             ctx.sendMessage(Message.translation("mmomobscaling.command.hud.usage"));

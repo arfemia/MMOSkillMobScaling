@@ -235,6 +235,17 @@ public final class RegionPowerTracker {
         worlds.remove(worldKey);
     }
 
+    /**
+     * Drop everything ONE removed world left behind: its tracked presences, its buckets and its
+     * declared fold (the plugin registers this on ziggfreed-common's {@code WorldEvictors}). A player
+     * who was tracked there re-registers on the next presence tick in the world they are in now, and a
+     * later world reusing the name starts undeclared.
+     */
+    public void onWorldRemoved(@Nonnull String worldKey) {
+        clearWorld(worldKey);
+        worldFolds.remove(worldKey);
+    }
+
     /** Drop ALL tracked state, declared folds included (tests / a full reload). */
     public void clearAll() {
         presences.clear();
@@ -289,18 +300,5 @@ public final class RegionPowerTracker {
             powers[i++] = p != null ? p : 0.0;
         }
         bucket.scalar = PowerAggregation.fold(powers, mode);
-    }
-
-    /** Presence lookup for diagnostics ({@code /mobscaling inspect}); {@code null} when untracked. */
-    @Nullable
-    public String describePresence(@Nonnull UUID playerId) {
-        Presence p = presences.get(playerId);
-        if (p == null) {
-            return null;
-        }
-        RegionKey key = p.regionKey();
-        String zone = key.zone().isEmpty() ? "(no zone)" : key.zone();
-        return p.worldKey() + "@" + zone + ":" + (key.grid() >> 32) + "," + (int) key.grid()
-                + " power=" + p.power();
     }
 }

@@ -1,7 +1,7 @@
 # pages/
 
 - `/mobscaling ui` is the only entry point.
-- A new knob is a `FieldSpec` in the matching `buildXSpecs()` list plus label and hint keys in all nine locales (`ScalingLangTest`); never a hand-written `.ui` row or a new `EventData` key.
+- A new knob is a `FieldSpec` in the matching `buildXSpecs()` list plus label and hint keys in en-US, which the release's lang wave carries into the other eight locales (the MMO's `LangKeyParityTest` fails a gap under `-PlangGate`; `ScalingLangTest` checks each translation's placeholders); never a hand-written `.ui` row or a new `EventData` key.
 - Never reopen the page; answer every event with a partial `sendUpdate`.
 - Editors seed from the authored body (`authoredById`), never the `Parent`-merged view, or a save materializes inherited leaves.
 - Consequences show only in the Global tab's preview column, computed by `ScalingPreview` through `MobScalingConfig.buildCurve` and `buildClamps`; no per-field computed rows.

@@ -16,8 +16,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold.DifficultyStatCurve;
  * time-to-die derivation puts them and mirror each other, and every edge case (a power past the caps, a
  * power at or below the curve's origin, a railed curve, the identity curve, a non-finite ratio) reads a
  * deliberate tier. Every curve here is test-authored, never the shipped one. Also the tier lang-key
- * convention the HUD renders through (every key must exist in {@code mmomobscaling.lang};
- * {@code ScalingLangTest} covers the file side).
+ * convention the HUD renders through (every key must exist in {@code mmomobscaling.lang}, which the
+ * boot's lang check and the family's lang gate catch, not this test).
  */
 class ZoneTierTest {
 

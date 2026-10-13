@@ -38,6 +38,7 @@ command.preset.available = Available presets: {0}
 command.preset.swapped = Switched to preset {0}.
 command.preset.unknown = Unknown preset {0}. Available: {1}
 command.preset.saved = Saved: the active preset now persists across restarts.
+command.arg.preset_name = Optional preset to switch to. Leave it out to see the active preset and the ones available.
 
 # /mobscaling worlds - list the folded per-world settings files (Worlds/*.json across jar + packs + the owner dir).
 command.worlds.empty = No per-world settings files are loaded.
@@ -48,7 +49,7 @@ command.worlds.origin_owner = owner file
 command.worlds.origin_shipped = shipped
 
 
-# /mobscaling hud - live overlay tuning (runtime only; the owner file is the persistent authority).
+# /mobscaling hud - live overlay tuning, saved to the owner file.
 command.hud.usage = Usage: /mobscaling hud <zone|inspector> <on|off|POSITION> [offsetX] [offsetY]. Positions: TOP_LEFT, TOP_CENTER, TOP_RIGHT, CENTER_LEFT, CENTER, CENTER_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT.
 command.hud.enabled = HUD enabled for all players: {target}
 command.hud.disabled = HUD disabled for all players: {target}

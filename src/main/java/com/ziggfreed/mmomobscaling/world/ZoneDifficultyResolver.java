@@ -42,7 +42,8 @@ import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
  * they are memoized per world per chunk (one {@code getZoneBiomeResultAt} ever per chunk; the engine
  * LRU-caches the underlying query too). Floors/escalation are recomputed per read from the live
  * configs (cheap: two O(1) index reads + arithmetic), so a mapping/rules/settings reload needs NO memo
- * invalidation. The memo is size-bounded (a runaway exploration clears it; it simply re-fills).
+ * invalidation. The memo is size-bounded (a runaway exploration clears it; it simply re-fills), and a
+ * removed world's memo is dropped ({@link #onWorldRemoved}).
  *
  * <p>A world whose generator is not the native {@link ChunkGenerator} (flat/void/custom) has no
  * zone/biome data: {@link ChunkInfo#zoneName()} is {@code ""} (the region tracker falls back to the
@@ -235,7 +236,11 @@ public final class ZoneDifficultyResolver {
         worlds.clear();
     }
 
-    /** Drop one world's memo (world unload). */
+    /**
+     * Drop one world's memo when the world is removed (the plugin registers this on ziggfreed-common's
+     * {@code WorldEvictors}), so an instance world leaves nothing behind and a later world reusing the
+     * name builds a fresh memo with its own seed and spawn point.
+     */
     public void onWorldRemoved(@Nonnull String worldName) {
         worlds.remove(worldName);
     }
@@ -279,16 +284,17 @@ public final class ZoneDifficultyResolver {
             seed = (int) world.getWorldConfig().getSeed();
             ISpawnProvider spawnProvider = world.getWorldConfig().getSpawnProvider();
             if (spawnProvider != null) {
-                // Nothing else names one stable origin, the same for every player. The sibling
-                // getSpawnPoint(World, UUID) picks a point FOR AN ENTITY (a world with several spawn points
-                // hashes the UUID into a choice among them), so a constant UUID would silently re-centre the
-                // ramp on such a world; isWithinSpawnDistance is a threshold test with no coordinates; World
+                // Nothing else names one stable origin, the same for every player. The live sibling,
+                // getSpawnPointAsync(World, UUID), picks a point FOR AN ENTITY (a world with several spawn
+                // points hashes the UUID into a choice among them), so a constant UUID would silently
+                // re-centre the ramp on such a world, and it answers a future where this memo is built in
+                // one synchronous pass; isWithinSpawnDistance is a threshold test with no coordinates; World
                 // exposes no spawn origin at all. The deprecation javadoc names no replacement, only that the
-                // array shape limits providers that generate points dynamically. This is also the call that
-                // survives: the engine's next version keeps it deprecated and removes the synchronous
-                // getSpawnPoint(World, UUID) for an async future, so that sibling would trade a warning today
-                // for a compile break then. Revisited when the engine exposes a world origin; an owner who
-                // needs a different one authors Difficulty.DistanceEscalation.Origin, which wins outright.
+                // array shape limits providers that generate points dynamically. Update 7 kept this call
+                // deprecated when it replaced the synchronous getSpawnPoint(World, UUID) with that async
+                // future, so this is still the call that survives. Revisited when the engine exposes a world
+                // origin; an owner who needs a different one authors Difficulty.DistanceEscalation.Origin,
+                // which wins outright.
                 // DEPRECATION-KEPT: no successor exists in both the installed server and the shared source, and the distance ramp measures from the world's first spawn point
                 Transform[] points = spawnProvider.getSpawnPoints();
                 if (points != null && points.length > 0 && points[0] != null && points[0].getPosition() != null) {

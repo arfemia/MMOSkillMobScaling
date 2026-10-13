@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.command.MobScalingCommand;
+import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
@@ -36,6 +37,8 @@ import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
 import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
 import com.ziggfreed.mmomobscaling.factor.EncounterPowerFill;
 import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
+import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
+import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
  * Entry point for MMO Mob Scaling, a standalone open-world mob difficulty-scaling
@@ -201,6 +204,13 @@ public class MobScalingPlugin extends JavaPlugin {
         // so the spawn hook reads a CACHED per-region power scalar - never a per-spawn player scan.
         getEntityStoreRegistry().registerSystem(new MobScalingPresenceSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingPresenceSystem.Removal());
+
+        // The per-world caches drop a removed world: ziggfreed-common's own RemoveWorldEvent listener fans
+        // the removal out to these, so an instance world (a dungeon run, an event round) leaves no zone memo,
+        // settings view or region bucket behind, and a later world reusing its name starts fresh.
+        WorldEvictors.registerEvictor(world -> ZoneDifficultyResolver.get().onWorldRemoved(world.getName()));
+        WorldEvictors.registerEvictor(world -> MobScalingConfig.getInstance().onWorldRemoved(world.getName()));
+        WorldEvictors.registerEvictor(world -> RegionPowerTracker.get().onWorldRemoved(world.getName()));
 
         // Player-facing overlays: the zone-difficulty card + the crosshair mob inspector, driven by one
         // per-player ticking system (lazy HUD install self-heals world-transfer teardown). Registered
