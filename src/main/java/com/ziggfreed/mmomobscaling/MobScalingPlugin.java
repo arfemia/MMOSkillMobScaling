@@ -59,9 +59,9 @@ import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
  * frozen {@code MMOSkillTreeAPI}, and the fill of ziggfreed-common's encounter power seam (a bound
  * fight reads the tracked power of the region its boss stands in).
  *
- * <p>Version story: the family moves in lockstep. The manifest floors are the versions this mod is
- * built and tested against (ZiggfreedCommon {@code >=2.1.0}, MMOSkillTree {@code >=1.6.1}), and the
- * compile pins in {@code gradle.properties} name the same jars; see build.gradle. The
+ * <p>Version story: the compile pins in {@code gradle.properties} follow the siblings' versions in
+ * lockstep, and the manifest floors are the oldest versions this mod really needs, moving up only for
+ * newer API; see build.gradle. The
  * {@link LinkageError} guards around the newer seams (`registerKillRarityProvider`, the encounter
  * runtime and power seam) are a safety net for a mis-installed server, not advertised
  * compatibility with an older jar.

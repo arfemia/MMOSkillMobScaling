@@ -54,11 +54,11 @@ exactly which line to add. Full authoring notes and troubleshooting: [CURSEFORGE
 
 ## Version story
 
-The family moves in lockstep. This mod is compiled against the LOCAL `MMOSkillTree-1.7.1.jar`
-and `ZiggfreedCommon-2.3.0.jar` dev jars (the pins in `gradle.properties`), and its manifest's
-RUNTIME floors are those same versions: MMOSkillTree `>=1.7.1` and ZiggfreedCommon `>=2.3.0`. When
-either dependency ships, the pin and the floor move together. Both jars are loaded before this mod
-and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.properties` and
+This mod is compiled against the LOCAL MMOSkillTree and ZiggfreedCommon dev jars the family builds:
+the pins in `gradle.properties` follow each sibling's own version in lockstep. Its manifest's RUNTIME
+floors are the oldest versions it really needs (MMOSkillTree `>=1.7.1`, ZiggfreedCommon `>=2.3.0`)
+and move up only when it starts using newer API, so a sibling's release alone never forces a release
+of this mod. Both jars are loaded before this mod and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.properties` and
 `build.gradle`.
 
 ## Build
