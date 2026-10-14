@@ -13,7 +13,7 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 
 - Zero-cost gate: a disabled mod registers no systems. The `/mobscaling` command and the `BootEvent` audit register before the gate on purpose (purge must work on the uninstall path). `Enabled` needs a restart. Keep `MobScalingGate` off the `JavaPlugin` class so unit tests can load it.
 - Factor contributions are claimed inside the enabled branch; another mod reads a mob's rarity through those factors, never through an exported API.
-- Logging: `MobScalingPlugin.LOGGER` behind a try/catch on any unit-reachable path; this mod has no `SafeLog`.
+- Logging: `MobScalingPlugin.LOGGER` inside a `catch (Throwable)` (the `safeInfo` / `safeWarn` pattern) on any unit-reachable path, since the logger can throw an `Error` that escapes `catch (Exception)`; this mod has no `SafeLog`.
 
 ## Spawn roll
 
