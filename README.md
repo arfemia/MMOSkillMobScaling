@@ -33,7 +33,7 @@ Update 7 (0.7.x) server. Both are loaded before this mod:
 
 Config files are generated on first start under `mods/MmoMobScaling/`, **relative to the folder the
 server runs from** (its working directory), not next to the jar. The absolute paths are logged on every
-start (search the log for `mob-scaling config:`).
+start (search the log for `[MobScalingConfig] config:`).
 
 - `mob-scaling.json` - your overrides, empty by default; anything you do not set inherits the default.
 - `_reference/defaults-mob-scaling.json` - the full default settings, rewritten every start. Read-only
@@ -50,7 +50,7 @@ A content pack that authors `Server/MmoMobScaling/**` (or one of the `Server/NPC
 tagsets) **must** declare `"Ziggfreed:MmoMobScaling"` in its `manifest.json` `Dependencies`, or the mod's
 own defaults load after it and silently overwrite every override. The id is case-sensitive, and a
 misspelled one aborts the server's entire asset load. The mod audits the loaded packs at start and logs
-exactly which line to add. Full authoring notes and troubleshooting: [CURSEFORGE.md](CURSEFORGE.md).
+exactly which line to add. Full authoring notes and troubleshooting: [MMO Mob Scaling: Files and Packs](https://mmo-skill-tree-docs.ziggfreed.com/docs/mob-scaling/) on the docs site.
 
 ## Version story
 

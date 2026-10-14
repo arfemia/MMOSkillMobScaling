@@ -31,7 +31,7 @@ In the Headless Horseman's graveyard from [Seasons of Orbis](https://www.cursefo
 - `/mobscaling ui` opens a settings page with every option, a live preview of how tough a skeleton gets, and editors for each world and each zone. Changes save and apply at once.
 - `/mobscaling inspect` reports the difficulty where you stand.
 - These commands need the `hytale:Admin` role, or OP when permissions are off.
-- Your files are in `mods/MmoMobScaling/`, inside the folder your server runs from. The log prints the full path on every start: search it for `mob-scaling config:`.
+- Your files are in `mods/MmoMobScaling/`, inside the folder your server runs from. The log prints the full path on every start: search it for `[MobScalingConfig] config:`.
 - A file in `mods/MmoMobScaling/worlds/` turns scaling off in a world or gives it its own difficulty. The folder's `README.txt` shows how. Kweebec Nightmare and the Dungeon of Fear worlds come tuned.
 - Mobs can cast MMO Skill Tree spells. One example ships switched off: save `demo_boss_caster.json` holding `{"Enabled": true}` in `mods/MmoMobScaling/casters/` and the Ember Dragon casts Fireball and throws ice.
 - Before you uninstall, run `/mobscaling purge` from the server console to strip scaling off every loaded world, then remove the jar.
@@ -54,6 +54,8 @@ A content pack can add or replace rarities, affixes, caster rosters, zone floors
 - The id is exactly `Ziggfreed:MmoMobScaling`, capitals included. A misspelt id stops the server loading any assets, and the log shows `Missing default DamageCause assets`. Scroll up from it to `Missing required dependencies` to find the pack.
 - `manifest.json` sits at the root of the zip, with no folder around it, or the pack is skipped.
 - On every start the mod logs any pack it is overriding, with the line to add, and any rarity or affix that names an effect or drop list that doesn't exist.
+
+Every file the mod reads, and how to change its boss and excluded mob lists, is on the docs site: [MMO Mob Scaling: Files and Packs](https://mmo-skill-tree-docs.ziggfreed.com/docs/mob-scaling/).
 
 ## Installation
 
