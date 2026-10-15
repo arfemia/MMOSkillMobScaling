@@ -1,0 +1,16 @@
+{
+  "Name": "Hallows_Eve_Graveyard_Hard",
+  "Payload": {
+    "$Comment": "Keeps every mob Mob Scaling scales in the Headless Horseman's hard graveyard (the Seasons of Orbis dungeon Hallows_Eve_Graveyard_Hard, the hard ride) between level 15 and level 25. Each copy of a CommonLib dungeon is a world named after the dungeon's file, a dash and the copy's number (hallows_eve_graveyard_hard-1, hallows_eve_graveyard_hard-2 and so on), so this prefix pattern reaches every copy and no copy of the normal graveyard, whose names carry a dash straight after Graveyard and which Hallows_Eve_Graveyard.json beside this file holds at 1 to 10. Floor is the level a mob starts at: a dungeon copy is a void world with no zone or biome, so this world floor is the one that applies there, in place of the global Floor. A nearby group's power raises the level from there, and MinCap and MaxCap clamp the result whatever the zone mappings, distance escalation or group power come to, so 25 is as high as it goes and 15 as low. DistanceEscalation is off so an area's distance from the copy's spawn point adds nothing, and PlayerScalingStartRingBlocks is 0 so a group's power counts from the first block: the protected ring around spawn would otherwise cover the whole copy and leave group scaling off. To move the band, set Floor and MinCap to the new bottom and MaxCap to the new top; add \"Enabled\": false to switch scaling off in the hard graveyard entirely.",
+    "Where": {
+      "Match": ["Hallows_Eve_Graveyard_Hard-*"]
+    },
+    "Difficulty": {
+      "Floor": 15.0,
+      "MinCap": 15.0,
+      "MaxCap": 25.0,
+      "DistanceEscalation": { "Enabled": false }
+    },
+    "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
+  }
+}
