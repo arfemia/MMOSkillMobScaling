@@ -253,7 +253,7 @@ public final class MobInspectorHud extends ScalingHud {
                 hpFillAnchor((int) Math.round(pct * HP_BAR_INNER_WIDTH_PX)));
         cmd.set("#MmoscalingInspectHp.TextSpans",
                 Message.translation("mmomobscaling.hud.inspect.hp")
-                        .param("current", Math.max(0, Math.round(target.hp())))
+                        .param("current", hpReadout(target.hp()))
                         .param("max", Math.round(max)));
 
         // Affixes: one chip per affix (a codec-driven icon, the localized name, and the localized
@@ -313,6 +313,15 @@ public final class MobInspectorHud extends ScalingHud {
     }
 
     /**
+     * The current-HP number the panel shows: rounded up, so a living mob on a fraction of a point reads 1,
+     * never 0 (damage lands in whole points, so a scaled max can leave a sliver). The skip-cache key uses the
+     * same number, so the panel repaints exactly when the shown value changes.
+     */
+    private static int hpReadout(float hp) {
+        return Math.max(0, (int) Math.ceil(hp));
+    }
+
+    /**
      * The skip-cache key for a push: identity + everything that renders. The name is keyed by the
      * {@code Message} INSTANCE identity (a re-stamped {@code DisplayNameComponent} carries a new
      * Message object, so a live rename invalidates; the content itself is client-resolved and not
@@ -330,7 +339,7 @@ public final class MobInspectorHud extends ScalingHud {
                 .append('|').append(t.rarity() != null ? t.rarity().id() + t.rarity().displayColor() : "")
                 .append('|').append(t.variant() != null ? t.variant().id() + t.variant().displayColor() : "")
                 .append('|').append(t.scaled() ? Math.round(t.difficulty()) : -1)
-                .append('|').append(Math.round(t.hp()))
+                .append('|').append(hpReadout(t.hp()))
                 .append('/').append(Math.round(t.hpMax()))
                 // Portrait role (null when the world's portrait toggle is off, so a flip repaints).
                 .append('|').append(t.modelRole() != null ? t.modelRole() : "");
