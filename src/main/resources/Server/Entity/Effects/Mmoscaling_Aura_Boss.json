@@ -10,6 +10,6 @@
     "EntityTopTint": "#e03131",
     "KnockbackMultiplier": 0.0
   },
-  "OverlapBehavior": "Extend",
+  "OverlapBehavior": "Ignore",
   "Infinite": true
 }

@@ -9,6 +9,6 @@
     "EntityBottomTint": "#887758",
     "EntityTopTint": "#ffb347"
   },
-  "OverlapBehavior": "Extend",
+  "OverlapBehavior": "Ignore",
   "Infinite": true
 }
