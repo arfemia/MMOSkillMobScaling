@@ -51,7 +51,6 @@ command.inspect.chance = Belirmede nadirlik şansı: {chance}
 command.inspect.player_scaling = Oyuncu ölçekleme: {applied} (etkin: {enabled}, başlangıç halkası: {ring} blok, halka içinde: {inRing}, canlanma noktasına uzaklık: {distance})
 command.inspect.curve = Buradaki sıradan yaratık istatistik eğrisi: HP x{hp}, giden hasar x{out}, alınan hasar x{in}
 
-command.preset.usage = Kullanım: /mobscaling preset [isim]
 command.preset.active = Etkin ön ayar: {0}
 command.preset.available = Mevcut ön ayarlar: {0}
 command.preset.swapped = {0} ön ayarına geçildi.
@@ -70,7 +69,6 @@ command.hud.usage = Kullanım: /mobscaling hud <zone|inspector> <on|off|POSITION
 command.hud.enabled = Tüm oyuncular için HUD etkinleştirildi: {target}
 command.hud.disabled = Tüm oyuncular için HUD devre dışı bırakıldı: {target}
 command.hud.moved = {target}, {position} konumuna taşındı (kayma {x}, {y}).
-command.hud.persist_hint = Yalnızca anlık değişiklik: yeniden başlatmalar arasında korumak için mods/MmoMobScaling/mob-scaling.json dosyasındaki ZoneHud/InspectorHud anahtarlarını ayarla.
 command.hud.saved = Kaydedildi: HUD değişikliği artık yeniden başlatmalar arasında kalıcı.
 command.hud.target.zone = bölge zorluğu HUD'u
 command.hud.target.inspector = yaratık inceleme HUD'u

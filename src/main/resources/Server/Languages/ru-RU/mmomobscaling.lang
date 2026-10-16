@@ -51,7 +51,6 @@ command.inspect.chance = Шанс редкости при появлении: {c
 command.inspect.player_scaling = Масштабирование по игрокам: {applied} (включено: {enabled}, стартовое кольцо: {ring} блоков, внутри кольца: {inRing}, расстояние от точки возрождения: {distance})
 command.inspect.curve = Кривая характеристик обычного существа здесь: HP x{hp}, исходящий урон x{out}, входящий урон x{in}
 
-command.preset.usage = Использование: /mobscaling preset [name]
 command.preset.active = Активный пресет: {0}
 command.preset.available = Доступные пресеты: {0}
 command.preset.swapped = Переключено на пресет {0}.
@@ -70,7 +69,6 @@ command.hud.usage = Использование: /mobscaling hud <zone|inspector>
 command.hud.enabled = HUD включён для всех игроков: {target}
 command.hud.disabled = HUD отключён для всех игроков: {target}
 command.hud.moved = {target} перемещён в {position} (смещение {x}, {y}).
-command.hud.persist_hint = Только временное изменение: чтобы сохранить его после перезапуска, задайте ключи ZoneHud/InspectorHud в mods/MmoMobScaling/mob-scaling.json.
 command.hud.saved = Сохранено: изменение HUD теперь сохраняется при перезапуске.
 command.hud.target.zone = HUD сложности зоны
 command.hud.target.inspector = HUD инспектора существ

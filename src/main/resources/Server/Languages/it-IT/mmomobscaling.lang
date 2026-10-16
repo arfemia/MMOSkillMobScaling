@@ -39,7 +39,6 @@ command.desc = Strumenti di amministrazione del ridimensionamento delle creature
 command.arg.sub = Sottocomando: purge rimuove i residui di ridimensionamento dalle creature caricate; inspect mostra i valori di difficoltà nella tua posizione; hud regola le sovrimpressioni; preset attiva il preset selezionato; worlds elenca i file di impostazioni per mondo; ui apre la pagina di configurazione amministratore.
 command.usage = Uso: /mobscaling <purge|inspect|hud|preset|worlds|ui>
 command.players_only = Questo comando può essere eseguito solo da un giocatore.
-command.preset.usage = Uso: /mobscaling preset [nome]
 command.preset.active = Preset attivo: {0}
 command.preset.available = Preset disponibili: {0}
 command.preset.swapped = Passato al preset {0}.
@@ -71,7 +70,6 @@ command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [off
 command.hud.enabled = HUD attivato per tutti i giocatori: {target}
 command.hud.disabled = HUD disattivato per tutti i giocatori: {target}
 command.hud.moved = {target} riposizionato su {position} (scostamento {x}, {y}).
-command.hud.persist_hint = Modifica valida solo in tempo reale: per mantenerla dopo un riavvio, imposta le chiavi ZoneHud/InspectorHud in mods/MmoMobScaling/mob-scaling.json.
 command.hud.saved = Salvato: il cambio HUD persiste ora tra i riavvii.
 
 command.hud.target.zone = HUD difficoltà zona

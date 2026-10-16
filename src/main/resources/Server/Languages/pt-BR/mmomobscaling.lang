@@ -51,7 +51,6 @@ command.inspect.curve = Curva de atributos de criatura comum aqui: HP x{hp}, dan
 command.inspect.chance = Chance de raridade ao surgir: {chance}
 command.inspect.player_scaling = Escalonamento por jogadores: {applied} (ativado: {enabled}, anel inicial: {ring} blocos, dentro do anel: {inRing}, distância do ponto de surgimento: {distance})
 
-command.preset.usage = Uso: /mobscaling preset [nome]
 command.preset.active = Predefinição ativa: {0}
 command.preset.available = Predefinições disponíveis: {0}
 command.preset.swapped = Alterado para a predefinição {0}.
@@ -70,7 +69,6 @@ command.hud.usage = Uso: /mobscaling hud <zone|inspector> <on|off|POSITION> [off
 command.hud.enabled = HUD ativado para todos os jogadores: {target}
 command.hud.disabled = HUD desativado para todos os jogadores: {target}
 command.hud.moved = {target} reposicionado para {position} (deslocamento {x}, {y}).
-command.hud.persist_hint = Alteração apenas em tempo real: para mantê-la após reinicializações, defina as chaves ZoneHud/InspectorHud em mods/MmoMobScaling/mob-scaling.json.
 command.hud.saved = Salvo: a alteração de HUD agora persiste entre reinicializações.
 command.hud.target.zone = HUD de dificuldade de zona
 command.hud.target.inspector = HUD de inspeção de criaturas

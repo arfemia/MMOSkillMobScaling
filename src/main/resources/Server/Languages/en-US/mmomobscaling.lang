@@ -32,7 +32,6 @@ command.inspect.chance = Rarity spawn chance: {chance}
 command.inspect.player_scaling = Player scaling: {applied} (enabled: {enabled}, start ring: {ring} blocks, inside ring: {inRing}, distance from spawn: {distance})
 
 # /mobscaling preset - switch the active settings preset live (Default, Casual, Hardcore, Playtest).
-command.preset.usage = Usage: /mobscaling preset [name]
 command.preset.active = Active preset: {0}
 command.preset.available = Available presets: {0}
 command.preset.swapped = Switched to preset {0}.
@@ -54,7 +53,6 @@ command.hud.usage = Usage: /mobscaling hud <zone|inspector> <on|off|POSITION> [o
 command.hud.enabled = HUD enabled for all players: {target}
 command.hud.disabled = HUD disabled for all players: {target}
 command.hud.moved = Repositioned {target} to {position} (offset {x}, {y}).
-command.hud.persist_hint = Live change only: to keep it across restarts, set the ZoneHud/InspectorHud keys in mods/MmoMobScaling/mob-scaling.json.
 command.hud.saved = Saved: the HUD change now persists across restarts.
 command.hud.target.zone = zone difficulty HUD
 command.hud.target.inspector = mob inspector HUD
