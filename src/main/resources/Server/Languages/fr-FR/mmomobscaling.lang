@@ -67,6 +67,7 @@ command.preset.available = Préréglages disponibles : {0}
 command.preset.swapped = Basculé vers le préréglage {0}.
 command.preset.unknown = Préréglage {0} inconnu. Disponibles : {1}
 command.preset.saved = Enregistré : le préréglage actif persiste maintenant après les redémarrages.
+command.arg.preset_name = Préréglage facultatif vers lequel basculer. Omettez-le pour voir le préréglage actif et ceux qui sont disponibles.
 
 # /mobscaling worlds - liste les fichiers de paramètres par monde fusionnés (Worlds/*.json à travers le jar, les packs et le dossier propriétaire).
 command.worlds.empty = Aucun fichier de paramètres par monde n'est chargé.

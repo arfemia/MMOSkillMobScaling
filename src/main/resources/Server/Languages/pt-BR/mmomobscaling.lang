@@ -56,6 +56,7 @@ command.preset.available = Predefinições disponíveis: {0}
 command.preset.swapped = Alterado para a predefinição {0}.
 command.preset.unknown = Predefinição desconhecida {0}. Disponíveis: {1}
 command.preset.saved = Salvo: a predefinição ativa agora persiste entre reinicializações.
+command.arg.preset_name = Predefinição opcional para trocar. Deixe de fora para ver a predefinição ativa e as disponíveis.
 
 command.worlds.empty = Nenhum arquivo de configuração por mundo está carregado.
 command.worlds.header = Configurações por mundo ({count} arquivos):

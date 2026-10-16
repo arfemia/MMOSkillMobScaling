@@ -44,6 +44,7 @@ command.preset.available = Preset disponibili: {0}
 command.preset.swapped = Passato al preset {0}.
 command.preset.unknown = Preset sconosciuto {0}. Disponibili: {1}
 command.preset.saved = Salvato: il preset attivo persiste ora tra i riavvii.
+command.arg.preset_name = Preset facoltativo a cui passare. Omettilo per vedere il preset attivo e quelli disponibili.
 
 # /mobscaling worlds - elenca i file di impostazioni per mondo uniti (Worlds/*.json tra jar, pacchetti e file del proprietario).
 command.worlds.empty = Nessun file di impostazioni per mondo caricato.

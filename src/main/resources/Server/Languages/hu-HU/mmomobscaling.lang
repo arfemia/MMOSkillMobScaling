@@ -44,6 +44,7 @@ command.preset.available = Elérhető előbeállítások: {0}
 command.preset.swapped = Váltva erre az előbeállításra: {0}.
 command.preset.unknown = Ismeretlen előbeállítás: {0}. Elérhető: {1}
 command.preset.saved = Elmentve: az aktív előbeállítás mostantól megmarad az újraindítások között.
+command.arg.preset_name = Opcionális előbeállítás, amelyre váltasz. Hagyd el, hogy lásd az aktív előbeállítást és az elérhetőket.
 
 command.worlds.empty = Nincsenek betöltve világonkénti beállítási fájlok.
 command.worlds.header = Világonkénti beállítások ({count} fájl):

@@ -56,6 +56,7 @@ command.preset.available = Verfügbare Presets: {0}
 command.preset.swapped = Zu Preset {0} gewechselt.
 command.preset.unknown = Unbekanntes Preset {0}. Verfügbar: {1}
 command.preset.saved = Gespeichert: Das aktive Preset wird nun über Neustarts hinweg gespeichert.
+command.arg.preset_name = Optional: das Preset, zu dem gewechselt wird. Lass es weg, um das aktive Preset und die verfügbaren zu sehen.
 
 # /mobscaling worlds - listet die zusammengeführten weltspezifischen Einstellungsdateien auf (Worlds/*.json aus JAR, Packs und dem Betreiber-Verzeichnis).
 command.worlds.empty = Es sind keine weltspezifischen Einstellungsdateien geladen.

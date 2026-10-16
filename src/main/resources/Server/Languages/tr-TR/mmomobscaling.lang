@@ -56,6 +56,7 @@ command.preset.available = Mevcut ön ayarlar: {0}
 command.preset.swapped = {0} ön ayarına geçildi.
 command.preset.unknown = Bilinmeyen ön ayar {0}. Mevcut olanlar: {1}
 command.preset.saved = Kaydedildi: etkin ön ayar artık yeniden başlatmalar arasında kalıcı.
+command.arg.preset_name = Geçilecek ön ayar, isteğe bağlı. Etkin ön ayarı ve mevcut olanları görmek için boş bırak.
 
 command.worlds.empty = Yüklenmiş dünya başına ayar dosyası yok.
 command.worlds.header = Dünya başına ayarlar ({count} dosya):
