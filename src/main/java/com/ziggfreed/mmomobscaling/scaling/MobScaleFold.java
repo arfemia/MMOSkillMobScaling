@@ -51,6 +51,10 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  *
  * <p>Loot: {@code rarity.loot * variant.loot * (1 + sum(affix.lootBonus))}, clamped to
  * {@code [MinLootMult, MaxLootMult]}. XP: {@code rarity.xp * variant.xp}, unclamped and affix-free.
+ *
+ * <p>An encounter's boss, when its binding row lets this mod scale him, takes {@link #anchored} instead: the
+ * plain curve read relative to its own value at the spot's floor, since his role and his fight are already
+ * tuned for a party meeting him there.
  */
 public final class MobScaleFold {
 
@@ -169,6 +173,26 @@ public final class MobScaleFold {
         return new MobScaleResult((float) difficulty, "", "", new String[0],
                 (float) curve.hpFactor(difficulty), (float) curve.outFactor(difficulty), (float) curve.inFactor(difficulty),
                 1f, 1f, scope);
+    }
+
+    /**
+     * Fold an encounter's boss for the companion scale its fight's binding row allows: the plain fold at
+     * {@code difficulty} (no rarity, variant or affix, loot and XP 1.0), each axis divided by its own value at
+     * {@code floor}, so at the floor the boss is exactly what his role and his fight make him and he grows only
+     * as the level climbs above it. Never below 1.0: a level under the floor leaves him as authored. An axis
+     * the row leaves off stays 1.0, and the incoming-damage axis always does, so all the toughness this adds is
+     * on the health bar. The result carries {@code difficulty}, the level his adds read.
+     *
+     * @param health whether the row lets the health axis grow ({@code Scale.Companion.Health})
+     * @param damage whether the row lets the outgoing-damage axis grow ({@code Scale.Companion.Damage})
+     */
+    @Nonnull
+    public static MobScaleResult anchored(double difficulty, double floor, byte scope,
+            @Nonnull DifficultyStatCurve curve, boolean health, boolean damage) {
+        double hp = health ? Math.max(1.0, curve.hpFactor(difficulty) / curve.hpFactor(floor)) : 1.0;
+        double out = damage ? Math.max(1.0, curve.outFactor(difficulty) / curve.outFactor(floor)) : 1.0;
+        return new MobScaleResult((float) difficulty, "", "", new String[0], (float) hp, (float) out, 1f, 1f, 1f,
+                scope);
     }
 
     /**

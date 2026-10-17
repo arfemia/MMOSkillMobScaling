@@ -23,9 +23,11 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  *       (the scope stamped on the spawn result; caster-roster entries gate on it via {@code Scope: BOSS}).
  *       The tagset is the elite scope for an AMBIENT boss: a world boss nobody scripted, met where it
  *       roams. A boss an encounter runs declares itself by being bound to that encounter, and this mod
- *       never classifies it at all: the roll skips a scripted spawn and a bound subject before any
- *       group is consulted (see {@code MobScalingRollSystem}), because the encounter already owns its
- *       stats. The boss RARITY tier is a separate, purely config-driven concern: the shipped
+ *       never ROLLS it: the roll skips a scripted spawn and a bound subject before any group is
+ *       consulted (see {@code MobScalingRollSystem}), because the encounter already owns its stats. Only
+ *       when his fight's binding row lets this mod scale him ({@code EncounterSubjectScaling}) is he
+ *       classified, for the exclusion and attitude layers alone. The boss RARITY tier is a separate,
+ *       purely config-driven concern: the shipped
  *       {@code Rarities/Boss.json} names this same group in its {@code Families.ForceGroups}, so any tier
  *       may claim any group without a Java-side special case.</li>
  *   <li>Else the native role {@link Attitude}: {@code HOSTILE} scales ({@link MobScaleResult#SCOPE_HOSTILE});
@@ -65,6 +67,17 @@ final class MobClassifier {
      */
     @Nullable
     static Byte classify(@Nonnull NPCEntity npc, @Nonnull Holder<EntityStore> holder) {
+        return classify(npc, holder.getComponent(WorldSupport.getComponentType()));
+    }
+
+    /**
+     * {@link #classify(NPCEntity, Holder)} for a live entity: the same layers, with its {@code WorldSupport}
+     * read by the caller off the store. What an encounter boss's companion scale asks
+     * ({@code EncounterSubjectScaling}), so an owner's exclusion and the attitude gate hold for him exactly as
+     * they do on the re-add that every in-place role change makes.
+     */
+    @Nullable
+    static Byte classify(@Nonnull NPCEntity npc, @Nullable WorldSupport ws) {
         Role role = npc.getRole();
         if (role == null) {
             return null; // role not built (should not happen post RoleBuilderSystem) -> exclude
@@ -82,7 +95,6 @@ final class MobClassifier {
         // the Neutral-attitude check below (Template_Animal_Neutral defaults its attitude to Neutral), so the
         // attitude test alone is the correct, narrower gate. (Neutral-authored AGGRESSIVE families -
         // Scarak/Feran combat mobs - are a separate follow-up via an Mmoscaling_Included NPCGroup tagset.)
-        WorldSupport ws = holder.getComponent(WorldSupport.getComponentType());
         if (ws == null) {
             return null;
         }

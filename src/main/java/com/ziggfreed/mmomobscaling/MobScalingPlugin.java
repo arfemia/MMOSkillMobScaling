@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.mmomobscaling.asset.MobScalingAssetRegistrar;
 import com.ziggfreed.mmomobscaling.command.MobScalingCommand;
 import com.ziggfreed.common.cast.WorldEvictors;
+import com.ziggfreed.common.encounter.event.EncounterEngagedEvent;
+import com.ziggfreed.common.encounter.event.EncounterResetEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
@@ -23,6 +25,7 @@ import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
+import com.ziggfreed.mmomobscaling.event.EncounterSubjectScaling;
 import com.ziggfreed.mmomobscaling.event.MobScalingCasterArmSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingCasterTickSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
@@ -252,6 +255,18 @@ public class MobScalingPlugin extends JavaPlugin {
         } catch (LinkageError e) {
             safeWarn("ziggfreed-common's encounter power seam is unavailable on this jar (needs 2.1.0 or "
                     + "newer); a bound fight reads zero power. Cause: " + e);
+        }
+
+        // A fight whose binding row lets a companion scale its boss (Scale.Companion) gets him scaled with the
+        // level his adds read, once per fight at the engage, forgotten at the reset. The library fires both
+        // events and scales nothing itself, so this is all this mod adds. Inside the enabled branch and guarded
+        // the same way: a jar without the events leaves every encounter boss as the roll's skips leave him.
+        try {
+            getEventRegistry().registerGlobal(EncounterEngagedEvent.class, EncounterSubjectScaling::onEngaged);
+            getEventRegistry().registerGlobal(EncounterResetEvent.class, EncounterSubjectScaling::onReset);
+        } catch (LinkageError e) {
+            safeWarn("ziggfreed-common's encounter events are unavailable on this jar; no encounter boss is "
+                    + "scaled, whatever his fight's binding row allows. Cause: " + e);
         }
 
         safeInfo("Mob scaling enabled; systems registered.");

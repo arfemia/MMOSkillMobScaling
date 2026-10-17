@@ -66,7 +66,9 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * </ol>
  * A skipped mob is left exactly as the engine and the encounter made it, any stale
  * {@code mmoscaling_hp} modifier and {@code Mmoscaling_*} aura from an earlier save stripped, and
- * carries no {@link ScaledMobComponent} at all.
+ * carries no {@link ScaledMobComponent} at all. The one exception is an engaged fight's boss whose
+ * binding row lets this mod scale him ({@link EncounterSubjectScaling}): reloaded mid-fight, he takes
+ * back the scale his fight's engage gave him instead of being stripped.
  *
  * <p>What the roll decides and how it decides it is the same as it always was: the same
  * {@code SplitMix64} seed off the entity's uuid and the world seed, the same rosters, the same family
@@ -128,14 +130,18 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
                 failRole = roleName;
             }
             if (isScriptedSpawn(store, ref)) {
-                leaveAlone(store, ref, cb);
+                if (!EncounterSubjectScaling.rescaleReloaded(store, ref, cb, world)) {
+                    leaveAlone(store, ref, cb);
+                }
                 reportOnce(REPORTED_SCRIPTED, "deferred roll: " + failRole + " rose from a ManualTrigger spawn marker "
                         + "(a scripted spawn), so it is left to its script; every later scripted spawn is skipped the "
                         + "same way, unreported");
                 return;
             }
             if (EncounterBinding.isBoundSubject(store, ref)) {
-                leaveAlone(store, ref, cb);
+                if (!EncounterSubjectScaling.rescaleReloaded(store, ref, cb, world)) {
+                    leaveAlone(store, ref, cb);
+                }
                 reportOnce(REPORTED_BOUND, "deferred roll: " + failRole + " is the bound subject of a live encounter, "
                         + "so it is left to the encounter framework; every later bound subject is skipped the same "
                         + "way, unreported");
@@ -259,10 +265,11 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
     /**
      * The {@code Ref} form of the spawn-scaling resolve. A missing {@code TransformComponent} degrades
      * to the world baseline floor + the un-boosted chance (no position = no zone, no escalation, no
-     * group delta).
+     * group delta). Shared with {@link EncounterSubjectScaling}, so an encounter's boss reads exactly the
+     * level his adds read where he stands.
      */
     @Nonnull
-    private static MobScalingSpawnHook.SpawnScaling resolveSpawnScaling(@Nonnull World world,
+    static MobScalingSpawnHook.SpawnScaling resolveSpawnScaling(@Nonnull World world,
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull SpawnScalingSettings settings) {
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null) {

@@ -295,6 +295,49 @@ class MobScaleFoldTest {
     }
 
     @Test
+    void anAnchoredBossIsExactlyHisAuthoredSelfAtTheFloorAndGrowsOnlyAsTheLevelClimbs() {
+        DifficultyStatCurve bent = new DifficultyStatCurve(0.05, 0.85, 0.2, 1.4, 1_000.0, 1_000.0);
+        for (double floor : new double[] {1, 15, 40}) {
+            MobScaleResult atFloor = MobScaleFold.anchored(floor, floor, MobScaleResult.SCOPE_HOSTILE, bent, true, true);
+            assertEquals(1f, atFloor.hpMult(), "no health added at the floor " + floor);
+            assertEquals(1f, atFloor.outDmgMult(), "no damage added at the floor " + floor);
+            double previousHp = 1.0;
+            double previousOut = 1.0;
+            for (double above : new double[] {1, 5, 10, 30}) {
+                MobScaleResult r = MobScaleFold.anchored(floor + above, floor, MobScaleResult.SCOPE_HOSTILE, bent,
+                        true, true);
+                assertTrue(r.hpMult() > previousHp, "health rises with the level above the floor " + floor);
+                assertTrue(r.outDmgMult() > previousOut, "damage rises with the level above the floor " + floor);
+                assertEquals(bent.hpFactor(floor + above) / bent.hpFactor(floor), r.hpMult(), 1e-5,
+                        "each axis is the plain curve over its own value at the floor");
+                assertEquals(bent.outFactor(floor + above) / bent.outFactor(floor), r.outDmgMult(), 1e-5);
+                assertEquals((float) (floor + above), r.difficulty(), "the result carries the level his adds read");
+                previousHp = r.hpMult();
+                previousOut = r.outDmgMult();
+            }
+        }
+        MobScaleResult below = MobScaleFold.anchored(5, 15, MobScaleResult.SCOPE_HOSTILE, bent, true, true);
+        assertEquals(1f, below.hpMult(), "a level under the floor never makes him weaker than authored");
+        assertEquals(1f, below.outDmgMult());
+    }
+
+    @Test
+    void anAnchoredBossIsAPlainFoldWithEachAxisOnlyWhereItsSwitchIsOn() {
+        DifficultyStatCurve bent = new DifficultyStatCurve(0.05, 0.85, 0.2, 1.4, 1_000.0, 1_000.0);
+        MobScaleResult both = MobScaleFold.anchored(25, 15, MobScaleResult.SCOPE_HOSTILE, bent, true, true);
+        assertFalse(both.hasRarity() || both.hasVariant() || both.hasAffixes(), "no tier, overlay or affix");
+        assertEquals(1f, both.lootMult(), "kill loot as it is");
+        assertEquals(1f, both.xpMult(), "kill XP as it is");
+        assertEquals(1f, both.inDmgMult(), "all the toughness it adds shows on the bar");
+        MobScaleResult healthOnly = MobScaleFold.anchored(25, 15, MobScaleResult.SCOPE_HOSTILE, bent, true, false);
+        assertEquals(both.hpMult(), healthOnly.hpMult());
+        assertEquals(1f, healthOnly.outDmgMult(), "damage left off stays as authored");
+        MobScaleResult damageOnly = MobScaleFold.anchored(25, 15, MobScaleResult.SCOPE_HOSTILE, bent, false, true);
+        assertEquals(1f, damageOnly.hpMult(), "health left off stays as authored");
+        assertEquals(both.outDmgMult(), damageOnly.outDmgMult());
+    }
+
+    @Test
     void boundEffectiveHpArithmetic() {
         assertEquals(0.5, MobScaleFold.boundEffectiveHp(4.0, 0.5, 0.0, 10.0), 1e-12, "under the rail: untouched");
         assertEquals(0.5, MobScaleFold.boundEffectiveHp(5.0, 0.5, 0.0, 10.0), 1e-12, "on the rail: untouched");

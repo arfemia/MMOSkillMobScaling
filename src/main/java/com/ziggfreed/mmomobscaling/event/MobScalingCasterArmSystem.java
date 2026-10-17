@@ -74,8 +74,8 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
                 return;
             }
             ScaledMobComponent comp = store.getComponent(ref, scaledType);
-            if (comp == null) {
-                return;
+            if (comp == null || comp.companion()) {
+                return; // an encounter boss's companion scale carries no caster kit, re-added or not
             }
             arm(ref, comp.result(), cb);
         } catch (Throwable t) {
