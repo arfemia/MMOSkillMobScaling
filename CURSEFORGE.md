@@ -23,7 +23,7 @@ A companion to [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill
 
 Bosses from Hytale's own boss fights, such as the Feastmaster, are left alone. The fight sets their health.
 
-In the Headless Horseman's graveyard from [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis), scaled mobs stay between level 1 and 10, and between 15 and 25 on the hard ride. The Horseman himself grows with that level too, in health and in how hard he hits, with Seasons of Orbis 1.3.0 or newer. A group at the bottom of the band meets him as the pack made him.
+In the Headless Horseman's graveyard from [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis), scaled mobs stay between level 1 and 10, and between 15 and 25 on the hard ride. The Horseman himself grows with that level too, in health and in how hard he hits, with Seasons of Orbis 1.2.2 or newer. A group at the bottom of the band meets him as the pack made him.
 
 ## For Server Owners
 

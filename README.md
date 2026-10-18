@@ -19,7 +19,7 @@ settings and spawn pools, and two player HUD overlays (zone-difficulty card + cr
 inspector). 1.2.0 leaves a boss an encounter script raises, and its adds, to Ziggfreed's CommonLib
 2.1.0's boss framework, and lends a bound fight the power of the region it stands in; 1.2.4 scales
 such a boss to its adds' level only when its fight opts in through CommonLib 2.5.0's companion
-scale, as the Headless Horseman's does in Seasons of Orbis 1.3.0. Numbers are
+scale, as the Headless Horseman's does in Seasons of Orbis 1.2.2. Numbers are
 still being tuned in-game, so they may shift between builds; everything is data-driven, so any of it
 is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 
