@@ -17,7 +17,9 @@ delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix
 `/mobscaling` admin tools and the `/mobscaling ui` panel with persisted live tuning, per-world
 settings and spawn pools, and two player HUD overlays (zone-difficulty card + crosshair mob
 inspector). 1.2.0 leaves a boss an encounter script raises, and its adds, to Ziggfreed's CommonLib
-2.1.0's boss framework, and lends a bound fight the power of the region it stands in. Numbers are
+2.1.0's boss framework, and lends a bound fight the power of the region it stands in; 1.2.4 scales
+such a boss to its adds' level only when its fight opts in through CommonLib 2.5.0's companion
+scale, as the Headless Horseman's does in Seasons of Orbis 1.3.0. Numbers are
 still being tuned in-game, so they may shift between builds; everything is data-driven, so any of it
 is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 
@@ -26,7 +28,7 @@ is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 Drop the built jar in your server's `Mods/` folder alongside its dependencies, on a Hytale
 Update 7 (0.7.x) server. Both are loaded before this mod:
 
-- **Ziggfreed's CommonLib >= 2.3.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
+- **Ziggfreed's CommonLib >= 2.5.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
 - **MMOSkillTree >= 1.7.1** - the MMO Skill Tree mod (supplies the player-power / combat-level API and the ability-casting API).
 
 ## Configuration
@@ -56,7 +58,7 @@ exactly which line to add. Full authoring notes and troubleshooting: [MMO Mob Sc
 
 This mod is compiled against the LOCAL MMOSkillTree and ZiggfreedCommon dev jars the family builds:
 the pins in `gradle.properties` follow each sibling's own version in lockstep. Its manifest's RUNTIME
-floors are the oldest versions it really needs (MMOSkillTree `>=1.7.1`, ZiggfreedCommon `>=2.3.0`)
+floors are the oldest versions it really needs (MMOSkillTree `>=1.7.1`, ZiggfreedCommon `>=2.5.0`)
 and move up only when it starts using newer API, so a sibling's release alone never forces a release
 of this mod. Both jars are loaded before this mod and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.properties` and
 `build.gradle`.

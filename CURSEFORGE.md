@@ -4,7 +4,7 @@
 
 The deeper the zone and the farther you roam from spawn, the harder the monsters get. A strong group meets stronger mobs, and a new player is never swamped. Some mobs spawn Rare, Epic or Legendary: they glow in their rarity's colour, hit harder, carry extra powers, and pay more XP and loot.
 
-A companion to [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree). It needs MMO Skill Tree 1.7.1 or newer and [Ziggfreed's CommonLib](https://www.curseforge.com/hytale/mods/ziggfreeds-commonlib) 2.3.0 or newer, on a Hytale Update 7 (0.7.x) server.
+A companion to [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree). It needs MMO Skill Tree 1.7.1 or newer and [Ziggfreed's CommonLib](https://www.curseforge.com/hytale/mods/ziggfreeds-commonlib) 2.5.0 or newer, on a Hytale Update 7 (0.7.x) server.
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/5NFdZsUxHZ) [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ziggfreed) [![Documentation](https://img.shields.io/badge/Docs-Read%20More-0ea5e9?style=for-the-badge)](https://mmo-skill-tree-docs.ziggfreed.com)
 
@@ -23,7 +23,7 @@ A companion to [MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill
 
 Bosses from Hytale's own boss fights, such as the Feastmaster, are left alone. The fight sets their health.
 
-In the Headless Horseman's graveyard from [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis), scaled mobs stay between level 1 and 10, and between 15 and 25 on the hard ride.
+In the Headless Horseman's graveyard from [Seasons of Orbis](https://www.curseforge.com/hytale/mods/seasons-of-orbis), scaled mobs stay between level 1 and 10, and between 15 and 25 on the hard ride. The Horseman himself grows with that level too, in health and in how hard he hits, with Seasons of Orbis 1.3.0 or newer. A group at the bottom of the band meets him as the pack made him.
 
 ## For Server Owners
 
@@ -59,7 +59,7 @@ Every file the mod reads, and how to change its boss and excluded mob lists, is 
 
 ## Installation
 
-1. Install MMO Skill Tree 1.7.1 or newer and Ziggfreed's CommonLib 2.3.0 or newer.
+1. Install MMO Skill Tree 1.7.1 or newer and Ziggfreed's CommonLib 2.5.0 or newer.
 2. Drop `MmoMobScaling-<version>.jar` into your server's `Mods/` folder.
 3. Start the server.
 
