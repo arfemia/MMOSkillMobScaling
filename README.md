@@ -9,7 +9,7 @@ tougher, rarer enemies while a lone newcomer is not overwhelmed.
 
 ## Status
 
-**v1.2.2 is the current public build, the Update 7 release; a server still on Update 6 stays on
+**v1.2.4 is the current public build, for Update 7; a server still on Update 6 stays on
 v1.2.1.** The full scaling system is in:
 layered native zone/biome difficulty floors + a distance-from-spawn escalation + a group-power
 delta, a rarity ladder (Rare/Epic/Legendary + a forced Boss tier) with a 5-affix catalog on native
