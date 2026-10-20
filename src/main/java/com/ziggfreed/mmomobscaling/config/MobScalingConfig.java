@@ -40,7 +40,7 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
  * including a partially-filled nested group).
  *
  * <p>Both layers are decoded SYNCHRONOUSLY via {@code MobScalingSettingsAsset.CODEC.decodeJson(...)}
- * at plugin {@code setup()} (the {@code WorldRulesConfig.decodeOwnerRule} pattern), so the zero-cost
+ * at plugin {@code setup()} (the owner body read through the store's own codec, never a hand parser), so the zero-cost
  * registration gate can read {@link #isEnabled()} before a {@code LoadedAssetsEvent} async asset
  * store would populate. The effective value of each LEAF is owner-over-store-over-jar, computed here
  * ({@link #fold3} walks a nested group per layer; an absent group or leaf falls to the next layer).

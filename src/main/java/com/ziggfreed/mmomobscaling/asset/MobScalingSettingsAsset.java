@@ -33,8 +33,8 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
  * leaves every other {@code OpenWorld} leaf {@code null}) - and {@code MobScalingConfig} folds
  * owner-over-store-over-jar PER LEAF with NO values baked into Java.
  *
- * <p>Decoded SYNCHRONOUSLY at plugin {@code setup()} via {@code CODEC.decodeJson(...)} (the
- * {@code WorldRulesConfig.decodeOwnerRule} pattern), so the zero-cost registration gate can read
+ * <p>Decoded SYNCHRONOUSLY at plugin {@code setup()} via {@code CODEC.decodeJson(...)} (the owner
+ * body read through the store's own codec, never a hand parser), so the zero-cost registration gate can read
  * {@code Enabled} before {@code LoadedAssetsEvent} would populate an async asset store.
  *
  * <p>Map-shaped content (the rarity ladder, the zone and biome floors) is deliberately NOT here:
