@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.ziggfreed.common.stats.damage.NativeOutgoing;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
 import com.ziggfreed.mmoskilltree.event.CombatDamageEventSystem;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
@@ -69,7 +70,8 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
 
     @Nonnull
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-            // Filter-phase peer ordering: our scaling multiply lands before the MMO's own crit/defense math.
+            // Filter-phase peer ordering: our scaling multiply lands, and is recorded (recordToughness), before the
+            // MMO's fold adds its talent and ability flats, so those flats meet the same toughness.
             new SystemDependency<>(Order.BEFORE, CombatDamageEventSystem.class),
             // Scale the hit as rolled, before armor subtracts from it (see the class javadoc on what that costs).
             // A class literal used as an ORDERING TARGET only, never a call; the class javadoc records why it
@@ -121,12 +123,28 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
             if (victimComp == null) {
                 return; // the victim is not a scaled mob: nothing to multiply here
             }
-            float scaled = keepLandingHitsLanding(amount, amount * victimComp.result().inDmgMult());
+            float inDmgMult = victimComp.result().inDmgMult();
+            float scaled = keepLandingHitsLanding(amount, amount * inDmgMult);
             if (scaled != amount) {
                 damage.setAmount(scaled);
             }
+            recordToughness(damage, inDmgMult);
         } catch (Throwable t) {
             safeWarn("damage filter failed: " + t);
+        }
+    }
+
+    /**
+     * Hand the incoming multiply to ziggfreed-common's outgoing sum ({@code NativeOutgoing.scaleTaken}), so a flat
+     * the attacker's later steps add (the MMO's talent and ability flats, which join the hit after this filter) meets
+     * the same toughness the hit met rather than landing whole. A ziggfreed-common older than the one that answers it
+     * is a mis-install: the multiply above still stands, only those later flats land unscaled.
+     */
+    private static void recordToughness(@Nonnull Damage damage, float inDmgMult) {
+        try {
+            NativeOutgoing.scaleTaken(damage, inDmgMult);
+        } catch (LinkageError e) {
+            // mis-install net: see the javadoc
         }
     }
 

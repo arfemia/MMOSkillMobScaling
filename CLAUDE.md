@@ -19,7 +19,7 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 
 - The spawn lock has two halves: `MobScalingSpawnHook` stamps `PendingRollComponent` pre-add and `MobScalingRollSystem` rolls the tick after. The roll skips `ManualTrigger` spawn-marker spawns and encounter-bound subjects. A stamp onto a live entity fires no `RefSystem`, so the roll calls the effect and caster-arm bodies directly. A holder already carrying `ScaledMobComponent` is never re-rolled.
 - `MobScaleResult.difficulty` is the spot difficulty everywhere it is read. Rarity and variant multiply the curve-read difficulty (`dEff`), which is not re-clamped to `MaxCap`.
-- `Mmoscaling_Bosses` lists ambient world bosses only; encounter-raised or bound bosses are skipped before classification.
+- `Mmoscaling_Bosses` holds ambient world bosses only, by including zc's `Zig_World_Bosses`, the group zc's `Zig_Boss_Or_Elite` includes too, so a boss this mod forces is a boss to every boss rule (R672, R858); a new roaming boss goes in zc's group, never a list here. Encounter-raised or bound bosses are skipped before classification.
 - The one exception: a boss whose binding row sets zc's `Scale.Companion` is scaled at `EncounterEngagedEvent` by `event/EncounterSubjectScaling` (the adds' level, `MobScaleFold.anchored`, a `ScaledMobComponent.ofCompanion` stamp), once per run; the roll's skips put it back after a reload instead of stripping it. No boss id lives in this mod.
 
 ## Config
