@@ -10,8 +10,8 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
-import com.hypixel.hytale.server.worldgen.chunk.ChunkGenerator;
-import com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult;
+import com.hypixel.hytale.builtin.worldgen.chunk.ChunkGenerator;
+import com.hypixel.hytale.builtin.worldgen.chunk.ZoneBiomeResult;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 
