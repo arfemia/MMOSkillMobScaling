@@ -135,14 +135,14 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
     }
 
     /**
-     * Hand the incoming multiply to ziggfreed-common's outgoing sum ({@code NativeOutgoing.scaleTaken}), so a flat
+     * Hand the incoming multiply to ziggfreed-common's whole-hit scale ({@code NativeOutgoing.scaleHit}), so a flat
      * the attacker's later steps add (the MMO's talent and ability flats, which join the hit after this filter) meets
      * the same toughness the hit met rather than landing whole. A ziggfreed-common older than the one that answers it
      * is a mis-install: the multiply above still stands, only those later flats land unscaled.
      */
     private static void recordToughness(@Nonnull Damage damage, float inDmgMult) {
         try {
-            NativeOutgoing.scaleTaken(damage, inDmgMult);
+            NativeOutgoing.scaleHit(damage, inDmgMult);
         } catch (LinkageError e) {
             // mis-install net: see the javadoc
         }
