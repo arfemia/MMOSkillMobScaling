@@ -94,7 +94,7 @@ public final class MobScalingFactors {
     /**
      * This mod's OWN vocabulary, for the readings its own content takes: a rarity's authored
      * {@code Loot} block gates and scales through here. It carries the portable {@code hytale:}
-     * standard library (so a mob drop can weigh the killer's own {@code MMO_Luck} stat channel) and
+     * standard library (so a mob drop can weigh the killer's own {@code KillYield} stat channel) and
      * reaches everything else - this mod's own contributions above, another mod's, and any
      * asset-defined factor - through the shared layers every registry consults on a local miss.
      */
