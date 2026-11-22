@@ -1,0 +1,16 @@
+{
+  "Name": "Shifting_Deep_Daily",
+  "Payload": {
+    "$Comment": "Keeps every mob Mob Scaling scales in the Shifting Deep's daily (MMO Skill Tree's dungeon Shifting_Deep_Daily, tier 1's rooms shared by every party that day) in tier 1's band, between level 10 and level 20. Each copy is a world named after the dungeon's file, a dash and the copy's number (shifting_deep_daily-1 and so on), so this pattern reaches the daily's copies alone. Floor is the level a mob starts at, since a dungeon copy has no zone or biome; MinCap and MaxCap clamp what a nearby group's power makes of it. DistanceEscalation is off and PlayerScalingStartRingBlocks is 0, as in every dungeon band. To move the band, set Floor and MinCap to the new bottom and MaxCap to the new top; add \"Enabled\": false to switch scaling off in the daily entirely.",
+    "Where": {
+      "Match": ["Shifting_Deep_Daily-*"]
+    },
+    "Difficulty": {
+      "Floor": 10.0,
+      "MinCap": 10.0,
+      "MaxCap": 20.0,
+      "DistanceEscalation": { "Enabled": false }
+    },
+    "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
+  }
+}
