@@ -1,0 +1,10 @@
+{
+  "$Comment": "An NPC-only ranged attack: the Goblin Duke's ice ball, run from the game's own Goblin_Duke_Magic_1 interaction (an ice glow at the hand, a throw, then an ice ball that damages and knocks back what it hits). It does nothing unless a caster roster names it in a NativeChain entry, as the Demo_Boss_Caster example roster does, and that example ships switched off. A mob only uses an attack root tagged Attack, so this one carries Attack with the Ranged sub-tag and the same 2 second Cooldown as the game's own Goblin_Duke_Magic_1 root. The throw animation was made for a goblin and may not play on another model. Name it in your own roster's NativeChain to give another mob the same throw.",
+  "Cooldown": {
+    "Cooldown": 2
+  },
+  "Interactions": ["Goblin_Duke_Magic_1"],
+  "Tags": {
+    "Attack": ["Ranged"]
+  }
+}
