@@ -31,6 +31,12 @@ public final class ZoneDifficultyHud extends ScalingHud {
 
     public static final String HUD_KEY = "mmoscaling:zone_difficulty";
 
+    /**
+     * The ziggfreed-common settings surface whose per-player Show hides this card for one player. A cross-mod key:
+     * MMO Skill Tree's {@code /mmohud difficulty} and its Settings switch write it under the same spelling.
+     */
+    public static final String SURFACE = "Mmoscaling_Zone_Difficulty";
+
     /** Panel size in pixels - must match {@code #MmoscalingZonePanel} in the {@code .ui} (native frame). */
     private static final int PANEL_WIDTH_PX = 320;
     private static final int PANEL_HEIGHT_PX = 124;

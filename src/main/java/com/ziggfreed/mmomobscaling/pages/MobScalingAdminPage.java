@@ -50,10 +50,10 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
-import com.ziggfreed.mmomobscaling.config.MmoPowerBounds;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
 import com.ziggfreed.mmomobscaling.config.OwnerFiles;
+import com.ziggfreed.mmomobscaling.config.PlayerPowerReads;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
@@ -79,7 +79,7 @@ import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
  * <p><b>The Global tab's right column is the one place a consequence is shown</b>, and it is hand-built
  * because nothing there is a leaf to persist: a plain Skeleton through the CURRENT (uncommitted) curve
  * at five sample difficulties, a typed probe difficulty, the rarity ladder at the probed difficulty, and
- * a read-only panel of what this mod can see of the MMO's power scale. Every figure comes out of
+ * a read-only panel of the player power scale this mod reads. Every figure comes out of
  * {@link ScalingPreview}, which runs the same {@link MobScaleFold} the spawn path runs on a curve and
  * clamps built through {@link MobScalingConfig#buildCurve} / {@link MobScalingConfig#buildClamps}, the
  * one constructor pair every layer uses, so the preview can never disagree with a Save.
@@ -295,7 +295,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         buildPresetRow(cmd, events, cfg);
         globalForm.buildRows(cmd, events, GLOBAL_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingGlobalSave", "mmomobscaling.ui.button.save_tab", "saveGlobal");
-        buildPreviewPanel(cmd, events, MmoPowerBounds.of(store, ref));
+        buildPreviewPanel(cmd, events, PlayerPowerReads.of(store, ref));
 
         zoneForm.buildRows(cmd, events, ZONE_FORM_SEL, MobScalingAdminPage::tr);
         actionButton(cmd, events, "#MmoscalingZoneSave", "mmomobscaling.ui.button.save_tab", "saveZone");
@@ -643,16 +643,17 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     }
 
     /**
-     * Build-time lines of the read-only MMO panel: the power floor and ceiling this mod can read through
-     * the frozen API (or one line saying it cannot), the viewing admin's own power, and where the numbers
-     * are edited. Every read is guarded ({@link MmoPowerBounds}): a missing or older MMO jar degrades to
-     * "not available" instead of failing the page. This mod never widens that API and never writes an
-     * MMO file.
+     * Build-time lines of the read-only player power panel: the power floor and ceiling this mod reads through
+     * ziggfreed-common's player power seam (or one line saying it cannot), the viewing admin's own power, and
+     * where the numbers are edited: the measuring mod's own screens when a mod fills the seam (MMO Skill Tree's
+     * Power Level page), else the owner menu's Player Power screen over the library's gear reading. Every read is
+     * guarded ({@link PlayerPowerReads}): an older library degrades to "not available" instead of failing the
+     * page. This mod never writes another mod's file.
      */
     private static void buildMmoPanel(@Nonnull UICommandBuilder cmd, @Nullable Double ownPower) {
         cmd.set(MMO_TITLE_SEL + ".TextSpans", tr("mmomobscaling.ui.mmo.header"));
-        Double min = MmoPowerBounds.min();
-        Double max = MmoPowerBounds.max();
+        Double min = PlayerPowerReads.min();
+        Double max = PlayerPowerReads.max();
         cmd.set(MMO_POWER_SEL + ".TextSpans", min != null && max != null
                 ? tr("mmomobscaling.ui.mmo.power").param("min", oneDecimal(min)).param("max", oneDecimal(max))
                 : tr("mmomobscaling.ui.mmo.unavailable"));
@@ -661,7 +662,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             cmd.set(MMO_OWN_POWER_SEL + ".TextSpans",
                     tr("mmomobscaling.ui.mmo.own_power").param("power", Math.round(ownPower)));
         }
-        cmd.set(MMO_WHERE_SEL + ".TextSpans", tr("mmomobscaling.ui.mmo.where"));
+        cmd.set(MMO_WHERE_SEL + ".TextSpans", tr(PlayerPowerReads.filled()
+                ? "mmomobscaling.ui.mmo.where" : "mmomobscaling.ui.mmo.where_gear"));
     }
 
     /**
@@ -671,8 +673,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
      * folds every strong group onto one difficulty). Hidden when the bounds are unreadable.
      */
     private static void refreshMmoCapLine(@Nonnull UICommandBuilder cmd, double minCap, double maxCap) {
-        Double powerMin = MmoPowerBounds.min();
-        Double powerMax = MmoPowerBounds.max();
+        Double powerMin = PlayerPowerReads.min();
+        Double powerMax = PlayerPowerReads.max();
         if (powerMin == null || powerMax == null) {
             cmd.set(MMO_CAP_SEL + ".Visible", false);
             return;

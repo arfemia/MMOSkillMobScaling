@@ -45,6 +45,12 @@ public final class MobInspectorHud extends ScalingHud {
     public static final String HUD_KEY = "mmoscaling:mob_inspector";
 
     /**
+     * The ziggfreed-common settings surface whose per-player Show hides this card for one player. A cross-mod key:
+     * MMO Skill Tree's {@code /mmohud npc} and its Settings switch write it under the same spelling.
+     */
+    public static final String SURFACE = "Mmoscaling_Mob_Inspector";
+
+    /**
      * Panel width in pixels - must match {@code #MmoscalingInspectPanel} in the {@code .ui}. The card is a
      * HEADER of two columns, a LEFT portrait column (the mob's {@code Icons/ModelsGenerated/<role>.png}
      * still) and a RIGHT info column with a name row that WRAPS to two lines ({@code Wrap: true}, so a long

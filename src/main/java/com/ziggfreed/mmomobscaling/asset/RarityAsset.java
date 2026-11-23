@@ -206,7 +206,8 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
                 .add()
                 .append(new KeyedCodec<>("Xp", Codec.DOUBLE, false), (m, v) -> m.xp = v, m -> m.xp)
                 .metadata(EditorSchema.defaultValue(1.0))
-                .documentation("The kill-XP multiplier a kill of this tier pays through the MMO's kill path.")
+                .documentation("The kill reward multiplier a kill of this tier pays wherever a mod pays kill rewards "
+                        + "by ziggfreed-common's kill reward scale (MMO Skill Tree's kill XP).")
                 .add()
                 .build();
 

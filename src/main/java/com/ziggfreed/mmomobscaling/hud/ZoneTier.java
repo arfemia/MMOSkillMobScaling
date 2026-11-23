@@ -47,7 +47,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleFold.DifficultyStatCurve;
  * BELOW the floor is not a separate case: the floor and the curve's origin are the same difficulty, so such
  * a player reads the floor as a matched fight, which is what the weakest zone is for the weakest character.
  * A power at or below the curve's origin (0, negative,
- * or the MMO's own minimum, which is what {@code getPowerLevel} answers for a character it holds no data on)
+ * or the power scale's own floor, which is what the player power seam answers for a character nothing can
+ * read)
  * is read at difficulty 1, the weakest fight the curve expresses, so an unknown character gets the fresh
  * character's word and never an EASY by accident. A curve whose outgoing factor has railed
  * ({@code MaxOutDamageMult}) is read railed, exactly as the fold reads it: two zones both past the rail read

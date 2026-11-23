@@ -30,13 +30,14 @@ repositories {
 
 // ============================================================================
 // VERSION STORY (the lockstep rule; the full statement is in gradle.properties):
-//   This mod compileOnly-references the LOCAL MMOSkillTree-<mmoSkillTreeVersion>.jar and
-//   ZiggfreedCommon-<ziggfreedCommonVersion>.jar, each pin following its sibling's version
-//   in lockstep; its manifest's RUNTIME floors are the oldest versions it really needs and
-//   move only for newer API, never above a pin (R364). The LinkageError guards around the newer
-//   seams (registerKillRarityProvider, the encounter runtime, the encounter power seam)
-//   keep a mis-installed server from failing to load the mod; they do not make an older
-//   jar a supported one.
+//   This mod compileOnly-references the LOCAL ZiggfreedCommon-<ziggfreedCommonVersion>.jar, its
+//   pin following that sibling's version in lockstep; its manifest's RUNTIME floor is the oldest
+//   version it really needs and moves only for newer API, never above the pin (R364). It builds
+//   and runs on ziggfreed-common alone: MMO Skill Tree is an optional presence it meets only
+//   through ziggfreed-common's seams, never a compile or manifest dependency (R597). The
+//   LinkageError guards around the newer seams (the kill reward scale, the encounter runtime,
+//   the encounter power seam) keep a mis-installed server from failing to load the mod; they do
+//   not make an older jar a supported one.
 // ============================================================================
 
 // Compile against the SAME jar the server runs. In a workspace, its family.properties (at
@@ -76,14 +77,11 @@ def familyPath = { String key ->
 }
 // The shared primitive lib: the ziggfreed-common repo's own build output.
 def ziggfreedCommonJar = new File(familyPath('repo.ziggfreed-common'), "build/libs/ZiggfreedCommon-${ziggfreedCommonVersion}.jar")
-// The MMO mod jar (the mmo-skills repo's build/libs), the release this mod ships beside.
-def mmoSkillTreeJar    = new File(familyPath('repo.mmo-skills'), "build/libs/MMOSkillTree-${mmoSkillTreeVersion}.jar")
 // Inside the family's umbrella build (the workspace root's settings.gradle includes this one, so it
-// has a parent build), each sibling is its coordinate, which the umbrella substitutes with the
-// project that builds that jar in the same run. Built alone, each is the jar above.
+// has a parent build), the sibling is its coordinate, which the umbrella substitutes with the
+// project that builds that jar in the same run. Built alone, it is the jar above.
 def inFamilyBuild = gradle.parent != null
 def ziggfreedCommon = inFamilyBuild ? "ziggfreed:ZiggfreedCommon:${ziggfreedCommonVersion}" : files(ziggfreedCommonJar)
-def mmoSkillTree    = inFamilyBuild ? "ziggfreed:MMOSkillTree:${mmoSkillTreeVersion}" : files(mmoSkillTreeJar)
 
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.0')
@@ -94,22 +92,20 @@ dependencies {
     // jsr305 for @Nonnull/@Nullable, like ziggfreed-common.
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 
-    // All three provided jars are loaded by the server BEFORE this mod (manifest
-    // Dependencies), so we NEVER bundle any of them - bundling would double-load
-    // engine-touching classes under two classloaders and break class identity.
+    // Both provided jars are loaded by the server BEFORE this mod (the server first, then
+    // ziggfreed-common through the manifest's Dependencies), so we NEVER bundle either - bundling
+    // would double-load engine-touching classes under two classloaders and break class identity.
     compileOnly(files(hytaleServerJar))
     compileOnly(ziggfreedCommon)
-    compileOnly(mmoSkillTree)
 
     // Config is driven by a Hytale asset codec (MobScalingSettingsAsset, decoded via
     // CODEC.decodeJson from the HytaleServer codec classes) - no gson needed.
 
     // Tests compile + run the codec-driven config, which needs the server jar (codec +
-    // RawJsonReader classes) on the TEST classpath, plus the common + MMO jars for the
-    // rest of the mod. These are testImplementation (real, on the test classpath).
+    // RawJsonReader classes) on the TEST classpath, plus the common jar for the rest of
+    // the mod. These are testImplementation (real, on the test classpath).
     testImplementation(files(hytaleServerJar))
     testImplementation(ziggfreedCommon)
-    testImplementation(mmoSkillTree)
 }
 
 // Never call a deprecated engine API (family-wide rule, the workspace's

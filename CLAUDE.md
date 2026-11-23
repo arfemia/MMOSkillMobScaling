@@ -4,10 +4,10 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 
 ## Build and lockstep
 
-- Build with `.\build.ps1` (`-Install:$false` builds only). `ziggfreed-common` and the MMO jar are `compileOnly`, never bundled.
+- Build with `.\build.ps1` (`-Install:$false` builds only). `ziggfreed-common` is `compileOnly`, never bundled; the MMO is no dependency at all, compile or manifest (R597).
 - `gradle/deprecation-gate.gradle` (run by `check`) is the MMO's (`mmo-family/mmo-skills`), copied byte for byte: it changes only by copying the MMO's.
-- The `gradle.properties` pins (`ziggfreedCommonVersion`, `mmoSkillTreeVersion`) follow their siblings' versions in lockstep; a manifest `>=` floor is the oldest version the mod really needs and moves only for newer API, never above its pin (R364). The `LinkageError` guards are a mis-install net, not older-jar support.
-- Read player power only through the frozen `MMOSkillTreeAPI`; never widen it or write an MMO file.
+- The `gradle.properties` pin (`ziggfreedCommonVersion`) follows its sibling's version in lockstep; a manifest `>=` floor is the oldest version the mod really needs and moves only for newer API, never above its pin (R364). The `LinkageError` guards are a mis-install net, not older-jar support.
+- Meet the MMO only through ziggfreed-common's seams, never an import: player power through `config/PlayerPowerReads` (the player power seam, the MMO's Power Level where it fills it, else the library's gear reading), a caster's ability through `NpcAbilityCasts`, the kill reward and rarity through the progression runtime's `KillRewardScale` and `KillQualifier`, a HUD's per-player show through `PlayerSettings` under the card's `SURFACE`. Never write another mod's file.
 
 ## Gate and wiring
 

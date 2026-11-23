@@ -17,14 +17,15 @@ import com.ziggfreed.common.cast.WorldEvictors;
 import com.ziggfreed.common.encounter.event.EncounterEngagedEvent;
 import com.ziggfreed.common.encounter.event.EncounterResetEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
+import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.CasterOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.PlayerPowerReads;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.event.EncounterSubjectScaling;
 import com.ziggfreed.mmomobscaling.event.MobScalingCasterArmSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingCasterTickSystem;
@@ -45,7 +46,10 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
  * Entry point for MMO Mob Scaling, a standalone open-world mob difficulty-scaling
- * companion to the MMO Skill Tree mod.
+ * companion to the MMO Skill Tree mod, running on ziggfreed-common alone: every exchange with the MMO
+ * goes through a ziggfreed-common seam the MMO fills when installed (player power, a creature's ability
+ * cast) or contributes to (the kill reward scale and qualifier), so the MMO is an optional presence,
+ * never a dependency.
  *
  * <p>It loads {@link MobScalingConfig} and applies the ZERO-COST registration gate: when the
  * config is disabled, NO systems are registered, so the mod carries no per-tick cost at all.
@@ -54,21 +58,22 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * {@code MobScalingRollSystem} (rarity/affixes + the HP reconcile on the live ref, skipping a
  * scripted spawn and an encounter's bound boss), the effect-reconcile {@code MobScalingEffectApplySystem}
  * (applies + sweeps the native aura / affix effects and the outgoing-damage effect), the
- * {@code MobScalingDamageFilter} (the incoming damage multiply, pinned before armor and the MMO's combat
- * damage math), and the
+ * {@code MobScalingDamageFilter} (the incoming damage multiply, pinned before armor and ziggfreed-common's
+ * route step, which every consumer's damage fold follows), and the
  * {@code MobScalingOnHitSystem} (lifesteal + the Freezing on-hit slow, in the inspect group), and
  * (1.1.0) the NPC caster roster - {@code MobScalingCasterArmSystem} (arms a matching, gate-eligible
  * mob's {@code Server/MmoMobScaling/CasterRosters/*.json} abilities at spawn) +
- * {@code MobScalingCasterTickSystem} (casts an {@code ABILITY} entry via
- * {@code MMOSkillTreeAPI.castNpcAbility} or re-arms a {@code NATIVE_CHAIN} entry's native attack
- * override, both on the roster's own cadence) - plus a kill-XP reward multiplier registered on the
- * frozen {@code MMOSkillTreeAPI}, and the fill of ziggfreed-common's encounter power seam (a bound
- * fight reads the tracked power of the region its boss stands in).
+ * {@code MobScalingCasterTickSystem} (casts an {@code ABILITY} entry through ziggfreed-common's
+ * {@code NpcAbilityCasts} or re-arms a {@code NATIVE_CHAIN} entry's native attack override, both on the
+ * roster's own cadence) - plus the kill reward scale and kill qualifier contributed to ziggfreed-common's
+ * progression runtime, and the fill of ziggfreed-common's encounter power seam (a bound fight reads the
+ * tracked power of the region its boss stands in). Player power itself is read through ziggfreed-common's
+ * player power seam ({@code PlayerPowerReads}), which MMO Skill Tree fills where it is installed.
  *
- * <p>Version story: the compile pins in {@code gradle.properties} follow the siblings' versions in
- * lockstep, and the manifest floors are the oldest versions this mod really needs, moving up only for
+ * <p>Version story: the compile pin in {@code gradle.properties} follows ziggfreed-common's version in
+ * lockstep, and the manifest floor is the oldest version this mod really needs, moving up only for
  * newer API; see build.gradle. The
- * {@link LinkageError} guards around the newer seams (`registerKillRarityProvider`, the encounter
+ * {@link LinkageError} guards around the newer seams (the kill reward scale, the encounter
  * runtime and power seam) are a safety net for a mis-installed server, not advertised
  * compatibility with an older jar.
  */
@@ -180,7 +185,7 @@ public class MobScalingPlugin extends JavaPlugin {
         getEntityStoreRegistry().registerSystem(new MobScalingRollSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingEffectApplySystem());
         // The damage filter is the one system that names OTHER jars' classes to order itself against
-        // (the MMO's combat damage system and the engine's armor reduction). If either name is gone,
+        // (ziggfreed-common's route step and the engine's armor reduction). If either name is gone,
         // constructing or registering it throws, and an unguarded throw here would fail the whole
         // plugin - taking /mobscaling purge down with it, which is the command a server owner needs
         // most at exactly that moment. So it is registered on its own: scaled mobs then keep their
@@ -191,8 +196,8 @@ public class MobScalingPlugin extends JavaPlugin {
         } catch (Throwable t) {
             safeSevere("Mob scaling could not install its damage filter, so scaled mobs take ORDINARY "
                     + "damage this session; everything else about them still works. This means a "
-                    + "system it orders itself against is missing, so check that the MMO Skill Tree jar is "
-                    + "installed and is at least the version this mod's manifest asks for. Cause: " + t);
+                    + "system it orders itself against is missing, so check that the ziggfreed-common jar is "
+                    + "at least the version this mod's manifest asks for. Cause: " + t);
         }
         getEntityStoreRegistry().registerSystem(new MobScalingOnHitSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingLootDropSystem());
@@ -221,19 +226,19 @@ public class MobScalingPlugin extends JavaPlugin {
         // a disabled tick is two boolean reads.
         getEntityStoreRegistry().registerSystem(new MobScalingHudSystem());
 
-        // Reward: register the kill-XP multiplier so a rarity kill pays more through the MMO's own kill path.
-        MMOSkillTreeAPI.registerMobKillXpMultiplier(new MobScalingXpReward());
-
-        // Attribution: hand the victim's rolled rarity to the MMO's kill path as the kill
-        // qualifier, so a mob-drop command's {tier} placeholder resolves to it. The provider seam
-        // is additive on the MMO's 1.6.0-cycle jar; an older runtime jar lacks it, so the
-        // LinkageError degrades to unqualified kills with one warning (the CasterFeatureState
-        // pattern) instead of refusing to load the mod.
+        // Reward and attribution, both through ziggfreed-common's one progression runtime, so neither mod
+        // imports the other: the kill reward scale makes a rarity kill pay more wherever a payer reads it (MMO
+        // Skill Tree's kill XP), and the kill qualifier hands the victim's rolled rarity to the kill moment, so a
+        // criterion naming a rarity matches and a kill drop command's {tier} placeholder resolves to it. A
+        // library older than the reward scale degrades to unscaled kills with one warning instead of refusing
+        // to load the mod.
         try {
-            MMOSkillTreeAPI.registerKillRarityProvider(new MobScalingRarityAttribution());
+            ProgressionRuntime.registrar(MobScalingFactors.OWNER)
+                    .killQualifier(new MobScalingRarityAttribution())
+                    .killRewardScale(new MobScalingXpReward());
         } catch (LinkageError e) {
-            safeWarn("MMOSkillTreeAPI.registerKillRarityProvider is unavailable on this MMO jar "
-                    + "(needs the 1.6.0-cycle build); kills carry no rarity qualifier. Cause: " + e);
+            safeWarn("ziggfreed-common's kill reward scale is unavailable on this jar; a rarity kill pays no more "
+                    + "than a plain one. Cause: " + e);
         }
 
         // Publish what this mod knows about a mob (rarity, affixes, difficulty, region power) as ordinary
@@ -268,6 +273,10 @@ public class MobScalingPlugin extends JavaPlugin {
             safeWarn("ziggfreed-common's encounter events are unavailable on this jar; no encounter boss is "
                     + "scaled, whatever his fight's binding row allows. Cause: " + e);
         }
+
+        // Say once, when every plugin has set up (so a mod that fills ziggfreed-common's player power seam has
+        // filled it), whose reading of player power the scaling reads and on what scale.
+        getEventRegistry().register(BootEvent.class, event -> safeInfo(PlayerPowerReads.sourceLine()));
 
         safeInfo("Mob scaling enabled; systems registered.");
     }

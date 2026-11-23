@@ -30,7 +30,7 @@ import com.ziggfreed.mmomobscaling.config.CasterOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
-import com.ziggfreed.mmomobscaling.config.MmoPowerBounds;
+import com.ziggfreed.mmomobscaling.config.PlayerPowerReads;
 import com.ziggfreed.mmomobscaling.config.LegacyIntensityReport;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
@@ -248,12 +248,12 @@ public final class MobScalingAssetRegistrar {
             } catch (Throwable ignored) {
                 // log-manager-less JVMs
             }
-            // The caps cross-check treats an unreadable MMO bound (a unit JVM, an older MMO jar) as
-            // clean: it is an advisory calibration check, never a load blocker.
+            // The caps cross-check treats an unreadable power bound (a unit JVM, an older ziggfreed-common)
+            // as clean: it is an advisory calibration check, never a load blocker.
             warnFindings(ScalingContentValidator.validateDifficultyCaps(
                     MobScalingConfig.getInstance().getDifficultyMinCap(),
                     MobScalingConfig.getInstance().getDifficultyMaxCap(),
-                    MmoPowerBounds.min(), MmoPowerBounds.max()));
+                    PlayerPowerReads.min(), PlayerPowerReads.max()));
         }
     }
 

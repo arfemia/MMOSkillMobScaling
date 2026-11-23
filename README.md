@@ -25,11 +25,12 @@ is retunable. User guide: [CURSEFORGE.md](CURSEFORGE.md).
 
 ## Install
 
-Drop the built jar in your server's `Mods/` folder alongside its dependencies, on a Hytale
-Update 7 (0.7.x) server. Both are loaded before this mod:
+Drop the built jar in your server's `Mods/` folder alongside its one dependency, on a Hytale
+Update 7 (0.7.x) server. It is loaded before this mod:
 
-- **Ziggfreed's CommonLib >= 2.5.0** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, and its encounter framework is what this mod reads a bound boss off and hands region power to).
-- **MMOSkillTree >= 1.7.1** - the MMO Skill Tree mod (supplies the player-power / combat-level API and the ability-casting API).
+- **Ziggfreed's CommonLib** - the shared primitive lib (its `scaling/` engine is the fold this mod builds on, its encounter framework is what this mod reads a bound boss off and hands region power to, and its player power reading is what the scaling reads a player's strength from).
+
+MMO Skill Tree is optional. With it installed, player power is its Power Level, a rarer mob pays more skill XP, and caster rosters can cast its abilities. Without it, player power is read from the gear each player has on, tuned on the owner menu (`/zigadmin`, Player Power).
 
 ## Configuration
 
@@ -56,12 +57,12 @@ exactly which line to add. Full authoring notes and troubleshooting: [MMO Mob Sc
 
 ## Version story
 
-This mod is compiled against the LOCAL MMOSkillTree and ZiggfreedCommon dev jars the family builds:
-the pins in `gradle.properties` follow each sibling's own version in lockstep. Its manifest's RUNTIME
-floors are the oldest versions it really needs (MMOSkillTree `>=1.7.1`, ZiggfreedCommon `>=2.5.0`)
-and move up only when it starts using newer API, so a sibling's release alone never forces a release
-of this mod. Both jars are loaded before this mod and referenced `compileOnly`, never bundled. See the comment blocks in `gradle.properties` and
-`build.gradle`.
+This mod is compiled against the LOCAL ZiggfreedCommon dev jar the family builds: the pin in
+`gradle.properties` follows that sibling's own version in lockstep. Its manifest's RUNTIME floor is the
+oldest version it really needs and moves up only when it starts using newer API, so a sibling's release
+alone never forces a release of this mod. The jar is loaded before this mod and referenced
+`compileOnly`, never bundled. MMO Skill Tree is neither compiled against nor named in the manifest: the
+two meet only through CommonLib's seams. See the comment blocks in `gradle.properties` and `build.gradle`.
 
 ## Build
 
@@ -73,6 +74,6 @@ cd 'D:\dev\business\hytale-dev\mmo-family\mmo-mob-scaling'; .\build.ps1
 .\build.ps1 -ModsDir <path>     # explicit install target (else $env:HYTALE_MODS_DIR)
 ```
 
-`.\gradlew.bat build` works too. The Hytale server jar, the ZiggfreedCommon jar, and the
-MMOSkillTree jar are all referenced `compileOnly` and NEVER bundled (bundling would
-double-load engine-touching classes under two classloaders).
+`.\gradlew.bat build` works too. The Hytale server jar and the ZiggfreedCommon jar are both
+referenced `compileOnly` and NEVER bundled (bundling would double-load engine-touching classes
+under two classloaders).

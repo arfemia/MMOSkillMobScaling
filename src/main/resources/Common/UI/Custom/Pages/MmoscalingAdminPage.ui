@@ -192,10 +192,10 @@ $F.@ZigDecoratedFrame {
             LayoutMode: Top;
           }
 
-          // The MMO side, READ ONLY: the player power floor and ceiling this mod can read through the
-          // frozen MMOSkillTreeAPI (or one line saying it cannot), the viewing admin's own power, how the
+          // Player power, READ ONLY: the player power floor and ceiling this mod reads through
+          // ziggfreed-common (or one line saying it cannot), the viewing admin's own power, how the
           // form's Min/Max caps sit against them, and where those numbers are edited. Nothing here writes
-          // an MMO file. (MobScalingAdminPage.buildMmoPanel / refreshMmoCapLine.)
+          // another mod's file. (MobScalingAdminPage.buildMmoPanel / refreshMmoCapLine.)
           Label #MmoscalingMmoTitle {
             Text: "";
             Anchor: (Height: 22, Top: 10, Bottom: 4);

@@ -26,13 +26,14 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
+import com.ziggfreed.common.settings.PlayerSettings;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.PlayerPowerReads;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.config.VariantConfig;
@@ -113,9 +114,9 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, int index,
             @Nonnull MobScalingConfig cfg, long now) {
-        // Per-player /mmohud preference (an MMO-side flag; string-keyed so this mod needs no HudKey
-        // import). True when the MMO jar has no stored flag for the player, so it never hides on its own.
-        boolean playerWantsVisible = MMOSkillTreeAPI.isHudVisible(store, ref, "difficulty");
+        // Per-player Show of this card's ziggfreed-common surface (MMO Skill Tree's /mmohud and Settings switch
+        // write it). True for a player who never chose, so it never hides on its own.
+        boolean playerWantsVisible = playerWants(store, ref, ZoneDifficultyHud.SURFACE);
         ZoneDifficultyHud hud = ZoneDifficultyHud.get(player);
         if (hud == null) {
             // Not installed yet: if the player hid it, do NOT install just to hide it (no flash on a
@@ -148,7 +149,10 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         int chunkZ = ChunkUtil.chunkCoordinate(transform.getPosition().z);
         MobScalingSpawnHook.SpawnScaling scaling = MobScalingSpawnHook.resolveSpawnScaling(
                 world, chunkX, chunkZ, spawn);
-        double playerPower = MMOSkillTreeAPI.getPowerLevel(store, ref);
+        // ziggfreed-common's player power seam: MMO Skill Tree's Power Level where it fills it, else the library's
+        // reading of worn gear. 0 only when the seam is unreadable (a mis-installed library).
+        Double readPower = PlayerPowerReads.of(store, ref);
+        double playerPower = readPower != null ? readPower : 0.0;
         // scaling.regionPower() is the tracked (zone, sub-grid) aggregate - already folded into
         // scaling.difficulty(); shown only when it says something a lone player's own power does
         // not (someone is tracked there - the same source the group delta reads). The location line
@@ -164,9 +168,9 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
     private void tickInspectorHud(@Nonnull Player player, @Nonnull PlayerRef playerRef,
             @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull MobScalingConfig cfg, long now) {
-        // Per-player /mmohud preference (an MMO-side flag; string-keyed so this mod needs no HudKey
-        // import). True when the MMO jar has no stored flag for the player, so it never hides on its own.
-        boolean playerWantsVisible = MMOSkillTreeAPI.isHudVisible(store, ref, "npc");
+        // Per-player Show of this card's ziggfreed-common surface (MMO Skill Tree's /mmohud and Settings switch
+        // write it). True for a player who never chose, so it never hides on its own.
+        boolean playerWantsVisible = playerWants(store, ref, MobInspectorHud.SURFACE);
         MobInspectorHud hud = MobInspectorHud.get(player);
         if (hud == null) {
             if (!playerWantsVisible) {
@@ -259,6 +263,19 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         return new MobInspectorHud.TargetSnapshot(
                 targetKey(store, target), name, rarity, variant, affixes, difficulty, scaled,
                 health.get(), health.getMax(), modelRole);
+    }
+
+    /**
+     * Whether the player wants one card: the Show of its ziggfreed-common settings surface (their own choice, else
+     * the owner's default, else shown). A settings read that throws reads as shown, so a broken read never hides it.
+     */
+    private static boolean playerWants(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
+            @Nonnull String surface) {
+        try {
+            return PlayerSettings.shown(store, ref, surface);
+        } catch (Throwable t) {
+            return true;
+        }
     }
 
     /** A stable identity string for the skip-if-unchanged cache (UUID when present). */

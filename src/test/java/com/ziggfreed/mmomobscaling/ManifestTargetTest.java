@@ -2,6 +2,7 @@ package com.ziggfreed.mmomobscaling;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -36,11 +37,12 @@ import com.hypixel.hytale.common.semver.SemverRange;
  * to players allowed to see outdated mods). So the range admits the server jar on this classpath, the
  * one the build compiles against, and that line's release, and claims no later line.
  *
- * <p><b>The floors.</b> The server checks each {@code Dependencies} range against the installed
+ * <p><b>The floor.</b> The server checks each {@code Dependencies} range against the installed
  * dependency's own version and refuses to load the plugin at all on a miss. Under this mod's lockstep
  * rule ({@code gradle.properties}, R364) a floor is the oldest version this jar really needs: it must
  * admit the jar the build compiles against, and it moves up only when the code starts using newer API,
- * so a sibling's release alone never forces a release of this jar.
+ * so a sibling's release alone never forces a release of this jar. MMO Skill Tree is no dependency at
+ * all (R597), so the manifest names it nowhere.
  *
  * <p>Every manifest read here is a processed one on the test classpath (this module's after resource
  * templating, a dependency's inside its jar), so the test reads exactly what a server reads. It calls
@@ -52,7 +54,6 @@ class ManifestTargetTest {
     private static final String OWN_NAME = "MmoMobScaling";
     private static final String LIBRARY_NAME = "ZiggfreedCommon";
     private static final String LIBRARY_DEPENDENCY = "Ziggfreed:ZiggfreedCommon";
-    private static final String MMO_NAME = "MMOSkillTree";
     private static final String MMO_DEPENDENCY = "Ziggfreed:MMOSkillTree";
 
     @Test
@@ -86,13 +87,20 @@ class ManifestTargetTest {
                 "the floor must admit the library this jar compiles against: " + floor + " vs " + compiledAgainst);
     }
 
+    /**
+     * MMO Skill Tree is an optional presence (R597): the server must load this mod without it, so the manifest
+     * names it in neither block, and the build puts no MMO jar on this classpath.
+     */
     @Test
-    void theMmoSkillTreeFloorAdmitsTheMmoSkillTreeThisBuildCompilesAgainst() throws IOException {
-        String floor = dependencyRange(MMO_DEPENDENCY);
-        String compiledAgainst = versionOf(MMO_NAME);
-
-        assertTrue(Semver.fromString(compiledAgainst).satisfies(SemverRange.fromString(floor)),
-                "the floor must admit the MMO Skill Tree this jar compiles against: " + floor + " vs " + compiledAgainst);
+    void mmoSkillTreeIsNoDependency() throws IOException {
+        JsonObject own = manifestNamed(OWN_NAME);
+        for (String block : new String[] {"Dependencies", "OptionalDependencies"}) {
+            JsonObject dependencies = own.getAsJsonObject(block);
+            assertFalse(dependencies != null && dependencies.has(MMO_DEPENDENCY),
+                    MMO_DEPENDENCY + " must not be in the manifest's " + block + ": the mod runs without it");
+        }
+        assertNull(ManifestTargetTest.class.getClassLoader().getResource("com/ziggfreed/mmoskilltree/api/MMOSkillTreeAPI.class"),
+                "no MMO jar is on the classpath: the mod compiles and tests on ziggfreed-common alone");
     }
 
     /** This module's processed {@code ServerVersion}, parsed as the server parses it. */

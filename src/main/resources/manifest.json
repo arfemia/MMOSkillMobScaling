@@ -14,7 +14,6 @@
   "Main": "${entry_point}",
   "IncludesAssetPack": true,
   "Dependencies": {
-    "Ziggfreed:ZiggfreedCommon": ">=2.5.0",
-    "Ziggfreed:MMOSkillTree": ">=1.7.1"
+    "Ziggfreed:ZiggfreedCommon": ">=2.5.0"
   }
 }

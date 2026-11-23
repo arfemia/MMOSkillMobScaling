@@ -21,9 +21,9 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.scaling.AggregationMode;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
+import com.ziggfreed.mmomobscaling.config.PlayerPowerReads;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
 import com.ziggfreed.mmomobscaling.world.RegionKeys;
@@ -32,7 +32,9 @@ import com.ziggfreed.mmomobscaling.world.RegionKeys;
  * The player-move bookkeeping behind {@link RegionPowerTracker}: ticks every player, computes their
  * ZONE + PROXIMITY hybrid region key (the native worldgen zone plus the chunk sub-grid cell within
  * it, composed by {@link RegionKeys} exactly as every reader composes it), and ONLY on a region/world
- * cross (or first sight) reads the player's power off the frozen {@code MMOSkillTreeAPI} and moves
+ * cross (or first sight) reads the player's power off ziggfreed-common's player power seam
+ * ({@code PlayerPowerReads}: MMO Skill Tree's Power Level where that mod fills it, else the library's own
+ * reading of worn gear) and moves
  * their tracked presence (which re-folds the affected region buckets). The per-tick steady-state cost
  * per player is two map reads + a key compare (the zone read hits the per-chunk memo) - the plan's
  * "refreshed on player chunk-cross" cadence, never a per-spawn scan. Crossing a ZONE border re-keys
@@ -98,7 +100,10 @@ public final class MobScalingPresenceSystem extends EntityTickingSystem<EntitySt
             if (tracker.isCurrent(playerId, worldKey, regionKey)) {
                 return; // steady state: no cross, nothing to do
             }
-            double power = MMOSkillTreeAPI.getPowerLevel(store, archetypeChunk.getReferenceTo(index));
+            Double power = PlayerPowerReads.of(store, archetypeChunk.getReferenceTo(index));
+            if (power == null) {
+                return; // power unreadable: the region stays cold and spawns read the place alone
+            }
             tracker.updatePresence(playerId, worldKey, regionKey, power);
         } catch (Throwable t) {
             safeWarn("presence tick failed: " + t);

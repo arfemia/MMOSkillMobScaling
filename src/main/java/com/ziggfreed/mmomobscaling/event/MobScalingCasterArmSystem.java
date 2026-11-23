@@ -43,7 +43,7 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  * ({@code attackOverrideIndex}) to 0 on every call, so a re-arm from ANY entry's cadence would
  * constantly snap the cursor back to the first-armed chain, starving every other {@code NATIVE_CHAIN}
  * entry in a multi-chain roster. An {@code ABILITY} entry does nothing here beyond scheduling - the
- * actual {@code MMOSkillTreeAPI.castNpcAbility} call happens on the cadence system's tick, never at arm
+ * actual {@code NpcAbilityCasts.cast} call happens on the cadence system's tick, never at arm
  * time.
  *
  * <p>The common case (no roster targets this mob's role, or the roster's entries all fail the

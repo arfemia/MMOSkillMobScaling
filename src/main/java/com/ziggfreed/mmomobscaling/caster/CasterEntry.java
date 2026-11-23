@@ -19,7 +19,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  * <p>Exactly ONE of {@link #abilityId} / {@link #nativeChain} is authored ({@link #kind} reflects
  * which; {@link Kind#INVALID} when the entry authored neither or both - the arm system skips an
  * {@code INVALID} entry, {@code ScalingContentValidator} flags it as content). An {@code ABILITY}
- * entry is cast via the frozen {@code MMOSkillTreeAPI.castNpcAbility}; a {@code NATIVE_CHAIN} entry
+ * entry is cast through ziggfreed-common's {@code NpcAbilityCasts} (filled by the mod owning the ability); a
+ * {@code NATIVE_CHAIN} entry
  * is armed via the native {@code CombatSupport.addAttackOverride} (see {@code caster/NativeChainAttacker}).
  *
  * <p>An {@code ABILITY} entry may also carry an OPTIONAL {@link #windup}, played by

@@ -47,7 +47,7 @@ import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
  *   <li><b>Reference EXISTENCE</b> ({@code validate*References}, taking a {@link ReferenceResolvers}) -
  *       "does the id this content points at actually resolve to an asset". These stay pure by taking the
  *       live asset lookups as injected predicates (the same shape {@link #validateDifficultyCaps} uses for
- *       the MMO power bounds), and they run ONCE at boot, after every store has loaded, rather than per
+ *       the player power bounds), and they run ONCE at boot, after every store has loaded, rather than per
  *       fold: a per-fold check would race the load order of the stores it reads. The per-spawn warn-once
  *       sites (the effect-apply system, the loot-drop system, the family matcher) stay exactly as they
  *       are - this is an EARLIER, whole-catalog report of the same class of typo, not a replacement.</li>
@@ -265,7 +265,7 @@ public final class ScalingContentValidator {
 
     /**
      * The live-asset existence lookups the {@code validate*References} checks need, injected so this class
-     * stays pure and engine-decoupled (the same shape {@link #validateDifficultyCaps} uses for the MMO
+     * stays pure and engine-decoupled (the same shape {@link #validateDifficultyCaps} uses for the player
      * power bounds). Each predicate answers "does an asset with this id exist"; an implementation that
      * CANNOT answer (store not loaded yet, engine class absent in a unit JVM) MUST return {@code true}, so
      * an unknown degrades to silence instead of a false warning.
@@ -442,8 +442,9 @@ public final class ScalingContentValidator {
     /**
      * Existence-check a folded caster roster's {@code NativeChain} ids against the native
      * {@code RootInteraction} store. An {@code AbilityId} is deliberately NOT checked here: abilities live
-     * in the MMO jar's own catalog, which this mod reaches only through the frozen API, and that entry
-     * already degrades with its own one-shot warning when the ability is missing.
+     * in the catalog of the mod that casts them, which this mod reaches only through ziggfreed-common's
+     * creature cast seam, and that entry already degrades with its own one-shot warning when the ability is
+     * missing.
      */
     @Nonnull
     public static List<String> validateCasterRosterReferences(@Nonnull Collection<CasterRoster> rosters,
@@ -541,35 +542,38 @@ public final class ScalingContentValidator {
     }
 
     /**
-     * Cross-check this mod's difficulty caps against the MMO jar's PowerLevel clamp
-     * ({@code MMOSkillTreeAPI.getPowerLevelMin()/Max()}, passed in by the caller so this
+     * Cross-check this mod's difficulty caps against player power's scale (ziggfreed-common's player power
+     * seam, {@code PlayerPowerReads.min()/max()}: the filling mod's own clamp, MMO Skill Tree's Power Level
+     * one where it is installed, else the library's Player Power record; passed in by the caller so this
      * stays pure). The scaling fold subtracts {@code aggregatedPower - baseDifficulty}
      * directly, which is only calibrated when the two configs share one scale - a
      * retune of either side without the other silently miscalibrates every group
-     * delta. Null power bounds (MMO clamp unreadable) validate as clean.
+     * delta. Null power bounds (the scale unreadable) validate as clean.
      */
     @Nonnull
     public static List<String> validateDifficultyCaps(double difficultyMinCap, double difficultyMaxCap,
                                                       @Nullable Double powerMin, @Nullable Double powerMax) {
         List<String> findings = new ArrayList<>();
-        // Only a maximum BELOW the MMO's power ceiling is a miscalibration: region power can then exceed
+        // Only a maximum BELOW the power ceiling is a miscalibration: region power can then exceed
         // the cap the group delta is clamped to, so the strongest groups all land on the same difficulty
         // and the delta stops distinguishing them. A maximum ABOVE it is a deliberate, supported choice -
         // it is how an owner lets the zone floor and the distance escalation carry difficulty past
         // anything a player's power reaches, which is the only way for mobs to out-scale a fully-geared
         // group. Warning on that was telling owners to undo the thing they wanted.
         if (powerMax != null && difficultyMaxCap < powerMax - 1e-9) {
-            findings.add("Difficulty.MaxCap (" + difficultyMaxCap + ") is BELOW the MMO PowerLevel"
-                    + " Clamp.MaxPower (" + powerMax + "): player power can exceed the cap the group delta"
+            findings.add("Difficulty.MaxCap (" + difficultyMaxCap + ") is BELOW player power's ceiling ("
+                    + powerMax + "): player power can exceed the cap the group delta"
                     + " is clamped to, so every strong group resolves to the same difficulty and the delta"
-                    + " stops telling them apart. Raise mob-scaling.json Difficulty.MaxCap to at least the"
-                    + " MMO's power-level.json Clamp.MaxPower. Setting it HIGHER is fine and is how the zone"
-                    + " floor and distance escalation reach difficulties no player's power can");
+                    + " stops telling them apart. Raise mob-scaling.json Difficulty.MaxCap to at least that"
+                    + " ceiling (MMO Skill Tree's power-level.json Clamp.MaxPower where it is installed, else"
+                    + " the Highest power on /zigadmin's Player Power screen). Setting it HIGHER is fine and is"
+                    + " how the zone floor and distance escalation reach difficulties no player's power can");
         }
         if (powerMin != null && Math.abs(difficultyMinCap - powerMin) > 1e-9) {
-            findings.add("Difficulty.MinCap (" + difficultyMinCap + ") != MMO PowerLevel Clamp.MinPower ("
-                    + powerMin + "): the two scales should share a floor;"
-                    + " align mob-scaling.json Difficulty.MinCap with the MMO's power-level.json Clamp.MinPower");
+            findings.add("Difficulty.MinCap (" + difficultyMinCap + ") != player power's floor ("
+                    + powerMin + "): the two scales should share a floor; align mob-scaling.json"
+                    + " Difficulty.MinCap with it (MMO Skill Tree's power-level.json Clamp.MinPower where it is"
+                    + " installed, else the Lowest power on /zigadmin's Player Power screen)");
         }
         return findings;
     }

@@ -25,11 +25,11 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.ziggfreed.common.health.HealthUtil;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.MobScalingOwnerWriter;
+import com.ziggfreed.mmomobscaling.config.PlayerPowerReads;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.config.WorldSettingsConfig;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
@@ -374,8 +374,9 @@ public final class MobScalingCommand extends CommandBase {
                         MobScalingSpawnHook.resolveSpawnScaling(world, chunkX, chunkZ, spawn);
 
                 player.sendMessage(Message.translation("mmomobscaling.command.inspect.header"));
+                Double power = PlayerPowerReads.of(store, ref);
                 player.sendMessage(Message.translation("mmomobscaling.command.inspect.power")
-                        .param("power", MMOSkillTreeAPI.getPowerLevel(store, ref)));
+                        .param("power", power == null ? 0.0 : power));
                 player.sendMessage(Message.translation("mmomobscaling.command.inspect.world")
                         .param("floor", spawn.getDifficultyFloor())
                         .param("enabled", cfg.isEnabled() && spawn.isWorldScalingEnabled()));

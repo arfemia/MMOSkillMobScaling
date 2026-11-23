@@ -6,27 +6,27 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
+import com.ziggfreed.common.progress.runtime.KillQualifier;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 
 /**
- * The rarity attribution: a {@link MMOSkillTreeAPI.KillRarityProvider} the plugin registers so a
- * kill of a scaled mob carries this mod's rolled rarity id (the asset ids under
- * {@code Server/MmoMobScaling/Rarities}, e.g. {@code "Legendary"}) as the MMO's kill qualifier, which is what
- * a mob-drop command's {@code {tier}} placeholder resolves to. Reading the victim's own
- * {@link ScaledMobComponent} keeps the dependency pointing mod -&gt; MMO (the jar never imports the
- * component), the same shape as {@link MobScalingXpReward}. A plain floor mob (empty rarity id) and
- * an unscaled entity both answer null, the MMO's "unqualified kill".
+ * The rarity attribution: a ziggfreed-common {@link KillQualifier} the plugin contributes so a kill of a scaled mob
+ * carries this mod's rolled rarity id (the asset ids under {@code Server/MmoMobScaling/Rarities}, e.g.
+ * {@code "Legendary"}) as the kill moment's qualifier: what quest and achievement criteria naming a rarity match, and
+ * what a kill drop command's {@code {tier}} placeholder resolves to, on any server running the library. Reading the
+ * victim's own {@link ScaledMobComponent} keeps any other mod from importing this one, the same shape as
+ * {@link MobScalingXpReward}. A plain floor mob (empty rarity id) and an unscaled entity both answer null, an
+ * unqualified kill.
  *
- * <p>Consulted once per credited player kill on the owning world thread (the component read is one
- * chunk-local lookup); the MMO guards the call, so a throw here can never break its kill handling.
+ * <p>Asked once per credited player kill on the owning world thread (the component read is one chunk-local lookup);
+ * the library guards the call, so a throw here can never break its kill handling.
  */
-public final class MobScalingRarityAttribution implements MMOSkillTreeAPI.KillRarityProvider {
+public final class MobScalingRarityAttribution implements KillQualifier {
 
     @Override
     @Nullable
-    public String rarity(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victimRef) {
+    public String qualifierFor(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> victimRef) {
         return rarityOf(store.getComponent(victimRef, ScaledMobComponent.getComponentType()));
     }
 

@@ -20,8 +20,8 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.ziggfreed.common.stats.damage.NativeOutgoing;
+import com.ziggfreed.common.stats.damage.TypedDamageBonusSystem;
 import com.ziggfreed.common.util.EntityIdentifierUtil;
-import com.ziggfreed.mmoskilltree.event.CombatDamageEventSystem;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
@@ -39,15 +39,17 @@ import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
  * armor. The INCOMING side stays in Java because the engine's inbound lookup matches a hit's exact type, so a
  * native body would have to key every type there is, vanilla's and every pack's.
  *
- * <p><b>Ordering ({@link #getDependencies}).</b> Pinned BEFORE the MMO's {@code CombatDamageEventSystem}
- * (its crit and defense math, the other Filter-group modifier) and BEFORE the vanilla
+ * <p><b>Ordering ({@link #getDependencies}).</b> Pinned BEFORE ziggfreed-common's route step
+ * ({@code TypedDamageBonusSystem}), which every consumer fold adding to the hit's sum orders itself after (MMO
+ * Skill Tree's {@code CombatDamageEventSystem}, its talent and ability flats, among them), and BEFORE the vanilla
  * {@code ArmorDamageReduction}, so both the incoming multiply and the preview's observation see the hit as
  * the attacker rolled it. Armor then subtracts its flat amount after the multiply, so flat resistance weighs
  * more against a tough scaled mob than it would if the multiply came last (a raw 10 against flat 2 at a 0.45
  * scalar leaves 2.5 this way and 3.6 the other way); {@link #keepLandingHitsLanding} keeps the multiply itself
- * from scaling a landing hit to nothing. The MMO edge named {@code CombatXpEventSystem} until 1.1.0, when that
- * system moved to the Inspect group; it targets the Filter-group peer so a removed class never throws at
- * {@code SystemDependency.validate()}.
+ * from scaling a landing hit to nothing. The edge names the library's class, never another mod's, so the
+ * filter installs on a server without MMO Skill Tree; the multiply and the route step's percent compose either
+ * way ({@code NativeOutgoing.addToSum} rescales the hit's own amount and scales a later flat by the recorded
+ * toughness).
  *
  * <p><b>The {@code DamageSystems.ArmorDamageReduction} class literal is a DECISION, not an oversight
  * (maintainer ruling, 2026-09-28: it stays).</b> The engine marks the class deprecated ("Move to modifiers")
@@ -63,16 +65,18 @@ import com.ziggfreed.mmomobscaling.pages.RoleBaseHitResolver;
  *
  * <p><b>Behavioral affixes are NOT here.</b> Vampiric lifesteal and the Freezing on-hit slow live in
  * {@link MobScalingOnHitSystem} (the INSPECT group), where {@code damage.getAmount()} is the FINAL applied value
- * (post-armor, post-MMO-defense, post-rounding, dead-victim already cancelled). Whole body try-guarded; never
+ * (post-armor, post-every-fold, post-rounding, dead-victim already cancelled). Whole body try-guarded; never
  * initiates damage.
  */
 public final class MobScalingDamageFilter extends DamageEventSystem {
 
     @Nonnull
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-            // Filter-phase peer ordering: our scaling multiply lands, and is recorded (recordToughness), before the
-            // MMO's fold adds its talent and ability flats, so those flats meet the same toughness.
-            new SystemDependency<>(Order.BEFORE, CombatDamageEventSystem.class),
+            // Filter-phase peer ordering: our scaling multiply lands, and is recorded (recordToughness), before
+            // ziggfreed-common's route step, which every consumer fold that adds to the hit's sum (MMO Skill Tree's
+            // talent and ability flats) orders itself AFTER, so those flats meet the same toughness. Named on the
+            // library, never on another mod, so this filter installs whatever else the server runs.
+            new SystemDependency<>(Order.BEFORE, TypedDamageBonusSystem.class),
             // Scale the hit as rolled, before armor subtracts from it (see the class javadoc on what that costs).
             // A class literal used as an ORDERING TARGET only, never a call; the class javadoc records why it
             // stays and when it is revisited.
@@ -136,7 +140,7 @@ public final class MobScalingDamageFilter extends DamageEventSystem {
 
     /**
      * Hand the incoming multiply to ziggfreed-common's whole-hit scale ({@code NativeOutgoing.scaleHit}), so a flat
-     * the attacker's later steps add (the MMO's talent and ability flats, which join the hit after this filter) meets
+     * the attacker's later steps add (a skills mod's talent and ability flats, which join the hit after this filter) meets
      * the same toughness the hit met rather than landing whole. A ziggfreed-common older than the one that answers it
      * is a mis-install: the multiply above still stands, only those later flats land unscaled.
      */

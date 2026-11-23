@@ -16,12 +16,12 @@ import com.hypixel.hytale.protocol.AnimationSlot;
 import com.hypixel.hytale.server.core.entity.AnimationUtils;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import com.ziggfreed.common.cast.NpcAbilityCasts;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterFeatureState;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
-import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
 
 /**
  * The cadence caster: fires each armed {@link CasterKitComponent.Armed} entry when its due-timer
@@ -33,11 +33,12 @@ import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
  * entry does nothing else at all.
  *
  * <ul>
- *   <li>{@code ABILITY} entries call {@code MMOSkillTreeAPI.castNpcAbility(Store, Ref, String)} (the
- *       MMO's 1.6.0-cycle API). Any {@link LinkageError} (running against an older MMO jar that lacks
- *       the method) trips {@link CasterFeatureState#disableAbilityCasting} ONCE for the whole session -
- *       every subsequent tick then skips ability casts with a single {@code AtomicBoolean} read, so a
- *       mismatched jar pair degrades gracefully instead of spamming the log or crashing. An entry
+ *   <li>{@code ABILITY} entries call ziggfreed-common's {@code NpcAbilityCasts.cast(Store, Ref, String)},
+ *       which the mod owning the ability fills (MMO Skill Tree's gate-free NPC cast). No mod filling it,
+ *       or a {@link LinkageError} (a ziggfreed-common without the seam), trips
+ *       {@link CasterFeatureState#disableAbilityCasting} ONCE for the whole session - every subsequent
+ *       tick then skips ability casts with a single {@code AtomicBoolean} read, so a server with no
+ *       ability caster degrades gracefully instead of spamming the log or crashing. An entry
  *       carrying an authored {@link CasterEntry.Windup} plays that wind-up animation via the engine's own
  *       {@code AnimationUtils.playAnimation} (entity-generic, callable directly - no MMO jar involved)
  *       immediately BEFORE the cast, same tick, so a scaled mob visibly telegraphs the incoming hit.</li>
@@ -52,7 +53,7 @@ import com.ziggfreed.mmoskilltree.api.MMOSkillTreeAPI;
  */
 public final class MobScalingCasterTickSystem extends EntityTickingSystem<EntityStore> {
 
-    /** Warn-once-per-distinct-ability-id set for a cast the MMO API itself rejected (cooldown/cost/unknown id). */
+    /** Warn-once-per-distinct-ability-id set for a cast the casting mod itself refused (unknown id, no target). */
     private static final Set<String> WARNED_REJECTED = ConcurrentHashMap.newKeySet();
 
     /** Warn-once-per-distinct-unknown-slot-name set for an authored {@code Windup.Slot} the engine doesn't know. */
@@ -117,9 +118,11 @@ public final class MobScalingCasterTickSystem extends EntityTickingSystem<Entity
     }
 
     /**
-     * Cast one {@code ABILITY} entry through the frozen MMO API. A {@link LinkageError} (an older MMO
-     * jar without {@code castNpcAbility}) disables ability casting for the whole session via
-     * {@link CasterFeatureState}; any other throw is a per-attempt warning like every other system here.
+     * Cast one {@code ABILITY} entry through ziggfreed-common's creature cast seam ({@link NpcAbilityCasts}),
+     * which the mod owning the ability fills (MMO Skill Tree fills it with its gate-free NPC cast). No mod
+     * filling it, or a {@link LinkageError} (a ziggfreed-common without the seam), disables ability casting for
+     * the whole session via {@link CasterFeatureState}; any other throw is a per-attempt warning like every other
+     * system here.
      */
     private static void castAbility(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull CasterEntry entry) {
@@ -131,12 +134,14 @@ public final class MobScalingCasterTickSystem extends EntityTickingSystem<Entity
             return; // guaranteed by isEligible()/Kind.ABILITY, but guard anyway
         }
         try {
-            boolean cast = MMOSkillTreeAPI.castNpcAbility(store, ref, abilityId);
-            if (!cast && WARNED_REJECTED.add(abilityId)) {
+            NpcAbilityCasts.Outcome outcome = NpcAbilityCasts.cast(store, ref, abilityId);
+            if (outcome == NpcAbilityCasts.Outcome.NO_CASTER) {
+                CasterFeatureState.disableAbilityCasting("no mod on this server casts abilities for creatures");
+            } else if (outcome == NpcAbilityCasts.Outcome.REFUSED && WARNED_REJECTED.add(abilityId)) {
                 safeWarn("caster ability '" + abilityId
-                        + "' cast rejected by the MMO (unknown ability id, a passive/triggered ability "
-                        + "that cannot be NPC-cast, or a step with no valid target) - will keep retrying "
-                        + "on cadence; see the MMO log for the specific reason");
+                        + "' cast refused by the mod that casts it (unknown ability id, a passive/triggered ability "
+                        + "that cannot be cast by a creature, or a step with no valid target) - will keep retrying "
+                        + "on cadence; see that mod's log for the specific reason");
             }
         } catch (LinkageError e) {
             CasterFeatureState.disableAbilityCasting(String.valueOf(e));
@@ -147,7 +152,7 @@ public final class MobScalingCasterTickSystem extends EntityTickingSystem<Entity
 
     /**
      * Play one {@code ABILITY} entry's wind-up cue via the engine's own {@code AnimationUtils} - entity
-     * generic, no MMO jar involved. A blank {@link CasterEntry.Windup#animation()} (a {@code Windup}
+     * generic, no other mod involved. A blank {@link CasterEntry.Windup#animation()} (a {@code Windup}
      * group present with no {@code Animation} authored) is a no-op here; {@code ScalingContentValidator}
      * flags that as content. Best-effort: any throw is a per-attempt warning, matching every other cast
      * path in this system.

@@ -48,8 +48,9 @@ import com.ziggfreed.mmomobscaling.caster.CasterRoster;
  * <p>{@code Role} takes EXACTLY ONE of {@code Id} (an exact role id) or {@code Glob} (native
  * {@code IncludeRoles}-style wildcard, case-insensitive) - validator-enforced
  * ({@code ScalingContentValidator.validateCasterRosters}), not a decode failure; an
- * {@code Abilities[]} element takes EXACTLY ONE of {@code AbilityId} (an MMO ability id, cast via
- * {@code MMOSkillTreeAPI.castNpcAbility}) or {@code NativeChain} (a {@code RootInteraction} id, armed
+ * {@code Abilities[]} element takes EXACTLY ONE of {@code AbilityId} (an ability id of the mod that fills
+ * ziggfreed-common's {@code NpcAbilityCasts}, MMO Skill Tree's, cast through that seam) or {@code NativeChain}
+ * (a {@code RootInteraction} id, armed
  * via native {@code CombatSupport.addAttackOverride}) - same validator-enforced XOR, both directions
  * degrade to a harmless no-op entry rather than poisoning the whole roster.
  *
