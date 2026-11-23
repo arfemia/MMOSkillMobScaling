@@ -34,6 +34,9 @@ import com.ziggfreed.common.ui.ZigRichButton;
 import com.ziggfreed.common.ui.form.FieldSpec;
 import com.ziggfreed.common.ui.form.FormResult;
 import com.ziggfreed.common.ui.form.SettingsForm;
+import com.ziggfreed.common.ui.kit.Picture;
+import com.ziggfreed.common.ui.kit.ViewTabPainter;
+import com.ziggfreed.common.ui.kit.ZigTokens;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.mmomobscaling.asset.DifficultyMappingAsset;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Clamps;
@@ -152,10 +155,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String PREVIEW_ROLE_NAME = "Skeleton";
     // The per-maintainer style for an editor hint's "Inherits: X" segment: white + bold, label and
     // substituted value alike (Message#color/#bold mutate + return the SAME instance, so both the
-    // wrapping frame message and the nested value param need the call - see inheritsSegment).
-    private static final String INHERITS_COLOR = "#ffffff";
-    // The colour of a preview row's "rail holding" marker (the zone card's HARD amber, so it reads as a warning).
-    private static final String RAIL_COLOR = "#ffb74d";
+    // wrapping frame message and the nested value param need the call - see inheritsSegment). The
+    // kit's brightest ink.
+    private static final String INHERITS_COLOR = ZigTokens.INK_BRIGHT;
+    // The colour of a preview row's "rail holding" marker: the kit's amber tone, so it reads as a warning.
+    private static final String RAIL_COLOR = ZigTokens.TONE_AVAILABLE_TEXT;
 
     // World-form field ids referenced outside the spec table (id derivation, self-Parent check).
     private static final String F_WORLD_ID = "worldId";
@@ -213,17 +217,19 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final List<FieldSpec> WORLD_SPECS = buildWorldSpecs();
     private static final List<FieldSpec> FLOOR_SPECS = buildFloorSpecs();
 
-    /** One tab: its event id, its rich button, the section it shows, its label key. */
-    private record Tab(@Nonnull String id, @Nonnull String buttonSel, @Nonnull String sectionSel,
-            @Nonnull String labelKey) {
+    /** One tab: its event id, the section it shows, its label key. */
+    private record Tab(@Nonnull String id, @Nonnull String sectionSel, @Nonnull String labelKey) {
     }
 
+    // The tab strip's host: ziggfreed-common's ViewTabPainter appends one view tab per entry below, in order.
+    private static final String TAB_BAR = "#MmoscalingTabBar";
+
     private static final List<Tab> TABS = List.of(
-            new Tab("global", "#MmoscalingTabGlobal", "#MmoscalingSectionGlobal", "mmomobscaling.ui.tab.global"),
-            new Tab("zonehud", "#MmoscalingTabZoneHud", "#MmoscalingSectionZoneHud", "mmomobscaling.ui.tab.zone_hud"),
-            new Tab("inspector", "#MmoscalingTabInspector", "#MmoscalingSectionInspector", "mmomobscaling.ui.tab.inspector"),
-            new Tab("worlds", "#MmoscalingTabWorlds", "#MmoscalingSectionWorlds", "mmomobscaling.ui.tab.worlds"),
-            new Tab("floors", "#MmoscalingTabFloors", "#MmoscalingSectionFloors", "mmomobscaling.ui.tab.floors"));
+            new Tab("global", "#MmoscalingSectionGlobal", "mmomobscaling.ui.tab.global"),
+            new Tab("zonehud", "#MmoscalingSectionZoneHud", "mmomobscaling.ui.tab.zone_hud"),
+            new Tab("inspector", "#MmoscalingSectionInspector", "mmomobscaling.ui.tab.inspector"),
+            new Tab("worlds", "#MmoscalingSectionWorlds", "mmomobscaling.ui.tab.worlds"),
+            new Tab("floors", "#MmoscalingSectionFloors", "mmomobscaling.ui.tab.floors"));
 
     /** The floor list's order: zones before biomes, a wildcard after the named targets, then by name. */
     private static final Comparator<DifficultyMapping> FLOOR_ORDER = Comparator
@@ -315,20 +321,18 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         SettingsUiUtil.setStatus(cmd, STATUS_SEL, statusMessage, statusIsError);
     }
 
-    /** Build-time: label + bind every tab button, then paint the active state. */
+    /**
+     * The tab strip and the section it shows, at build and on every switch: the strip is cleared and every tab
+     * appended again as ziggfreed-common's view tab (the game's header tab, the chosen one in its gold frame),
+     * each bound to its switch, then exactly the active tab's section is shown. A switch's update carries the
+     * new tabs' bindings, as a list rebuild here does.
+     */
     private void buildTabs(@Nonnull UICommandBuilder cmd, @Nonnull UIEventBuilder events) {
-        for (Tab tab : TABS) {
-            label(cmd, tab.buttonSel(), tab.labelKey());
-            SettingsUiUtil.bindButton(events, tab.buttonSel(), "tab", "Tab", tab.id());
-        }
-        applyTabState(cmd);
-    }
-
-    /** Tint the active tab and show exactly its section (build and every tab switch share this). */
-    private void applyTabState(@Nonnull UICommandBuilder cmd) {
+        cmd.clear(TAB_BAR);
         for (Tab tab : TABS) {
             boolean active = activeTab.equals(tab.id());
-            SettingsUiUtil.setTabActive(cmd, tab.buttonSel(), active);
+            ViewTabPainter.append(cmd, events, TAB_BAR, tr(tab.labelKey()), Picture.NONE, active,
+                    com.hypixel.hytale.server.core.ui.builder.EventData.of("Action", "tab").append("Tab", tab.id()));
             cmd.set(tab.sectionSel() + ".Visible", active);
         }
     }
@@ -803,14 +807,20 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         sendUpdate(cmd, null, false);
     }
 
+    /**
+     * A tab click: repaint the strip on the chosen tab and show its section. A view tab's binding waits for this
+     * answer, so even a click naming no known tab is answered (the strip repainted on the tab already showing).
+     */
     private void handleTab(@Nullable String tab) {
-        if (tab == null || tab.isBlank()) {
-            return;
+        for (Tab each : TABS) {
+            if (each.id().equals(tab)) {
+                this.activeTab = tab;
+            }
         }
-        this.activeTab = tab;
         UICommandBuilder cmd = new UICommandBuilder();
-        applyTabState(cmd);
-        sendUpdate(cmd, null, false);
+        UIEventBuilder events = new UIEventBuilder();
+        buildTabs(cmd, events);
+        sendUpdate(cmd, events, false);
     }
 
     /** An instant-persist toggle click, driven by {@link #toggleDefs}. */
@@ -1907,10 +1917,6 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
 
     private void rowLabel(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull String key) {
         cmd.set(sel + ".TextSpans", tr(key));
-    }
-
-    private void label(@Nonnull UICommandBuilder cmd, @Nonnull String sel, @Nonnull String key) {
-        ZigRichButton.text(cmd, sel, tr(key));
     }
 
     /** DATA summary line for a world row (Match/Parent/knobs are literal values, not display text). */

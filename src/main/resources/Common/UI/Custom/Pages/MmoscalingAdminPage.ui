@@ -1,7 +1,9 @@
 $C = "../Common.ui";
 $F = "../Common/ZigFrames.ui";
 $Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
+$ZM = "../Common/ZigForm.ui";
 
 // MMO Mob Scaling admin config page (com.ziggfreed.mmomobscaling.pages.MobScalingAdminPage).
 // SPEC-DRIVEN: every knob row (Global / Zone HUD / Inspector HUD / Worlds / Floors) is appended at
@@ -14,18 +16,16 @@ $ZT = "../Common/ZigType.ui";
 // (never .Text) as client-resolved Messages. EVERY labelled button is a RICH ZigRichButton (a Button
 // + inner #Label, label set via ZigRichButton.text) - NEVER a TextButton.Text sink. Smoke-test in-game
 // (.ui is not gradle-validated).
+//
+// THE LOOK is ziggfreed-common's: the frame is its band (@ZigDecoratedFrame), the tabs its view tabs (the
+// game's header tabs, appended by its ViewTabPainter), the hand-built rows and headers the settings form's
+// own styles (Common/ZigForm.ui), so they match the rows the form engine appends, and every other colour
+// and size a ziggfreed-common token, text style or type step. This document spells no colour.
 
 // ---- local styles / templates ----
-@DropStyle = DropdownBoxStyle(
-  ...$C.@DefaultDropdownBoxStyle,
-  LabelStyle: (...$C.@DefaultDropdownBoxLabelStyle, TextColor: #ffffff, RenderUppercase: false)
-);
-@HeaderStyle = (FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true, VerticalAlignment: Center);
-@RowLabelStyle = (FontSize: $ZT.@ZigFontBody, TextColor: #cdd8e6, VerticalAlignment: Center);
-// The preview column's section titles and wrapping notes (the skeleton preview, the ladder, the MMO side).
-@PreviewTitleStyle = (FontSize: $ZT.@ZigFontEmphasis, TextColor: #ffaa4a, RenderBold: true);
-@PreviewNoteStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, Wrap: true);
-@PreviewLineStyle = (FontSize: $ZT.@ZigFontCaption, TextColor: #cdd8e6, Wrap: true);
+// The preview column's wrapping notes and its figure lines (the skeleton preview, the ladder, the MMO side).
+@PreviewNoteStyle = LabelStyle(...$ZM.@ZigFormNoteStyle, Wrap: true);
+@PreviewLineStyle = LabelStyle(...$ZM.@ZigFormNoteStyle, TextColor: $ZK.@ZigInkStrong, Wrap: true);
 
 // A label + control row (used only by the hand-built preset row and the difficulty probe - every other
 // row comes from the shared ziggfreed-common ui/form row templates).
@@ -35,8 +35,8 @@ $ZT = "../Common/ZigType.ui";
 };
 
 // The ONE rich button (Button backgrounds + click sounds + a centered inner #Label pushed via
-// .TextSpans). Used for tabs and every save / new / clear button - ZigRichButton.text sets the label,
-// SettingsUiUtil.setToggle / setTabActive drive the state. @Style overridable per instance.
+// .TextSpans). Used for every save / new / clear button - ZigRichButton.text sets the label. Its
+// words are the kit's button label. @Style overridable per instance.
 @RichBtn = Button {
   @Style = $Z.@ZigRichRowBtnStyle;
   Style: @Style;
@@ -44,16 +44,16 @@ $ZT = "../Common/ZigType.ui";
   Label #Label {
     FlexWeight: 1;
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+    Style: $ZX.@ZigButtonLabelStyle;
   }
 };
 
 // A section header line (used only for the static world / floor editor headers - every per-knob header
-// comes from the shared ZigFormHeaderRow.ui template).
+// comes from the shared ZigFormHeaderRow.ui template, whose size and style this repeats).
 @Header = Label {
   Text: "";
   Anchor: (Height: 24, Top: 6, Bottom: 4);
-  Style: @HeaderStyle;
+  Style: $ZM.@ZigFormHeaderStyle;
 };
 
 // A scrolling list container (the four spec-driven forms, the two CRUD lists).
@@ -69,31 +69,38 @@ $ZT = "../Common/ZigType.ui";
   Text: "";
   Visible: false;
   Anchor: (Height: 20, Top: 4, Bottom: 4);
-  Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8696a8, HorizontalAlignment: Center);
+  Style: (...$ZX.@ZigCaptionStyle, HorizontalAlignment: Center);
+};
+
+// A thin vertical separator between two panels: the kit's rule.
+@Separator = Group {
+  Anchor: (Width: 1, Left: 8, Right: 8);
+  Background: (Color: $ZK.@ZigDivider);
 };
 
 $C.@PageOverlay {}
 
+// 1000 wide so the five view tabs (190 each with their gap) fit the column inside the frame's padding.
 $F.@ZigDecoratedFrame {
   @CloseButton = true;
-  Anchor: (Width: 960, Height: 680);
+  Anchor: (Width: 1000, Height: 680);
 
   #Content {
     Label #MmoscalingTitle {
       Text: "";
       Anchor: (Height: 28, Bottom: 6);
-      Style: (FontSize: $ZT.@ZigFontTitle, TextColor: #ffd97a, RenderBold: true);
+      Style: $F.@ZigTitleLabelStyle;
     }
 
-    // Tab bar (rich buttons; active tab tinted from Java via SettingsUiUtil.setTabActive).
+    // The tab bar: one view tab per section, appended here and repainted on every switch by
+    // ziggfreed-common's ViewTabPainter (Pages/ZigViewTab.ui, 40 high), then the kit's rule under it.
     Group #MmoscalingTabBar {
       LayoutMode: Left;
-      Anchor: (Height: 32, Bottom: 8);
-      @RichBtn #MmoscalingTabGlobal    { FlexWeight: 1; Anchor: (Height: 32); }
-      @RichBtn #MmoscalingTabZoneHud   { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
-      @RichBtn #MmoscalingTabInspector { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
-      @RichBtn #MmoscalingTabWorlds    { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
-      @RichBtn #MmoscalingTabFloors    { FlexWeight: 1; Anchor: (Height: 32, Left: 5); }
+      Anchor: (Height: 40);
+    }
+    Group {
+      Anchor: (Height: 1, Bottom: 8);
+      Background: (Color: $ZK.@ZigDivider);
     }
 
     // The tab body: exactly one section is Visible at a time.
@@ -112,8 +119,8 @@ $F.@ZigDecoratedFrame {
           LayoutMode: Top;
 
           @Row {
-            Label #MmoscalingPresetLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
-            $C.@DropdownBox #MmoscalingPresetDropdown { Anchor: (Width: 200, Height: 30); Style: @DropStyle; }
+            Label #MmoscalingPresetLabel { FlexWeight: 1; Text: ""; Style: $ZM.@ZigFormLabelStyle; }
+            $C.@DropdownBox #MmoscalingPresetDropdown { Anchor: (Width: 200, Height: 30); Style: $ZM.@ZigFormDropdownStyle; }
           }
 
           @ScrollList #MmoscalingGlobalForm {}
@@ -122,7 +129,7 @@ $F.@ZigDecoratedFrame {
         }
 
         // Thin vertical separator (matches the Worlds tab's list/editor divider).
-        Group { Anchor: (Width: 1, Left: 8, Right: 8); Background: #1e2a36; }
+        @Separator {}
 
         // ---- RIGHT: the preview column, SCROLLING (it outgrows the frame once the ladder and the MMO
         // panel are on it). A plain Skeleton through the difficulty stat curve on the left, exactly as
@@ -139,7 +146,7 @@ $F.@ZigDecoratedFrame {
           Label #MmoscalingPreviewTitle {
             Text: "";
             Anchor: (Height: 22, Bottom: 4);
-            Style: @PreviewTitleStyle;
+            Style: $ZM.@ZigFormHeaderStyle;
           }
           Label #MmoscalingPreviewNote {
             Text: "";
@@ -159,7 +166,7 @@ $F.@ZigDecoratedFrame {
           // ladder below follows the same number.
           @Row {
             Anchor: (Height: 30, Top: 6, Bottom: 0);
-            Label #MmoscalingPreviewCustomLabel { FlexWeight: 1; Text: ""; Style: @RowLabelStyle; }
+            Label #MmoscalingPreviewCustomLabel { FlexWeight: 1; Text: ""; Style: $ZM.@ZigFormLabelStyle; }
             $C.@TextField #MmoscalingPreviewCustomField { Anchor: (Width: 80, Height: 28); Padding: (Horizontal: 8); }
           }
           Group #MmoscalingProbeList {
@@ -174,7 +181,7 @@ $F.@ZigDecoratedFrame {
           Label #MmoscalingLadderTitle {
             Text: "";
             Anchor: (Height: 22, Top: 10, Bottom: 4);
-            Style: @PreviewTitleStyle;
+            Style: $ZM.@ZigFormHeaderStyle;
           }
           Label #MmoscalingLadderNote {
             Text: "";
@@ -192,7 +199,7 @@ $F.@ZigDecoratedFrame {
           Label #MmoscalingMmoTitle {
             Text: "";
             Anchor: (Height: 22, Top: 10, Bottom: 4);
-            Style: @PreviewTitleStyle;
+            Style: $ZM.@ZigFormHeaderStyle;
           }
           Label #MmoscalingMmoPower {
             Text: "";
@@ -261,7 +268,7 @@ $F.@ZigDecoratedFrame {
         }
 
         // Thin vertical separator between the list and the editor.
-        Group { Anchor: (Width: 1, Left: 8, Right: 8); Background: #1e2a36; }
+        @Separator {}
 
         // ---- RIGHT: add / edit editor ----
         // Blank fields / the Inherit dropdown option inherit the Parent chain then the global fold.
@@ -304,7 +311,7 @@ $F.@ZigDecoratedFrame {
         }
 
         // Thin vertical separator between the list and the editor.
-        Group { Anchor: (Width: 1, Left: 8, Right: 8); Background: #1e2a36; }
+        @Separator {}
 
         // ---- RIGHT: add / edit editor ----
         Group {
@@ -329,7 +336,7 @@ $F.@ZigDecoratedFrame {
       Text: "";
       Visible: false;
       Anchor: (Height: 20, Top: 6);
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #4aff7f, HorizontalAlignment: Center);
+      Style: (...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigToneDoneText, HorizontalAlignment: Center);
     }
   }
 }

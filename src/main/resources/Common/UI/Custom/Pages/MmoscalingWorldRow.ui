@@ -1,5 +1,6 @@
 $Z = "../Common/ZigButtons.ui";
-$ZT = "../Common/ZigType.ui";
+$ZK = "../Common/ZigTokens.ui";
+$ZX = "../Common/ZigText.ui";
 
 // ── mmo-mob-scaling WORLD LIST ROW (wraps long ids/match patterns) ────────────
 // Appended into #MmoscalingWorldList: cmd.append("#MmoscalingWorldList", "Pages/MmoscalingWorldRow.ui");
@@ -14,12 +15,15 @@ $ZT = "../Common/ZigType.ui";
 // child ids as ZigListRow, so MobScalingAdminPage.buildWorldList (Java) is unchanged beyond the template
 // path: #Title/#Sub text, #Badge/#RemoveBtn Visible, the rich button labels (ZigRichButton.text on
 // #EditBtn/#RemoveBtn, which keep $Z.@ZigRichRowBtnStyle for click sounds), and the click bindings.
+//
+// THE LOOK is ziggfreed-common's: the row sits on the kit's list-row surface, its words are the kit's text
+// styles in its inks, the badge reads in the done tone and Remove in the danger tone. It spells no colour.
 
 Group #MmoscalingWorldRow {
   LayoutMode: Left;
   Anchor: (Height: 64, Bottom: 4);
   Padding: (Horizontal: 6, Vertical: 3);
-  Background: (TexturePath: "../Common/Buttons/Secondary.png", Border: 12, Color: #2a3442);
+  Background: (Color: $ZK.@ZigSurfaceRow);
 
   Group #TextCol {
     FlexWeight: 1;
@@ -27,11 +31,11 @@ Group #MmoscalingWorldRow {
     Padding: (Left: 8);
     Label #Title {
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontBody, TextColor: #e6eef7, Wrap: true);
+      Style: (...$ZX.@ZigBodyStyle, TextColor: $ZK.@ZigInkStrong, VerticalAlignment: Start, Wrap: true);
     }
     Label #Sub {
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #93a4b8, Wrap: true);
+      Style: (...$ZX.@ZigCaptionStyle, VerticalAlignment: Start, Wrap: true);
     }
   }
 
@@ -39,7 +43,7 @@ Group #MmoscalingWorldRow {
     Visible: false;
     Anchor: (Width: 54, Height: 58);
     Text: "";
-    Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #8fd0a6, VerticalAlignment: Center, HorizontalAlignment: Center, RenderBold: true);
+    Style: (...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigToneDoneText, HorizontalAlignment: Center, RenderBold: true);
   }
 
   Button #EditBtn {
@@ -48,7 +52,7 @@ Group #MmoscalingWorldRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #e6eef7, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigInkStrong, HorizontalAlignment: Center);
     }
   }
 
@@ -59,7 +63,7 @@ Group #MmoscalingWorldRow {
     Label #Label {
       FlexWeight: 1;
       Text: "";
-      Style: (FontSize: $ZT.@ZigFontCaption, TextColor: #ff9a9a, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Style: (...$ZX.@ZigCaptionStyle, TextColor: $ZK.@ZigToneDangerText, HorizontalAlignment: Center);
     }
   }
 }
