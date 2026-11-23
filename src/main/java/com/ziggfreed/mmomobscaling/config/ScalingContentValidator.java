@@ -24,6 +24,7 @@ import com.ziggfreed.common.world.WorldNameMatcher.Pattern;
 import com.ziggfreed.common.world.WhereValidator;
 import com.ziggfreed.common.world.WorldSelector;
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.affix.AffixCry;
 import com.ziggfreed.mmomobscaling.caster.CasterCadence;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
@@ -204,9 +205,22 @@ public final class ScalingContentValidator {
                     && a.hpDelta() == 0 && a.outDamageDelta() == 0 && a.inDamageDelta() == 0 && a.lootBonus() == 0) {
                 findings.add(at + ": STAT affix with no EffectId and no fold deltas is a no-op");
             }
-            // A behavioral/hybrid affix without a BehaviorId never dispatches its on-hit policy.
-            if ((behavioral || hybrid) && isBlank(a.behaviorId())) {
+            // A behavioral/hybrid affix without a BehaviorId never dispatches its on-hit policy, unless its
+            // behaviour is its own authored war cry.
+            if ((behavioral || hybrid) && isBlank(a.behaviorId()) && a.cry() == null) {
                 findings.add(at + ": " + a.kind() + " affix needs a BehaviorId to dispatch");
+            }
+            AffixCry cry = a.cry();
+            if (cry != null) {
+                if (cry.buffEffectId() == null) {
+                    findings.add(at + ": Cry names no BuffEffectId, so the cry rallies no one");
+                }
+                if (cry.buffSeconds() <= 0) {
+                    findings.add(at + ": Cry.BuffSeconds must be above 0, or the buff ends as it lands");
+                }
+                if (cry.repeatMaxSeconds() <= 0) {
+                    findings.add(at + ": Cry.RepeatMaxSeconds must be above 0, or the mob cries again at once");
+                }
             }
             // The declared resistance mirror is a fraction the effective-HP rail divides by; 1.0 or more
             // would be outright immunity, which no rail can bound, and a negative one is nonsense.
@@ -432,9 +446,17 @@ public final class ScalingContentValidator {
             @Nonnull ReferenceResolvers resolvers) {
         List<String> findings = new ArrayList<>();
         for (Affix a : affixes) {
-            referenceFinding(findings, "affix '" + a.id() + "'", "EffectId", a.effectId(),
+            String at = "affix '" + a.id() + "'";
+            referenceFinding(findings, at, "EffectId", a.effectId(),
                     resolvers.effectExists(), "EntityEffect asset",
                     "the affix rolls onto mobs but applies nothing");
+            AffixCry cry = a.cry();
+            if (cry != null) {
+                referenceFinding(findings, at, "Cry.BuffEffectId", cry.buffEffectId(), resolvers.effectExists(),
+                        "EntityEffect asset", "the mob cries but rallies no one");
+                referenceFinding(findings, at, "Cry.CastEffectId", cry.castEffectId(), resolvers.effectExists(),
+                        "EntityEffect asset", "the cry still lands, with no telegraph on the mob");
+            }
         }
         return findings;
     }

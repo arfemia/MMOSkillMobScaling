@@ -57,5 +57,16 @@
     "OffsetY": 216,
     "RangeBlocks": 12.0,
     "PortraitEnabled": true
+  },
+  "Party": {
+    "$Comment": "A mob counts the party in front of it the way the game's goblin dungeon does (Component_Instruction_Dungeon_Goblin_Scale_Health): the first time it turns on a player, every player standing within Radius blocks of it is counted once, and its health is multiplied by the rung for that party, TwoPlayers for exactly two, ThreePlayers for exactly three, FourPlayers for four or more (the dungeon's own 1.55, 2.1 and 2.65), and refilled to the new maximum. One player, or none, changes nothing. A boss or an elite (CommonLib's boss rule: its Zig_Boss_Or_Elite group or a ZigRank tag on one of its groups) is additive per player instead, as the game's Gobliterator is: each counted player past the first adds BossPerPlayer of its health (the Gobliterator's 1000 on 5000 is 0.2), counting at most BossMostPlayers players. Health comes from the place and the party, never from what the players carry. SkipGroups names NPC groups that already grow with the party by themselves, here the game's dungeon goblins, so a party never pays twice. A world file may set any of these for its own worlds; the Shifting Deep's world files switch it off, since a CommonLib dungeon already brings more foes for a bigger party.",
+    "Enabled": true,
+    "Radius": 40.0,
+    "TwoPlayers": 1.55,
+    "ThreePlayers": 2.1,
+    "FourPlayers": 2.65,
+    "BossPerPlayer": 0.2,
+    "BossMostPlayers": 4,
+    "SkipGroups": ["Dungeon_Goblin_Pack"]
   }
 }

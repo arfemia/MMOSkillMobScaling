@@ -23,9 +23,10 @@ import com.ziggfreed.common.asset.AssetStoreRegistrar;
 import com.ziggfreed.common.loot.LootableConfig;
 import com.ziggfreed.common.loot.reward.RewardKinds;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
-import com.ziggfreed.mmomobscaling.affix.Affix;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
+import com.ziggfreed.mmomobscaling.config.AffixAssetConfig;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
+import com.ziggfreed.mmomobscaling.config.AffixOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.CasterOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
@@ -293,20 +294,25 @@ public final class MobScalingAssetRegistrar {
         warnFindings(ScalingContentValidator.validateVariants(layer.values()));
     }
 
-    /** Fold the loaded affix assets into {@link AffixConfig}'s pack layer (same all-entries fold as rarities). */
+    /**
+     * Fold the loaded affix assets (same all-entries fold as rarities) as the pack layer of
+     * {@link AffixAssetConfig}, read the server owner's {@code mods/MmoMobScaling/affixes.json} over them
+     * ({@link AffixOwnerLayer}: a partial entry inherits the shipped affix's leaves, so it can only resolve once these
+     * have landed), and rebuild the {@link AffixConfig} records and the roster from the result; the value checks run
+     * over that folded set, owner entries included.
+     */
     static void onAffixesLoaded(
             LoadedAssetsEvent<String, AffixAsset, DefaultAssetMap<String, AffixAsset>> event) {
-        Map<String, Affix> layer = new LinkedHashMap<>();
+        Map<String, AffixAsset> layer = new LinkedHashMap<>();
         for (Map.Entry<String, AffixAsset> entry : event.getAssetMap().getAssetMap().entrySet()) {
             AffixAsset asset = entry.getValue();
             if (asset != null) {
-                layer.put(entry.getKey(), asset.toAffix());
+                layer.put(entry.getKey(), asset);
             }
         }
-        AffixConfig.getInstance().mergePackLayer(layer);
-        Rosters.rebuild();
+        AffixOwnerLayer.mergePackLayer(layer);
         logApplied("affixes", layer.size());
-        warnFindings(ScalingContentValidator.validateAffixes(layer.values()));
+        warnFindings(ScalingContentValidator.validateAffixes(AffixConfig.getInstance().all().values()));
     }
 
     /**

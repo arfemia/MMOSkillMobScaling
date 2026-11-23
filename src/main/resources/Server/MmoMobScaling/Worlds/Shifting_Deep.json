@@ -1,7 +1,7 @@
 {
   "Name": "Shifting_Deep",
   "Payload": {
-    "$Comment": "Keeps every mob Mob Scaling scales in the Shifting Deep's tier 1 (MMO Skill Tree's dungeon Shifting_Deep) between level 10 and level 20. Each copy of a CommonLib dungeon is a world named after the dungeon's file, a dash and the copy's number (shifting_deep-1, shifting_deep-2 and so on), so this pattern reaches every copy of tier 1 and none of tier 2's, tier 3's or the daily's, whose names carry more after Deep before the dash. Floor is the level a mob starts at: a dungeon copy is a void world with no zone or biome, so this world floor is the one that applies there. A nearby group's power raises the level from there, and MinCap and MaxCap clamp the result, so 20 is as high as it goes and 10 as low. DistanceEscalation is off so an area's distance from the copy's spawn point adds nothing, and PlayerScalingStartRingBlocks is 0 so a group's power counts from the first block. To move the band, set Floor and MinCap to the new bottom and MaxCap to the new top; add \"Enabled\": false to switch scaling off in this tier entirely.",
+    "$Comment": "Keeps every mob Mob Scaling scales in the Shifting Deep's tier 1 (MMO Skill Tree's dungeon Shifting_Deep) between level 10 and level 20. Each copy of a CommonLib dungeon is a world named after the dungeon's file, a dash and the copy's number (shifting_deep-1, shifting_deep-2 and so on), so this pattern reaches every copy of tier 1 and none of tier 2's, tier 3's or the daily's, whose names carry more after Deep before the dash. Floor is the level a mob starts at: a dungeon copy is a void world with no zone or biome, so this world floor is the one that applies there. A nearby group's power raises the level from there, and MinCap and MaxCap clamp the result, so 20 is as high as it goes and 10 as low. DistanceEscalation is off so an area's distance from the copy's spawn point adds nothing, and PlayerScalingStartRingBlocks is 0 so a group's power counts from the first block. To move the band, set Floor and MinCap to the new bottom and MaxCap to the new top; add \"Enabled\": false to switch scaling off in this tier entirely. Party is off: the dungeon already brings more foes for a bigger party, so its mobs do not also grow tougher with the players near them.",
     "Where": {
       "Match": ["Shifting_Deep-*"]
     },
@@ -11,6 +11,7 @@
       "MaxCap": 20.0,
       "DistanceEscalation": { "Enabled": false }
     },
-    "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 }
+    "OpenWorld": { "PlayerScalingStartRingBlocks": 0.0 },
+    "Party": { "Enabled": false }
   }
 }

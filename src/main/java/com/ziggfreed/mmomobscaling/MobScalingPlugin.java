@@ -19,8 +19,10 @@ import com.ziggfreed.common.encounter.event.EncounterResetEvent;
 import com.ziggfreed.common.encounter.seam.EncounterSeams;
 import com.ziggfreed.common.progress.runtime.ProgressionRuntime;
 import com.ziggfreed.mmomobscaling.component.CasterKitComponent;
+import com.ziggfreed.mmomobscaling.component.EngageWatchComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
+import com.ziggfreed.mmomobscaling.config.AffixOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.CasterOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.DifficultyOwnerLayer;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
@@ -31,6 +33,7 @@ import com.ziggfreed.mmomobscaling.event.MobScalingCasterArmSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingCasterTickSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingDamageFilter;
 import com.ziggfreed.mmomobscaling.event.MobScalingEffectApplySystem;
+import com.ziggfreed.mmomobscaling.event.MobScalingEngageSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingHudSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingLootDropSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingOnHitSystem;
@@ -92,6 +95,9 @@ public class MobScalingPlugin extends JavaPlugin {
     /** The registered transient {@code PendingRollComponent} type (set in {@link #setup()} when enabled). */
     private ComponentType<EntityStore, PendingRollComponent> pendingRollComponentType;
 
+    /** The registered transient {@code EngageWatchComponent} type (set in {@link #setup()} when enabled). */
+    private ComponentType<EntityStore, EngageWatchComponent> engageWatchComponentType;
+
     @Nonnull
     public static MobScalingPlugin getInstance() {
         return instance;
@@ -110,6 +116,11 @@ public class MobScalingPlugin extends JavaPlugin {
     /** The one-tick roll marker's component type; {@code null} until {@code setup()} registers it (mod enabled). */
     public ComponentType<EntityStore, PendingRollComponent> getPendingRollComponentType() {
         return pendingRollComponentType;
+    }
+
+    /** The engagement watch's component type; {@code null} until {@code setup()} registers it (mod enabled). */
+    public ComponentType<EntityStore, EngageWatchComponent> getEngageWatchComponentType() {
+        return engageWatchComponentType;
     }
 
     public MobScalingPlugin(@Nonnull JavaPluginInit init) {
@@ -171,6 +182,8 @@ public class MobScalingPlugin extends JavaPlugin {
                 CasterKitComponent.class, CasterKitComponent::new);
         pendingRollComponentType = getEntityStoreRegistry().registerComponent(
                 PendingRollComponent.class, PendingRollComponent::new);
+        engageWatchComponentType = getEntityStoreRegistry().registerComponent(
+                EngageWatchComponent.class, EngageWatchComponent::new);
 
         // Register the settings + rarity/affix asset stores + their LoadedAssetsEvent folds (real claimed
         // assets, pack-overridable). Only when enabled, so a disabled mod registers literally nothing.
@@ -207,6 +220,17 @@ public class MobScalingPlugin extends JavaPlugin {
         // was actually stamped onto).
         getEntityStoreRegistry().registerSystem(new MobScalingCasterArmSystem());
         getEntityStoreRegistry().registerSystem(new MobScalingCasterTickSystem());
+
+        // What a scaled mob does once it turns on a target: count the party in front of it once, give its affixes'
+        // war cries. Ticks only the mobs the roll stamped a watch onto. The affix owner file's binding (the
+        // /zigadmin war-cry form writes it) and this mod's owner-menu section register beside it.
+        getEntityStoreRegistry().registerSystem(new MobScalingEngageSystem());
+        try {
+            AffixOwnerLayer.register();
+        } catch (LinkageError e) {
+            safeWarn("ziggfreed-common's owner screens are unavailable on this jar; the war cries are edited in "
+                    + "mods/MmoMobScaling/affixes.json alone. Cause: " + e);
+        }
 
         // Open-world group delta: track player presence per region grid (updates only on region cross)
         // so the spawn hook reads a CACHED per-region power scalar - never a per-spawn player scan.

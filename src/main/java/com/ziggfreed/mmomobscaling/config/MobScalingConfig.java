@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +28,11 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.EscalationOrigi
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Party;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
+import com.ziggfreed.mmomobscaling.scaling.PartyRule;
 
 /**
  * The open-world mob-scaling configuration, driven ENTIRELY by an asset codec
@@ -160,6 +163,9 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     // records the fold reads (spawn-path reads, so the records are volatile).
     @Nonnull private volatile MobScaleFold.DifficultyStatCurve statCurve = MobScaleFold.DifficultyStatCurve.NONE;
     @Nonnull private volatile MobScaleFold.Clamps clamps = MobScaleFold.Clamps.NONE;
+    // The party rule, folded per leaf and built once as the record the engagement system reads (a mob's
+    // first-engagement read, so volatile). The fail-safe is the rule that counts no one.
+    @Nonnull private volatile PartyRule partyRule = PartyRule.NONE;
     // HUD settings: read every tick by the HUD system + on install, so all volatile. /mobscaling hud and
     // the admin page change them only by writing the owner file through MobScalingOwnerWriter, which
     // refolds them here.
@@ -437,6 +443,25 @@ public final class MobScalingConfig implements SpawnScalingSettings {
                 or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMinOutDamageMult), noRails.minOutDamageMult()),
                 or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMinLootMult), noRails.minLootMult()),
                 or(fold3(owner, store, jar, MobScalingConfig::clamps, Clamps::getMaxLootMult), noRails.maxLootMult()));
+
+        // Party group (nested). The fallbacks are the rule that counts no one, so a broken jar leaves every
+        // mob's health to the place alone.
+        PartyRule noParty = PartyRule.NONE;
+        String[] skip = fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getSkipGroups);
+        this.partyRule = new PartyRule(
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getEnabled), noParty.enabled()),
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getRadius), noParty.radius()),
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getTwoPlayers),
+                        noParty.twoPlayers()),
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getThreePlayers),
+                        noParty.threePlayers()),
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getFourPlayers),
+                        noParty.fourPlayers()),
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getBossPerPlayer),
+                        noParty.bossPerPlayer()),
+                or(fold3(owner, store, jar, MobScalingSettingsAsset::getParty, Party::getBossMostPlayers),
+                        noParty.bossMostPlayers()),
+                skip == null ? noParty.skipGroups() : Arrays.asList(skip));
 
         // HUD groups (nested).
         this.zoneHudEnabled = or(
@@ -757,6 +782,13 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         return clamps;
     }
 
+    /** The GLOBAL party rule, built from the folded {@code Party} leaves. */
+    @Nonnull
+    @Override
+    public PartyRule partyRule() {
+        return partyRule;
+    }
+
     /**
      * Build a {@link MobScaleFold.DifficultyStatCurve} from six leaves with the one set of sanity clamps
      * every layer applies (a negative slope or scale would shrink a mob as difficulty rises; a share outside
@@ -792,6 +824,28 @@ public final class MobScalingConfig implements SpawnScalingSettings {
                 Math.max(0.0, minOutDamageMult),
                 minLoot,
                 Math.max(minLoot, maxLootMult));
+    }
+
+    /**
+     * The party rule a world file's {@code Party} group makes of {@code base}, per leaf: an authored leaf wins, an
+     * absent one keeps {@code base}'s (an authored {@code SkipGroups} replaces the list whole, as a {@code Pool} list
+     * does). {@code base} itself when the file writes no {@code Party}. Shared by the per-world overlay
+     * ({@link ResolvedWorldSettings}) and the admin page's inherited-value hints, so the two never drift.
+     */
+    @Nonnull
+    public static PartyRule overlayParty(@Nullable Party p, @Nonnull PartyRule base) {
+        if (p == null) {
+            return base;
+        }
+        return new PartyRule(
+                p.getEnabled() != null ? p.getEnabled() : base.enabled(),
+                p.getRadius() != null ? p.getRadius() : base.radius(),
+                p.getTwoPlayers() != null ? p.getTwoPlayers() : base.twoPlayers(),
+                p.getThreePlayers() != null ? p.getThreePlayers() : base.threePlayers(),
+                p.getFourPlayers() != null ? p.getFourPlayers() : base.fourPlayers(),
+                p.getBossPerPlayer() != null ? p.getBossPerPlayer() : base.bossPerPlayer(),
+                p.getBossMostPlayers() != null ? p.getBossMostPlayers() : base.bossMostPlayers(),
+                p.getSkipGroups() != null ? Arrays.asList(p.getSkipGroups()) : base.skipGroups());
     }
 
     // The GLOBAL HUD view; a world file overlays any of these per leaf through ResolvedWorldSettings.

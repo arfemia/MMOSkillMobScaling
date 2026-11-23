@@ -100,6 +100,8 @@ affix.ward_lightning.name = Stormward
 affix.ward_lightning.desc = Takes less damage from lightning.
 affix.ward_water.name = Waterward
 affix.ward_water.desc = Takes less damage from water.
+affix.rallying.name = Rallying
+affix.rallying.desc = Lets out a war cry that drives itself and the creatures around it into a frenzy. Stop it before it finishes, or step away.
 
 # ============================================================================
 # Admin config page (/mobscaling ui). All text is client-resolved on .TextSpans.
@@ -146,6 +148,15 @@ ui.global.esc_max_bonus = Max bonus
 ui.global.esc_rarity = Rarity per point
 ui.global.stat_curve_header = Difficulty stat curve
 ui.global.clamps_header = Safety clamps
+ui.global.party_header = Party size
+ui.global.party_enabled = Party scaling
+ui.global.party_radius = Party radius (blocks)
+ui.global.party_two = Health with two players
+ui.global.party_three = Health with three players
+ui.global.party_four = Health with four or more
+ui.global.party_boss_per_player = Boss health per extra player
+ui.global.party_boss_most = Most players a boss counts
+ui.global.party_skip_groups = Groups that scale themselves
 
 # Skeleton preview panel (Global tab, right column). {diff}/{hp}/{out}/{in} are DATA, not translated prose.
 ui.global.preview_title = Preview: Skeleton
@@ -238,7 +249,7 @@ ui.world.pool_affixes_deny = Denied affixes
 ui.world.pool_extra_slots = Extra affix slots
 ui.world.zone_hud_header = Zone HUD
 ui.world.inspector_hud_header = Inspector HUD
-ui.world.hint = Every setting here is editable: tuning, distance escalation, open world scaling, the difficulty stat curve, the spawn pool, and both HUD overlays. A blank field or Inherit falls back to the parent file, then the global value. Allow/deny lists are comma-separated ids; deny wins.
+ui.world.hint = Every setting here is editable: tuning, distance escalation, open world scaling, party size, the difficulty stat curve, the spawn pool, and both HUD overlays. A blank field or Inherit falls back to the parent file, then the global value. Allow/deny lists are comma-separated ids; deny wins.
 # Appended to a blank/Inherit field's hint (a computed line, {value} is a NESTED Message - the localized
 # on/off toggle label, one of the two keys below, or a literal number/id list); shows what it currently
 # resolves to (the parent file, then the global setting) so a blank field is never a mystery.
@@ -299,6 +310,14 @@ ui.hint.aggregation = How the power of multiple nearby players folds into one re
 ui.hint.region_size = How many chunks across one group-power region is. Players inside the same square count as one group for the difficulty they meet.
 ui.hint.band_width = The most a region's difficulty can swing above its baseline from nearby player power.
 ui.hint.only_raise = When on, nearby player power can only raise a region's difficulty, never soften it below the baseline.
+ui.hint.party_enabled = Whether a mob grows tougher for the players standing near it the first time it turns on one of them. Off leaves its health to the place alone.
+ui.hint.party_radius = How far from the mob a player counts toward its party; a player right at the edge counts.
+ui.hint.party_two = The mob's health multiplier when exactly two players stand near it.
+ui.hint.party_three = The mob's health multiplier when exactly three players stand near it.
+ui.hint.party_four = The mob's health multiplier when four players or more stand near it.
+ui.hint.party_boss_per_player = For a boss or an elite, in place of the three above: the share of its health each player past the first adds.
+ui.hint.party_boss_most = For a boss or an elite: the most players it counts. Players past this add nothing.
+ui.hint.party_skip_groups = NPC groups whose members already grow with the party by themselves, comma-separated. They are left as they are, so a party never pays twice.
 
 # Zone HUD tab (hud_position/hud_offset_x/hud_offset_y are shared with the Inspector HUD tab below).
 ui.hint.zone_enabled = Whether the zone difficulty overlay shows on screen at all.
@@ -324,6 +343,7 @@ ui.hint.w_enabled = Whether mob scaling runs in this world at all. Inherit follo
 ui.hint.w_esc_enabled = Whether distance escalation applies in this world. Inherit follows the parent file, then the global setting.
 ui.hint.w_player_scaling = Whether nearby players raise difficulty in this world. Inherit follows the parent file, then the global setting.
 ui.hint.w_only_raise = Whether nearby player power can only raise, never soften, difficulty here. Inherit follows the parent file, then the global setting.
+ui.hint.w_party_enabled = Whether mobs grow tougher for the players near them in this world. Turn it off where the world already brings more foes for a bigger party. Inherit follows the parent file, then the global setting.
 ui.hint.pool_rarities_allow = Rarity tiers permitted to roll here; leave blank to allow every tier.
 ui.hint.pool_rarities_deny = Rarity tiers forbidden from rolling here; denial always wins over allow.
 ui.hint.pool_variants_allow = Variant overlays permitted to roll here; leave blank to allow every variant.
@@ -357,3 +377,34 @@ ui.status.floor_incomplete = A new floor needs all three: what it applies to, th
 ui.status.floor_id_required = Enter a file name or a zone or biome name first.
 ui.status.floor_save_failed = Could not write the floor file.
 ui.status.floor_delete_failed = Could not remove the floor file.
+
+# ============================================================================
+# The owner menu (/zigadmin): this mod's section, and the War cries form (Server/ZiggfreedCommon/OwnerForms/
+# MmoMobScaling/Mmoscaling_Affix_Cries.json), one row per affix with a war cry. Hints carry no digits.
+# ============================================================================
+ui.owner.section = Mob Scaling
+form.cries.title = War cries
+form.cries.desc = How often each war-cry affix rolls, and how its cry works: the warning, the buff, its length and reach, and how soon it cries again.
+form.cries.heading.roll = How often it rolls
+form.cries.weight = Weight
+form.cries.weight.hint = How often this affix is picked for a slot against the other affixes that may take it there. Zero never picks it.
+form.cries.min_difficulty = Lowest difficulty
+form.cries.min_difficulty.hint = The lowest spot difficulty it may roll at.
+form.cries.heading.cry = The war cry
+form.cries.windup = Warning (seconds)
+form.cries.windup.hint = How long the mob stands and cries before the buff lands: the time players get to step back or strike first.
+form.cries.buff_seconds = Buff length (seconds)
+form.cries.buff_seconds.hint = How long the buff lasts on the mob and every creature the cry reaches.
+form.cries.radius = Reach (blocks)
+form.cries.radius.hint = How far from the crying mob a creature is rallied. Only creatures hostile to the mob's target are.
+form.cries.repeat_min = Shortest wait (seconds)
+form.cries.repeat_min.hint = The shortest time after a cry before the mob cries again while it still fights.
+form.cries.repeat_max = Longest wait (seconds)
+form.cries.repeat_max.hint = The longest time before it cries again. Each wait falls somewhere between the two.
+form.cries.heading.effects = Effects and sound
+form.cries.buff_effect = Buff effect
+form.cries.buff_effect.hint = The id of the effect the cry puts on. What it does, faster or harder hits, is that effect's own.
+form.cries.cast_effect = Warning effect
+form.cries.cast_effect.hint = The id of the effect the mob wears while it cries, so players see the cry coming.
+form.cries.sound = Cry sound
+form.cries.sound.hint = The id of the sound played where the mob stands as it starts to cry. Leave it blank for a silent cry.

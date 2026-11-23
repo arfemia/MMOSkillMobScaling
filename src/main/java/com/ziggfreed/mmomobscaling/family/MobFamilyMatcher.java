@@ -101,6 +101,14 @@ public final class MobFamilyMatcher {
         return matchesAnyGroup(filter.allowGroups(), roleIndex);
     }
 
+    /**
+     * True when {@code npc}'s role is a member of ANY of the named native {@code NPCGroup}s (the party rule's
+     * {@code SkipGroups}); a missing group matches nothing, warned once, as everywhere here.
+     */
+    public boolean inAnyGroup(@Nonnull List<String> groupIds, @Nonnull NPCEntity npc) {
+        return !groupIds.isEmpty() && matchesAnyGroup(groupIds, npc.getRoleIndex());
+    }
+
     /** True when {@code roleIndex} is a member of ANY of the named native {@code NPCGroup}s. */
     private boolean matchesAnyGroup(@Nonnull List<String> groupIds, int roleIndex) {
         for (String id : groupIds) {

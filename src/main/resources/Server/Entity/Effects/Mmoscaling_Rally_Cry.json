@@ -1,0 +1,20 @@
+{
+  "$Comment": "Worn by a mob while it lets out a war cry (the Rallying affix), for its Cry.WindupSeconds: the length it is put on for wins over the Duration here. It roots the mob, as the game's goblin scrapper stands still for its rally, and shows the alert mark over its head, so players see the cry coming and can step back or strike first. No body tint: the rarity aura owns that.",
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 0.0,
+    "MovementEffects": {
+      "SpeedMultiplier": 0.0
+    },
+    "Particles": [
+      {
+        "SystemId": "Alerted",
+        "TargetNodeName": "Head"
+      }
+    ]
+  },
+  "Duration": 1.0,
+  "OverlapBehavior": "Overwrite",
+  "Infinite": false,
+  "RemovalBehavior": "Duration",
+  "Debuff": false
+}

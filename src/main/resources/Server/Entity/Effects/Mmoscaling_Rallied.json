@@ -1,0 +1,43 @@
+{
+  "$Comment": "Put by a war cry (the Rallying affix) on the crying mob and on every creature near it that is hostile to its target, for the affix's Cry.BuffSeconds: that length wins over the Duration here. It is the game's pack enrage, Dungeon_Goblin_Enraged: a quarter more damage of every kind and a quarter more speed, with the red unblockable flare. The damage adds to whatever damage bonus a scaled mob already carries, as every damage effect does. No body tint: the rarity aura owns that. Change what a rally does here.",
+  "ApplicationEffects": {
+    "HorizontalSpeedMultiplier": 1.25,
+    "MovementEffects": {
+      "SpeedMultiplier": 1.25
+    },
+    "Particles": [
+      {
+        "SystemId": "Combat_Unblockable",
+        "Scale": 1.0,
+        "PositionOffset": {
+          "Z": 0.1
+        }
+      }
+    ]
+  },
+  "OutgoingDamage": {
+    "Physical": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.25
+      }
+    ],
+    "Elemental": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.25
+      }
+    ],
+    "Projectile": [
+      {
+        "CalculationType": "Percent",
+        "Amount": 0.25
+      }
+    ]
+  },
+  "Duration": 8.0,
+  "OverlapBehavior": "Overwrite",
+  "Infinite": false,
+  "RemovalBehavior": "Duration",
+  "Debuff": false
+}

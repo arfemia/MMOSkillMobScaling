@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
+import com.ziggfreed.mmomobscaling.scaling.PartyRule;
 
 /**
  * The spawn-time settings surface a mob-scaling spawn resolves against - the exact getters
@@ -185,4 +186,12 @@ public interface SpawnScalingSettings {
      */
     @Nonnull
     MobScaleFold.Clamps clampsModel();
+
+    /**
+     * The party rule for this world ({@code Party}, every leaf per world): how a mob's health grows with the players
+     * standing near it the first time it turns on one of them. A per-world {@code Enabled: false} keeps a world (a
+     * dungeon that sizes its foes by party itself) out of it.
+     */
+    @Nonnull
+    PartyRule partyRule();
 }

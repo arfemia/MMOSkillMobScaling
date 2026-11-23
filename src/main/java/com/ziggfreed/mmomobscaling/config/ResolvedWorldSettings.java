@@ -17,6 +17,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
+import com.ziggfreed.mmomobscaling.scaling.PartyRule;
 
 /**
  * A per-world overlay view over the global config: every EXPOSED leaf is
@@ -49,6 +50,8 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
     // The per-world curve and rails, resolved once per leaf against the global.
     @Nonnull private final MobScaleFold.DifficultyStatCurve statCurve;
     @Nonnull private final MobScaleFold.Clamps clamps;
+    // The per-world party rule, resolved once per leaf against the global.
+    @Nonnull private final PartyRule partyRule;
 
     ResolvedWorldSettings(@Nonnull MobScalingConfig g, @Nonnull WorldSettings ws) {
         this.g = g;
@@ -82,6 +85,7 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
                 k != null && k.getMinOutDamageMult() != null ? k.getMinOutDamageMult() : g.getClampMinOutDamageMult(),
                 k != null && k.getMinLootMult() != null ? k.getMinLootMult() : g.getClampMinLootMult(),
                 k != null && k.getMaxLootMult() != null ? k.getMaxLootMult() : g.getClampMaxLootMult());
+        this.partyRule = MobScalingConfig.overlayParty(ws.getParty(), g.partyRule());
     }
 
     /** Lower-cased, blank-filtered gate set; {@code null} for an absent/empty authored list (no gate). */
@@ -334,5 +338,11 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
     @Override
     public MobScaleFold.Clamps clampsModel() {
         return clamps;
+    }
+
+    @Nonnull
+    @Override
+    public PartyRule partyRule() {
+        return partyRule;
     }
 }

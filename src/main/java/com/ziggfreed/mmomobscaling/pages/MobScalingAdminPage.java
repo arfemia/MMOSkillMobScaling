@@ -46,6 +46,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.EscalationOrigi
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Party;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.config.DifficultyConfig;
@@ -63,6 +64,7 @@ import com.ziggfreed.mmomobscaling.pages.ScalingPreview.Sample;
 import com.ziggfreed.mmomobscaling.pages.ScalingPreview.Tier;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
+import com.ziggfreed.mmomobscaling.scaling.PartyRule;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
@@ -192,6 +194,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String LEAF_MIN_CAP = "Difficulty.MinCap";
     private static final String LEAF_MAX_CAP = "Difficulty.MaxCap";
     private static final String LEAF_ONLY_RAISE = "OpenWorld.OnlyRaiseDifficulty";
+    private static final String LEAF_PARTY_ENABLED = "Party.Enabled";
 
     // The 9 named corner presets (technical ids, shown literally in the position dropdowns).
     private static final String[] POSITIONS = {
@@ -1298,6 +1301,15 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("regionSize", String.valueOf(cfg.getRegionSizeChunks()));
         seed.put("bandWidth", num(cfg.getGroupDeltaBandWidth()));
         seed.put("onlyRaise", onOff(cfg.isOnlyRaiseDifficulty()));
+        PartyRule party = cfg.partyRule();
+        seed.put("partyEnabled", onOff(party.enabled()));
+        seed.put("partyRadius", num(party.radius()));
+        seed.put("partyTwo", num(party.twoPlayers()));
+        seed.put("partyThree", num(party.threePlayers()));
+        seed.put("partyFour", num(party.fourPlayers()));
+        seed.put("partyBossPer", num(party.bossPerPlayer()));
+        seed.put("partyBossMost", String.valueOf(party.bossMostPlayers()));
+        seed.put("partySkip", String.join(", ", party.skipGroups()));
         globalForm.seed(seed);
     }
 
@@ -1368,6 +1380,15 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("wRegionSize", intOrBlank(ow == null ? null : ow.getRegionSizeChunks()));
         seed.put("wBandWidth", numOrBlank(ow == null ? null : ow.getGroupDeltaBandWidth()));
         seed.put("wOnlyRaise", triOrInherit(ow == null ? null : ow.getOnlyRaiseDifficulty()));
+        Party party = ws == null ? null : ws.getParty();
+        seed.put("wPartyEnabled", triOrInherit(party == null ? null : party.getEnabled()));
+        seed.put("wPartyRadius", numOrBlank(party == null ? null : party.getRadius()));
+        seed.put("wPartyTwo", numOrBlank(party == null ? null : party.getTwoPlayers()));
+        seed.put("wPartyThree", numOrBlank(party == null ? null : party.getThreePlayers()));
+        seed.put("wPartyFour", numOrBlank(party == null ? null : party.getFourPlayers()));
+        seed.put("wPartyBossPer", numOrBlank(party == null ? null : party.getBossPerPlayer()));
+        seed.put("wPartyBossMost", intOrBlank(party == null ? null : party.getBossMostPlayers()));
+        seed.put("wPartySkip", csvOrBlank(party == null ? null : party.getSkipGroups()));
         seed.put("wEhpPerPoint", numOrBlank(curve == null ? null : curve.getEffectiveHpPerPoint()));
         seed.put("wHpShare", numOrBlank(curve == null ? null : curve.getVisibleHpShare()));
         seed.put("wOutScale", numOrBlank(curve == null ? null : curve.getOutDamageScale()));
@@ -1518,6 +1539,18 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 ? ow.getRegionSizeChunks() : cfg.getRegionSizeChunks())));
         m.put("wOnlyRaise", onOffDisplay(ow != null && ow.getOnlyRaiseDifficulty() != null
                 ? ow.getOnlyRaiseDifficulty() : cfg.isOnlyRaiseDifficulty()));
+        // The party rule this file inherits: its own Parent-merged leaves over the global rule, the one overlay the
+        // world view itself uses, so the hint and the spawn read alike.
+        PartyRule party = MobScalingConfig.overlayParty(eff == null ? null : eff.getParty(), cfg.partyRule());
+        m.put("wPartyEnabled", onOffDisplay(party.enabled()));
+        m.put("wPartyRadius", Message.raw(num(party.radius())));
+        m.put("wPartyTwo", Message.raw(num(party.twoPlayers())));
+        m.put("wPartyThree", Message.raw(num(party.threePlayers())));
+        m.put("wPartyFour", Message.raw(num(party.fourPlayers())));
+        m.put("wPartyBossPer", Message.raw(num(party.bossPerPlayer())));
+        m.put("wPartyBossMost", Message.raw(String.valueOf(party.bossMostPlayers())));
+        m.put("wPartySkip", csvOrFallback(party.skipGroups().toArray(new String[0]),
+                "mmomobscaling.ui.world.inherits_none"));
         m.put("wEhpPerPoint", Message.raw(num(curve != null && curve.getEffectiveHpPerPoint() != null
                 ? curve.getEffectiveHpPerPoint() : cfg.getStatCurveEffectiveHpPerPoint())));
         m.put("wHpShare", Message.raw(num(curve != null && curve.getVisibleHpShare() != null
@@ -1610,6 +1643,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 v -> MobScalingOwnerWriter.saveLeaf(LEAF_ONLY_RAISE, v), null, "mmomobscaling.ui.status.saved"));
         m.put("escEnabled", new ToggleDef(globalForm, GLOBAL_FORM_SEL, cfg::isDistanceEscalationEnabled,
                 MobScalingOwnerWriter::saveEscalationEnabled, null, "mmomobscaling.ui.status.saved"));
+        m.put("partyEnabled", new ToggleDef(globalForm, GLOBAL_FORM_SEL, () -> cfg.partyRule().enabled(),
+                v -> MobScalingOwnerWriter.saveLeaf(LEAF_PARTY_ENABLED, v), null, "mmomobscaling.ui.status.saved"));
         m.put("zoneEnabled", new ToggleDef(zoneForm, ZONE_FORM_SEL, cfg::isZoneHudEnabled,
                 MobScalingOwnerWriter::saveZoneHudEnabled, ZoneDifficultyHud::setEnabledForAllOnline,
                 "mmomobscaling.ui.status.saved"));
@@ -1681,6 +1716,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         s.add(FieldSpec.number("bandWidth", "OpenWorld.GroupDeltaBandWidth", "mmomobscaling.ui.global.band_width")
                 .withHint("mmomobscaling.ui.hint.band_width"));
         s.add(FieldSpec.toggle("onlyRaise", "mmomobscaling.ui.global.only_raise").withHint("mmomobscaling.ui.hint.only_raise"));
+        s.add(FieldSpec.header("hdrParty", "mmomobscaling.ui.global.party_header"));
+        s.add(FieldSpec.toggle("partyEnabled", "mmomobscaling.ui.global.party_enabled")
+                .withHint("mmomobscaling.ui.hint.party_enabled"));
+        addPartySpecs(s, "");
         return List.copyOf(s);
     }
 
@@ -1783,6 +1822,10 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 .withHint("mmomobscaling.ui.hint.band_width"));
         s.add(FieldSpec.tristate("wOnlyRaise", LEAF_ONLY_RAISE, "mmomobscaling.ui.global.only_raise")
                 .withHint("mmomobscaling.ui.hint.w_only_raise"));
+        s.add(FieldSpec.header("wHdrParty", "mmomobscaling.ui.global.party_header"));
+        s.add(FieldSpec.tristate("wPartyEnabled", LEAF_PARTY_ENABLED, "mmomobscaling.ui.global.party_enabled")
+                .withHint("mmomobscaling.ui.hint.w_party_enabled"));
+        addPartySpecs(s, "w");
         s.add(FieldSpec.header("wHdrCurve", "mmomobscaling.ui.global.stat_curve_header"));
         addCurveSpecs(s, "w");
         s.add(FieldSpec.header("wHdrClamps", "mmomobscaling.ui.global.clamps_header"));
@@ -1894,6 +1937,29 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 "mmomobscaling.ui.clamps.max_loot").withHint("mmomobscaling.ui.hint.clamp_max_loot"));
     }
 
+    /**
+     * The {@code Party} leaves past its switch (the radius, the three rungs, the boss rule, the skip groups), appended
+     * the same way as {@link #addCurveSpecs}: once for the Global form, once for the per-world form, a plain leaf
+     * reusing the global label and hint keys. The switch itself is a toggle on the Global form and a tri-state on the
+     * per-world one, so each form adds its own.
+     */
+    private static void addPartySpecs(@Nonnull List<FieldSpec> s, @Nonnull String prefix) {
+        s.add(FieldSpec.number(fieldId(prefix, "partyRadius"), "Party.Radius",
+                "mmomobscaling.ui.global.party_radius").withHint("mmomobscaling.ui.hint.party_radius"));
+        s.add(FieldSpec.number(fieldId(prefix, "partyTwo"), "Party.TwoPlayers",
+                "mmomobscaling.ui.global.party_two").withHint("mmomobscaling.ui.hint.party_two"));
+        s.add(FieldSpec.number(fieldId(prefix, "partyThree"), "Party.ThreePlayers",
+                "mmomobscaling.ui.global.party_three").withHint("mmomobscaling.ui.hint.party_three"));
+        s.add(FieldSpec.number(fieldId(prefix, "partyFour"), "Party.FourPlayers",
+                "mmomobscaling.ui.global.party_four").withHint("mmomobscaling.ui.hint.party_four"));
+        s.add(FieldSpec.number(fieldId(prefix, "partyBossPer"), "Party.BossPerPlayer",
+                "mmomobscaling.ui.global.party_boss_per_player").withHint("mmomobscaling.ui.hint.party_boss_per_player"));
+        s.add(FieldSpec.integer(fieldId(prefix, "partyBossMost"), "Party.BossMostPlayers",
+                "mmomobscaling.ui.global.party_boss_most").withHint("mmomobscaling.ui.hint.party_boss_most"));
+        s.add(FieldSpec.csv(fieldId(prefix, "partySkip"), "Party.SkipGroups",
+                "mmomobscaling.ui.global.party_skip_groups").withHint("mmomobscaling.ui.hint.party_skip_groups"));
+    }
+
     /** {@code "ehpPerPoint"} on the Global form, {@code "wEhpPerPoint"} on the per-world form. */
     @Nonnull
     private static String fieldId(@Nonnull String prefix, @Nonnull String base) {
@@ -1947,6 +2013,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             }
         }
         if (ws.getPool() != null) append(sb, "pool");
+        if (ws.getParty() != null && ws.getParty().getEnabled() != null) {
+            append(sb, "party " + (ws.getParty().getEnabled() ? "on" : "off"));
+        }
         return sb.length() == 0 ? "-" : sb.toString();
     }
 

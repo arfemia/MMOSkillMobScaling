@@ -20,7 +20,9 @@ import javax.annotation.Nullable;
  * the fraction here and the effective-HP rail counts it ({@code ScalingContentValidator} reports any drift
  * between the two). A {@link #kind} of {@code BEHAVIORAL}/{@code HYBRID} dispatches to a mod-side
  * {@link AffixBehavior} by {@link #behaviorId} for the per-hit policy the engine has no native hook for
- * (Vampiric lifesteal; the Freezing on-hit trigger).
+ * (Vampiric lifesteal; the Freezing on-hit trigger). An affix with a {@link #cry} gives its mob a telegraphed war
+ * cry that rallies the creatures around it ({@link AffixCry}; Rallying is the shipped one): its whole behaviour is
+ * that authored group, so it needs no {@code BehaviorId}.
  */
 public record Affix(
         @Nonnull String id,
@@ -40,7 +42,8 @@ public record Affix(
         @Nullable String behaviorId,
         boolean resistanceBearing,
         @Nullable String iconItemId,
-        @Nullable String iconTexturePath) {
+        @Nullable String iconTexturePath,
+        @Nullable AffixCry cry) {
 
     /** Affix kinds. STAT = pure native effect; BEHAVIORAL = mod-side on-hit; HYBRID = native effect + on-hit trigger. */
     public static final String KIND_STAT = "STAT";
@@ -50,6 +53,26 @@ public record Affix(
     public Affix {
         allowedRarities = List.copyOf(allowedRarities);
         allowedVariants = List.copyOf(allowedVariants);
+    }
+
+    /**
+     * Every field but the war cry ({@link #cry}, absent): the shape of an affix that does not cry, which every
+     * pre-cry call site (tests and the roll paths) builds.
+     */
+    public Affix(@Nonnull String id, @Nonnull String displayNameKey, @Nonnull String descriptionKey,
+            @Nullable String effectId, double spawnWeight, double minDifficulty,
+            @Nonnull List<String> allowedRarities, @Nonnull List<String> allowedVariants, double outDamageDelta,
+            double inDamageDelta, double hpDelta, double lootBonus, double resistancePercent, @Nonnull String kind,
+            @Nullable String behaviorId, boolean resistanceBearing, @Nullable String iconItemId,
+            @Nullable String iconTexturePath) {
+        this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
+                allowedVariants, outDamageDelta, inDamageDelta, hpDelta, lootBonus, resistancePercent, kind, behaviorId,
+                resistanceBearing, iconItemId, iconTexturePath, null);
+    }
+
+    /** True when this affix gives its mob a war cry ({@link AffixCry}) that does something. */
+    public boolean cries() {
+        return cry != null && cry.rallies();
     }
 
     /**
@@ -66,7 +89,7 @@ public record Affix(
             boolean resistanceBearing) {
         this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
                 List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, 0.0, kind, behaviorId,
-                resistanceBearing, null, null);
+                resistanceBearing, null, null, null);
     }
 
     /** Convenience constructor with an icon but the pre-variant gate list order (adds {@code allowedVariants}). */
@@ -77,7 +100,7 @@ public record Affix(
             boolean resistanceBearing, @Nullable String iconItemId, @Nullable String iconTexturePath) {
         this(id, displayNameKey, descriptionKey, effectId, spawnWeight, minDifficulty, allowedRarities,
                 List.of(), outDamageDelta, inDamageDelta, hpDelta, lootBonus, 0.0, kind, behaviorId,
-                resistanceBearing, iconItemId, iconTexturePath);
+                resistanceBearing, iconItemId, iconTexturePath, null);
     }
 
     /** True when this affix authors a chip icon (an item id or a texture path) for the inspector HUD. */

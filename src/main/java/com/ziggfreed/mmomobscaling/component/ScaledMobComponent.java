@@ -41,6 +41,14 @@ public final class ScaledMobComponent implements Component<EntityStore> {
     /** Death-path latch: set once by {@code MobScalingLootDropSystem} when the bonus loot has dropped. */
     private volatile boolean bonusLootDropped;
 
+    /**
+     * The party this mob counted the first time it turned on a player ({@code event/MobScalingEngageSystem}), 0 until
+     * then; and the health multiplier that party gave it on top of {@link MobScaleResult#hpMult()} (1.0 for one player
+     * or none, or where the world's party rule is off). Set once, on the world thread, never reset in this life.
+     */
+    private volatile int partySize;
+    private volatile float partyHealthMult = 1f;
+
     /** Engine default-supplier constructor: a benign plain result (overwritten by the populated add). */
     public ScaledMobComponent() {
         this(MobScaleFold.plain(0.0, MobScaleResult.SCOPE_HOSTILE, MobScaleFold.DifficultyStatCurve.NONE), false);
@@ -81,11 +89,38 @@ public final class ScaledMobComponent implements Component<EntityStore> {
         bonusLootDropped = true;
     }
 
+    /** The players this mob counted when it first turned on one (0 until it has). */
+    public int partySize() {
+        return partySize;
+    }
+
+    /** The health multiplier its party gave it, on top of the roll's {@link MobScaleResult#hpMult()}. */
+    public float partyHealthMult() {
+        return partyHealthMult;
+    }
+
+    /**
+     * The health multiplier this mob's maximum health carries in all: the place's ({@link MobScaleResult#hpMult()})
+     * times its party's ({@link #partyHealthMult()}). What the {@code mmoscaling_hp} reconcile writes once the party
+     * is counted.
+     */
+    public double healthMult() {
+        return (double) result.hpMult() * partyHealthMult;
+    }
+
+    /** Record the party counted at the first engagement and the multiplier it gave (once per life). */
+    public void markParty(int players, double healthMult) {
+        partySize = Math.max(0, players);
+        partyHealthMult = (float) Math.max(1.0, healthMult);
+    }
+
     @Nonnull
     @Override
     public Component<EntityStore> clone() {
         ScaledMobComponent copy = new ScaledMobComponent(result, companion); // result is immutable - safe to share
         copy.bonusLootDropped = bonusLootDropped;
+        copy.partySize = partySize;
+        copy.partyHealthMult = partyHealthMult;
         return copy;
     }
 

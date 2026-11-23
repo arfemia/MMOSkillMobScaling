@@ -1,0 +1,19 @@
+{
+  "$Comment": "A rare war-cry affix, the game's goblin scrapper's pack enrage (Template_Dungeon_Goblin_Scrapper.json) on any scaled mob anywhere. Once the mob turns on a target it stands and cries for WindupSeconds wearing Mmoscaling_Rally_Cry, the warning players see coming, with the scrapper's rally call; then it puts Mmoscaling_Rallied on itself and on every creature within Radius blocks that is hostile to its target, for BuffSeconds, and cries again RepeatMinSeconds to RepeatMaxSeconds later while it still fights. A mob already rallied by another holds its own cry until that runs out. What the buff does lives in Mmoscaling_Rallied; how long it lasts is BuffSeconds here. Weight against the other affixes keeps it rare. Server owners retune it on /zigadmin (War cries), saved in mods/MmoMobScaling/affixes.json; a pack adds another war-cry affix by shipping a file with its own Cry group.",
+  "Name": "Rallying",
+  "DisplayNameKey": "mmomobscaling.affix.rallying.name",
+  "DescriptionKey": "mmomobscaling.affix.rallying.desc",
+  "Roll": { "Weight": 0.75, "MinDifficulty": 10, "AllowedRarities": ["*"] },
+  "Kind": "BEHAVIORAL",
+  "Cry": {
+    "WindupSeconds": 1.0,
+    "CastEffectId": "Mmoscaling_Rally_Cry",
+    "SoundEventId": "SFX_Goblin_Scrapper_VO_Rally",
+    "BuffEffectId": "Mmoscaling_Rallied",
+    "BuffSeconds": 8.0,
+    "Radius": 10.0,
+    "RepeatMinSeconds": 18.0,
+    "RepeatMaxSeconds": 25.0
+  },
+  "Icon": { "ItemId": "Furniture_Flag_Small_Red" }
+}

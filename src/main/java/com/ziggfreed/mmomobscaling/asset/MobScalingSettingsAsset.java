@@ -53,6 +53,7 @@ public final class MobScalingSettingsAsset
     @Nullable private Difficulty difficulty;
     @Nullable private Hud zoneHud;
     @Nullable private InspectorHud inspectorHud;
+    @Nullable private Party party;
 
     public static final AssetBuilderCodec<String, MobScalingSettingsAsset> CODEC = AssetBuilderCodec.builder(
                     MobScalingSettingsAsset.class,
@@ -96,6 +97,10 @@ public final class MobScalingSettingsAsset
             .append(new KeyedCodec<>("InspectorHud", InspectorHud.CODEC, false),
                     (a, v) -> a.inspectorHud = v, a -> a.inspectorHud)
             .add()
+            // The party in front of a mob: its health grows with the players near it, as the game's dungeon reads it.
+            .append(new KeyedCodec<>("Party", Party.CODEC, false),
+                    (a, v) -> a.party = v, a -> a.party)
+            .add()
             .build();
 
     public MobScalingSettingsAsset() {
@@ -113,6 +118,78 @@ public final class MobScalingSettingsAsset
     @Nullable public Difficulty getDifficulty() { return difficulty; }
     @Nullable public Hud getZoneHud() { return zoneHud; }
     @Nullable public InspectorHud getInspectorHud() { return inspectorHud; }
+    @Nullable public Party getParty() { return party; }
+
+    /**
+     * The party in front of a mob, read as Update 7's goblin dungeon reads it: the first time the mob turns on a
+     * player, the players standing within {@code Radius} blocks of it are counted once, and a party of exactly two,
+     * exactly three, or four and more multiplies its health by that rung. A boss or an elite (CommonLib's boss rule,
+     * {@code BossRules}: its {@code Zig_Boss_Or_Elite} group or a {@code ZigRank} tag) is additive per player instead:
+     * each counted player past the first adds {@code BossPerPlayer} of its health, up to {@code BossMostPlayers}
+     * players. A mob in one of {@code SkipGroups} already grows with the party by itself (the game's dungeon goblins)
+     * and is left as it is. Every leaf is a NULLABLE wrapper, so a preset or a world file may fill the group partly.
+     */
+    public static final class Party {
+        public static final BuilderCodec<Party> CODEC = BuilderCodec.builder(Party.class, Party::new)
+                .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN, false),
+                        (p, v) -> p.enabled = v, p -> p.enabled)
+                .documentation("Whether a mob counts the players near it the first time it turns on one of them, and"
+                        + " grows its health for a party. Off leaves every mob's health to the place alone.")
+                .add()
+                .append(new KeyedCodec<>("Radius", Codec.DOUBLE, false),
+                        (p, v) -> p.radius = v, p -> p.radius)
+                .documentation("How far from the mob, in blocks, a player counts toward its party. A player exactly"
+                        + " this far away counts. The game's dungeon counts 40.")
+                .add()
+                .append(new KeyedCodec<>("TwoPlayers", Codec.DOUBLE, false),
+                        (p, v) -> p.twoPlayers = v, p -> p.twoPlayers)
+                .documentation("The health multiplier of a mob that counts exactly two players. 1.0 changes nothing.")
+                .add()
+                .append(new KeyedCodec<>("ThreePlayers", Codec.DOUBLE, false),
+                        (p, v) -> p.threePlayers = v, p -> p.threePlayers)
+                .documentation("The health multiplier of a mob that counts exactly three players.")
+                .add()
+                .append(new KeyedCodec<>("FourPlayers", Codec.DOUBLE, false),
+                        (p, v) -> p.fourPlayers = v, p -> p.fourPlayers)
+                .documentation("The health multiplier of a mob that counts four players or more.")
+                .add()
+                .append(new KeyedCodec<>("BossPerPlayer", Codec.DOUBLE, false),
+                        (p, v) -> p.bossPerPlayer = v, p -> p.bossPerPlayer)
+                .documentation("For a boss or an elite, in place of the three multipliers: the share of its health"
+                        + " each counted player past the first adds, so 0.2 makes it 1.2 times as tough for two"
+                        + " players and 1.6 times for four. 0 leaves bosses alone.")
+                .add()
+                .append(new KeyedCodec<>("BossMostPlayers", Codec.INTEGER, false),
+                        (p, v) -> p.bossMostPlayers = v, p -> p.bossMostPlayers)
+                .documentation("For a boss or an elite: the most players it counts. A player past this adds nothing.")
+                .add()
+                .append(new KeyedCodec<>("SkipGroups", Codec.STRING_ARRAY, false),
+                        (p, v) -> p.skipGroups = v, p -> p.skipGroups)
+                .metadata(EditorSchema.assetRef("NPCGroup"))
+                .documentation("NPC groups whose members already grow with the party by themselves, such as the"
+                        + " game's dungeon goblins (Dungeon_Goblin_Pack): they are left as they are, so a party never"
+                        + " pays twice. A list you write replaces the shipped one whole.")
+                .add()
+                .build();
+
+        @Nullable private Boolean enabled;
+        @Nullable private Double radius;
+        @Nullable private Double twoPlayers;
+        @Nullable private Double threePlayers;
+        @Nullable private Double fourPlayers;
+        @Nullable private Double bossPerPlayer;
+        @Nullable private Integer bossMostPlayers;
+        @Nullable private String[] skipGroups;
+
+        @Nullable public Boolean getEnabled() { return enabled; }
+        @Nullable public Double getRadius() { return radius; }
+        @Nullable public Double getTwoPlayers() { return twoPlayers; }
+        @Nullable public Double getThreePlayers() { return threePlayers; }
+        @Nullable public Double getFourPlayers() { return fourPlayers; }
+        @Nullable public Double getBossPerPlayer() { return bossPerPlayer; }
+        @Nullable public Integer getBossMostPlayers() { return bossMostPlayers; }
+        @Nullable public String[] getSkipGroups() { return skipGroups; }
+    }
 
     /** Open-world group-power aggregation: how nearby players fold into a region's difficulty delta. */
     public static final class OpenWorld {

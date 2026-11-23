@@ -34,6 +34,7 @@ import com.ziggfreed.common.health.HealthUtil;
 import com.ziggfreed.common.util.SplitMix64;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.component.EngageWatchComponent;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
 import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
@@ -243,6 +244,12 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
         // IDEMPOTENT stamp (putComponent, never addComponent), deferred through the command buffer so the
         // archetype move lands after this tick's iteration.
         cb.putComponent(ref, scaledType, new ScaledMobComponent(result));
+        // What it does once it turns on a target (the party in front of it, its affixes' war cries), read off the
+        // finished roll alone; MobScalingEngageSystem ticks it.
+        EngageWatchComponent watch = MobScalingEngageSystem.watchFor(spawn, npc, result);
+        if (watch != null) {
+            cb.putComponent(ref, EngageWatchComponent.getComponentType(), watch);
+        }
 
         if (rarity != null || variant != null) {
             decorateDisplayName(store, ref, cb, rarity, variant);

@@ -11,6 +11,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Difficulty;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Hud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.InspectorHud;
 import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
+import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Party;
 
 /**
  * The ONE structured schema authority for a per-world settings body (1.0.2): what a
@@ -47,6 +48,9 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.OpenWorld;
  *       name-key prefixes, the inspector's {@code RangeBlocks} and {@code PortraitEnabled}. A HUD
  *       reads the view of the world its player stands in.</li>
  *   <li>{@code Pool} - the per-world rarity / variant / affix pool control (see {@link Pool}).</li>
+ *   <li>{@code Party} - REUSES the settings {@link Party} codec, every leaf per world: a world whose own content
+ *       already sizes its foes by party (a CommonLib dungeon brings more foes for a bigger party, R1054) switches
+ *       it off with {@code "Party": { "Enabled": false }}.</li>
  * </ul>
  */
 public final class WorldSettings {
@@ -90,6 +94,10 @@ public final class WorldSettings {
             .append(new KeyedCodec<>("Pool", Pool.CODEC, false),
                     (w, v) -> w.pool = v, w -> w.pool)
             .add()
+            // Per-world party rule (every leaf): a dungeon that sizes its foes by party itself switches it off.
+            .append(new KeyedCodec<>("Party", Party.CODEC, false),
+                    (w, v) -> w.party = v, w -> w.party)
+            .add()
             .build();
 
     @Nullable private WorldSelector where;
@@ -100,6 +108,7 @@ public final class WorldSettings {
     @Nullable private Hud zoneHud;
     @Nullable private InspectorHud inspectorHud;
     @Nullable private Pool pool;
+    @Nullable private Party party;
 
     public WorldSettings() {
     }
@@ -112,6 +121,7 @@ public final class WorldSettings {
     @Nullable public Hud getZoneHud() { return zoneHud; }
     @Nullable public InspectorHud getInspectorHud() { return inspectorHud; }
     @Nullable public Pool getPool() { return pool; }
+    @Nullable public Party getParty() { return party; }
 
     /**
      * True when this body says which worlds it applies to, so it is a RULE rather than a pool-only

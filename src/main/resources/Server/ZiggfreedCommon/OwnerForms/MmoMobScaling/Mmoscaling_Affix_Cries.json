@@ -1,0 +1,104 @@
+{
+  "$Comment": "Mob Scaling's War cries screen on the owner menu (/zigadmin): one row per affix that gives its mob a war cry (those with a Cry group, the shipped Rallying and any a pack adds), each opening how often it rolls and how its cry works. Every setting is saved straight into mods/MmoMobScaling/affixes.json under that affix's id, beside the value the packs give it; Reset takes yours back out. What the buff does (its damage and speed) is the buff effect's own, named here by its id. Every word is a key of mmomobscaling.lang. Retune this screen (its place on the menu, a bound) in mods/ziggfreedcommon/owner-forms.json under the id Mmoscaling_Affix_Cries.",
+  "Title": "mmomobscaling.form.cries.title",
+  "Description": "mmomobscaling.form.cries.desc",
+  "Icon": "Furniture_Flag_Small_Red",
+  "Section": "mmomobscaling",
+  "Order": 100,
+  "File": "MmoMobScaling/affixes.json",
+  "Entries": {
+    "Having": "Cry",
+    "Name": "DisplayNameKey"
+  },
+  "Sections": [
+    {
+      "Heading": "mmomobscaling.form.cries.heading.roll",
+      "Fields": [
+        {
+          "Path": "Roll.Weight",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.weight",
+          "Hint": "mmomobscaling.form.cries.weight.hint",
+          "Min": 0,
+          "Max": 1000
+        },
+        {
+          "Path": "Roll.MinDifficulty",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.min_difficulty",
+          "Hint": "mmomobscaling.form.cries.min_difficulty.hint",
+          "Min": 0,
+          "Max": 10000
+        }
+      ]
+    },
+    {
+      "Heading": "mmomobscaling.form.cries.heading.cry",
+      "Fields": [
+        {
+          "Path": "Cry.WindupSeconds",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.windup",
+          "Hint": "mmomobscaling.form.cries.windup.hint",
+          "Min": 0,
+          "Max": 30
+        },
+        {
+          "Path": "Cry.BuffSeconds",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.buff_seconds",
+          "Hint": "mmomobscaling.form.cries.buff_seconds.hint",
+          "Min": 0,
+          "Max": 600
+        },
+        {
+          "Path": "Cry.Radius",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.radius",
+          "Hint": "mmomobscaling.form.cries.radius.hint",
+          "Min": 0,
+          "Max": 64
+        },
+        {
+          "Path": "Cry.RepeatMinSeconds",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.repeat_min",
+          "Hint": "mmomobscaling.form.cries.repeat_min.hint",
+          "Min": 0,
+          "Max": 3600
+        },
+        {
+          "Path": "Cry.RepeatMaxSeconds",
+          "Kind": "Number",
+          "Label": "mmomobscaling.form.cries.repeat_max",
+          "Hint": "mmomobscaling.form.cries.repeat_max.hint",
+          "Min": 0,
+          "Max": 3600
+        }
+      ]
+    },
+    {
+      "Heading": "mmomobscaling.form.cries.heading.effects",
+      "Fields": [
+        {
+          "Path": "Cry.BuffEffectId",
+          "Kind": "Text",
+          "Label": "mmomobscaling.form.cries.buff_effect",
+          "Hint": "mmomobscaling.form.cries.buff_effect.hint"
+        },
+        {
+          "Path": "Cry.CastEffectId",
+          "Kind": "Text",
+          "Label": "mmomobscaling.form.cries.cast_effect",
+          "Hint": "mmomobscaling.form.cries.cast_effect.hint"
+        },
+        {
+          "Path": "Cry.SoundEventId",
+          "Kind": "Text",
+          "Label": "mmomobscaling.form.cries.sound",
+          "Hint": "mmomobscaling.form.cries.sound.hint"
+        }
+      ]
+    }
+  ]
+}

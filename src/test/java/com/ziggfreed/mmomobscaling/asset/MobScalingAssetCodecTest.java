@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +20,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import com.google.gson.JsonObject;
 import com.hypixel.hytale.assetstore.JsonAsset;
@@ -29,18 +32,23 @@ import com.hypixel.hytale.codec.schema.config.NumberSchema;
 import com.hypixel.hytale.codec.schema.config.ObjectSchema;
 import com.hypixel.hytale.codec.schema.config.StringSchema;
 import com.hypixel.hytale.codec.util.RawJsonReader;
+import com.ziggfreed.common.asset.OwnerLayerReader;
 import com.ziggfreed.common.loot.LootRef;
 import com.ziggfreed.common.loot.Roll;
 import com.ziggfreed.mmomobscaling.affix.Affix;
+import com.ziggfreed.mmomobscaling.affix.AffixCry;
 import com.ziggfreed.mmomobscaling.caster.CasterEntry;
 import com.ziggfreed.mmomobscaling.caster.CasterRoster;
 import com.ziggfreed.mmomobscaling.caster.CasterRosterMatcher;
+import com.ziggfreed.mmomobscaling.config.AffixAssetConfig;
 import com.ziggfreed.mmomobscaling.config.AffixConfig;
 import com.ziggfreed.mmomobscaling.config.CasterRosterConfig;
+import com.ziggfreed.mmomobscaling.config.MobScalingConfig;
 import com.ziggfreed.mmomobscaling.config.RarityConfig;
 import com.ziggfreed.mmomobscaling.config.ScalingContentValidator;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
+import com.ziggfreed.mmomobscaling.scaling.PartyRule;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 import com.ziggfreed.common.icon.IconSpec;
@@ -605,6 +613,70 @@ class MobScalingAssetCodecTest {
         assertEquals("vampiric", a.behaviorId(), "BehaviorId dispatches to the mod-side registry");
         assertTrue(a.allowsRarity("epic") && a.allowsRarity("legendary"), "gated to epic/legendary");
         assertTrue(!a.allowsRarity("rare"), "not allowed on rare");
+    }
+
+    @Test
+    void theShippedRallyingAffixCriesAndIsCleanContent() throws Exception {
+        Affix a = decode("/Server/MmoMobScaling/Affixes/Rallying.json", AffixAsset.CODEC).toAffix();
+        assertTrue(a.cries(), "Rallying gives its mob a war cry that rallies someone");
+        AffixCry cry = a.cry();
+        assertNotNull(cry);
+        assertEquals("Mmoscaling_Rallied", cry.buffEffectId(), "the buff the cry puts on");
+        assertEquals("Mmoscaling_Rally_Cry", cry.castEffectId(), "the telegraph the mob wears while it cries");
+        assertTrue(cry.windupSeconds() > 0.0, "the cry is telegraphed before it lands");
+        assertTrue(cry.repeatMaxSeconds() >= cry.repeatMinSeconds(), "the repeat window runs forwards");
+        assertTrue(a.allowsRarity("rare") && a.allowsRarity("legendary"), "any tier with a slot may draw it");
+        assertTrue(ScalingContentValidator.validateAffixes(List.of(a)).isEmpty(),
+                "a cry is the affix's behaviour, so it needs no BehaviorId: "
+                        + ScalingContentValidator.validateAffixes(List.of(a)));
+    }
+
+    @Test
+    void anOwnerEntryRetunesOneLeafAndKeepsTheRestOfTheShippedAffix(@TempDir Path ownerDir) throws Exception {
+        AffixAssetConfig assets = AffixAssetConfig.getInstance();
+        AffixAsset shipped = decode("/Server/MmoMobScaling/Affixes/Rallying.json", AffixAsset.CODEC);
+        try {
+            assets.mergePackLayer(Map.of("Rallying", shipped));
+            Path file = ownerDir.resolve("affixes.json");
+            Files.writeString(file, "{ \"Rallying\": { \"Roll\": { \"Weight\": 3.5 }, \"Cry\": { \"BuffSeconds\": 12.5 } } }",
+                    StandardCharsets.UTF_8);
+            OwnerLayerReader.apply("test", file, AffixAsset.class, AffixAsset.CODEC, assets, "affix");
+
+            Affix before = shipped.toAffix("Rallying");
+            Affix after = assets.resolve("rallying").toAffix("Rallying");
+            assertEquals(3.5, after.spawnWeight(), 1e-9, "the owner's weight");
+            assertEquals(12.5, after.cry().buffSeconds(), 1e-9, "the owner's buff length");
+            assertEquals(before.minDifficulty(), after.minDifficulty(), 1e-9, "Roll's other leaf is kept");
+            assertEquals(before.allowedRarities(), after.allowedRarities(), "Roll's list is kept");
+            assertEquals(before.cry().buffEffectId(), after.cry().buffEffectId(), "Cry's other leaves are kept");
+            assertEquals(before.cry().windupSeconds(), after.cry().windupSeconds(), 1e-9);
+            assertEquals(before.cry().radius(), after.cry().radius(), 1e-9);
+            assertEquals(before.displayNameKey(), after.displayNameKey(), "the affix's own words are kept");
+            assertEquals(before.kind(), after.kind(), "its kind is kept");
+            assertEquals(before.iconItemId(), after.iconItemId(), "its icon is kept");
+        } finally {
+            assets.mergeOwnerLayer(Map.of());
+            assets.mergePackLayer(Map.of());
+        }
+    }
+
+    @Test
+    void aWorldFileSwitchesThePartyRuleOffAndKeepsEveryOtherLeaf() throws Exception {
+        MobScalingSettingsAsset global = decodeJson("{ \"Party\": { \"Enabled\": true, \"Radius\": 30.0,"
+                + " \"TwoPlayers\": 1.4, \"ThreePlayers\": 1.8, \"FourPlayers\": 2.2, \"BossPerPlayer\": 0.3,"
+                + " \"BossMostPlayers\": 5, \"SkipGroups\": [\"Some_Pack\"] } }", MobScalingSettingsAsset.CODEC);
+        MobScalingSettingsAsset.Party g = global.getParty();
+        PartyRule base = new PartyRule(g.getEnabled(), g.getRadius(), g.getTwoPlayers(), g.getThreePlayers(),
+                g.getFourPlayers(), g.getBossPerPlayer(), g.getBossMostPlayers(), List.of(g.getSkipGroups()));
+
+        WorldSettingsAsset asset = decode("/Server/MmoMobScaling/Worlds/Shifting_Deep.json", WorldSettingsAsset.CODEC);
+        WorldSettings ws = WorldSettings.CODEC.decodeJson(
+                RawJsonReader.fromJsonString(asset.getPayloadAsJsonObject().toString()), new ExtraInfo());
+        PartyRule there = MobScalingConfig.overlayParty(ws.getParty(), base);
+        assertFalse(there.enabled(), "the dungeon's own file switches the party rule off");
+        assertEquals(base.radius(), there.radius(), 1e-9, "an unwritten leaf keeps the global's");
+        assertEquals(base.skipGroups(), there.skipGroups(), "an unwritten list keeps the global's");
+        assertSame(base, MobScalingConfig.overlayParty(null, base), "a file with no Party group is the global rule");
     }
 
     @Test
