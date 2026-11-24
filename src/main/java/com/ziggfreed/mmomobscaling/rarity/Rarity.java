@@ -18,8 +18,8 @@ import com.ziggfreed.mmomobscaling.family.FamilyFilter;
  * {@code zoneDifficulty * difficultyMultiplier} ({@code com.ziggfreed.mmomobscaling.scaling.MobScaleFold}),
  * so a tier's premium over a plain mob is a near-constant ratio across the whole band rather than a stat
  * multiplier that every clamp erodes. The tier carries no per-stat multipliers of its own; {@link #lootMult}
- * (the loot pass count) and {@link #xpMult} are the reward half. {@link #auraEffectId} is a native
- * {@code EntityEffect} (e.g. {@code Mmoscaling_Aura_Epic}) applied via {@code addInfiniteEffect} - the
+ * (the loot pass count) is the reward half, and kill XP follows the mob's maximum health, which the tier
+ * already raises. {@link #auraEffectId} is a native {@code EntityEffect} (e.g. {@code Mmoscaling_Aura_Epic}) applied via {@code addInfiniteEffect} - the
  * native-asset-first visual channel, zero Java.
  *
  * <p>{@link #loot} is everything this tier hands over when a mob wearing it dies: the shared
@@ -46,7 +46,6 @@ public record Rarity(
         double minDifficulty,
         double difficultyMultiplier,
         double lootMult,
-        double xpMult,
         int affixSlots,
         @Nullable String auraEffectId,
         @Nonnull List<String> allowedAffixes,
@@ -64,11 +63,11 @@ public record Rarity(
 
     /** Convenience constructor for a tier that decorates the mob's display name (the default). */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
             @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter, @Nullable LootRef loot) {
         this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, loot, true);
+                affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, loot, true);
     }
 
     /**
@@ -77,10 +76,10 @@ public record Rarity(
      * eligible; {@link #loot} = none).
      */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes) {
         this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, auraEffectId, allowedAffixes, "", FamilyFilter.ALLOW_ALL, null);
+                affixSlots, auraEffectId, allowedAffixes, "", FamilyFilter.ALLOW_ALL, null);
     }
 
     /**
@@ -88,20 +87,20 @@ public record Rarity(
      * ({@link FamilyFilter#ALLOW_ALL}; {@link #loot} = none).
      */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
             @Nonnull String nameColor) {
         this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, FamilyFilter.ALLOW_ALL, null);
+                affixSlots, auraEffectId, allowedAffixes, nameColor, FamilyFilter.ALLOW_ALL, null);
     }
 
     /** Convenience constructor with a display colour + family filter but no death loot. */
     public Rarity(@Nonnull String id, @Nonnull String displayNameKey, double weight, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nullable String auraEffectId, @Nonnull List<String> allowedAffixes,
             @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter) {
         this(id, displayNameKey, weight, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, null);
+                affixSlots, auraEffectId, allowedAffixes, nameColor, familyFilter, null);
     }
 
     /**

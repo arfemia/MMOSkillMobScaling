@@ -39,7 +39,6 @@ public record Variant(
         double minDifficulty,
         double difficultyMultiplier,
         double lootMult,
-        double xpMult,
         int affixSlots,
         @Nonnull List<String> allowedAffixes,
         @Nonnull List<String> allowedRarities,
@@ -62,10 +61,10 @@ public record Variant(
      * {@link #loot}).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nonnull List<String> allowedAffixes) {
         this(id, displayNameKey, chance, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, allowedAffixes, List.of("*"), null, "", FamilyFilter.ALLOW_ALL, null);
+                affixSlots, allowedAffixes, List.of("*"), null, "", FamilyFilter.ALLOW_ALL, null);
     }
 
     /**
@@ -73,11 +72,11 @@ public record Variant(
      * death loot (any base rarity, no aura, no {@link #loot}).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nonnull List<String> allowedAffixes, @Nonnull String nameColor,
             @Nonnull FamilyFilter familyFilter) {
         this(id, displayNameKey, chance, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, allowedAffixes, List.of("*"), null, nameColor, familyFilter, null);
+                affixSlots, allowedAffixes, List.of("*"), null, nameColor, familyFilter, null);
     }
 
     /**
@@ -85,11 +84,11 @@ public record Variant(
      * but no death loot ({@link #loot} = none).
      */
     public Variant(@Nonnull String id, @Nonnull String displayNameKey, double chance, double minDifficulty,
-            double difficultyMultiplier, double lootMult, double xpMult,
+            double difficultyMultiplier, double lootMult,
             int affixSlots, @Nonnull List<String> allowedAffixes, @Nonnull List<String> allowedRarities,
             @Nullable String auraEffectId, @Nonnull String nameColor, @Nonnull FamilyFilter familyFilter) {
         this(id, displayNameKey, chance, minDifficulty, difficultyMultiplier, lootMult,
-                xpMult, affixSlots, allowedAffixes, allowedRarities, auraEffectId, nameColor,
+                affixSlots, allowedAffixes, allowedRarities, auraEffectId, nameColor,
                 familyFilter, null);
     }
 

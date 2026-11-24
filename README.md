@@ -3,9 +3,10 @@
 **[Download on CurseForge](https://www.curseforge.com/hytale/mods/mmo-mob-scaling)**
 
 A standalone open-world mob difficulty-scaling companion to the
-[MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod. It scales
-the difficulty of open-world mobs to the players around them, so a high-power group meets
-tougher, rarer enemies while a lone newcomer is not overwhelmed.
+[MMO Skill Tree](https://www.curseforge.com/hytale/mods/mmo-skill-tree) mod. Where you
+are sets how tough open-world mobs are, and the players around you set how rare they are,
+so a high-power group meets rarer enemies with more affixes and casters while a lone
+newcomer beside them is never hit harder.
 
 ## Status
 

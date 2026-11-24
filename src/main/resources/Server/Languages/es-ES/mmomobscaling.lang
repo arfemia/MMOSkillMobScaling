@@ -46,7 +46,6 @@ command.inspect.power = Tu nivel de poder: {power}
 command.inspect.world = Dificultad mínima del mundo: {floor} (escalado activo: {enabled})
 command.inspect.zone = Zona {zone}: mínimo base {base}, bono por distancia +{bonus}, mínimo efectivo {floor}
 command.inspect.region = Poder registrado de la región: {power} (modo {mode}, jugadores registrados: {tracked})
-command.inspect.difficulty = Dificultad efectiva de aparición aquí: {difficulty}
 command.inspect.chance = Probabilidad de rareza al aparecer: {chance}
 command.inspect.player_scaling = Escalado por jugadores: {applied} (activado: {enabled}, anillo inicial: {ring} bloques, dentro del anillo: {inRing}, distancia al punto de aparición: {distance})
 command.inspect.curve = Curva de estadísticas de criatura común aquí: HP x{hp}, daño infligido x{out}, daño recibido x{in}

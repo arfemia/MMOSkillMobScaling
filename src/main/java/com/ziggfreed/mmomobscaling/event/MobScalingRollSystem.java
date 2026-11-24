@@ -47,6 +47,7 @@ import com.ziggfreed.mmomobscaling.rarity.RarityRoster;
 import com.ziggfreed.mmomobscaling.roster.Rosters;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
@@ -71,9 +72,11 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * binding row lets this mod scale him ({@link EncounterSubjectScaling}): reloaded mid-fight, he takes
  * back the scale his fight's engage gave him instead of being stripped.
  *
- * <p>What the roll decides and how it decides it is the same as it always was: the same
- * {@code SplitMix64} seed off the entity's uuid and the world seed, the same rosters, the same family
- * and pool gates, the same fold; a given mob gets the same result. What moves is WHEN: the
+ * <p>What the roll decides: the same {@code SplitMix64} seed off the entity's uuid and the world seed, the
+ * same rosters, the same family and pool gates, the same fold; a given mob at a given pair of difficulties
+ * gets the same result. The picks read the spawn's ROLL difficulty and the fold its STAT difficulty
+ * ({@code SpawnDifficulty}), so a nearby group makes a mob rarer and leaves its health and damage to the
+ * place (at the shipped {@code GroupDeltaStatShare} of 0). What moves against the spawn hook is WHEN: the
  * {@link ScaledMobComponent} stamp, the display-name decoration, the HP reconcile, the aura and affix
  * effects and the caster kit all land on the first tick after the add rather than inside it. The one
  * visible artefact is that a freshly spawned mob enters the world at its base maximum health and is
@@ -195,13 +198,19 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
         }
     }
 
-    /** The roll itself, unchanged in what it decides; see the class javadoc for what moved. */
+    /**
+     * The roll itself, on the spawn's two numbers ({@link SpawnDifficulty}): the ROLL difficulty (the place plus
+     * the nearby group) picks the rarity, the variant and the affixes and gates their bands, and the fold reads
+     * the STAT difficulty (the place, plus the world's {@code GroupDeltaStatShare} of the group's move) for the
+     * mob's health and damage, carrying both onto the stamp (the caster arm gates on the roll).
+     */
     private void roll(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref,
             @Nonnull CommandBuffer<EntityStore> cb, @Nonnull NPCEntity npc, @Nonnull World world, byte scope) {
         MobScalingConfig cfg = MobScalingConfig.getInstance();
         SpawnScalingSettings spawn = cfg.spawnSettingsFor(world);
         MobScalingSpawnHook.SpawnScaling scaling = resolveSpawnScaling(world, store, ref, spawn);
-        double effDifficulty = scaling.difficulty();
+        SpawnDifficulty at = scaling.difficulty();
+        double rollDifficulty = at.roll();
 
         SplitMix64 rng = new SplitMix64(seedFor(npc, world, store, ref));
 
@@ -222,24 +231,25 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
         Rarity forced = Rosters.rarity().forced(r -> MobFamilyMatcher.get().forces(r.familyFilter(), npc)
                 && spawn.isRarityAllowed(r.id()));
         Rarity rolled = Rosters.rarity()
-                .pick(effDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
+                .pick(rollDifficulty, scaling.raritySpawnChance(), rng, rarityFamilyEligible);
         Rarity rarity = RarityRoster.strongerOf(rolled, forced);
         // The SECOND axis: an independent family-gated variant OVERLAY (at most one), rolled after the base
         // rarity. Draws exactly once so the seed->result mapping stays stable.
         String baseRarityId = rarity != null ? rarity.id() : "";
-        Variant variant = Rosters.variant().pick(effDifficulty, baseRarityId,
+        Variant variant = Rosters.variant().pick(rollDifficulty, baseRarityId,
                 spawn.getVariantChanceMultiplier(), rng, variantFamilyEligible);
 
         // Affixes come from BOTH hosts (rarity slots + variant slots) plus the per-world extra slots, one
         // combined distinct roll sharing the used-set + single-resistance cap; the per-world Pool.Affixes
-        // allow/deny gates every draw.
-        List<Affix> affixes = Rosters.affix().pick(effDifficulty, rarity, variant,
+        // allow/deny gates every draw. At the roll difficulty too, so a strong group makes the rare affixes
+        // (the Rallying war cry among them) reachable sooner.
+        List<Affix> affixes = Rosters.affix().pick(rollDifficulty, rarity, variant,
                 spawn.getExtraAffixSlots(), a -> spawn.isAffixAllowed(a.id()), rng);
 
-        // The fold evaluates the curve at the spot difficulty times the rarity's and variant's
-        // DifficultyMultiplier; the result carries the SPOT difficulty (what the roll gates, the HUD, the
-        // inspector, the XP underdog gap and the mob_difficulty factor all read).
-        MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, effDifficulty, scope,
+        // The fold evaluates the curve at the STAT difficulty times the rarity's and variant's
+        // DifficultyMultiplier; the result carries the stat difficulty (what the HUD's danger word, the
+        // inspector and the mob_difficulty factor read) and the roll difficulty (what the caster arm gates on).
+        MobScaleResult result = MobScaleFold.fold(rarity, variant, affixes, at, scope,
                 spawn.statCurveModel(), spawn.clampsModel());
         // IDEMPOTENT stamp (putComponent, never addComponent), deferred through the command buffer so the
         // archetype move lands after this tick's iteration.
@@ -261,6 +271,7 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
 
         // HP: RECONCILE the mmoscaling_hp MAX modifier to the fresh hpMult on the live stat map (hpMult==1
         // removes any prior modifier; a shrink auto-clamps current HP; the first apply heals to the new max).
+        // This is the place's health (its stat difficulty); the party joins later through scaled.healthMult().
         HealthUtil.reconcileMaxHealth(store, ref, result.hpMult(), MobScalingSpawnHook.HP_KEY);
 
         // The two RefSystems on the scaled archetype do not fire for a stamp onto a live entity, so their
@@ -281,7 +292,7 @@ public final class MobScalingRollSystem extends EntityTickingSystem<EntityStore>
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null) {
             double floor = settings.getDifficultyFloor();
-            return new MobScalingSpawnHook.SpawnScaling(floor, settings.getRaritySpawnChance(),
+            return new MobScalingSpawnHook.SpawnScaling(SpawnDifficulty.placeOnly(floor), settings.getRaritySpawnChance(),
                     ZoneDifficultyResolver.NO_ZONE, floor, 0.0, floor, 0.0, ZoneDifficultyResolver.NO_ZONE,
                     false, false, 0.0);
         }

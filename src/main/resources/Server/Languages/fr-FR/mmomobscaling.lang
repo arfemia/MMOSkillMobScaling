@@ -46,7 +46,6 @@ command.inspect.power = Votre niveau de puissance : {power}
 command.inspect.world = Plancher de difficulté du monde : {floor} (mise à l'échelle active : {enabled})
 command.inspect.zone = Zone {zone} : plancher de base {base}, bonus de distance +{bonus}, plancher effectif {floor}
 command.inspect.region = Puissance suivie de la région : {power} (mode {mode}, joueurs suivis : {tracked})
-command.inspect.difficulty = Difficulté d'apparition effective ici : {difficulty}
 command.inspect.curve = Courbe de statistiques des créatures ordinaires ici : HP x{hp}, dégâts infligés x{out}, dégâts subis x{in}
 command.inspect.chance = Chance de rareté à l'apparition : {chance}
 command.inspect.player_scaling = Ajustement selon les joueurs : {applied} (activé : {enabled}, anneau de départ : {ring} blocs, dans l'anneau : {inRing}, distance du point d'apparition : {distance})

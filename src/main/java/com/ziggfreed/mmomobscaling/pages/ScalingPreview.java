@@ -7,11 +7,13 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.ziggfreed.common.scaling.AggregationMode;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold.Clamps;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold.DifficultyStatCurve;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 
 /**
  * The arithmetic behind the admin page's preview column, pure and engine-free so it is unit-tested on
@@ -104,6 +106,20 @@ public final class ScalingPreview {
             out.add(new Tier(r, r.difficultyMultiplier(), sample(result, curve, dEff)));
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * What a group strong enough to fill the band ({@code place + bandWidth} or more) makes of a spawn at
+     * {@code place}, through the spawn's own resolve ({@link SpawnDifficulty#resolve}, which only ever raises the
+     * roll for a group that strong): the difficulty its mobs roll rarity, affixes and casters at, and the one
+     * their health and damage read under {@code statShare}.
+     */
+    @Nonnull
+    public static SpawnDifficulty strongGroup(double place, double bandWidth, double minCap, double maxCap,
+            double statShare) {
+        double band = Math.max(0.0, bandWidth);
+        return SpawnDifficulty.resolve(place, place + band, AggregationMode.SOLO, band, minCap, maxCap, true,
+                statShare);
     }
 
     /** The fold's stamped result at {@code dEff}, read back into a {@link Sample} with the rails asked of the curve. */

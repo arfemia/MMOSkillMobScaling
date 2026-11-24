@@ -34,16 +34,16 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  *
  * <p><b>The overlay's strength is ONE number, {@code DifficultyMultiplier}</b>, multiplied together with the
  * base rarity's own on the difficulty the curve is evaluated at. {@code Multipliers} carries only the
- * reward half ({@code Loot}, {@code Xp}); a per-stat multiplier is not a leaf of this schema, so a file
- * authoring one under {@code Multipliers} gets the server's own "Unused key(s)" warning naming the file and
- * the key.
+ * reward half ({@code Loot}); kill XP follows the mob's maximum health, which the overlay already raises. A
+ * per-stat multiplier is not a leaf of this schema, so a file authoring one (or an {@code Xp}) under
+ * {@code Multipliers} gets the server's own "Unused key(s)" warning naming the file and the key.
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
  * { "Name": "Horrific", "DisplayNameKey": "mmomobscaling.variant.horrific.name", "NameColor": "#7cb342",
  *   "Roll": { "Chance": 0.15, "MinDifficulty": 20 },
  *   "DifficultyMultiplier": 1.25,
- *   "Multipliers": { "Loot": 1.3, "Xp": 1.2 },
+ *   "Multipliers": { "Loot": 1.3 },
  *   "Affixes": { "Slots": 1, "Allowed": ["venomous"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"] },
  *   "Loot": { "Rolls": [ { "Grants": { "DropLists": ["Mmoscaling_Drops_Horrific"] } } ] } }
@@ -138,7 +138,6 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         double minDifficulty = roll != null && roll.minDifficulty != null ? roll.minDifficulty : 0.0;
         double difficultyMult = mult(difficultyMultiplier);
         double lootMult = mult(multipliers != null ? multipliers.loot : null);
-        double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
         List<String> allowed = affixes != null && affixes.allowed != null ? List.of(affixes.allowed) : List.of("*");
         // Absent AllowedRarities -> ["*"] = overlays ANY base rarity (including a plain mob); an explicit
@@ -149,7 +148,7 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
         String color = nameColor != null ? nameColor : "";
         FamilyFilter filter = families != null ? families.toFilter() : FamilyFilter.ALLOW_ALL;
         LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
-        return new Variant(id, nameKey, chance, minDifficulty, difficultyMult, lootMult, xp, slots, allowed,
+        return new Variant(id, nameKey, chance, minDifficulty, difficultyMult, lootMult, slots, allowed,
                 allowedRarities, auraEffectId, color, filter, deathLoot);
     }
 
@@ -184,9 +183,9 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
     }
 
     /**
-     * The reward multipliers (each absent leaf = 1.0), multiplied with the base rarity's: how often the
-     * loot is rolled and how much kill XP it pays. The overlay's health, damage dealt and damage taken
-     * all follow from its top-level {@code DifficultyMultiplier}.
+     * The reward multiplier (absent = 1.0), multiplied with the base rarity's: how often the loot is rolled.
+     * The overlay's health, damage dealt and damage taken all follow from its top-level
+     * {@code DifficultyMultiplier}, and kill XP follows the health.
      */
     public static final class Multipliers {
         public static final BuilderCodec<Multipliers> CODEC = BuilderCodec
@@ -196,14 +195,9 @@ public final class VariantAsset implements JsonAssetWithMap<String, DefaultAsset
                 .documentation("Multiplies the base rarity's loot pass count: how many times both hosts' Loot"
                         + " blocks are rolled on death.")
                 .add()
-                .append(new KeyedCodec<>("Xp", Codec.DOUBLE, false), (m, v) -> m.xp = v, m -> m.xp)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .documentation("Multiplies the base rarity's kill-XP multiplier.")
-                .add()
                 .build();
 
         @Nullable private Double loot;
-        @Nullable private Double xp;
     }
 
     /** The affix policy: slot count + the allow-list of affix ids ({@code ["*"]} = any) this variant grants. */

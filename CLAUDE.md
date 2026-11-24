@@ -7,7 +7,7 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 - Build with `.\build.ps1` (`-Install:$false` builds only). `ziggfreed-common` is `compileOnly`, never bundled; the MMO is no dependency at all, compile or manifest (R597).
 - `gradle/deprecation-gate.gradle` (run by `check`) is the MMO's (`mmo-family/mmo-skills`), copied byte for byte: it changes only by copying the MMO's.
 - The `gradle.properties` pin (`ziggfreedCommonVersion`) follows its sibling's version in lockstep; a manifest `>=` floor is the oldest version the mod really needs and moves only for newer API, never above its pin (R364). The `LinkageError` guards are a mis-install net, not older-jar support.
-- Meet the MMO only through ziggfreed-common's seams, never an import: player power through `config/PlayerPowerReads` (the player power seam, the MMO's Power Level where it fills it, else the library's gear reading), a caster's ability through `NpcAbilityCasts`, the kill reward and rarity through the progression runtime's `KillRewardScale` and `KillQualifier`, a HUD's per-player show through `PlayerSettings` under the card's `SURFACE`. Never write another mod's file.
+- Meet the MMO only through ziggfreed-common's seams, never an import: player power through `config/PlayerPowerReads` (the player power seam, the MMO's Power Level where it fills it, else the library's gear reading), a caster's ability through `NpcAbilityCasts`, a kill's rarity through the progression runtime's `KillQualifier` (no `KillRewardScale`: kill XP follows a mob's maximum health, R610), a HUD's per-player show through `PlayerSettings` under the card's `SURFACE`. Never write another mod's file.
 
 ## Gate and wiring
 
@@ -18,7 +18,8 @@ Open-world mob difficulty scaling (rarity ladder, affixes, region power, two HUD
 ## Spawn roll
 
 - The spawn lock has two halves: `MobScalingSpawnHook` stamps `PendingRollComponent` pre-add and `MobScalingRollSystem` rolls the tick after. The roll skips `ManualTrigger` spawn-marker spawns and encounter-bound subjects. A stamp onto a live entity fires no `RefSystem`, so the roll calls the effect and caster-arm bodies directly. A holder already carrying `ScaledMobComponent` is never re-rolled.
-- `MobScaleResult.difficulty` is the spot difficulty everywhere it is read. Rarity and variant multiply the curve-read difficulty (`dEff`), which is not re-clamped to `MaxCap`.
+- A spawn resolves two numbers (`scaling/SpawnDifficulty`, R478, R1198): the place (escalated floor) sets health and damage, the roll (place plus the group delta) sets what a mob rolls; `OpenWorld.GroupDeltaStatShare` (0 shipped) is the share of the group's move health and damage take. The rarity, variant and affix picks and the caster gate read the roll (`MobScaleResult.rollDifficulty`); the fold, the HUD tier word and the `mob_difficulty` factor read `MobScaleResult.difficulty`, the stat difficulty. Never let player power reach health or damage except through that share.
+- Rarity and variant multiply the curve-read difficulty (`dEff`), which is not re-clamped to `MaxCap`.
 - `Mmoscaling_Bosses` holds ambient world bosses only, by including zc's `Zig_World_Bosses`, the group zc's `Zig_Boss_Or_Elite` includes too, so a boss this mod forces is a boss to every boss rule (R672, R858); a new roaming boss goes in zc's group, never a list here. Encounter-raised or bound bosses are skipped before classification.
 - The one exception: a boss whose binding row sets zc's `Scale.Companion` is scaled at `EncounterEngagedEvent` by `event/EncounterSubjectScaling` (the adds' level, `MobScaleFold.anchored`, a `ScaledMobComponent.ofCompanion` stamp), once per run; the roll's skips put it back after a reload instead of stripping it. No boss id lives in this mod.
 

@@ -73,15 +73,16 @@ public final class MobScalingFactors {
     public static final String MOB_AFFIX = "mmomobscaling:mob_affix";
 
     /**
-     * The target's frozen difficulty: the difficulty of the SPOT it spawned at, after the zone floor, the
-     * distance ramp and the nearby group. Its rarity's premium on top of that is a separate reading
+     * The target's frozen difficulty: the one its health and damage read, the difficulty of the PLACE it spawned
+     * at (the zone floor and the distance ramp; plus the world's {@code GroupDeltaStatShare} of the nearby group's
+     * move, 0 unless an owner sets it). Its rarity's premium on top of that is a separate reading
      * ({@link #MOB_RARITY_TIER}), so content can gate on the place and on the tier independently.
      */
     public static final String MOB_DIFFICULTY = "mmomobscaling:mob_difficulty";
 
     /**
      * How much player power this mod is currently tracking in the region the moment is happening in -
-     * the same aggregate that hardens spawns there. Reads the target's position when there is one and
+     * the same aggregate that makes spawns there rarer. Reads the target's position when there is one and
      * the acting subject's otherwise, so a block break and a mob kill both answer for where they
      * happened. Absent in a world whose aggregation is {@code DISABLED}: this mod has no opinion there.
      */
@@ -180,7 +181,7 @@ public final class MobScalingFactors {
         return 0.0;
     }
 
-    /** The target's frozen spot difficulty. */
+    /** The target's frozen difficulty, the one its health and damage read. */
     @Nullable
     private static Double difficulty(@Nonnull FactorContext ctx) {
         MobScaleResult result = scaleOf(ctx);

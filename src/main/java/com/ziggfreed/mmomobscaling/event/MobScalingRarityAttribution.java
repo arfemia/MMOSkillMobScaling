@@ -15,9 +15,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  * carries this mod's rolled rarity id (the asset ids under {@code Server/MmoMobScaling/Rarities}, e.g.
  * {@code "Legendary"}) as the kill moment's qualifier: what quest and achievement criteria naming a rarity match, and
  * what a kill drop command's {@code {tier}} placeholder resolves to, on any server running the library. Reading the
- * victim's own {@link ScaledMobComponent} keeps any other mod from importing this one, the same shape as
- * {@link MobScalingXpReward}. A plain floor mob (empty rarity id) and an unscaled entity both answer null, an
- * unqualified kill.
+ * victim's own {@link ScaledMobComponent} keeps any other mod from importing this one. A plain floor mob (empty
+ * rarity id) and an unscaled entity both answer null, an unqualified kill.
  *
  * <p>Asked once per credited player kill on the owning world thread (the component read is one chunk-local lookup);
  * the library guards the call, so a throw here can never break its kill handling.

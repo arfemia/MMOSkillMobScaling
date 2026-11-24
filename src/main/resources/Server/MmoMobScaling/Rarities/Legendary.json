@@ -5,7 +5,7 @@
   "NameColor": "#ffd54f",
   "Roll": { "Weight": 5, "MinDifficulty": 50 },
   "DifficultyMultiplier": 2.4,
-  "Multipliers": { "Loot": 2.0, "Xp": 1.6 },
+  "Multipliers": { "Loot": 2.0 },
   "Affixes": { "Slots": 3, "Allowed": ["*"] },
   "AuraEffectId": "Mmoscaling_Aura_Legendary",
   "Loot": {

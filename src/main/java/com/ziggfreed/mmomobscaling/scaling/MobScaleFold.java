@@ -13,12 +13,18 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * Folds a rolled {@link Rarity} + an optional {@link Variant} overlay + their {@link Affix}es into the single
  * frozen {@link MobScaleResult} at spawn. Pure, deterministic, engine-free.
  *
+ * <p><b>Two difficulties come in ({@link SpawnDifficulty}).</b> The curve reads the STAT difficulty (the
+ * place, at the shipped {@code GroupDeltaStatShare} of 0) and the result carries it as
+ * {@link MobScaleResult#difficulty()}; the ROLL difficulty (the place plus the nearby group) decided the
+ * rarity, variant and affixes before the fold and rides through as {@link MobScaleResult#rollDifficulty()}.
+ * A caller with no group on top passes one number and both are it.
+ *
  * <p><b>Rarity and variant are multipliers on DIFFICULTY, not on stats.</b> The curve is evaluated at
- * {@code dEff = difficulty * rarity.difficultyMultiplier * variant.difficultyMultiplier}, so a Legendary at
+ * {@code dEff = stat * rarity.difficultyMultiplier * variant.difficultyMultiplier}, so a Legendary at
  * difficulty 30 is folded exactly like a plain mob at difficulty 72, and the ratio between two tiers holds
  * across the whole band instead of collapsing wherever a per-stat clamp binds. {@code dEff} is deliberately
- * NOT clamped to {@code Difficulty.MaxCap}: that cap bounds the ZONE difficulty a spawn resolves to (the
- * number the HUD, the inspector, the roll gates and {@link MobScaleResult#difficulty()} all carry), and the
+ * NOT clamped to {@code Difficulty.MaxCap}: that cap bounds the difficulties a spawn resolves to (the
+ * numbers the HUD, the inspector, the roll gates and {@link MobScaleResult#difficulty()} carry), and the
  * curve's own rails bound the fold. Re-clamping {@code dEff} is what would fold every tier onto one number
  * at the top of the band.
  *
@@ -50,7 +56,7 @@ import com.ziggfreed.mmomobscaling.variant.Variant;
  * extreme case where the visible HP alone already exceeds the rail.
  *
  * <p>Loot: {@code rarity.loot * variant.loot * (1 + sum(affix.lootBonus))}, clamped to
- * {@code [MinLootMult, MaxLootMult]}. XP: {@code rarity.xp * variant.xp}, unclamped and affix-free.
+ * {@code [MinLootMult, MaxLootMult]}. No kill-XP factor: kill XP follows the mob's maximum health (R610).
  *
  * <p>An encounter's boss, when its binding row lets this mod scale him, takes {@link #anchored} instead: the
  * plain curve read relative to its own value at the spot's floor, since his role and his fight are already
@@ -164,24 +170,34 @@ public final class MobScaleFold {
     }
 
     /**
-     * Fold a plain mob (no rarity, no variant, no affixes): the curve factors at the zone difficulty ARE the
-     * mults, loot and XP stay 1.0, empty ids. The factors already sit inside the curve's own rails, so no
-     * clamp is needed.
+     * Fold a plain mob (no rarity, no variant, no affixes) at one difficulty, nothing rolled above it: the
+     * curve factors at {@code difficulty} ARE the mults, loot stays 1.0, empty ids. The factors already sit
+     * inside the curve's own rails, so no clamp is needed.
      */
     @Nonnull
     public static MobScaleResult plain(double difficulty, byte scope, @Nonnull DifficultyStatCurve curve) {
-        return new MobScaleResult((float) difficulty, "", "", new String[0],
-                (float) curve.hpFactor(difficulty), (float) curve.outFactor(difficulty), (float) curve.inFactor(difficulty),
-                1f, 1f, scope);
+        return plain(SpawnDifficulty.placeOnly(difficulty), scope, curve);
+    }
+
+    /**
+     * Fold a plain mob whose roll came up empty: the curve read at {@code at.stat()}, the result carrying both
+     * that and {@code at.roll()}.
+     */
+    @Nonnull
+    public static MobScaleResult plain(@Nonnull SpawnDifficulty at, byte scope, @Nonnull DifficultyStatCurve curve) {
+        double d = at.stat();
+        return new MobScaleResult((float) d, (float) at.roll(), "", "", new String[0],
+                (float) curve.hpFactor(d), (float) curve.outFactor(d), (float) curve.inFactor(d), 1f, scope);
     }
 
     /**
      * Fold an encounter's boss for the companion scale its fight's binding row allows: the plain fold at
-     * {@code difficulty} (no rarity, variant or affix, loot and XP 1.0), each axis divided by its own value at
+     * {@code difficulty} (no rarity, variant or affix, loot 1.0), each axis divided by its own value at
      * {@code floor}, so at the floor the boss is exactly what his role and his fight make him and he grows only
      * as the level climbs above it. Never below 1.0: a level under the floor leaves him as authored. An axis
      * the row leaves off stays 1.0, and the incoming-damage axis always does, so all the toughness this adds is
-     * on the health bar. The result carries {@code difficulty}, the level his adds read.
+     * on the health bar. The result carries {@code difficulty}, the level his adds' health and damage read
+     * (nothing rolls for him, so it is his roll difficulty too).
      *
      * @param health whether the row lets the health axis grow ({@code Scale.Companion.Health})
      * @param damage whether the row lets the outgoing-damage axis grow ({@code Scale.Companion.Damage})
@@ -191,25 +207,37 @@ public final class MobScaleFold {
             @Nonnull DifficultyStatCurve curve, boolean health, boolean damage) {
         double hp = health ? Math.max(1.0, curve.hpFactor(difficulty) / curve.hpFactor(floor)) : 1.0;
         double out = damage ? Math.max(1.0, curve.outFactor(difficulty) / curve.outFactor(floor)) : 1.0;
-        return new MobScaleResult((float) difficulty, "", "", new String[0], (float) hp, (float) out, 1f, 1f, 1f,
-                scope);
+        return new MobScaleResult((float) difficulty, (float) difficulty, "", "", new String[0], (float) hp,
+                (float) out, 1f, 1f, scope);
     }
 
     /**
-     * Fold a rolled rarity + an optional {@code variant} overlay + their combined affixes into the frozen
-     * result. {@code difficulty} is the ZONE difficulty the spawn resolved to and is what the result carries;
-     * the curve is evaluated at {@link #curveDifficulty}. Both {@code null} and no affixes yields the
-     * plain result. A {@code null} rarity with a variant still folds (a plain mob can carry a variant:
-     * "Horrific Spider").
+     * Fold at one difficulty with nothing rolled above it ({@link SpawnDifficulty#placeOnly}): the form a caller
+     * with no group on top (the admin preview's ladder, a test) uses.
      */
     @Nonnull
     public static MobScaleResult fold(@Nullable Rarity rarity, @Nullable Variant variant,
             @Nonnull List<Affix> affixes, double difficulty, byte scope, @Nonnull DifficultyStatCurve curve,
             @Nonnull Clamps clamps) {
+        return fold(rarity, variant, affixes, SpawnDifficulty.placeOnly(difficulty), scope, curve, clamps);
+    }
+
+    /**
+     * Fold a rolled rarity + an optional {@code variant} overlay + their combined affixes into the frozen
+     * result. {@code at} is the spawn's two numbers: the curve is evaluated at {@link #curveDifficulty} of
+     * {@code at.stat()}, which the result carries as its difficulty, and {@code at.roll()} (what the rarity,
+     * variant and affixes were rolled at) rides through untouched. Both {@code null} and no affixes yields the
+     * plain result. A {@code null} rarity with a variant still folds (a plain mob can carry a variant:
+     * "Horrific Spider").
+     */
+    @Nonnull
+    public static MobScaleResult fold(@Nullable Rarity rarity, @Nullable Variant variant,
+            @Nonnull List<Affix> affixes, @Nonnull SpawnDifficulty at, byte scope, @Nonnull DifficultyStatCurve curve,
+            @Nonnull Clamps clamps) {
         if (rarity == null && variant == null && affixes.isEmpty()) {
-            return plain(difficulty, scope, curve);
+            return plain(at, scope, curve);
         }
-        double dEff = curveDifficulty(difficulty, rarity, variant);
+        double dEff = curveDifficulty(at.stat(), rarity, variant);
         double hpScale = 1.0;
         double outScale = 1.0;
         double inScale = 1.0;
@@ -229,7 +257,6 @@ public final class MobScaleFold {
 
         double lootBase = (rarity != null ? rarity.lootMult() : 1.0) * (variant != null ? variant.lootMult() : 1.0);
         double loot = clamp(lootBase * (1.0 + lootBonus), clamps.minLootMult(), clamps.maxLootMult());
-        double xp = (rarity != null ? rarity.xpMult() : 1.0) * (variant != null ? variant.xpMult() : 1.0);
 
         String[] affixIds = new String[affixes.size()];
         for (int i = 0; i < affixes.size(); i++) {
@@ -237,16 +264,17 @@ public final class MobScaleFold {
         }
         String rarityId = rarity != null ? rarity.id() : "";
         String variantId = variant != null ? variant.id() : "";
-        return new MobScaleResult((float) difficulty, rarityId, variantId, affixIds,
-                (float) hp, (float) out, (float) in, (float) loot, (float) xp, scope);
+        return new MobScaleResult((float) at.stat(), (float) at.roll(), rarityId, variantId, affixIds,
+                (float) hp, (float) out, (float) in, (float) loot, scope);
     }
 
     /**
      * The difficulty the curve is READ at for this rarity + variant pairing ({@code dEff}):
      * {@code difficulty * rarity.difficultyMultiplier * variant.difficultyMultiplier}, never below 1 and
-     * never clamped to the zone cap (see the class javadoc for why). Distinct from the SPOT difficulty a
-     * spawn resolves to ({@code MobScalingSpawnHook.resolveSpawnScaling}: floor + escalation + group
-     * delta, capped), which is the {@code difficulty} passed in and the number every read-out carries.
+     * never clamped to the zone cap (see the class javadoc for why). Distinct from the STAT difficulty a
+     * spawn resolves to ({@code MobScalingSpawnHook.resolveSpawnScaling}: the place, plus the owner's share
+     * of the group's move, capped), which is the {@code difficulty} passed in and the number every read-out
+     * carries.
      */
     public static double curveDifficulty(double difficulty, @Nullable Rarity rarity, @Nullable Variant variant) {
         double d = Math.max(1.0, difficulty);

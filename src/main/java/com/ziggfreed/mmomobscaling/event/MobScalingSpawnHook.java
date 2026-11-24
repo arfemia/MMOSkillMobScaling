@@ -22,8 +22,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
 import com.hypixel.hytale.server.npc.systems.RoleBuilderSystem;
 import com.ziggfreed.common.health.HealthUtil;
-import com.ziggfreed.common.scaling.ScalingContext;
-import com.ziggfreed.common.scaling.ScalingEngine;
 import com.ziggfreed.mmomobscaling.MobScalingPlugin;
 import com.ziggfreed.mmomobscaling.component.PendingRollComponent;
 import com.ziggfreed.mmomobscaling.component.ScaledMobComponent;
@@ -32,6 +30,7 @@ import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
@@ -56,11 +55,13 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * reconciles a retune onto a saved mob.) The residue cleanup runs BEFORE that guard, so a mod- or
  * world-disabled mob and a newly excluded one are still stripped on every load.
  *
- * <p><b>Difficulty scope:</b> {@code effDifficulty} = the LAYERED floor (native zone &gt; biome &gt;
- * the per-world/global {@code Difficulty.Floor} baseline, via {@link ZoneDifficultyResolver}) plus the
- * distance-from-spawn escalation, plus the band-clamped open-world GROUP DELTA off the cached
- * per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker} + ziggfreed-common's
- * {@code ScalingEngine}; see {@link #resolveSpawnScaling}), resolved by the roll system on its tick.
+ * <p><b>Difficulty scope:</b> the PLACE = the LAYERED floor (native zone &gt; biome &gt; the
+ * per-world/global {@code Difficulty.Floor} baseline, via {@link ZoneDifficultyResolver}) plus the
+ * distance-from-spawn escalation; the ROLL = the place plus the band-clamped open-world GROUP DELTA off the
+ * cached per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker} + ziggfreed-common's
+ * {@code ScalingEngine}); health and damage read the place plus the world's {@code GroupDeltaStatShare} of
+ * the group's move ({@link SpawnDifficulty}; see {@link #resolveSpawnScaling}), resolved by the roll system
+ * on its tick.
  * The whole body is one defensive try/catch so a throw never breaks chunk loading.
  */
 public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
@@ -163,16 +164,16 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
     }
 
     /**
-     * One fully-resolved spawn-scaling read: the effective difficulty (floor + escalation + group
-     * delta), the escalation-boosted rarity spawn chance, and the diagnostic breakdown
-     * ({@code /mobscaling inspect} prints every field so owners can see exactly which layer produced
-     * a number).
+     * One fully-resolved spawn-scaling read: the spawn's two difficulties ({@link SpawnDifficulty}: the place,
+     * what health and damage read, what rarity, variant, affixes and casters roll at), the escalation-boosted
+     * rarity spawn chance, and the diagnostic breakdown ({@code /mobscaling inspect} prints every field so
+     * owners can see exactly which layer produced a number).
      *
      * <p>{@code insideStartRing} + {@code playerScalingApplied} are the WHY of the group delta: a zero
      * delta is otherwise indistinguishable between "no players tracked", "player scaling switched off in
      * this world", and "inside the protected ring near world spawn".
      */
-    public record SpawnScaling(double difficulty, double raritySpawnChance, @Nonnull String zoneName,
+    public record SpawnScaling(@Nonnull SpawnDifficulty difficulty, double raritySpawnChance, @Nonnull String zoneName,
             double baseFloor, double escalationBonus, double effectiveFloor, double regionPower,
             @Nonnull String biomeName, boolean insideStartRing, boolean playerScalingApplied,
             double distanceFromSpawn) {
@@ -182,18 +183,20 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
      * The chunk-coordinate form of the spawn-scaling resolve, shared by the roll system, the HUD and the
      * {@code /mobscaling inspect} diagnostic so all three report EXACTLY what a spawn at that spot
      * resolves. Pipeline: {@link ZoneDifficultyResolver} produces the layered floor (native zone &gt;
-     * biome &gt; world baseline) plus the distance escalation (which also boosts the rarity chance);
-     * then the cached per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker}, O(1),
+     * biome &gt; world baseline) plus the distance escalation (which also boosts the rarity chance): the
+     * PLACE. Then the cached per-(zone, sub-grid) player-power scalar ({@link RegionPowerTracker}, O(1),
      * maintained on player region-cross, NEVER a per-spawn scan; keyed at the world's own grid size and
-     * already folded under the world's own aggregation mode, both declared by the presence tick) rides
-     * on top through ziggfreed-common's {@code ScalingEngine} under the world's band/caps. A
-     * cold region (no players tracked, scalar {@code <= 0}) is a ZERO delta: the escalated floor
-     * stands. Power scaling is also fully OFF inside the PROTECTED RING near world spawn
-     * ({@code floor.insideStartRing()}, sized by its own {@code OpenWorld.PlayerScalingStartRingBlocks}
-     * knob and OFF by default at radius 0 - never the distance-escalation start radius), and when
-     * {@code OnlyRaiseDifficulty} is set the group delta only ever RAISES difficulty above the floor,
-     * never below it. This is what makes {@code MinDifficulty} above the floor a live lever (a strong
-     * group pushes {@code effDifficulty} past the floor, so Legendary / Freezing bands become reachable).
+     * already folded under the world's own aggregation mode, both declared by the presence tick) moves the
+     * ROLL through ziggfreed-common's {@code ScalingEngine} under the world's band/caps, and the world's
+     * {@code GroupDeltaStatShare} decides how much of that move health and damage take
+     * ({@link SpawnDifficulty#resolve}). A cold region (no players tracked, scalar {@code <= 0}) is a ZERO
+     * delta: the place is all three numbers. Power scaling is also fully OFF inside the PROTECTED RING near
+     * world spawn ({@code floor.insideStartRing()}, sized by its own
+     * {@code OpenWorld.PlayerScalingStartRingBlocks} knob - never the distance-escalation start radius), and
+     * when {@code OnlyRaiseDifficulty} is set the group delta only ever RAISES the roll above the place, never
+     * below it. This is what makes {@code MinDifficulty} above the place a live lever (a strong group pushes
+     * the roll past the place, so Epic / Legendary / Freezing bands become reachable) while the mob's health
+     * and damage stay the place's.
      */
     public static SpawnScaling resolveSpawnScaling(@Nonnull World world,
             int chunkX, int chunkZ, @Nonnull SpawnScalingSettings settings) {
@@ -202,20 +205,19 @@ public final class MobScalingSpawnHook extends HolderSystem<EntityStore> {
         RegionPowerTracker.RegionKey regionKey = new RegionPowerTracker.RegionKey(floor.zoneName(),
                 RegionPowerTracker.gridKey(chunkX, chunkZ, settings.getRegionSizeChunks()));
         double regionPower = RegionPowerTracker.get().scalarFor(world.getName(), regionKey);
-        // LOCATION drives difficulty (the escalated floor). Player/group power only ever RAISES it above
-        // that floor (never lowers it, when OnlyRaiseDifficulty is set), and is fully OFF inside the
-        // PROTECTED RING near world spawn (OpenWorld.PlayerScalingStartRingBlocks, 0 = no ring), so an
-        // owner who wants a safe newcomer home area opts into one. A world with PlayerScalingEnabled=false
-        // (e.g. a fixed-difficulty dungeon) skips the group delta entirely and stays at the escalated floor.
-        double difficulty = floor.effectiveFloor();
+        // LOCATION drives the place (the escalated floor). Player/group power moves the roll above it (never
+        // below it, when OnlyRaiseDifficulty is set), and is fully OFF inside the PROTECTED RING near world
+        // spawn (OpenWorld.PlayerScalingStartRingBlocks, 0 = no ring), so an owner who wants a safe newcomer
+        // home area opts into one. A world with PlayerScalingEnabled=false (e.g. a fixed-difficulty dungeon)
+        // skips the group delta entirely and the place stands for all three numbers.
         boolean playerScalingApplied =
                 settings.isPlayerScalingEnabled() && regionPower > 0.0 && !floor.insideStartRing();
-        if (playerScalingApplied) {
-            double scaled = ScalingEngine.resolve(
-                    ScalingContext.openWorld(floor.effectiveFloor(), regionPower, MobScalingPresenceSystem.mode(settings)),
-                    settings.getGroupDeltaBandWidth(), settings.getDifficultyMinCap(), settings.getDifficultyMaxCap());
-            difficulty = settings.isOnlyRaiseDifficulty() ? Math.max(scaled, floor.effectiveFloor()) : scaled;
-        }
+        SpawnDifficulty difficulty = playerScalingApplied
+                ? SpawnDifficulty.resolve(floor.effectiveFloor(), regionPower, MobScalingPresenceSystem.mode(settings),
+                        settings.getGroupDeltaBandWidth(), settings.getDifficultyMinCap(),
+                        settings.getDifficultyMaxCap(), settings.isOnlyRaiseDifficulty(),
+                        settings.getGroupDeltaStatShare())
+                : SpawnDifficulty.placeOnly(floor.effectiveFloor());
         return new SpawnScaling(difficulty, floor.raritySpawnChance(), floor.zoneName(),
                 floor.baseFloor(), floor.escalationBonus(), floor.effectiveFloor(), regionPower,
                 floor.biomeName(), floor.insideStartRing(), playerScalingApplied, floor.distanceFromSpawn());

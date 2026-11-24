@@ -30,7 +30,7 @@ class ScalingPreviewTest {
     private static final Clamps RAILS = new Clamps(0.1, 1.0, 0.5, 0.5, 4.0);
 
     private static Rarity rarity(String id, double difficultyMultiplier) {
-        return new Rarity(id, "", 25, 25, difficultyMultiplier, 1.0, 1.0, 2, null, List.of("*"));
+        return new Rarity(id, "", 25, 25, difficultyMultiplier, 1.0, 2, null, List.of("*"));
     }
 
     @Test

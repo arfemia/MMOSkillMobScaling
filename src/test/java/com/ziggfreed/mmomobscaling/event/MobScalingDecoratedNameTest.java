@@ -23,11 +23,11 @@ class MobScalingDecoratedNameTest {
 
     private static final Message BASE = Message.translation("fixture.npc.name");
 
-    private static final Variant OVERLAY = new Variant("fixture_overlay", "", 0.15, 20, 1.25, 1, 1, 1,
+    private static final Variant OVERLAY = new Variant("fixture_overlay", "", 0.15, 20, 1.25, 1, 1,
             List.of("*"));
 
     private static Rarity tier(String id, boolean decorates) {
-        return new Rarity(id, "", 0, 0, 3.0, 1, 1, 0, null, List.of("*"), "", FamilyFilter.ALLOW_ALL, null,
+        return new Rarity(id, "", 0, 0, 3.0, 1, 0, null, List.of("*"), "", FamilyFilter.ALLOW_ALL, null,
                 decorates);
     }
 

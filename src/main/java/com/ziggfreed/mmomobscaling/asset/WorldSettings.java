@@ -41,7 +41,8 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.Party;
  *   <li>{@code OpenWorld} - REUSES the settings {@link OpenWorld} codec so the whole group is
  *       per-world: {@code AggregationMode}, {@code RegionSizeChunks} (a region bucket is keyed by
  *       world, so the proximity grid only has to agree within one), {@code GroupDeltaBandWidth},
- *       {@code OnlyRaiseDifficulty}, {@code PlayerScalingEnabled}, {@code PlayerScalingStartRingBlocks}.</li>
+ *       {@code OnlyRaiseDifficulty}, {@code PlayerScalingEnabled}, {@code PlayerScalingStartRingBlocks},
+ *       {@code GroupDeltaStatShare}.</li>
  *   <li>{@code ZoneHud} / {@code InspectorHud} - REUSE the settings HUD codecs, every leaf
  *       per-world: {@code Enabled} (hide a HUD inside an instance), {@code Position} /
  *       {@code OffsetX} / {@code OffsetY}, the zone card's {@code ShowLocationName} and its two

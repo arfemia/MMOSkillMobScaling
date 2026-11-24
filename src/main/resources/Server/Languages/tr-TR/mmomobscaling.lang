@@ -46,7 +46,6 @@ command.inspect.power = Güç seviyen: {power}
 command.inspect.world = Dünyanın zorluk tabanı: {floor} (ölçekleme etkin: {enabled})
 command.inspect.zone = {zone} bölgesi: temel taban {base}, mesafe bonusu +{bonus}, etkin taban {floor}
 command.inspect.region = İzlenen bölge gücü: {power} (mod {mode}, izlenen oyuncular: {tracked})
-command.inspect.difficulty = Buradaki etkin belirme zorluğu: {difficulty}
 command.inspect.chance = Belirmede nadirlik şansı: {chance}
 command.inspect.player_scaling = Oyuncu ölçekleme: {applied} (etkin: {enabled}, başlangıç halkası: {ring} blok, halka içinde: {inRing}, canlanma noktasına uzaklık: {distance})
 command.inspect.curve = Buradaki sıradan yaratık istatistik eğrisi: HP x{hp}, giden hasar x{out}, alınan hasar x{in}

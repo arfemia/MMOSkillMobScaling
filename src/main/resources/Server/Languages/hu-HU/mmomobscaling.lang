@@ -60,7 +60,6 @@ command.inspect.power = Az erőszinted: {power}
 command.inspect.world = A világ nehézségi alsó határa: {floor} (skálázás aktív: {enabled})
 command.inspect.zone = {zone} zóna: alap alsó határ {base}, távolsági bónusz +{bonus}, tényleges alsó határ {floor}
 command.inspect.region = Követett régióerő: {power} (mód: {mode}, követett játékosok: {tracked})
-command.inspect.difficulty = Tényleges megjelenési nehézség itt: {difficulty}
 command.inspect.curve = Sima szörny értékgörbéje itt: HP x{hp}, kimenő seb. x{out}, bejövő kapott x{in}
 command.inspect.chance = Ritkasági megjelenési esély: {chance}
 command.inspect.player_scaling = Játékos-skálázás: {applied} (engedélyezve: {enabled}, kezdőgyűrű: {ring} blokk, gyűrűn belül: {inRing}, távolság a kezdőponttól: {distance})

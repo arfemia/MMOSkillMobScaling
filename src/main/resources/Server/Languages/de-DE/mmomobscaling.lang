@@ -46,7 +46,6 @@ command.inspect.power = Deine Machtstufe: {power}
 command.inspect.world = Schwierigkeitsuntergrenze der Welt: {floor} (Skalierung aktiv: {enabled})
 command.inspect.zone = Zone {zone}: Basisuntergrenze {base}, Distanzbonus +{bonus}, effektive Untergrenze {floor}
 command.inspect.region = Erfasste Regionsmacht: {power} (Modus {mode}, erfasste Spieler: {tracked})
-command.inspect.difficulty = Effektive Spawn-Schwierigkeit hier: {difficulty}
 command.inspect.chance = Seltenheits-Spawnchance: {chance}
 command.inspect.player_scaling = Spielerskalierung: {applied} (aktiviert: {enabled}, Startring: {ring} Blöcke, im Ring: {inRing}, Entfernung vom Spawn: {distance})
 command.inspect.curve = Statuskurve für einfache Mobs hier: HP x{hp}, ausgehender Schaden x{out}, erlittener Schaden x{in}

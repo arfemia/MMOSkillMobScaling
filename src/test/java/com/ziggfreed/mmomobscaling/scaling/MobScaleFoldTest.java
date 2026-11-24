@@ -29,12 +29,12 @@ class MobScaleFoldTest {
     /** Test rails wide enough that the curve, not a clamp, decides every fold below. */
     private static final Clamps RAILS = new Clamps(0.1, 1.0, 0.5, 0.5, 4.0);
 
-    private static Rarity rarity(String id, double difficultyMultiplier, double loot, double xp) {
-        return new Rarity(id, "", 25, 25, difficultyMultiplier, loot, xp, 2, "aura", List.of("*"));
+    private static Rarity rarity(String id, double difficultyMultiplier, double loot) {
+        return new Rarity(id, "", 25, 25, difficultyMultiplier, loot, 2, "aura", List.of("*"));
     }
 
-    private static Variant variant(double difficultyMultiplier, double loot, double xp) {
-        return new Variant("horrific", "", 0.15, 20, difficultyMultiplier, loot, xp, 1, List.of("venomous"));
+    private static Variant variant(double difficultyMultiplier, double loot) {
+        return new Variant("horrific", "", 0.15, 20, difficultyMultiplier, loot, 1, List.of("venomous"));
     }
 
     private static Affix affix(double hpDelta, double outDelta, double inDelta, double lootBonus) {
@@ -77,19 +77,17 @@ class MobScaleFoldTest {
         assertEquals(1f, plain.outDmgMult());
         assertEquals(1f, plain.inDmgMult());
         assertEquals(1f, plain.lootMult());
-        assertEquals(1f, plain.xpMult());
         assertFalse(plain.hasRarity());
         assertFalse(plain.hasAffixes());
         assertEquals(12f, plain.difficulty());
 
-        // The identity is genuinely neutral: a tier through NONE + no rails changes nothing but loot/xp.
-        MobScaleResult tier = MobScaleFold.fold(rarity("epic", 2.0, 1.5, 1.3), null, List.of(), 150,
+        // The identity is genuinely neutral: a tier through NONE + no rails changes nothing but loot.
+        MobScaleResult tier = MobScaleFold.fold(rarity("epic", 2.0, 1.5), null, List.of(), 150,
                 MobScaleResult.SCOPE_HOSTILE, DifficultyStatCurve.NONE, Clamps.NONE);
         assertEquals(1f, tier.hpMult(), "no tuning hides in the fail-safe curve");
         assertEquals(1f, tier.outDmgMult());
         assertEquals(1f, tier.inDmgMult());
         assertEquals(1.5f, tier.lootMult(), 1e-6f);
-        assertEquals(1.3f, tier.xpMult(), 1e-6f);
     }
 
     @Test
@@ -167,7 +165,7 @@ class MobScaleFoldTest {
 
     @Test
     void aRarityAtXFoldsExactlyLikeAPlainMobAtXTimesItsMultiplier() {
-        Rarity tier = rarity("legendary", 2.4, 1.0, 1.0);
+        Rarity tier = rarity("legendary", 2.4, 1.0);
         for (double d : new double[] {1, 10, 30, 65}) {
             MobScaleResult rolled = MobScaleFold.fold(tier, null, List.of(), d, MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
             MobScaleResult plainFurtherAlong = MobScaleFold.plain(d * 2.4, MobScaleResult.SCOPE_HOSTILE, CURVE);
@@ -181,14 +179,13 @@ class MobScaleFoldTest {
 
     @Test
     void rarityAndVariantMultipliersCompose() {
-        Rarity tier = rarity("epic", 1.8, 1.5, 1.3);
-        Variant overlay = variant(1.25, 1.3, 1.2);
+        Rarity tier = rarity("epic", 1.8, 1.5);
+        Variant overlay = variant(1.25, 1.3);
         MobScaleResult both = MobScaleFold.fold(tier, overlay, List.of(), 20, MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
         MobScaleResult plain = MobScaleFold.plain(20 * 1.8 * 1.25, MobScaleResult.SCOPE_HOSTILE, CURVE);
         assertEquals(plain.hpMult(), both.hpMult(), 1e-6f, "the two multipliers multiply on the difficulty");
         assertEquals(plain.outDmgMult(), both.outDmgMult(), 1e-6f);
         assertEquals(1.5f * 1.3f, both.lootMult(), 1e-6f, "loot = rarity x variant");
-        assertEquals(1.3f * 1.2f, both.xpMult(), 1e-6f, "xp = rarity x variant");
         assertEquals("horrific", both.variantId());
         assertTrue(both.hasVariant() && both.hasRarity());
 
@@ -204,10 +201,10 @@ class MobScaleFoldTest {
         // A curve whose rails sit far away: a Boss at the top of a 200 band reads the curve at 600, and
         // that is visibly further along than a plain mob at 200, so the ladder still exists up there.
         DifficultyStatCurve roomy = new DifficultyStatCurve(0.05, 0.85, 0.3, 1.0, 1_000.0, 1_000.0);
-        MobScaleResult boss = MobScaleFold.fold(rarity("boss", 3.0, 3.0, 2.0), null, List.of(), 200,
+        MobScaleResult boss = MobScaleFold.fold(rarity("boss", 3.0, 3.0), null, List.of(), 200,
                 MobScaleResult.SCOPE_HOSTILE, roomy, RAILS);
         MobScaleResult plainAtCap = MobScaleFold.plain(200, MobScaleResult.SCOPE_HOSTILE, roomy);
-        assertEquals(600.0, MobScaleFold.curveDifficulty(200, rarity("boss", 3.0, 3.0, 2.0), null), 1e-12);
+        assertEquals(600.0, MobScaleFold.curveDifficulty(200, rarity("boss", 3.0, 3.0), null), 1e-12);
         assertTrue(boss.outDmgMult() > plainAtCap.outDmgMult() * 2.5, "the boss reads the curve at 600, not 200");
         assertEquals(roomy.outFactor(600), boss.outDmgMult(), 1e-4f);
     }
@@ -215,7 +212,7 @@ class MobScaleFoldTest {
     @Test
     void affixDeltasMultiplyTheCurve() {
         // Stalwart-like +15% hp; +20% out; -10% in; +20% loot passes.
-        Rarity tier = rarity("epic", 2.0, 1.5, 1.3);
+        Rarity tier = rarity("epic", 2.0, 1.5);
         MobScaleResult r = MobScaleFold.fold(tier, null, List.of(affix(0.15, 0.2, -0.1, 0.2)), 20,
                 MobScaleResult.SCOPE_HOSTILE, CURVE, RAILS);
         double dEff = 40;
@@ -240,18 +237,18 @@ class MobScaleFoldTest {
         Clamps tight = new Clamps(0.5, 1.0, 0.9, 0.5, 2.0);
         // A negative hp delta that would take hp under the floor; a negative out delta under its floor; a
         // positive in delta over the 1.0 ceiling; a loot product over the ceiling.
-        MobScaleResult r = MobScaleFold.fold(rarity("epic", 1.0, 3.0, 1.0), null,
+        MobScaleResult r = MobScaleFold.fold(rarity("epic", 1.0, 3.0), null,
                 List.of(affix(-0.9, -0.9, 5.0, 0.0)), 1, MobScaleResult.SCOPE_HOSTILE, CURVE, tight);
         assertEquals(0.5f, r.hpMult(), 1e-6f, "MinHpMult");
         assertEquals(0.9f, r.outDmgMult(), 1e-6f, "MinOutDamageMult");
         assertEquals(1.0f, r.inDmgMult(), 1e-6f, "MaxInDamageMult");
         assertEquals(2.0f, r.lootMult(), 1e-6f, "MaxLootMult");
-        MobScaleResult little = MobScaleFold.fold(rarity("epic", 1.0, 0.1, 1.0), null, List.of(), 1,
+        MobScaleResult little = MobScaleFold.fold(rarity("epic", 1.0, 0.1), null, List.of(), 1,
                 MobScaleResult.SCOPE_HOSTILE, CURVE, tight);
         assertEquals(0.5f, little.lootMult(), 1e-6f, "MinLootMult");
 
         // The no-rail identity lets the same fold through untouched.
-        MobScaleResult free = MobScaleFold.fold(rarity("epic", 1.0, 3.0, 1.0), null,
+        MobScaleResult free = MobScaleFold.fold(rarity("epic", 1.0, 3.0), null,
                 List.of(affix(-0.9, -0.9, 5.0, 0.0)), 1, MobScaleResult.SCOPE_HOSTILE, CURVE, Clamps.NONE);
         assertEquals(0.1f, free.hpMult(), 1e-6f);
         assertEquals(6.0f, free.inDmgMult(), 1e-6f);
@@ -327,7 +324,6 @@ class MobScaleFoldTest {
         MobScaleResult both = MobScaleFold.anchored(25, 15, MobScaleResult.SCOPE_HOSTILE, bent, true, true);
         assertFalse(both.hasRarity() || both.hasVariant() || both.hasAffixes(), "no tier, overlay or affix");
         assertEquals(1f, both.lootMult(), "kill loot as it is");
-        assertEquals(1f, both.xpMult(), "kill XP as it is");
         assertEquals(1f, both.inDmgMult(), "all the toughness it adds shows on the bar");
         MobScaleResult healthOnly = MobScaleFold.anchored(25, 15, MobScaleResult.SCOPE_HOSTILE, bent, true, false);
         assertEquals(both.hpMult(), healthOnly.hpMult());

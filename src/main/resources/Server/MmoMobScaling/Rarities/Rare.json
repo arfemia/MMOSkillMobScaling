@@ -6,8 +6,7 @@
   "Roll": { "Weight": 70, "MinDifficulty": 5 },
   "DifficultyMultiplier": 1.35,
   "Multipliers": {
-    "Loot": 1.2,
-    "Xp": 1.1
+    "Loot": 1.2
   },
   "Affixes": { "Slots": 1, "Allowed": ["*"] },
   "AuraEffectId": "Mmoscaling_Aura_Rare",

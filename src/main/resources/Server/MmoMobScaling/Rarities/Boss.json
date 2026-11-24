@@ -6,7 +6,7 @@
   "DecorateName": false,
   "Roll": { "Weight": 0, "MinDifficulty": 0 },
   "DifficultyMultiplier": 3.0,
-  "Multipliers": { "Loot": 3.0, "Xp": 2.0 },
+  "Multipliers": { "Loot": 3.0 },
   "Affixes": { "Slots": 2, "Allowed": ["*"] },
   "Families": { "ForceGroups": ["Mmoscaling_Bosses"] },
   "AuraEffectId": "Mmoscaling_Aura_Boss",

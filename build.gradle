@@ -35,7 +35,7 @@ repositories {
 //   version it really needs and moves only for newer API, never above the pin (R364). It builds
 //   and runs on ziggfreed-common alone: MMO Skill Tree is an optional presence it meets only
 //   through ziggfreed-common's seams, never a compile or manifest dependency (R597). The
-//   LinkageError guards around the newer seams (the kill reward scale, the encounter runtime,
+//   LinkageError guards around the newer seams (the kill qualifier, the encounter runtime,
 //   the encounter power seam) keep a mis-installed server from failing to load the mod; they do
 //   not make an older jar a supported one.
 // ============================================================================

@@ -53,7 +53,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
- * The LOOT half of the risk/reward loop (the XP half is {@link MobScalingXpReward}): when a mob carrying a
+ * The LOOT half of the risk/reward loop (the XP half is the kill XP a payer reads off the mob's maximum
+ * health, which its rarity already raised): when a mob carrying a
  * RARITY or a VARIANT dies, roll whatever that tier and that overlay each authored in their own {@code Loot}
  * block and hand it over at the corpse.
  *

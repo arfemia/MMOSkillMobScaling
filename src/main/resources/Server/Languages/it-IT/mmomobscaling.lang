@@ -62,7 +62,6 @@ command.inspect.power = Il tuo livello di potere: {power}
 command.inspect.world = Soglia minima di difficoltà del mondo: {floor} (ridimensionamento attivo: {enabled})
 command.inspect.zone = Zona {zone}: soglia di base {base}, bonus distanza +{bonus}, soglia effettiva {floor}
 command.inspect.region = Potere registrato della regione: {power} (modalità {mode}, giocatori registrati: {tracked})
-command.inspect.difficulty = Difficoltà effettiva di comparsa qui: {difficulty}
 command.inspect.chance = Probabilità di rarità alla comparsa: {chance}
 command.inspect.player_scaling = Scalatura in base ai giocatori: {applied} (attiva: {enabled}, anello iniziale: {ring} blocchi, dentro l'anello: {inRing}, distanza dal punto di comparsa: {distance})
 command.inspect.curve = Curva delle statistiche per creatura comune qui: HP x{hp}, danno inflitto x{out}, danno subito x{in}

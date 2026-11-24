@@ -108,7 +108,9 @@ public final class MobScalingCasterArmSystem extends RefSystem<EntityStore> {
         long now = System.currentTimeMillis();
         List<CasterKitComponent.Armed> armed = new ArrayList<>();
         for (CasterEntry entry : roster.abilities()) {
-            if (!entry.isEligible(result.difficulty(), result.rarityId(), result.scope())) {
+            // A caster is rolled like a rarity: its MinDifficulty gates on the roll difficulty (the place plus the
+            // nearby group), so a strong group meets casters sooner while the mob's numbers stay the place's.
+            if (!entry.isEligible(result.rollDifficulty(), result.rarityId(), result.scope())) {
                 continue;
             }
             if (entry.kind() == CasterEntry.Kind.NATIVE_CHAIN) {

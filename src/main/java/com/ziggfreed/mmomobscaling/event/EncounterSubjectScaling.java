@@ -46,7 +46,7 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
  * effect. The engine folds a stat's additive modifiers (his role's maximum, the fight's per-player steps)
  * before its multiplying ones, so the multiplier lands on base plus steps, and the fight's own steps count
  * the party once while this counts the level once. The stamp is a {@link ScaledMobComponent#ofCompanion}
- * one, so kill XP and loot stay as they are (plain, 1.0) and the caster arm leaves him alone.
+ * one, so his loot stays as it is (plain, 1.0) and the caster arm leaves him alone.
  *
  * <p><b>The throw to his feet.</b> An in-place role change re-adds the same holder: the stat map keeps the
  * modifier, the effect controller keeps the effect, and the spawn hook sees the stamp and never rolls him;
@@ -183,8 +183,11 @@ public final class EncounterSubjectScaling {
         if (remembered != null) {
             return remembered;
         }
+        // His adds' health and damage read the stat difficulty (the place, plus the world's GroupDeltaStatShare of
+        // the group's move), so he does too, anchored at the place: at the shipped share of 0 he is exactly what
+        // his role and his fight make him, and his fight's own per-player steps count the party.
         MobScalingSpawnHook.SpawnScaling level = MobScalingRollSystem.resolveSpawnScaling(world, store, subject, spawn);
-        MobScaleResult result = MobScaleFold.anchored(level.difficulty(), level.effectiveFloor(), scope,
+        MobScaleResult result = MobScaleFold.anchored(level.difficulty().stat(), level.difficulty().place(), scope,
                 spawn.statCurveModel(), companion.health(), companion.damage());
         if (BY_RUN.size() >= MAX_RUNS) {
             BY_RUN.clear();

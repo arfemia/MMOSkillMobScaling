@@ -85,6 +85,13 @@ public interface SpawnScalingSettings {
     /** Max absolute difficulty swing the region-power group delta may add over the floor. */
     double getGroupDeltaBandWidth();
 
+    /**
+     * The share of the group delta that also reaches a mob's health and damage ({@code OpenWorld.GroupDeltaStatShare},
+     * in {@code [0, 1]}): 0 keeps them on the place alone (the group moves only what a mob rolls), 1 gives them
+     * the whole move (the single resolve), anything between blends ({@code scaling/SpawnDifficulty}).
+     */
+    double getGroupDeltaStatShare();
+
     /** When true, the group delta may only RAISE difficulty over the floor, never soften it. */
     boolean isOnlyRaiseDifficulty();
 

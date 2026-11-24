@@ -142,6 +142,16 @@ Group {
       }
     }
 
+    // THE ROLL LINE under the header, shown only when the players near the mob when it spawned raised what it rolled
+    // its rarity, affixes and casters at above the difficulty its health and damage read (a 4 gap plus one 16 caption
+    // line; MobInspectorHud's ROLL_LINE_PX mirrors it). Hidden, it collapses out of the Top layout.
+    Label #MmoscalingInspectRoll {
+      Text: "";
+      Visible: false;
+      Anchor: (Top: 4, Height: 16);
+      Style: @InspectLevelStyle;
+    }
+
     // AFFIX CHIPS under the header, one per line across the panel's full inner width (292), so a description
     // has the whole card to run in. Each chip is its name line (18) plus, when shown, its two-line description
     // (32), with a 4 gap between chips; MobInspectorHud's height constants mirror these numbers.

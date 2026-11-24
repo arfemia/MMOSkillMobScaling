@@ -84,8 +84,8 @@ public final class ScalingContentValidator {
             if (r.difficultyMultiplier() <= 0) {
                 findings.add(at + ": DifficultyMultiplier must be > 0");
             }
-            if (r.lootMult() < 0 || r.xpMult() < 0) {
-                findings.add(at + ": LootMult/XpMult must be >= 0");
+            if (r.lootMult() < 0) {
+                findings.add(at + ": LootMult must be >= 0");
             }
             if (r.affixSlots() < 0) {
                 findings.add(at + ": AffixSlots must be >= 0");
@@ -159,8 +159,8 @@ public final class ScalingContentValidator {
             if (v.difficultyMultiplier() <= 0) {
                 findings.add(at + ": DifficultyMultiplier must be > 0");
             }
-            if (v.lootMult() < 0 || v.xpMult() < 0) {
-                findings.add(at + ": LootMult/XpMult must be >= 0");
+            if (v.lootMult() < 0) {
+                findings.add(at + ": LootMult must be >= 0");
             }
             if (v.affixSlots() < 0) {
                 findings.add(at + ": AffixSlots must be >= 0");

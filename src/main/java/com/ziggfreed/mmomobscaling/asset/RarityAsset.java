@@ -33,15 +33,16 @@ import com.ziggfreed.mmomobscaling.rarity.Rarity;
  * <p><b>The tier's strength is ONE number, {@code DifficultyMultiplier}</b>: the difficulty curve is evaluated
  * at {@code zoneDifficulty * DifficultyMultiplier}, so the tier's premium over a plain mob holds across the
  * band. {@code Multipliers} carries only the reward half ({@code Loot} = how many times the {@code Loot} block
- * is rolled, {@code Xp}); a per-stat multiplier is not a leaf of this schema, so a file authoring one under
- * {@code Multipliers} gets the server's own "Unused key(s)" warning naming the file and the key.
+ * is rolled); kill XP follows the mob's maximum health, which the tier already raises, so no XP multiplier
+ * is a leaf either. A per-stat multiplier is not a leaf of this schema, so a file authoring one (or an
+ * {@code Xp}) under {@code Multipliers} gets the server's own "Unused key(s)" warning naming the file and the key.
  *
  * <p>Pack JSON shape (all fields optional; absent = the documented default):
  * <pre>{@code
  * { "Name": "Epic", "DisplayNameKey": "mmomobscaling.rarity.epic.name", "NameColor": "#b388ff",
  *   "Roll": { "Weight": 25, "MinDifficulty": 25 },
  *   "DifficultyMultiplier": 1.8,
- *   "Multipliers": { "Loot": 1.5, "Xp": 1.3 },
+ *   "Multipliers": { "Loot": 1.5 },
  *   "Affixes": { "Slots": 2, "Allowed": ["*"] },
  *   "Families": { "AllowGroups": ["Spiders"], "AllowRoles": ["Spider*"], "DenyGroups": [], "DenyRoles": [],
  *                 "ForceGroups": [], "ForceRoles": [] },
@@ -108,7 +109,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
                     + " forced tier wins, and the ladder position other mods read), so keep the ladder"
                     + " increasing from the entry tier up.")
             .add()
-            // The reward multipliers folded into the frozen spawn result.
+            // The reward multiplier folded into the frozen spawn result (the loot pass count).
             .append(new KeyedCodec<>("Multipliers", Multipliers.CODEC, false),
                     (a, v) -> a.multipliers = v, a -> a.multipliers)
             .add()
@@ -156,7 +157,6 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         double minDifficulty = roll != null && roll.minDifficulty != null ? roll.minDifficulty : 0.0;
         double difficultyMult = mult(difficultyMultiplier);
         double lootMult = mult(multipliers != null ? multipliers.loot : null);
-        double xp = mult(multipliers != null ? multipliers.xp : null);
         int slots = affixes != null && affixes.slots != null ? affixes.slots : 0;
         List<String> allowed = affixes != null && affixes.allowed != null ? List.of(affixes.allowed) : List.of("*");
         String nameKey = displayNameKey != null ? displayNameKey : "";
@@ -165,7 +165,7 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
         LootRef deathLoot = loot != null && !loot.isEmpty() ? loot : null;
         boolean decorates = decorateName == null || decorateName;
         return new Rarity(id, nameKey, weight, minDifficulty, difficultyMult,
-                lootMult, xp, slots, auraEffectId, allowed, color, filter, deathLoot, decorates);
+                lootMult, slots, auraEffectId, allowed, color, filter, deathLoot, decorates);
     }
 
     private static double mult(@Nullable Double v) {
@@ -192,9 +192,9 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
     }
 
     /**
-     * The reward multipliers (each absent leaf = 1.0, the plain baseline): how often the tier's loot is
-     * rolled and how much kill XP it pays. A tier's health, damage dealt and damage taken are not here;
-     * they all follow from the top-level {@code DifficultyMultiplier}.
+     * The reward multiplier (absent = 1.0, the plain baseline): how often the tier's loot is rolled. A tier's
+     * health, damage dealt and damage taken are not here; they all follow from the top-level
+     * {@code DifficultyMultiplier}, and kill XP follows the health.
      */
     public static final class Multipliers {
         public static final BuilderCodec<Multipliers> CODEC = BuilderCodec
@@ -204,15 +204,9 @@ public final class RarityAsset implements JsonAssetWithMap<String, DefaultAssetM
                 .documentation("How many times this tier's Loot block is rolled on death: the whole part is"
                         + " guaranteed and the fraction is one more pass with that probability.")
                 .add()
-                .append(new KeyedCodec<>("Xp", Codec.DOUBLE, false), (m, v) -> m.xp = v, m -> m.xp)
-                .metadata(EditorSchema.defaultValue(1.0))
-                .documentation("The kill reward multiplier a kill of this tier pays wherever a mod pays kill rewards "
-                        + "by ziggfreed-common's kill reward scale (MMO Skill Tree's kill XP).")
-                .add()
                 .build();
 
         @Nullable private Double loot;
-        @Nullable private Double xp;
     }
 
     /** The affix policy: slot count + the allow-list of affix ids ({@code ["*"]} = any). */

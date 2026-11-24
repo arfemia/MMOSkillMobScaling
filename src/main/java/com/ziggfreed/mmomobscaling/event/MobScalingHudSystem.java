@@ -41,6 +41,7 @@ import com.ziggfreed.mmomobscaling.hud.MobInspectorHud;
 import com.ziggfreed.mmomobscaling.hud.ZoneDifficultyHud;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 import com.ziggfreed.mmomobscaling.variant.Variant;
 
 /**
@@ -142,7 +143,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         boolean visible = playerWantsVisible && cfg.isEnabled()
                 && spawn.isWorldScalingEnabled() && spawn.isZoneHudEnabled();
         if (!visible) {
-            hud.pushUpdate(spawn, 0, 0, 0, false, "", "");
+            hud.pushUpdate(spawn, SpawnDifficulty.placeOnly(0.0), 0, 0, false, "", "");
             return;
         }
         int chunkX = ChunkUtil.chunkCoordinate(transform.getPosition().x);
@@ -153,10 +154,10 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         // reading of worn gear. 0 only when the seam is unreadable (a mis-installed library).
         Double readPower = PlayerPowerReads.of(store, ref);
         double playerPower = readPower != null ? readPower : 0.0;
-        // scaling.regionPower() is the tracked (zone, sub-grid) aggregate - already folded into
-        // scaling.difficulty(); shown only when it says something a lone player's own power does
-        // not (someone is tracked there - the same source the group delta reads). The location line
-        // and the name-key prefixes are the world's own (the per-world view decides both).
+        // scaling.difficulty() is the spot's two numbers: the place (what the card names) and what the tracked
+        // (zone, sub-grid) aggregate scaling.regionPower() adds on top (shown only when someone is tracked there -
+        // the same source the group delta reads). The location line and the name-key prefixes are the world's
+        // own (the per-world view decides both).
         hud.pushUpdate(spawn, scaling.difficulty(), playerPower, scaling.regionPower(), true,
                 scaling.zoneName(), scaling.biomeName());
     }
@@ -236,12 +237,14 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         Variant variant = null;
         List<Affix> affixes = List.of();
         double difficulty = 0.0;
+        double rollDifficulty = 0.0;
         boolean scaled = false;
         ScaledMobComponent scaledMob = store.getComponent(target, ScaledMobComponent.getComponentType());
         if (scaledMob != null) {
             MobScaleResult result = scaledMob.result();
             scaled = true;
             difficulty = result.difficulty();
+            rollDifficulty = result.rollDifficulty();
             if (result.hasRarity()) {
                 rarity = RarityConfig.getInstance().resolve(result.rarityId());
             }
@@ -261,7 +264,7 @@ public final class MobScalingHudSystem extends EntityTickingSystem<EntityStore> 
         }
 
         return new MobInspectorHud.TargetSnapshot(
-                targetKey(store, target), name, rarity, variant, affixes, difficulty, scaled,
+                targetKey(store, target), name, rarity, variant, affixes, difficulty, rollDifficulty, scaled,
                 health.get(), health.getMax(), modelRole);
     }
 

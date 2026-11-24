@@ -17,8 +17,8 @@ import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 public class MobScalingRarityAttributionTest {
 
     private static MobScaleResult result(String rarityId) {
-        return new MobScaleResult(25f, rarityId, "", new String[0],
-                1f, 1f, 1f, 1f, 1f, MobScaleResult.SCOPE_HOSTILE);
+        return new MobScaleResult(25f, 25f, rarityId, "", new String[0],
+                1f, 1f, 1f, 1f, MobScaleResult.SCOPE_HOSTILE);
     }
 
     @Test

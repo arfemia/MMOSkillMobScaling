@@ -33,6 +33,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.PartyRule;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 
 /**
  * The open-world mob-scaling configuration, driven ENTIRELY by an asset codec
@@ -143,6 +144,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     private int regionSizeChunks;
     // Spawn-path reads (the group-delta resolve runs per spawn), so volatile like raritySpawnChance.
     private volatile double groupDeltaBandWidth;
+    // The share of the group delta that also reaches health and damage (SpawnDifficulty.stat), held to [0, 1].
+    private volatile double groupDeltaStatShare;
     private volatile double difficultyMinCap;
     private volatile double difficultyMaxCap;
     // The world-baseline difficulty floor: the lowest-precedence floor under the zone/biome
@@ -388,6 +391,8 @@ public final class MobScalingConfig implements SpawnScalingSettings {
         double band = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getGroupDeltaBandWidth), 0.0);
         this.groupDeltaBandWidth = Math.max(0.0, band); // the engine expects a non-negative band
+        this.groupDeltaStatShare = SpawnDifficulty.share(or(
+                fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getGroupDeltaStatShare), 0.0));
         this.onlyRaiseDifficulty = or(
                 fold3(owner, store, jar, MobScalingSettingsAsset::getOpenWorld, OpenWorld::getOnlyRaiseDifficulty), true);
         this.playerScalingEnabled = or(
@@ -734,6 +739,7 @@ public final class MobScalingConfig implements SpawnScalingSettings {
     @Nonnull public String getOpenWorldAggregationMode() { return openWorldAggregationMode; }
     public int getRegionSizeChunks() { return regionSizeChunks; }
     public double getGroupDeltaBandWidth() { return groupDeltaBandWidth; }
+    @Override public double getGroupDeltaStatShare() { return groupDeltaStatShare; }
     /** GLOBAL view of the per-world kill-switch: the folded {@code Enabled} (systems gate at setup). */
     @Override public boolean isWorldScalingEnabled() { return enabled; }
     /** The GLOBAL world-baseline difficulty floor ({@code Difficulty.Floor}). */

@@ -69,6 +69,13 @@ public final class MobInspectorHud extends ScalingHud {
      */
     private static final int PANEL_BASE_HEIGHT_PX = 92;
 
+    /**
+     * The roll line under the header ({@code #MmoscalingInspectRoll}: a 4 gap plus one 16 caption line), counted
+     * only when it shows: when the mob rolled its rarity, affixes and casters above the difficulty its health and
+     * damage read, because players were near when it spawned.
+     */
+    private static final int ROLL_LINE_PX = 20;
+
     /** The gap between the header and the first chip ({@code #MmoscalingInspectAffixRow}'s Top margin). */
     private static final int AFFIX_ROW_TOP_PX = 6;
 
@@ -115,7 +122,8 @@ public final class MobInspectorHud extends ScalingHud {
      * {@code modelRole} is the target's NPC role name (the {@code Icons/ModelsGenerated/<role>.png}
      * portrait key), null when the entity is not an NPC or the world's portrait toggle is off - the
      * ONE signal the card reads for the portrait column, so a flipped toggle repaints through the
-     * skip-cache like any other changed field.
+     * skip-cache like any other changed field. {@code difficulty} is what the mob's health and damage read
+     * and {@code rollDifficulty} what its rarity, affixes and casters rolled at (the nearby group's part).
      */
     public record TargetSnapshot(
             @Nonnull String targetKey,
@@ -124,10 +132,24 @@ public final class MobInspectorHud extends ScalingHud {
             @Nullable Variant variant,
             @Nonnull List<Affix> affixes,
             double difficulty,
+            double rollDifficulty,
             boolean scaled,
             float hp,
             float hpMax,
             @Nullable String modelRole) {
+
+        /**
+         * The roll to show beside the difficulty, or -1 when the roll line hides: an unscaled target, or one whose
+         * roll rounds to no more than its difficulty (nobody near it when it spawned, or a world that gives health
+         * and damage the group's whole move).
+         */
+        long shownRoll() {
+            if (!scaled) {
+                return -1;
+            }
+            long roll = Math.round(rollDifficulty);
+            return roll > Math.round(difficulty) ? roll : -1;
+        }
     }
 
     public MobInspectorHud(@Nonnull PlayerRef playerRef) {
@@ -251,6 +273,15 @@ public final class MobInspectorHud extends ScalingHud {
                     Message.translation("mmomobscaling.hud.inspect.difficulty")
                             .param("value", Math.round(target.difficulty())));
         }
+        // The roll line: what the players near it when it spawned added to what it rolled at (its rarity,
+        // affixes and casters), shown only when that sits above the difficulty its health and damage read.
+        long shownRoll = target.shownRoll();
+        boolean hasRoll = shownRoll >= 0;
+        cmd.set("#MmoscalingInspectRoll.Visible", hasRoll);
+        if (hasRoll) {
+            cmd.set("#MmoscalingInspectRoll.TextSpans",
+                    Message.translation("mmomobscaling.hud.inspect.rolled").param("roll", shownRoll));
+        }
 
         // HP bar fill + numeric readout.
         float max = Math.max(1f, target.hpMax());
@@ -293,8 +324,8 @@ public final class MobInspectorHud extends ScalingHud {
             chips++;
         }
 
-        // The frame follows the chips: a new height re-sends the anchor at the configured corner.
-        int height = panelHeightFor(chips, descLines);
+        // The frame follows the roll line and the chips: a new height re-sends the anchor at the configured corner.
+        int height = panelHeightFor(hasRoll, chips, descLines);
         if (height != panelHeightPx) {
             panelHeightPx = height;
             applyConfiguredPosition(cmd);
@@ -304,15 +335,17 @@ public final class MobInspectorHud extends ScalingHud {
     }
 
     /**
-     * The card's height for {@code chips} shown affix chips, {@code descLines} of which show their
-     * description line: the header alone with no chips, else the header, the gap above the chips, each
-     * chip's name line, each shown description line, and the gaps between chips.
+     * The card's height with the roll line shown or not and {@code chips} shown affix chips, {@code descLines} of
+     * which show their description line: the header, the roll line when it shows, then with no chips nothing
+     * more, else the gap above the chips, each chip's name line, each shown description line, and the gaps
+     * between chips.
      */
-    static int panelHeightFor(int chips, int descLines) {
+    static int panelHeightFor(boolean rollLine, int chips, int descLines) {
+        int height = PANEL_BASE_HEIGHT_PX + (rollLine ? ROLL_LINE_PX : 0);
         if (chips <= 0) {
-            return PANEL_BASE_HEIGHT_PX;
+            return height;
         }
-        return PANEL_BASE_HEIGHT_PX + AFFIX_ROW_TOP_PX
+        return height + AFFIX_ROW_TOP_PX
                 + chips * AFFIX_NAME_LINE_PX
                 + descLines * AFFIX_DESC_LINE_PX
                 + (chips - 1) * AFFIX_CHIP_GAP_PX;
@@ -345,6 +378,7 @@ public final class MobInspectorHud extends ScalingHud {
                 .append('|').append(t.rarity() != null ? t.rarity().id() + t.rarity().displayColor() : "")
                 .append('|').append(t.variant() != null ? t.variant().id() + t.variant().displayColor() : "")
                 .append('|').append(t.scaled() ? Math.round(t.difficulty()) : -1)
+                .append('|').append(t.shownRoll())
                 .append('|').append(hpReadout(t.hp()))
                 .append('/').append(Math.round(t.hpMax()))
                 // Portrait role (null when the world's portrait toggle is off, so a flip repaints).

@@ -42,6 +42,7 @@ import com.ziggfreed.mmomobscaling.pages.MobScalingAdminPage;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleResult;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
 
 /**
@@ -59,11 +60,13 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  *       run {@code /mobscaling purge} per world, then uninstall clean. Only LOADED mobs are swept;
  *       run it near the areas that matter (unloaded residue self-heals if the mod is re-enabled).</li>
  *   <li>{@code inspect} - report the difficulty inputs at the caller's position: their own
- *       power level, the world floor + kill-switch, the tracked region power scalar, the exact
- *       spot difficulty a spawn HERE would resolve (the same {@code MobScalingSpawnHook.resolveSpawnScaling}
- *       read a spawn takes; a rarity then multiplies it before the curve is read),
- *       and the plain-mob HP / outgoing-damage / incoming-taken stat curve that difficulty resolves to
- *       (so an admin can confirm plain mobs scale), then the rarity spawn chance.</li>
+ *       power level, the world floor + kill-switch, the tracked region power scalar, and the two
+ *       numbers a spawn HERE would resolve (the same {@code MobScalingSpawnHook.resolveSpawnScaling}
+ *       read a spawn takes) on two lines: the place, which sets health and damage (a rarity then
+ *       multiplies it before the curve is read), and the roll, the place plus what the nearby group
+ *       adds, which rarity, affixes and casters roll at; then the plain-mob HP / outgoing-damage /
+ *       incoming-taken stat curve the place resolves to (so an admin can confirm plain mobs scale), then
+ *       the rarity spawn chance.</li>
  *   <li>{@code hud --hudTarget=<zone|inspector> --hudValue=<on|off|POSITION> [--hudOffsetX=<n>] [--hudOffsetY=<n>]} - LIVE-tune the two
  *       player-facing overlays: flip one on/off for everyone, or re-anchor it to a named corner
  *       preset with optional pixel offsets, applied to all online players without a reconnect.
@@ -399,13 +402,21 @@ public final class MobScalingCommand extends CommandBase {
                         .param("ring", spawn.getPlayerScalingStartRingBlocks())
                         .param("inRing", scaling.insideStartRing())
                         .param("distance", scaling.distanceFromSpawn()));
-                player.sendMessage(Message.translation("mmomobscaling.command.inspect.difficulty")
-                        .param("difficulty", scaling.difficulty()));
+                // The spot's two numbers on two lines: the place (and, where the world lets the group's move reach
+                // them, what health and damage read instead), then what the group adds to what mobs roll.
+                SpawnDifficulty at = scaling.difficulty();
+                long sharePercent = Math.round(spawn.getGroupDeltaStatShare() * 100.0);
+                player.sendMessage(Math.round(at.stat() * 10.0) != Math.round(at.place() * 10.0)
+                        ? Message.translation("mmomobscaling.command.inspect.place_shared")
+                                .param("place", at.place()).param("stat", at.stat()).param("share", sharePercent)
+                        : Message.translation("mmomobscaling.command.inspect.place").param("place", at.place()));
+                player.sendMessage(Message.translation("mmomobscaling.command.inspect.roll")
+                        .param("roll", at.roll()).param("bonus", at.groupDelta()));
                 // What a PLAIN (non-rarity, non-affix) hostile mob's HP / damage / tankiness curve
-                // resolves to at this SPOT difficulty (a rarity multiplies the difficulty the curve is
-                // read at; the inspector HUD shows a rolled mob's own numbers).
+                // resolves to here, at the difficulty health and damage read (a rarity multiplies the
+                // difficulty the curve is read at; the inspector HUD shows a rolled mob's own numbers).
                 MobScaleResult plainCurve =
-                        MobScaleFold.plain(scaling.difficulty(), MobScaleResult.SCOPE_HOSTILE, spawn.statCurveModel());
+                        MobScaleFold.plain(at.stat(), MobScaleResult.SCOPE_HOSTILE, spawn.statCurveModel());
                 player.sendMessage(Message.translation("mmomobscaling.command.inspect.curve")
                         .param("hp", plainCurve.hpMult())
                         .param("out", plainCurve.outDmgMult())

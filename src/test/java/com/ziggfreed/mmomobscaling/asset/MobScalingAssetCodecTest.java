@@ -257,9 +257,10 @@ class MobScalingAssetCodecTest {
 
     @Test
     void perStatMultipliersAreNotLeavesAndAFileStillAuthoringThemFoldsOnItsDifficultyMultiplier() throws Exception {
-        // Hp / OutDamage / InDamage are not declared under Multipliers: the codec skips them as unknown
-        // keys (the server's own "Unused key(s)" load warning names the file and the key), the reward leaves
-        // beside them still decode, and the tier folds on whatever DifficultyMultiplier it authors.
+        // Hp / OutDamage / InDamage, and Xp (kill XP follows the mob's maximum health), are not declared under
+        // Multipliers: the codec skips them as unknown keys (the server's own "Unused key(s)" load warning names
+        // the file and the key), the reward leaf beside them still decodes, and the tier folds on whatever
+        // DifficultyMultiplier it authors.
         RarityAsset legacy = decodeJson("""
                 { "Name": "fixture_legacy", "Roll": { "Weight": 1 },
                   "DifficultyMultiplier": 1.5,
@@ -267,8 +268,7 @@ class MobScalingAssetCodecTest {
                 """, RarityAsset.CODEC);
         Rarity r = legacy.toRarity();
         assertEquals(1.5, r.difficultyMultiplier(), 1e-9, "the tier folds on its DifficultyMultiplier");
-        assertEquals(1.5, r.lootMult(), 1e-9, "the reward leaves beside the unknown keys still decode");
-        assertEquals(1.3, r.xpMult(), 1e-9);
+        assertEquals(1.5, r.lootMult(), 1e-9, "the reward leaf beside the unknown keys still decodes");
 
         VariantAsset legacyVariant = decodeJson("""
                 { "Name": "fixture_legacy_variant", "Roll": { "Chance": 0.1 },
@@ -281,7 +281,7 @@ class MobScalingAssetCodecTest {
 
     @Test
     void rarityWithoutNameColorFallsBackToWhite() {
-        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 1, 0, null, java.util.List.of("*"));
+        Rarity plain = new Rarity("test", "", 1, 0, 1, 1, 0, null, java.util.List.of("*"));
         assertEquals("", plain.nameColor(), "convenience constructor leaves NameColor empty");
         assertEquals(Rarity.DEFAULT_NAME_COLOR, plain.displayColor(), "empty NameColor renders white");
     }
@@ -682,7 +682,7 @@ class MobScalingAssetCodecTest {
     @Test
     void keyedConfigFoldIsCaseInsensitive() {
         RarityConfig cfg = RarityConfig.getInstance();
-        Rarity epic = new Rarity("Epic", "", 25, 25, 1.8, 1.5, 1.3, 2, "aura", java.util.List.of("*"));
+        Rarity epic = new Rarity("Epic", "", 25, 25, 1.8, 1.5, 2, "aura", java.util.List.of("*"));
         cfg.mergePackLayer(Map.of("Epic", epic));
         assertNotNull(cfg.resolve("epic"), "ids are lower-cased by the fold");
         assertEquals(1.8, cfg.resolve("EPIC").difficultyMultiplier(), 1e-9, "resolve is case-insensitive");

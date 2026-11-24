@@ -65,6 +65,7 @@ import com.ziggfreed.mmomobscaling.pages.ScalingPreview.Tier;
 import com.ziggfreed.mmomobscaling.rarity.Rarity;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.PartyRule;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
 
 /**
@@ -80,8 +81,9 @@ import com.ziggfreed.mmomobscaling.world.DifficultyMapping;
  *
  * <p><b>The Global tab's right column is the one place a consequence is shown</b>, and it is hand-built
  * because nothing there is a leaf to persist: a plain Skeleton through the CURRENT (uncommitted) curve
- * at five sample difficulties, a typed probe difficulty, the rarity ladder at the probed difficulty, and
- * a read-only panel of the player power scale this mod reads. Every figure comes out of
+ * at five sample difficulties, a typed probe difficulty, the rarity ladder at the probed difficulty, what a
+ * strong group changes there (the difficulty its mobs roll at against the one their health and damage
+ * read), and a read-only panel of the player power scale this mod reads. Every figure comes out of
  * {@link ScalingPreview}, which runs the same {@link MobScaleFold} the spawn path runs on a curve and
  * clamps built through {@link MobScalingConfig#buildCurve} / {@link MobScalingConfig#buildClamps}, the
  * one constructor pair every layer uses, so the preview can never disagree with a Save.
@@ -145,6 +147,9 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String LADDER_TITLE_SEL = "#MmoscalingLadderTitle";
     private static final String LADDER_NOTE_SEL = "#MmoscalingLadderNote";
     private static final String LADDER_LIST = "#MmoscalingLadderList";
+    // What a strong group changes at the ladder's difficulty: what it rolls at against what health and damage read.
+    private static final String GROUP_TITLE_SEL = "#MmoscalingGroupTitle";
+    private static final String GROUP_LINE_SEL = "#MmoscalingGroupLine";
     // The read-only MMO panel: what this mod can see of the player power scale, and where it is edited.
     private static final String MMO_TITLE_SEL = "#MmoscalingMmoTitle";
     private static final String MMO_POWER_SEL = "#MmoscalingMmoPower";
@@ -194,6 +199,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
     private static final String LEAF_MIN_CAP = "Difficulty.MinCap";
     private static final String LEAF_MAX_CAP = "Difficulty.MaxCap";
     private static final String LEAF_ONLY_RAISE = "OpenWorld.OnlyRaiseDifficulty";
+    private static final String LEAF_STAT_SHARE = "OpenWorld.GroupDeltaStatShare";
     private static final String LEAF_PARTY_ENABLED = "Party.Enabled";
 
     // The 9 named corner presets (technical ids, shown literally in the position dropdowns).
@@ -461,6 +467,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 false);
         cmd.append(PROBE_LIST, PREVIEW_ROW);
         cmd.set(LADDER_NOTE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.ladder_note"));
+        cmd.set(GROUP_TITLE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.group_title"));
         buildMmoPanel(cmd, ownPower);
         refreshPreview(cmd);
     }
@@ -525,6 +532,32 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             cmd.set(rowSel + " #Line.TextSpans", ladderLine(tier, base));
             cmd.set(rowSel + " #Detail.TextSpans", detailLine(tier.sample()));
         }
+        refreshGroupLine(cmd, at);
+    }
+
+    /**
+     * The preview's strong-group line, at the ladder's difficulty {@code place}: what a group strong enough to
+     * fill the band rolls rarity, affixes and casters at, against what the mobs' health and damage read, from the
+     * CURRENT form's band, caps and share ({@link ScalingPreview#strongGroup}, the spawn's own resolve). Player
+     * scaling's switch saves the moment it is pressed, so the live config holds it; with it off, one line says
+     * nearby players change nothing.
+     */
+    private void refreshGroupLine(@Nonnull UICommandBuilder cmd, double place) {
+        MobScalingConfig cfg = MobScalingConfig.getInstance();
+        if (!cfg.isPlayerScalingEnabled()) {
+            cmd.set(GROUP_LINE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.group_off"));
+            return;
+        }
+        double band = previewValue("bandWidth", cfg.getGroupDeltaBandWidth());
+        double min = previewValue("minCap", cfg.getDifficultyMinCap());
+        double max = Math.max(min, previewValue("maxCap", cfg.getDifficultyMaxCap()));
+        double share = previewValue("statShare", cfg.getGroupDeltaStatShare());
+        SpawnDifficulty strong = ScalingPreview.strongGroup(place, band, min, max, share);
+        cmd.set(GROUP_LINE_SEL + ".TextSpans", tr("mmomobscaling.ui.global.group_line")
+                .param("place", oneDecimal(strong.place()))
+                .param("power", oneDecimal(strong.place() + band))
+                .param("roll", oneDecimal(strong.roll()))
+                .param("stat", oneDecimal(strong.stat())));
     }
 
     /** One sample row: the difficulty and the three stamped factors on the line, kill time + rails on the detail. */
@@ -665,8 +698,11 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
             cmd.set(MMO_OWN_POWER_SEL + ".TextSpans",
                     tr("mmomobscaling.ui.mmo.own_power").param("power", Math.round(ownPower)));
         }
-        cmd.set(MMO_WHERE_SEL + ".TextSpans", tr(PlayerPowerReads.filled()
-                ? "mmomobscaling.ui.mmo.where" : "mmomobscaling.ui.mmo.where_gear"));
+        // Where a mod measures power, the line on the Mastery Pack's part in it joins the where line: what its
+        // bonuses count for is weighted on that mod's own page, never here.
+        cmd.set(MMO_WHERE_SEL + ".TextSpans", PlayerPowerReads.filled()
+                ? Message.join(tr("mmomobscaling.ui.mmo.where"), Message.raw("\n"), tr("mmomobscaling.ui.mmo.mastery"))
+                : tr("mmomobscaling.ui.mmo.where_gear"));
     }
 
     /**
@@ -1300,6 +1336,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("aggregation", blankToFirst(cfg.getOpenWorldAggregationMode(), AGGREGATION_MODES));
         seed.put("regionSize", String.valueOf(cfg.getRegionSizeChunks()));
         seed.put("bandWidth", num(cfg.getGroupDeltaBandWidth()));
+        seed.put("statShare", num(cfg.getGroupDeltaStatShare()));
         seed.put("onlyRaise", onOff(cfg.isOnlyRaiseDifficulty()));
         PartyRule party = cfg.partyRule();
         seed.put("partyEnabled", onOff(party.enabled()));
@@ -1379,6 +1416,7 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
         seed.put("wAggregation", dropdownOrInherit(ow == null ? null : ow.getAggregationMode()));
         seed.put("wRegionSize", intOrBlank(ow == null ? null : ow.getRegionSizeChunks()));
         seed.put("wBandWidth", numOrBlank(ow == null ? null : ow.getGroupDeltaBandWidth()));
+        seed.put("wStatShare", numOrBlank(ow == null ? null : ow.getGroupDeltaStatShare()));
         seed.put("wOnlyRaise", triOrInherit(ow == null ? null : ow.getOnlyRaiseDifficulty()));
         Party party = ws == null ? null : ws.getParty();
         seed.put("wPartyEnabled", triOrInherit(party == null ? null : party.getEnabled()));
@@ -1535,6 +1573,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                         ? ow.getAggregationMode() : cfg.getOpenWorldAggregationMode()));
         m.put("wBandWidth", Message.raw(num(ow != null && ow.getGroupDeltaBandWidth() != null
                 ? ow.getGroupDeltaBandWidth() : cfg.getGroupDeltaBandWidth())));
+        m.put("wStatShare", Message.raw(num(ow != null && ow.getGroupDeltaStatShare() != null
+                ? SpawnDifficulty.share(ow.getGroupDeltaStatShare()) : cfg.getGroupDeltaStatShare())));
         m.put("wRegionSize", Message.raw(String.valueOf(ow != null && ow.getRegionSizeChunks() != null
                 ? ow.getRegionSizeChunks() : cfg.getRegionSizeChunks())));
         m.put("wOnlyRaise", onOffDisplay(ow != null && ow.getOnlyRaiseDifficulty() != null
@@ -1715,6 +1755,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 .withHint("mmomobscaling.ui.hint.region_size"));
         s.add(FieldSpec.number("bandWidth", "OpenWorld.GroupDeltaBandWidth", "mmomobscaling.ui.global.band_width")
                 .withHint("mmomobscaling.ui.hint.band_width"));
+        s.add(FieldSpec.chance("statShare", LEAF_STAT_SHARE, "mmomobscaling.ui.global.stat_share")
+                .withHint("mmomobscaling.ui.hint.stat_share"));
         s.add(FieldSpec.toggle("onlyRaise", "mmomobscaling.ui.global.only_raise").withHint("mmomobscaling.ui.hint.only_raise"));
         s.add(FieldSpec.header("hdrParty", "mmomobscaling.ui.global.party_header"));
         s.add(FieldSpec.toggle("partyEnabled", "mmomobscaling.ui.global.party_enabled")
@@ -1820,6 +1862,8 @@ public final class MobScalingAdminPage extends InteractiveCustomUIPage<MobScalin
                 .withHint("mmomobscaling.ui.hint.region_size"));
         s.add(FieldSpec.number("wBandWidth", "OpenWorld.GroupDeltaBandWidth", "mmomobscaling.ui.global.band_width")
                 .withHint("mmomobscaling.ui.hint.band_width"));
+        s.add(FieldSpec.chance("wStatShare", LEAF_STAT_SHARE, "mmomobscaling.ui.global.stat_share")
+                .withHint("mmomobscaling.ui.hint.stat_share"));
         s.add(FieldSpec.tristate("wOnlyRaise", LEAF_ONLY_RAISE, "mmomobscaling.ui.global.only_raise")
                 .withHint("mmomobscaling.ui.hint.w_only_raise"));
         s.add(FieldSpec.header("wHdrParty", "mmomobscaling.ui.global.party_header"));

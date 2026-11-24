@@ -189,7 +189,8 @@ public final class AffixAsset implements JsonAssetWithMap<String, DefaultAssetMa
                 .add()
                 .appendInherited(new KeyedCodec<>("MinDifficulty", Codec.DOUBLE, false),
                         (r, v) -> r.minDifficulty = v, r -> r.minDifficulty, (r, p) -> r.minDifficulty = p.minDifficulty)
-                .documentation("The lowest spot difficulty this affix may roll at.")
+                .documentation("The lowest difficulty this affix may roll at: the place's own, plus what a strong"
+                        + " group nearby adds to what mobs roll.")
                 .add()
                 .appendInherited(new KeyedCodec<>("AllowedRarities", Codec.STRING_ARRAY, false),
                         (r, v) -> r.allowedRarities = v, r -> r.allowedRarities,

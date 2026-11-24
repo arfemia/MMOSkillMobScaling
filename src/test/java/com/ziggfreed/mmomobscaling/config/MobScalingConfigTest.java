@@ -220,6 +220,7 @@ class MobScalingConfigTest {
 
         carries(shipped.getRaritySpawnChance(), cfg.getRaritySpawnChance(), "RaritySpawnChance");
         carries(openWorld.getGroupDeltaBandWidth(), cfg.getGroupDeltaBandWidth(), "OpenWorld.GroupDeltaBandWidth");
+        carries(openWorld.getGroupDeltaStatShare(), cfg.getGroupDeltaStatShare(), "OpenWorld.GroupDeltaStatShare");
         carries(openWorld.getPlayerScalingStartRingBlocks(), cfg.getPlayerScalingStartRingBlocks(),
                 "OpenWorld.PlayerScalingStartRingBlocks");
         carries(difficulty.getFloor(), cfg.getDifficultyFloor(), "Difficulty.Floor");

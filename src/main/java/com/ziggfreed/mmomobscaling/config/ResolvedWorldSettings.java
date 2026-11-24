@@ -18,6 +18,7 @@ import com.ziggfreed.mmomobscaling.asset.MobScalingSettingsAsset.StatCurve;
 import com.ziggfreed.mmomobscaling.asset.WorldSettings;
 import com.ziggfreed.mmomobscaling.scaling.MobScaleFold;
 import com.ziggfreed.mmomobscaling.scaling.PartyRule;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 
 /**
  * A per-world overlay view over the global config: every EXPOSED leaf is
@@ -203,6 +204,12 @@ final class ResolvedWorldSettings implements SpawnScalingSettings {
         OpenWorld o = ow();
         return o != null && o.getGroupDeltaBandWidth() != null
                 ? Math.max(0.0, o.getGroupDeltaBandWidth()) : g.getGroupDeltaBandWidth();
+    }
+
+    @Override public double getGroupDeltaStatShare() {
+        OpenWorld o = ow();
+        return o != null && o.getGroupDeltaStatShare() != null
+                ? SpawnDifficulty.share(o.getGroupDeltaStatShare()) : g.getGroupDeltaStatShare();
     }
 
     @Override public boolean isOnlyRaiseDifficulty() {

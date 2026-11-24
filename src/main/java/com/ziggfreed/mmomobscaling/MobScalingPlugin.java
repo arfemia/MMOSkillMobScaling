@@ -41,7 +41,6 @@ import com.ziggfreed.mmomobscaling.event.MobScalingPresenceSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingRarityAttribution;
 import com.ziggfreed.mmomobscaling.event.MobScalingRollSystem;
 import com.ziggfreed.mmomobscaling.event.MobScalingSpawnHook;
-import com.ziggfreed.mmomobscaling.event.MobScalingXpReward;
 import com.ziggfreed.mmomobscaling.factor.EncounterPowerFill;
 import com.ziggfreed.mmomobscaling.factor.MobScalingFactors;
 import com.ziggfreed.mmomobscaling.scaling.RegionPowerTracker;
@@ -51,7 +50,7 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * Entry point for MMO Mob Scaling, a standalone open-world mob difficulty-scaling
  * companion to the MMO Skill Tree mod, running on ziggfreed-common alone: every exchange with the MMO
  * goes through a ziggfreed-common seam the MMO fills when installed (player power, a creature's ability
- * cast) or contributes to (the kill reward scale and qualifier), so the MMO is an optional presence,
+ * cast) or contributes to (the kill qualifier), so the MMO is an optional presence,
  * never a dependency.
  *
  * <p>It loads {@link MobScalingConfig} and applies the ZERO-COST registration gate: when the
@@ -68,7 +67,7 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * mob's {@code Server/MmoMobScaling/CasterRosters/*.json} abilities at spawn) +
  * {@code MobScalingCasterTickSystem} (casts an {@code ABILITY} entry through ziggfreed-common's
  * {@code NpcAbilityCasts} or re-arms a {@code NATIVE_CHAIN} entry's native attack override, both on the
- * roster's own cadence) - plus the kill reward scale and kill qualifier contributed to ziggfreed-common's
+ * roster's own cadence) - plus the kill qualifier contributed to ziggfreed-common's
  * progression runtime, and the fill of ziggfreed-common's encounter power seam (a bound fight reads the
  * tracked power of the region its boss stands in). Player power itself is read through ziggfreed-common's
  * player power seam ({@code PlayerPowerReads}), which MMO Skill Tree fills where it is installed.
@@ -76,7 +75,7 @@ import com.ziggfreed.mmomobscaling.world.ZoneDifficultyResolver;
  * <p>Version story: the compile pin in {@code gradle.properties} follows ziggfreed-common's version in
  * lockstep, and the manifest floor is the oldest version this mod really needs, moving up only for
  * newer API; see build.gradle. The
- * {@link LinkageError} guards around the newer seams (the kill reward scale, the encounter
+ * {@link LinkageError} guards around the newer seams (the kill qualifier, the encounter
  * runtime and power seam) are a safety net for a mis-installed server, not advertised
  * compatibility with an older jar.
  */
@@ -250,19 +249,18 @@ public class MobScalingPlugin extends JavaPlugin {
         // a disabled tick is two boolean reads.
         getEntityStoreRegistry().registerSystem(new MobScalingHudSystem());
 
-        // Reward and attribution, both through ziggfreed-common's one progression runtime, so neither mod
-        // imports the other: the kill reward scale makes a rarity kill pay more wherever a payer reads it (MMO
-        // Skill Tree's kill XP), and the kill qualifier hands the victim's rolled rarity to the kill moment, so a
-        // criterion naming a rarity matches and a kill drop command's {tier} placeholder resolves to it. A
-        // library older than the reward scale degrades to unscaled kills with one warning instead of refusing
-        // to load the mod.
+        // Attribution through ziggfreed-common's one progression runtime, so neither mod imports the other: the
+        // kill qualifier hands the victim's rolled rarity to the kill moment, so a criterion naming a rarity
+        // matches and a kill drop command's {tier} placeholder resolves to it. No kill reward scale: kill XP
+        // follows a mob's maximum health (R610), which already carries its rarity and its party, so a second
+        // multiplier here would pay a rare kill twice. A library older than the progression runtime degrades
+        // to unattributed kills with one warning instead of refusing to load the mod.
         try {
             ProgressionRuntime.registrar(MobScalingFactors.OWNER)
-                    .killQualifier(new MobScalingRarityAttribution())
-                    .killRewardScale(new MobScalingXpReward());
+                    .killQualifier(new MobScalingRarityAttribution());
         } catch (LinkageError e) {
-            safeWarn("ziggfreed-common's kill reward scale is unavailable on this jar; a rarity kill pays no more "
-                    + "than a plain one. Cause: " + e);
+            safeWarn("ziggfreed-common's kill qualifier is unavailable on this jar; a kill does not name the "
+                    + "victim's rarity. Cause: " + e);
         }
 
         // Publish what this mod knows about a mob (rarity, affixes, difficulty, region power) as ordinary

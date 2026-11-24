@@ -10,14 +10,15 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.ziggfreed.common.ui.hud.HudPosition;
 import com.ziggfreed.mmomobscaling.config.SpawnScalingSettings;
 import com.ziggfreed.mmomobscaling.i18n.LocationNameResolver;
+import com.ziggfreed.mmomobscaling.scaling.SpawnDifficulty;
 
 /**
- * The ZONE DIFFICULTY overlay: a small always-on card showing the local SPOT difficulty a spawn
- * resolves to (the same {@code MobScalingSpawnHook.resolveSpawnScaling} number {@code /mobscaling
- * inspect} reports, before any rarity multiplies it), a qualitative threat tier RELATIVE to the
+ * The ZONE DIFFICULTY overlay: a small always-on card showing the local PLACE difficulty a spawn
+ * resolves to (the same {@code MobScalingSpawnHook.resolveSpawnScaling} numbers {@code /mobscaling
+ * inspect} reports, before any rarity multiplies them), a qualitative threat tier RELATIVE to the
  * viewer ({@link ZoneTier}, coloured: how many times faster the viewer dies here than in a matched
  * fight, read off the world's own difficulty curve), the viewer's own power level, and the tracked
- * group (region) power when players share the region.
+ * group (region) power with what it adds (rarer mobs) when players share the region.
  * Driven by {@code MobScalingHudSystem} on a coarse throttle; hidden whenever mob scaling is off
  * for the world (the numbers would be meaningless). Its corner, its location line and the two
  * name-key prefixes are read off the PER-WORLD settings view the system hands it, so an instance may
@@ -106,17 +107,26 @@ public final class ZoneDifficultyHud extends ScalingHud {
      * when the location is off or there is no zone); the biome sub-line shows only under an authored
      * biome key family ({@link LocationNameResolver#biomeName}), so the shipped blank prefix shows the
      * zone alone rather than a raw biome id. Skips the packet when nothing changed since the last push.
+     *
+     * <p>{@code at} is the spot's two numbers, read in words: the difficulty row is the PLACE (with
+     * "group +N" beside it only where the world's {@code GroupDeltaStatShare} lets the group raise health and
+     * damage), and the group row says what the group adds to what mobs roll ("rarer mobs +N"). The tier word
+     * reads the difficulty the mobs' health and damage actually come from against the viewer's power.
      */
-    public void pushUpdate(@Nonnull SpawnScalingSettings settings, double difficulty, double playerPower,
+    public void pushUpdate(@Nonnull SpawnScalingSettings settings, @Nonnull SpawnDifficulty at, double playerPower,
             double groupPower, boolean visible, @Nonnull String zoneName, @Nonnull String biomeName) {
         markPushed();
 
-        long diffRounded = Math.round(difficulty);
+        // Shown as whole numbers that add up: the place, then the group's two additions measured from the
+        // rounded place, so "45, group +13" and "rarer +25" read against the same 45.
+        long placeRounded = Math.round(at.place());
+        long tougherRounded = Math.round(at.stat()) - placeRounded;
+        long rarerRounded = Math.round(at.roll()) - placeRounded;
         long powerRounded = Math.round(playerPower);
         long groupRounded = Math.round(groupPower);
-        // The tier word is the derived threat ratio off THIS world's own curve (the one its spawns fold on),
-        // so the word and the mob can never disagree; the number beside it stays the spot difficulty.
-        ZoneTier tier = ZoneTier.classify(settings.statCurveModel(), difficulty, playerPower);
+        // The tier word is the derived threat ratio off THIS world's own curve (the one its spawns fold on), at
+        // the difficulty the mobs' health and damage read, so the word and the mob can never disagree.
+        ZoneTier tier = ZoneTier.classify(settings.statCurveModel(), at.stat(), playerPower);
         boolean showLocation = settings.isZoneShowLocationName();
         boolean hasLocation = showLocation && (!zoneName.isBlank() || !biomeName.isBlank());
         // The friendly-name lang-key prefixes are config, so a reload (or a world-file edit) could change
@@ -124,8 +134,9 @@ public final class ZoneDifficultyHud extends ScalingHud {
         // repaints after one.
         String zonePrefix = settings.getZoneNameKeyPrefix();
         String biomePrefix = settings.getBiomeNameKeyPrefix();
-        String state = visible + "|" + diffRounded + "|" + powerRounded + "|" + groupRounded + "|" + tier
-                + "|" + hasLocation + "|" + zoneName + "|" + biomeName + "|" + zonePrefix + "|" + biomePrefix;
+        String state = visible + "|" + placeRounded + "|" + tougherRounded + "|" + rarerRounded + "|" + powerRounded
+                + "|" + groupRounded + "|" + tier + "|" + hasLocation + "|" + zoneName + "|" + biomeName + "|"
+                + zonePrefix + "|" + biomePrefix;
         if (state.equals(lastState)) {
             return; // identical readout: save the packet
         }
@@ -136,15 +147,19 @@ public final class ZoneDifficultyHud extends ScalingHud {
         if (visible) {
             cmd.set("#MmoscalingZoneTier.TextSpans", Message.translation(tier.langKey()));
             cmd.set("#MmoscalingZoneTier.Style.TextColor", tier.colorHex());
-            cmd.set("#MmoscalingZoneValue.TextSpans",
-                    Message.translation("mmomobscaling.hud.zone.difficulty").param("value", diffRounded));
+            cmd.set("#MmoscalingZoneValue.TextSpans", tougherRounded > 0
+                    ? Message.translation("mmomobscaling.hud.zone.difficulty_group")
+                            .param("value", placeRounded).param("group", tougherRounded)
+                    : Message.translation("mmomobscaling.hud.zone.difficulty").param("value", placeRounded));
             cmd.set("#MmoscalingZonePower.TextSpans",
                     Message.translation("mmomobscaling.hud.zone.power").param("power", powerRounded));
             boolean hasGroup = groupPower > 0.0;
             cmd.set("#MmoscalingZoneGroup.Visible", hasGroup);
             if (hasGroup) {
-                cmd.set("#MmoscalingZoneGroup.TextSpans",
-                        Message.translation("mmomobscaling.hud.zone.group").param("power", groupRounded));
+                cmd.set("#MmoscalingZoneGroup.TextSpans", rarerRounded > 0
+                        ? Message.translation("mmomobscaling.hud.zone.group_rarer")
+                                .param("power", groupRounded).param("bonus", rarerRounded)
+                        : Message.translation("mmomobscaling.hud.zone.group").param("power", groupRounded));
             }
             // The ZONE name is the panel TITLE (the redundant static "ZONE DIFFICULTY" header is gone); the
             // BIOME is the sub-line below it. Both are CLIENT-resolved names (nested Messages, never

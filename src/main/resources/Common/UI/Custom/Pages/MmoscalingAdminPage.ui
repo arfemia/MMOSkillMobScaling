@@ -192,6 +192,20 @@ $F.@ZigDecoratedFrame {
             LayoutMode: Top;
           }
 
+          // What a strong group changes at the ladder's difficulty: the difficulty its mobs roll rarity, affixes
+          // and casters at against the one their health and damage read, from the form's band, caps and share
+          // (MobScalingAdminPage.refreshGroupLine).
+          Label #MmoscalingGroupTitle {
+            Text: "";
+            Anchor: (Height: 22, Top: 10, Bottom: 4);
+            Style: $ZM.@ZigFormHeaderStyle;
+          }
+          Label #MmoscalingGroupLine {
+            Text: "";
+            Anchor: (Bottom: 8);
+            Style: @PreviewLineStyle;
+          }
+
           // Player power, READ ONLY: the player power floor and ceiling this mod reads through
           // ziggfreed-common (or one line saying it cannot), the viewing admin's own power, how the
           // form's Min/Max caps sit against them, and where those numbers are edited. Nothing here writes

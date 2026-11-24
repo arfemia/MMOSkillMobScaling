@@ -191,7 +191,10 @@ public final class MobScalingSettingsAsset
         @Nullable public String[] getSkipGroups() { return skipGroups; }
     }
 
-    /** Open-world group-power aggregation: how nearby players fold into a region's difficulty delta. */
+    /**
+     * Open-world group-power aggregation: how nearby players fold into a region's group delta, which moves what a
+     * mob rolls (rarity, variant, affixes, casters) and, by {@code GroupDeltaStatShare}, its health and damage.
+     */
     public static final class OpenWorld {
         public static final BuilderCodec<OpenWorld> CODEC = BuilderCodec.builder(OpenWorld.class, OpenWorld::new)
                 // How a region's participant powers fold: SOLO | AVERAGE | PEAK | WEIGHTED | DISABLED.
@@ -233,6 +236,18 @@ public final class MobScalingSettingsAsset
                 .append(new KeyedCodec<>("PlayerScalingStartRingBlocks", Codec.DOUBLE, false),
                         (o, v) -> o.playerScalingStartRingBlocks = v, o -> o.playerScalingStartRingBlocks)
                 .add()
+                // The share of the group's move that also reaches health and damage (SpawnDifficulty.stat). The
+                // group always moves what a mob rolls (rarity, variant, affixes, casters); this decides whether it
+                // moves the mob's numbers too.
+                .append(new KeyedCodec<>("GroupDeltaStatShare", Codec.DOUBLE, false),
+                        (o, v) -> o.groupDeltaStatShare = v, o -> o.groupDeltaStatShare)
+                .metadata(EditorSchema.defaultValue(0.0))
+                .documentation("How much of a nearby group's power also raises mob health and damage, from 0 to 1."
+                        + " At 0 a mob's health and damage come from the place alone, and a strong group meets"
+                        + " rarer mobs, more affixes and more casters, never tougher ones. At 1 the group's power"
+                        + " raises health and damage as well, by as much as it moves what mobs roll. Between the"
+                        + " two blends: 0.5 gives health and damage half the group's move.")
+                .add()
                 .build();
 
         @Nullable private String aggregationMode;
@@ -241,6 +256,7 @@ public final class MobScalingSettingsAsset
         @Nullable private Boolean onlyRaiseDifficulty;
         @Nullable private Boolean playerScalingEnabled;
         @Nullable private Double playerScalingStartRingBlocks;
+        @Nullable private Double groupDeltaStatShare;
 
         @Nullable public String getAggregationMode() { return aggregationMode; }
         @Nullable public Integer getRegionSizeChunks() { return regionSizeChunks; }
@@ -248,6 +264,7 @@ public final class MobScalingSettingsAsset
         @Nullable public Boolean getOnlyRaiseDifficulty() { return onlyRaiseDifficulty; }
         @Nullable public Boolean getPlayerScalingEnabled() { return playerScalingEnabled; }
         @Nullable public Double getPlayerScalingStartRingBlocks() { return playerScalingStartRingBlocks; }
+        @Nullable public Double getGroupDeltaStatShare() { return groupDeltaStatShare; }
     }
 
     /**

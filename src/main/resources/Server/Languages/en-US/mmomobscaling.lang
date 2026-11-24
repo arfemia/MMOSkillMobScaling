@@ -26,7 +26,9 @@ command.inspect.power = Your power level: {power}
 command.inspect.world = World difficulty floor: {floor} (scaling active: {enabled})
 command.inspect.zone = Zone {zone}: base floor {base}, distance bonus +{bonus}, effective floor {floor}
 command.inspect.region = Tracked region power: {power} (mode {mode}, tracked players: {tracked})
-command.inspect.difficulty = Effective spawn difficulty here: {difficulty}
+command.inspect.place = The place: difficulty {place}. Mob health and damage come from it.
+command.inspect.place_shared = The place: difficulty {place}. Mob health and damage read {stat}, the place plus {share}% of what nearby players add.
+command.inspect.roll = Rarity, affixes and casters roll at {roll} here: the place plus {bonus} from nearby players' power.
 command.inspect.curve = Plain-mob stat curve here: HP x{hp}, outgoing dmg x{out}, incoming taken x{in}
 command.inspect.chance = Rarity spawn chance: {chance}
 command.inspect.player_scaling = Player scaling: {applied} (enabled: {enabled}, start ring: {ring} blocks, inside ring: {inRing}, distance from spawn: {distance})
@@ -64,8 +66,10 @@ command.arg.hud_offset_y = Optional pixel offset from the anchored vertical edge
 # Zone-difficulty HUD (the tier words are qualitative threat reads relative to the viewer).
 hud.zone.title = ZONE DIFFICULTY
 hud.zone.difficulty = Difficulty {value}
+hud.zone.difficulty_group = Difficulty {value}, group +{group}
 hud.zone.power = Your power: {power}
 hud.zone.group = Group power: {power}
+hud.zone.group_rarer = Group power {power}: rarer mobs +{bonus}
 hud.zone.tier.trivial = Trivial
 hud.zone.tier.easy = Easy
 hud.zone.tier.fair = Fair
@@ -74,6 +78,7 @@ hud.zone.tier.deadly = Deadly
 
 # Mob-inspector HUD (name + rarity render from their own keys; these are the fixed frames).
 hud.inspect.difficulty = Difficulty {value}
+hud.inspect.rolled = Rarity roll: {roll} (players near)
 hud.inspect.hp = {current} / {max}
 
 affix.armored.name = Armored
@@ -133,6 +138,7 @@ ui.global.player_ring = Player scaling start ring (blocks)
 ui.global.aggregation = Group power aggregation
 ui.global.region_size = Region size (chunks)
 ui.global.band_width = Group power band width
+ui.global.stat_share = Group share of health and damage
 ui.global.only_raise = Only raise difficulty
 ui.global.difficulty_header = Difficulty
 ui.global.floor = Baseline difficulty floor
@@ -177,6 +183,10 @@ ui.global.ladder_title = Rarity ladder at D{diff}
 ui.global.ladder_note = Each tier reads the same curve at this difficulty times its own multiplier. Type a difficulty above to move the ladder; blank follows the baseline floor.
 ui.global.ladder_row = {name} x{mult}   D{diff}   HP {hp}   Hit {out}   Taken {in}%
 ui.global.ladder_plain = Plain
+# What a strong group changes at the ladder's difficulty: {place}/{power}/{roll}/{stat} are DATA, not prose.
+ui.global.group_title = What a strong group changes
+ui.global.group_line = At D{place}, a group with power {power} or more rolls rarity, affixes and casters as at D{roll}. Health and damage read D{stat}.
+ui.global.group_off = Player scaling is off, so nearby players change nothing here.
 ui.number = {n}
 
 # The read-only player power panel under the ladder: the player power scale this mod reads through
@@ -187,10 +197,11 @@ ui.mmo.power = Player power runs from {min} to {max}. A plain mob at difficulty 
 ui.mmo.unavailable = Player power range: not available. The ziggfreed-common this mod runs on is older than the one it was built against.
 ui.mmo.own_power = Your own power right now: {power}
 ui.mmo.cap_above = Your maximum difficulty {cap} sits above the power ceiling {max}, so far zones can out-scale even a maxed group. That is the supported way to do it.
-ui.mmo.cap_below = Your maximum difficulty {cap} sits below the power ceiling {max}. Every group past it meets the same difficulty; raise the maximum to at least {max}.
+ui.mmo.cap_below = Your maximum difficulty {cap} sits below the power ceiling {max}. No place gets harder than it, so a player stronger than that never finds an even fight; raise the maximum to at least {max}.
 ui.mmo.cap_equal = Your maximum difficulty {cap} matches the power ceiling {max}: a maxed group meets an even fight at the top and nothing harder.
 ui.mmo.floor_mismatch = Your minimum difficulty {min} differs from the power floor {powerMin}; the two scales should start together.
 ui.mmo.where = A mod measures player power here, and those numbers are edited on its side, not here. For MMO Skill Tree that is the Power Level page of its admin menu, or mods/mmoskilltree/power-level.json (Clamp.MinPower and MaxPower). The player mitigation ceilings the hit curve is derived against live on its Modifier Clamps page, or in mods/mmoskilltree/ability-clamps.json over Server/MMOSkillTree/ModifierClamps, and this mod cannot read them.
+ui.mmo.mastery = Mastery Pack bonuses count toward player power by what they do. How much they count is set on MMO Skill Tree's Power Level page (the Mastery weight).
 ui.mmo.where_gear = No mod measures player power here, so it is read from the gear each player has on: the item level of the armor worn and of the best weapon on the hotbar. How much each counts, and the lowest and highest power, are on the owner menu (/zigadmin) under Player Power, or in mods/ziggfreedcommon/player-power.json.
 
 # Difficulty stat curve values (shared by the Global tab and the per-world editor).
@@ -271,7 +282,7 @@ ui.floor.type_inherit = Inherit
 ui.floor.target = Zone or biome name
 ui.floor.value = Floor difficulty
 ui.floor.row_sub = {type} {target}, floor {floor}
-ui.floor.hint = A floor is the difficulty a spawn starts from before distance and nearby players add to it. The most specific mapping wins: an exact zone name, then a zone family such as Zone2 for every Zone2_ sub-zone, then the same for biomes, then the * wildcards, then the baseline floor on the Global tab. Leave a field blank to keep what the shipped mapping says.
+ui.floor.hint = A floor is the difficulty a spawn starts from before distance adds to it; nearby players change how rare its mobs are, and their health and damage only by the group share on the Global tab. The most specific mapping wins: an exact zone name, then a zone family such as Zone2 for every Zone2_ sub-zone, then the same for biomes, then the * wildcards, then the baseline floor on the Global tab. Leave a field blank to keep what the shipped mapping says.
 
 # ============================================================================
 # Inline setting hints (round-2 admin-UX hardening). ONE qualitative sentence each, no digits (magnitudes
@@ -304,12 +315,13 @@ ui.hint.esc_start = The distance from the origin a player can travel before dist
 ui.hint.esc_blocks = How many blocks past the start distance add one more point of difficulty.
 ui.hint.esc_max_bonus = The most extra difficulty distance escalation can ever add.
 ui.hint.esc_rarity = How much extra rarity spawn chance distance escalation adds per escalation point.
-ui.hint.player_scaling = Whether nearby players and their power raise a region's difficulty at all.
-ui.hint.player_ring = Protected radius around the world spawn where nearby player power never raises difficulty. Zero means no protected area, so group scaling applies everywhere.
-ui.hint.aggregation = How the power of multiple nearby players folds into one region difficulty reading.
-ui.hint.region_size = How many chunks across one group-power region is. Players inside the same square count as one group for the difficulty they meet.
-ui.hint.band_width = The most a region's difficulty can swing above its baseline from nearby player power.
-ui.hint.only_raise = When on, nearby player power can only raise a region's difficulty, never soften it below the baseline.
+ui.hint.player_scaling = Whether nearby players' power makes rarer mobs, affixes and casters more likely at all. How much of it also reaches health and damage is the group share below.
+ui.hint.player_ring = Protected radius around the world spawn where nearby player power changes nothing. Zero means no protected area, so group scaling applies everywhere.
+ui.hint.aggregation = How the power of multiple nearby players folds into one group power for the region.
+ui.hint.region_size = How many chunks across one group-power region is. Players inside the same square count as one group for what their mobs roll at.
+ui.hint.band_width = The most nearby player power can move what a region's mobs roll their rarity, affixes and casters at, away from the place's own difficulty.
+ui.hint.stat_share = How much of a nearby group's power also raises mob health and damage. Zero keeps health and damage on the place alone, so a strong group only meets rarer mobs, more affixes and more casters; one lets it raise health and damage as much as what mobs roll.
+ui.hint.only_raise = When on, nearby player power can only raise what a region's mobs roll at, never lower it below the place's own difficulty.
 ui.hint.party_enabled = Whether a mob grows tougher for the players standing near it the first time it turns on one of them. Off leaves its health to the place alone.
 ui.hint.party_radius = How far from the mob a player counts toward its party; a player right at the edge counts.
 ui.hint.party_two = The mob's health multiplier when exactly two players stand near it.
@@ -341,8 +353,8 @@ ui.hint.world_gameplay_configs = Gameplay config keys this file applies to, comm
 ui.hint.world_exclude_match = World names or patterns this file must never apply to, comma-separated, even when a match above would catch them.
 ui.hint.w_enabled = Whether mob scaling runs in this world at all. Inherit follows the parent file, then the global setting.
 ui.hint.w_esc_enabled = Whether distance escalation applies in this world. Inherit follows the parent file, then the global setting.
-ui.hint.w_player_scaling = Whether nearby players raise difficulty in this world. Inherit follows the parent file, then the global setting.
-ui.hint.w_only_raise = Whether nearby player power can only raise, never soften, difficulty here. Inherit follows the parent file, then the global setting.
+ui.hint.w_player_scaling = Whether nearby players' power makes rarer mobs more likely in this world. Inherit follows the parent file, then the global setting.
+ui.hint.w_only_raise = Whether nearby player power can only raise, never lower, what mobs roll at here. Inherit follows the parent file, then the global setting.
 ui.hint.w_party_enabled = Whether mobs grow tougher for the players near them in this world. Turn it off where the world already brings more foes for a bigger party. Inherit follows the parent file, then the global setting.
 ui.hint.pool_rarities_allow = Rarity tiers permitted to roll here; leave blank to allow every tier.
 ui.hint.pool_rarities_deny = Rarity tiers forbidden from rolling here; denial always wins over allow.
@@ -359,7 +371,7 @@ ui.hint.w_insp_portrait = Whether the inspector card shows the target's portrait
 ui.hint.floor_id = The file this floor is saved under in mods/MmoMobScaling/difficulty. Name it after a shipped mapping to retune that one; leave it blank to name it after the zone or biome.
 ui.hint.floor_type = Whether the name below is a zone or a biome. Inherit keeps the shipped mapping's answer.
 ui.hint.floor_target = The game's own zone or biome name, such as Zone2_Tier1 or Ocean1. A family name like Zone2 covers every Zone2_ sub-zone, and * covers whatever the other mappings miss.
-ui.hint.floor_value = The difficulty a spawn there starts from. Distance escalation and nearby player power add on top, then the minimum and maximum clamp it.
+ui.hint.floor_value = The difficulty a spawn there starts from. Distance escalation adds on top, then the minimum and maximum clamp it.
 
 # Status line.
 ui.status.saved = Saved.
@@ -389,7 +401,7 @@ form.cries.heading.roll = How often it rolls
 form.cries.weight = Weight
 form.cries.weight.hint = How often this affix is picked for a slot against the other affixes that may take it there. Zero never picks it.
 form.cries.min_difficulty = Lowest difficulty
-form.cries.min_difficulty.hint = The lowest spot difficulty it may roll at.
+form.cries.min_difficulty.hint = The lowest difficulty it may roll at. A strong group nearby raises the difficulty mobs roll at.
 form.cries.heading.cry = The war cry
 form.cries.windup = Warning (seconds)
 form.cries.windup.hint = How long the mob stands and cries before the buff lands: the time players get to step back or strike first.
